@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Erro no Sistema</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="p-4 bg-light">
+
+<!-- templates/gerencial/erro.html -->
+<div class="container mt-5">
+    <div class="alert alert-danger">
+        <h4 class="alert-heading">{{ mensagem }}</h4>
+        <hr>
+        {% if codigo_erro %}
+        <p class="mb-1">Código do erro: <strong>{{ codigo_erro }}</strong></p>
+        {% endif %}
+        <p class="mb-3">{{ detalhes }}</p>
+        
+        {% if stack_trace %}
+        <button class="btn btn-sm btn-outline-danger" type="button" 
+                data-bs-toggle="collapse" data-bs-target="#stackTrace">
+            Detalhes técnicos
+        </button>
+        <div class="collapse mt-2" id="stackTrace">
+            <div class="card card-body">
+                <pre class="mb-0">{{ stack_trace }}</pre>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    <a href="{{ url_for('gerencial.dashboard') }}" class="btn btn-primary">
+        Voltar ao Dashboard
+    </a>
+</div>
+</body>
+</html>

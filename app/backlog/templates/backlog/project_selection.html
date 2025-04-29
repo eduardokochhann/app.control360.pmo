@@ -1,0 +1,583 @@
+{% extends 'base.html' %}
+
+{% block title %}Selecionar Projeto{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Ajuste opcional para melhor alinhamento dos filtros */
+    .filter-row .form-select,
+    .filter-row .form-control {
+        /* min-width: 180px; */ /* Ou outra largura mínima */
+    }
+    /* Melhoria visual Cards */
+    .project-card .card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    .project-card .card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--bs-card-box-shadow, 0 0.5rem 1rem rgba(0, 0, 0, 0.15)) !important; /* Usa variável Bootstrap ou fallback */
+    }
+    .card-body .card-title {
+        font-weight: 600; /* Título do projeto um pouco mais forte */
+    }
+    .card-body .card-text strong {
+        display: inline-block;
+        /* width: 85px; */ /* Alinha os dois pontos, opcional */
+    }
+    .card-body .card-text i.bi {
+        margin-right: 0.3rem;
+        color: var(--bs-secondary); /* Cor cinza para ícones */
+        font-size: 0.9em;
+        vertical-align: baseline;
+    }
+    /* Cabeçalho do Grupo de Squad */
+    .squad-group-header {
+        /* font-size: 1.2rem; */
+        font-weight: 600;
+        color: var(--bs-primary);
+        /* border-bottom: 2px solid var(--bs-primary); */
+        padding-bottom: 0.3rem;
+        margin-bottom: 1rem;
+        margin-top: 1.5rem; /* Espaço antes do cabeçalho */
+        /* width: 100%; */ /* Remover, pois agora é um botão dentro */
+        display: flex; /* Para alinhar botão e span de resumo */
+        justify-content: space-between;
+        align-items: center;
+    }
+    .squad-group-header .btn-collapse-group {
+        text-decoration: none; /* Remove underline do link/botão */
+        color: inherit; /* Herda cor do h5 */
+        font-weight: inherit; /* Herda peso */
+        text-align: left;
+        padding: 0;
+    }
+    .squad-group-header .btn-collapse-group:hover,
+    .squad-group-header .btn-collapse-group:focus {
+        color: var(--bs-primary-dark); /* Escurece um pouco no hover */
+        box-shadow: none; /* Remove foco */
+    }
+    /* Ícone de seta (opcional) */
+    .squad-group-header .btn-collapse-group .collapse-icon::before {
+        content: '\F282'; /* Bootstrap Icons: chevron-down */
+        font-family: 'bootstrap-icons';
+        display: inline-block;
+        transition: transform 0.2s ease-in-out;
+        margin-right: 0.4rem;
+        font-size: 0.8em;
+    }
+    .squad-group-header .btn-collapse-group[aria-expanded="true"] .collapse-icon::before {
+        transform: rotate(-180deg);
+    }
+    /* Estilo para destacar texto encontrado na busca */
+    .highlight {
+        background-color: #fff3cd; /* Amarelo claro (warning-subtle do Bootstrap) */
+        font-weight: 600; /* Ou apenas bold */
+        padding: 0.1em; /* Pequeno padding */
+        border-radius: 0.2rem;
+    }
+    /* Redução e Borda Lateral dos Cards */
+    .project-card .card {
+        border-left: 4px solid var(--bs-secondary-bg); /* Borda inicial sutil */
+    }
+    .project-card[data-status="em atendimento"] .card { border-left-color: var(--bs-primary); }
+    .project-card[data-status="novo"] .card { border-left-color: var(--bs-info); }
+    .project-card[data-status="aguardando"] .card { border-left-color: var(--bs-warning); }
+    .project-card[data-status="bloqueado"] .card { border-left-color: var(--bs-danger); }
+    /* Adicionar outras cores se necessário */
+
+    .project-card .card-body {
+        padding: 0.8rem 1rem; /* Padding reduzido */
+    }
+    .project-card .card-title {
+        font-size: 0.95rem; /* Fonte título menor */
+    }
+    .project-card .card-subtitle {
+        font-size: 0.75rem; /* Fonte subtítulo menor */
+    }
+    .project-card .card-text.small {
+        font-size: 0.78rem; /* Fonte texto menor */
+        margin-bottom: 0.5rem; /* Menos espaço antes da contagem */
+    }
+    .project-card .mt-2.text-muted.small {
+        font-size: 0.75rem; /* Fonte contagem tarefas menor */
+        margin-top: 0.3rem !important; /* Menos espaço acima contagem*/
+    }
+    .project-card .badge {
+        font-size: 0.7rem; /* Badges menores */
+    }
+    .project-card .btn-sm {
+         font-size: 0.8rem; /* Botão um pouco menor */
+         padding: 0.2rem 0.5rem; 
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0">Selecione um Projeto</h4>
+        {# Você pode adicionar um botão aqui se necessário #}
+        {# --- Controles de Agrupamento --- #}
+        <div class="btn-group btn-group-sm" role="group" aria-label="Agrupar por">
+            <input type="radio" class="btn-check" name="groupingOptions" id="groupSquad" autocomplete="off" {% if current_grouping == 'squad' %}checked{% endif %} onchange="window.location.href='{{ url_for('.project_selection', group_by='squad') }}'">
+            <label class="btn btn-outline-primary" for="groupSquad"><i class="bi bi-grid-1x2-fill me-1"></i> Squad</label>
+
+            <input type="radio" class="btn-check" name="groupingOptions" id="groupSpecialist" autocomplete="off" {% if current_grouping == 'specialist' %}checked{% endif %} onchange="window.location.href='{{ url_for('.project_selection', group_by='specialist') }}'">
+            <label class="btn btn-outline-primary" for="groupSpecialist"><i class="bi bi-person-badge-fill me-1"></i> Especialista</label>
+        </div>
+        {# --- Fim Controles --- #}
+    </div>
+
+    {# --- Filtros --- #}
+    <div class="row g-2 mb-4 filter-row align-items-end">
+        <div class="col-md-3">
+            <label for="projectSearchInput" class="form-label form-label-sm">Buscar</label>
+            <input type="text" id="projectSearchInput" class="form-control form-control-sm" placeholder="Nome, ID...">
+        </div>
+        <div class="col-md-2">
+            <label for="squadFilter" class="form-label form-label-sm">Squad</label>
+            <select id="squadFilter" class="form-select form-select-sm">
+                <option value="" selected>Todos</option>
+                {% for squad in squad_options %}
+                <option value="{{ squad|lower }}">{{ squad }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="specialistFilter" class="form-label form-label-sm">Especialista</label>
+            <select id="specialistFilter" class="form-select form-select-sm">
+                <option value="" selected>Todos</option>
+                {% for specialist in specialist_options %}
+                <option value="{{ specialist|lower }}">{{ specialist }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="statusFilter" class="form-label form-label-sm">Status</label>
+            <select id="statusFilter" class="form-select form-select-sm">
+                <option value="" selected>Todos</option>
+                {% for status in status_options %}
+                <option value="{{ status|lower }}">{{ status }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2 d-flex justify-content-end">
+            <button id="clearFiltersBtn" class="btn btn-outline-secondary btn-sm">Limpar</button>
+        </div>
+    </div>
+    {# --- Fim Filtros --- #}
+
+    {% if error %}
+        <div class="alert alert-danger" role="alert">
+            {{ error }}
+        </div>
+    {% endif %}
+
+    <div class="row" id="projectCardContainer">
+        {% if projects %}
+            {# Loop para iterar sobre projetos e adicionar cabeçalhos de squad #}
+            {% for project in projects %}
+                {# --- Lógica Condicional para Cabeçalho --- #}
+                {% set current_group_value = project.specialist if current_grouping == 'specialist' else project.squad %}
+                {% set group_label = "Especialista" if current_grouping == 'specialist' else "Squad" %}
+                {% set group_icon = "bi-person-badge-fill" if current_grouping == 'specialist' else "bi-grid-1x2-fill" %}
+                {% set group_key_attr = "specialist" if current_grouping == 'specialist' else "squad" %}
+                {% set group_value_display = current_group_value if current_group_value else 'Não Alocado' %}
+                {% set group_value_key = (current_group_value|lower if current_group_value else 'nao-alocado') %}
+                {# Gera um ID seguro para o collapse #}
+                {% set collapse_id = 'collapse-' + group_key_attr + '-' + group_value_key|replace(' ', '-')|replace('.', '')|replace('@', '') %}
+
+                {% if loop.previtem %}
+                    {% set prev_group_value = loop.previtem.specialist if current_grouping == 'specialist' else loop.previtem.squad %}
+                    {% if current_group_value != prev_group_value %}
+                        </div> {# Fecha a div.row do grupo anterior #}
+                        {# Adiciona cabeçalho se o grupo mudou #}
+                        <h5 class="squad-group-header col-12"
+                            data-{{ group_key_attr }}-header="{{ group_value_key }}"> {# Atributo para JS ainda útil #}
+                             <button class="btn btn-link btn-collapse-group" type="button" data-bs-toggle="collapse" data-bs-target="#{{ collapse_id }}" aria-expanded="true" aria-controls="{{ collapse_id }}">
+                                 <span class="collapse-icon"></span> {# Ícone de seta #}
+                                 <i class="bi {{ group_icon }} me-1"></i> {{ group_label }}: {{ group_value_display }}
+                             </button>
+                             <span class="squad-summary ms-2 badge bg-light text-dark border"></span>
+                        </h5>
+                        {# Abre a nova div.row colapsável #}
+                        <div class="row collapse show" id="{{ collapse_id }}">
+                    {% endif %}
+                {% elif loop.first %}
+                    {# Abre a div.row colapsável para o primeiro grupo #}
+                    {# Adiciona cabeçalho para o primeiro item #}
+                     {# Cabeçalho para o primeiro squad #}
+                      <h5 class="squad-group-header col-12"
+                         data-{{ group_key_attr }}-header="{{ group_value_key }}"> {# Atributo para JS ainda útil #}
+                          <button class="btn btn-link btn-collapse-group" type="button" data-bs-toggle="collapse" data-bs-target="#{{ collapse_id }}" aria-expanded="true" aria-controls="{{ collapse_id }}">
+                              <span class="collapse-icon"></span> {# Ícone de seta #}
+                              <i class="bi {{ group_icon }} me-1"></i> {{ group_label }}: {{ group_value_display }}
+                          </button>
+                          <span class="squad-summary ms-2 badge bg-light text-dark border"></span> {# Placeholder para resumo #}
+                      </h5>
+                      {# Abre a nova div.row colapsável #}
+                      <div class="row collapse show" id="{{ collapse_id }}">
+                  {% endif %}
+                  {# --- Fim Lógica Cabeçalho --- #}
+
+                  {# Renderiza o card do projeto (agora dentro da div colapsável) #}
+                  <div class="col-md-4 col-lg-3 mb-3 project-card" 
+                       data-name="{{ project.name|lower }}" 
+                       data-id="{{ project.id }}" 
+                       data-squad="{{ project.squad|lower if project.squad else '' }}"
+                       data-status="{{ project.status|lower if project.status else '' }}"
+                       data-specialist="{{ project.specialist|lower if project.specialist else '' }}">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title mb-1">{{ project.name }}</h5> {# Menos margem no título #}
+                            <h6 class="card-subtitle mb-2 text-muted">ID: {{ project.id }}</h6>
+                            <p class="card-text small">
+                                {% if project.squad and project.squad != 'Não Alocado' %}
+                                    <i class="bi bi-people-fill"></i><strong>Squad:</strong> {{ project.squad }}<br>
+                                {% endif %}
+                                {% if project.specialist %}
+                                    <i class="bi bi-person-fill"></i><strong>Especialista:</strong> {{ project.specialist }}<br>
+                                {% endif %}
+                                {% if project.status %}
+                                    <i class="bi bi-flag-fill"></i><strong>Status:</strong> 
+                                    <span class="badge 
+                                        {% if project.status == 'EM ATENDIMENTO' %} bg-primary
+                                        {% elif project.status == 'NOVO' %} bg-info text-dark
+                                        {% elif project.status == 'AGUARDANDO' %} bg-warning text-dark
+                                        {% elif project.status == 'BLOQUEADO' %} bg-danger
+                                        {% else %} bg-secondary
+                                        {% endif %}
+                                    ">{{ project.status }}</span>
+                                {% endif %}
+                            </p>
+                            {# Mostra contagem de tarefas #}
+                            <div class="mt-2 text-muted small">
+                                <i class="bi bi-list-task"></i> Tarefas no Backlog: 
+                                <span class="fw-bold">{{ project.task_count }}</span>
+                            </div>
+                            {# Botão no final do card #}
+                            <div class="mt-auto d-flex justify-content-between align-items-center"> {# Container para alinhar botão e indicador #}
+                                {# Indicador Sem Backlog (se aplicável) #}
+                                {% if not project.backlog_exists %}
+                                    <span class="badge bg-light text-dark border border-secondary-subtle"> <i class="bi bi-journal-x me-1"></i> Sem Backlog</span>
+                                {% else %}
+                                    <span></span> {# Placeholder para manter alinhamento #}
+                                {% endif %}
+
+                                {# Botão condicional #}
+                                {% if project.backlog_exists %}
+                                    <a href="{{ url_for('backlog.board_by_project', project_id=project.id) }}" 
+                                    class="btn btn-primary btn-sm"> 
+                                        <i class="bi bi-kanban me-1"></i> Abrir Quadro
+                                    </a>
+                                {% else %}
+                                    <button 
+                                        class="btn btn-outline-success btn-sm create-backlog-btn" 
+                                        data-project-id="{{ project.id }}"
+                                        data-project-name="{{ project.name }}">
+                                        <i class="bi bi-plus-lg me-1"></i> Criar Backlog
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {# Fecha a div.row colapsável no ÚLTIMO item #}
+                {% if loop.last %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            {% if not error %}
+                <div class="col">
+                    <p class="text-muted">Nenhum projeto ativo encontrado.</p>
+                </div>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    {# Mensagem para quando nenhum projeto for encontrado #}
+    <div id="noProjectsMessage" class="col-12 text-center text-muted mt-5" style="display: none;">
+        <i class="bi bi-search fs-3"></i>
+        <p class="mt-2">Nenhum projeto encontrado com os filtros aplicados.</p>
+    </div>
+
+</div>
+
+{# Script de Filtro #}
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('projectSearchInput');
+        const squadFilter = document.getElementById('squadFilter');
+        const specialistFilter = document.getElementById('specialistFilter');
+        const statusFilter = document.getElementById('statusFilter');
+        const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+        const container = document.getElementById('projectCardContainer');
+        const cards = container.querySelectorAll('.project-card');
+
+        function applyFilters() {
+            const textFilter = searchInput.value.toLowerCase().trim();
+            const squadValue = squadFilter.value;
+            const specialistValue = specialistFilter.value;
+            const statusValue = statusFilter.value;
+            let visibleCount = 0;
+
+            // Função para remover highlights anteriores
+            function removeHighlights(element) {
+                element.querySelectorAll('.highlight').forEach(span => {
+                    // Substitui o span de highlight pelo seu conteúdo de texto
+                    span.replaceWith(span.textContent);
+                });
+                // Normaliza o nó para juntar textos adjacentes (otimização)
+                // A normalização pode quebrar a estrutura se outros elementos estiverem entre nós de texto, remover por segurança.
+                // element.normalize();
+            }
+
+            // Função para adicionar highlight (case-insensitive)
+            function addHighlight(element, textToHighlight) {
+                if (!textToHighlight) return; // Não faz nada se filtro vazio
+                const regex = new RegExp(textToHighlight.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi'); // Escapa regex e case-insensitive
+                
+                // Itera sobre os nós de texto dentro do elemento
+                const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+                let node;
+                const nodesToProcess = [];
+                while(node = walker.nextNode()) {
+                    // Evita nós dentro de scripts ou styles (embora não deva ter aqui)
+                    if (node.parentElement.tagName !== 'SCRIPT' && node.parentElement.tagName !== 'STYLE') {
+                        if (node.textContent.match(regex)) {
+                             nodesToProcess.push(node); // Adiciona à lista para processar depois
+                        }
+                    }
+                }
+
+                // Processa os nós encontrados (evita modificar enquanto itera)
+                nodesToProcess.forEach(textNode => {
+                    const matches = textNode.textContent.matchAll(regex);
+                    let lastIndex = 0;
+                    const fragment = document.createDocumentFragment();
+
+                    for (const match of matches) {
+                        const index = match.index;
+                        const matchedText = match[0];
+                        
+                        // Adiciona texto antes do match
+                        if (index > lastIndex) {
+                            fragment.appendChild(document.createTextNode(textNode.textContent.slice(lastIndex, index)));
+                        }
+                        
+                        // Cria e adiciona o span de highlight
+                        const span = document.createElement('span');
+                        span.className = 'highlight';
+                        span.textContent = matchedText;
+                        fragment.appendChild(span);
+
+                        lastIndex = index + matchedText.length;
+                    }
+
+                    // Adiciona texto depois do último match
+                    if (lastIndex < textNode.textContent.length) {
+                        fragment.appendChild(document.createTextNode(textNode.textContent.slice(lastIndex)));
+                    }
+
+                    // Substitui o nó de texto original pelo fragmento com highlights
+                    textNode.replaceWith(fragment);
+                });
+            }
+
+            // Objeto para armazenar contagens por squad
+            const groupCounts = {}; // Renomeado para ser genérico
+            const groupingKey = "{{ current_grouping }}"; // Pega o modo atual do Jinja
+            const groupDatasetKey = `data-${groupingKey}-header`; // Atributo data-* no header (data-squad-header ou data-specialist-header)
+            const cardDatasetKey = groupingKey; // Atributo data-* no card (squad ou specialist)
+
+            cards.forEach(card => {
+                const name = card.dataset.name || '';
+                const id = card.dataset.id || '';
+                const squad = card.dataset.squad || '';
+                const specialist = card.dataset.specialist || '';
+                const status = card.dataset.status || '';
+
+                // Remove highlights antigos ANTES de aplicar filtros
+                removeHighlights(card);
+
+                // Verifica filtro de texto
+                const textMatch = (
+                    name.includes(textFilter) ||
+                    id.includes(textFilter) ||
+                    specialist.includes(textFilter)
+                );
+
+                // Verifica filtro de squad (ignora se '' selecionado)
+                const squadMatch = (squadValue === '' || squad === squadValue);
+
+                // Verifica filtro de especialista (ignora se '' selecionado)
+                const specialistMatch = (specialistValue === '' || specialist === specialistValue);
+
+                // Verifica filtro de status (ignora se '' selecionado)
+                const statusMatch = (statusValue === '' || status === statusValue);
+
+                // Mostra o card APENAS se passar em TODOS os filtros ativos
+                if (textMatch && squadMatch && specialistMatch && statusMatch) {
+                    card.style.display = '';
+                    // Adiciona highlight SE houver filtro de texto
+                    if (textFilter) {
+                         addHighlight(card, textFilter);
+                    }
+                    visibleCount++;
+                    
+                    // Atualiza contagem para o grupo (squad ou specialist) deste card
+                    const cardGroupValue = card.dataset[cardDatasetKey] || 'nao-alocado'; 
+                    if (!groupCounts[cardGroupValue]) {
+                        groupCounts[cardGroupValue] = { projectCount: 0, taskCount: 0 };
+                    }
+                    groupCounts[cardGroupValue].projectCount++;
+                    // Encontra a contagem de tarefas dentro do card
+                    const taskCountSpan = card.querySelector('.mt-2 .fw-bold');
+                    const taskCount = taskCountSpan ? parseInt(taskCountSpan.textContent, 10) : 0;
+                    groupCounts[cardGroupValue].taskCount += taskCount;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+            
+            // Atualiza os textos dos resumos nos cabeçalhos dos grupos (squad ou specialist)
+            document.querySelectorAll('.squad-group-header').forEach(header => { 
+                const groupKey = header.getAttribute(groupDatasetKey);
+                const summarySpan = header.querySelector('.squad-summary');
+                if (summarySpan && groupCounts[groupKey] && groupCounts[groupKey].projectCount > 0) {
+                    summarySpan.textContent = `${groupCounts[groupKey].projectCount} Projeto(s) / ${groupCounts[groupKey].taskCount} Tarefa(s)`;
+                    summarySpan.style.display = ''; // Mostra o resumo
+                    header.style.display = ''; // Garante que o header esteja visível
+                } else if (summarySpan) {
+                    summarySpan.textContent = ''; // Limpa texto
+                    summarySpan.style.display = 'none'; // Esconde o resumo se não há projetos visíveis para o grupo
+                    header.style.display = 'none'; // Esconde o header do grupo se nenhum projeto dele está visível
+                }
+            });
+
+            // Mostra ou esconde a mensagem de "nenhum projeto encontrado"
+            const noProjectsMessage = document.getElementById('noProjectsMessage');
+            if (noProjectsMessage) {
+                noProjectsMessage.style.display = (visibleCount === 0) ? 'block' : 'none';
+            }
+        }
+
+        // Aplica filtros ao digitar no search, ou mudar dropdowns
+        if (searchInput) searchInput.addEventListener('input', applyFilters);
+        if (squadFilter) squadFilter.addEventListener('change', applyFilters);
+        if (specialistFilter) specialistFilter.addEventListener('change', applyFilters);
+        if (statusFilter) statusFilter.addEventListener('change', applyFilters);
+
+        // Botão Limpar Filtros
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', function() {
+                if (searchInput) searchInput.value = '';
+                if (squadFilter) squadFilter.value = '';
+                if (specialistFilter) specialistFilter.value = '';
+                if (statusFilter) statusFilter.value = '';
+                applyFilters(); // Reaplica para mostrar todos
+            });
+        }
+
+        // --- Lógica para Criar Backlog via Botão --- 
+        const projectCardContainer = document.getElementById('projectCardContainer');
+        if (projectCardContainer) {
+            projectCardContainer.addEventListener('click', async function(event) {
+                // Verifica se o clique foi no botão correto usando event delegation
+                if (event.target.matches('.create-backlog-btn, .create-backlog-btn *')) {
+                    const button = event.target.closest('.create-backlog-btn');
+                    if (!button) return;
+
+                    const projectId = button.dataset.projectId;
+                    const projectName = button.dataset.projectName || `Projeto ${projectId}`;
+
+                    if (!projectId) {
+                        console.error("ID do projeto não encontrado no botão.");
+                        alert("Erro: Não foi possível identificar o projeto.");
+                        return;
+                    }
+
+                    console.log(`[Create Backlog] Clicado para Projeto ID: ${projectId} (${projectName})`);
+
+                    // Desabilita botão e mostra loading
+                    button.disabled = true;
+                    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Criando...';
+
+                    try {
+                        const response = await fetch(`/backlog/api/projects/${projectId}/backlog`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({}) // Envia corpo vazio se a API não espera nada
+                        });
+
+                        console.log(`[Create Backlog] Resposta API (${response.status}):`, response);
+
+                        if (!response.ok && response.status !== 409) { // Ignora 409 (conflito, já existe) como erro fatal aqui
+                            let errorMsg = `Erro ${response.status}`;
+                            try {
+                                const errorData = await response.json();
+                                errorMsg = errorData.message || errorMsg;
+                            } catch (e) { /* Ignora erro ao parsear JSON do erro */ }
+                            throw new Error(errorMsg);
+                        }
+
+                        const result = await response.json();
+
+                        if (response.status === 409) { // Já existia
+                            console.warn(`[Create Backlog] Backlog para ${projectName} já existia (API retornou 409).`);
+                            alert(`O backlog para ${projectName} já existe ou foi criado por outro processo. A página será recarregada.`);
+                        } else { // Criado com sucesso (201)
+                            console.log("[Create Backlog] Backlog criado com sucesso:", result);
+                            alert(`Backlog para ${projectName} criado com sucesso!`);
+                        }
+                        
+                        // --- Atualização Dinâmica do Card --- 
+                        const cardElement = button.closest('.project-card');
+                        if (cardElement) {
+                            // Remove indicador "Sem Backlog"
+                            const noBacklogBadge = cardElement.querySelector('.badge.bg-light');
+                            if (noBacklogBadge) noBacklogBadge.remove();
+
+                            // Cria o novo botão "Abrir Quadro" (como link <a>)
+                            const newButtonLink = document.createElement('a');
+                            newButtonLink.href = `/backlog/board/${projectId}`; // Constrói a URL
+                            newButtonLink.className = 'btn btn-primary btn-sm'; 
+                            newButtonLink.innerHTML = '<i class="bi bi-kanban me-1"></i> Abrir Quadro';
+
+                            // Encontra o container do botão e substitui o botão antigo pelo novo link
+                            const buttonContainer = button.parentElement;
+                            if (buttonContainer) {
+                                buttonContainer.replaceChild(newButtonLink, button);
+                            } else {
+                                // Fallback: apenas remove o botão antigo se o container não for encontrado
+                                button.remove(); 
+                            }
+                            
+                            // Opcional: Atualizar contagem de tarefas para 0 (ou buscar da API se retornar)
+                            const taskCountSpan = cardElement.querySelector('.mt-2 .fw-bold');
+                            if (taskCountSpan) taskCountSpan.textContent = '0'; 
+
+                            console.log(`[Create Backlog UI] Card atualizado dinamicamente para projeto ${projectId}`);
+                        } else {
+                             console.warn("[Create Backlog UI] Não foi possível encontrar o card pai para atualização dinâmica. Recarregando...");
+                             window.location.reload(); // Recarrega se não conseguir atualizar UI
+                        }
+                        // ----------------------------------------
+
+                    } catch (error) {
+                        console.error('[Create Backlog] Erro:', error);
+                        alert(`Erro ao criar backlog para ${projectName}: ${error.message}`);
+                        // Restaura o botão em caso de erro
+                        button.disabled = false;
+                        button.innerHTML = '<i class="bi bi-plus-lg me-1"></i> Criar Backlog';
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
+
+{% endblock %} 

@@ -1,0 +1,385 @@
+/* ==================== */
+/* VARIÁVEIS DE CORES */
+/* ==================== */
+:root {
+    --primary: #4e73df;
+    --primary-light: #7a9ff8;
+    --primary-dark: #2653c7;
+    --secondary: #1cc88a;
+    --warning: #f6c23e;
+    --danger: #e74a3b;
+    --light: #f8f9fc;
+    --dark: #5a5c69;
+    --gray: #dddfeb;
+    --white: #ffffff;
+  }
+  
+  /* ==================== */
+  /* ESTILOS GERAIS */
+  /* ==================== */
+  body.gerencial {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #f5f7ff;
+    color: var(--dark);
+    line-height: 1.6;
+  }
+  
+  .container-gerencial {
+    max-width: 1800px;
+    padding: 0 20px;
+  }
+  
+  /* ==================== */
+  /* HEADER */
+  /* ==================== */
+  .header-gerencial {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 20px 0;
+  }
+  
+  .header-gerencial h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-dark);
+    margin: 0;
+  }
+  
+  /* ==================== */
+  /* FILTROS */
+  /* ==================== */
+  .card-filtros {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    margin-bottom: 30px;
+  }
+  
+  .card-filtros .card-header {
+    background-color: var(--primary);
+    color: white;
+    border-radius: 12px 12px 0 0 !important;
+    padding: 15px 25px;
+    border: none;
+  }
+  
+  .card-filtros .card-body {
+    padding: 25px;
+  }
+  
+  /* Ícone de carregamento */
+.bi-arrow-clockwise.spin {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+  /* ==================== */
+  /* KPI CARDS */
+  /* ==================== */
+
+  /* Adicionar na seção de variáveis de cores */
+:root {
+  /* ... cores existentes ... */
+  --danger-light: rgba(231, 74, 59, 0.15);
+  --success-light: rgba(28, 200, 138, 0.15);
+}
+
+/* Adicionar na seção de KPI Cards */
+.kpi-card .bg-danger-light {
+  background-color: var(--danger-light);
+}
+
+.kpi-card .bg-success-light {
+  background-color: var(--success-light);
+}
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  
+  .kpi-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    overflow: hidden;
+  }
+  
+  .kpi-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+  }
+  
+  .kpi-card-header {
+    padding: 15px 20px;
+    font-weight: 600;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .kpi-card-body {
+    padding: 25px;
+    text-align: center;
+  }
+  
+  .kpi-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 10px 0;
+  }
+  
+  .kpi-label {
+    font-size: 1rem;
+    color: var(--dark);
+    opacity: 0.8;
+  }
+  
+  .kpi-card-footer {
+    padding: 15px;
+    background-color: rgba(0, 0, 0, 0.03);
+    text-align: center;
+    font-size: 0.85rem;
+  }
+  
+  /* Cores específicas para cada KPI */
+  .kpi-card.open .kpi-card-header {
+    background-color: var(--primary);
+  }
+  .kpi-card.no-squad .kpi-card-header {
+    background-color: var(--warning);
+    color: var(--dark);
+  }
+  .kpi-card.to-bill .kpi-card-header {
+    background-color: var(--secondary);
+  }
+
+  :root {
+    --purple: #6f42c1;
+    --purple-light: rgba(111, 66, 193, 0.15);
+  }
+  
+  .bg-purple {
+    background-color: var(--purple) !important;
+  }
+  
+  .bg-purple-light {
+    background-color: var(--purple-light) !important;
+  }
+
+  .list-group-item {
+    border-left: 3px solid #6f42c1;
+    margin-bottom: 5px;
+}
+  
+  /* ==================== */
+  /* CARDS MODULARES */
+  /* ==================== */
+  .modular-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 25px;
+    margin-bottom: 30px;
+  }
+  
+  .modular-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+  }
+  
+  .modular-card-header {
+    padding: 15px 25px;
+    background-color: var(--light);
+    border-bottom: 1px solid var(--gray);
+    font-weight: 600;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .modular-card-body {
+    padding: 20px;
+  }
+  /* ==================== */
+/* GRÁFICOS E TABELA     */
+/* ==================== */
+
+/* Container principal dos gráficos */
+.graficos-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+  margin-bottom: 25px;
+}
+
+/* Card de gráfico individual */
+.card-grafico {
+  height: 100%;
+  min-height: 350px; /* Altura mínima aumentada */
+}
+
+/* Container da tabela de projetos críticos */
+.tabela-container {
+  width: 100%;
+  margin-top: 20px;
+}
+
+/* Ajustes específicos para o gráfico de faturamento */
+.card-grafico-doughnut .modular-card-body {
+  padding: 20px;
+  height: calc(100% - 46px);
+}
+
+.card-grafico-doughnut canvas {
+  max-height: 280px !important;
+}
+
+/* Ajustes para a tabela de projetos críticos */
+#projetos-criticos {
+  margin-top: 30px;
+  width: 100%;
+}
+
+#tabela-criticos {
+  width: 100% !important;
+}
+
+/* Cores para os diferentes tipos de faturamento */
+.faturamento-PRIME { background-color: #4e73df !important; }
+.faturamento-PLUS { background-color: #1cc88a !important; }
+.faturamento-INICIO { background-color: #36b9cc !important; }
+.faturamento-TERMINO { background-color: #f6c23e !important; }
+.faturamento-ENGAJAMENTO { background-color: #858796 !important; }
+.faturamento-DISVALIDADO { background-color: #e74a3b !important; }
+.faturamento-MODO { background-color: #6f42c1 !important; }
+.faturamento-ANAL { background-color: #fd7e14 !important; }
+.faturamento-PRIOR { background-color: #20c997 !important; }
+.faturamento-TURMO { background-color: #6610f2 !important; }
+  
+  /* ==================== */
+  /* COMPONENTES */
+  /* ==================== */
+  .badge-count {
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-radius: 20px;
+    min-width: 40px;
+    text-align: center;
+  }
+  
+  .squad-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    background-color: var(--light);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+  }
+  
+  .squad-item:hover {
+    background-color: rgba(78, 115, 223, 0.1);
+    transform: translateX(5px);
+  }
+
+  /* ALERTAS */
+.alertas-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    max-width: 400px;
+}
+
+.alert {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    border: none;
+    border-left: 4px solid;
+}
+
+.alert-danger {
+    border-left-color: #e74a3b;
+}
+
+.alert-warning {
+    border-left-color: #f6c23e;
+}
+
+.alertas-container .alert {
+  border-left: 4px solid;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+}
+
+.alertas-container .alert-danger {
+  border-left-color: #e74a3b;
+  background-color: rgba(231, 74, 59,  0.8);
+}
+
+.alertas-container .alert-warning {
+  border-left-color: #f6c23e;
+  background-color: rgba(246, 194, 62,  0.8);
+}
+
+.alertas-container .alert-info {
+  border-left-color: #36b9cc;
+  background-color: rgba(54, 184, 204, 0.8);
+}
+
+.alertas-container .bi {
+  font-size: 1.5rem;
+}
+
+/* Detalhes dos alertas */
+.alertas-container .list-group-item {
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+}
+
+.alertas-container .collapse {
+  max-height: 300px;
+  overflow-y: auto;
+}
+  
+  /* ==================== */
+  /* RESPONSIVIDADE */
+  /* ==================== */
+  @media (max-width: 992px) {
+    .kpi-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+    
+    .modular-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .kpi-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .kpi-value {
+      font-size: 2rem;
+    }
+    
+    .header-gerencial {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }

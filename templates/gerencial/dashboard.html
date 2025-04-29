@@ -1,0 +1,1802 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Gerencial</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Mantém seu CSS principal, pode precisar de ajustes -->
+    <!--<link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">><!-->
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css"> <!-- Usar versão Bootstrap 5 -->
+    <style>
+        /* Estilo básico para garantir espaçamento e fundo */
+        body { background-color: #f8f9fa; }
+        .card { margin-bottom: 1.5rem; }
+        .graficos-container { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; }
+        .card-grafico { flex: 1; min-width: 0; } /* Para flexbox funcionar bem */
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        /* Ajuste para altura dos gráficos */
+        #squadChart, #faturamentoChart { height: 300px !important; }
+        /* Cores personalizadas */
+        .bg-purple { background-color: #6f42c1; }
+        .bg-purple-light { background-color: rgba(111, 66, 193, 0.15); }
+        .text-purple { color: #6f42c1; }
+        .border-left-purple { border-left: 0.25rem solid #6f42c1 !important; }
+        /* Cores personalizadas para projetos críticos */
+        .bg-danger-light { background-color: rgba(220, 53, 69, 0.15); }
+        .text-danger { color: #dc3545; }
+        .border-left-danger { border-left: 0.25rem solid #dc3545 !important; }
+        /* Ajustes para cards */
+        .card.shadow { height: 100%; }
+        .card-body { height: calc(100% - 48px); } /* 48px é a altura do header */
+        .card-grafico canvas { max-height: 100%; }
+        /* Estilo para cards clicáveis */
+        .kpi-action-card { cursor: pointer; transition: transform 0.2s ease-in-out; }
+        .kpi-action-card:hover { transform: translateY(-5px); }
+        .btn-purple { background-color: #6f42c1; color: white; }
+        .btn-purple:hover { background-color: #5a32a3; color: white; }
+        /* Estilos para modais */
+        .modal-content { border-radius: 0.5rem; border: none; }
+        .modal-header { border-radius: 0.5rem 0.5rem 0 0; }
+        .modal-footer { border-radius: 0 0 0.5rem 0.5rem; }
+        .table-hover tbody tr:hover { background-color: rgba(0,0,0,0.02); }
+        .table > :not(caption) > * > * { padding: 0.75rem; }
+        .spinner-border-sm { width: 1rem; height: 1rem; }
+        .text-purple { color: #6f42c1; }
+        .badge.bg-purple { background-color: #6f42c1; }
+        /* Estilos refinados para tabelas nos modais */
+        .modal .table {
+            margin-bottom: 0;
+            font-size: 0.9rem;
+        }
+        
+        .modal .table thead th {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.5px;
+            padding: 12px;
+        }
+        
+        .modal .table tbody td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: middle;
+        }
+        
+        .modal .table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .modal .table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .modal .table .text-end {
+            font-family: 'Inter', monospace;
+        }
+        
+        /* Ajustes para modais mais compactos */
+        .modal-xl {
+            max-width: 90%;
+            width: fit-content;
+            max-height: 90vh;
+        }
+        
+        .modal-content {
+            max-height: 90vh;
+            width: 100%; /* Garante que o conteúdo tenha largura fixa */
+        }
+        
+        .modal-body {
+            max-height: calc(90vh - 120px);
+            overflow-y: auto;
+        }
+        
+        .table-responsive {
+            max-height: calc(90vh - 150px);
+            overflow-x: hidden; /* Esconde a barra de rolagem horizontal */
+        }
+        
+        /* Corrige alinhamento do cabeçalho na primeira página */
+        table.dataTable thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            width: auto !important;
+        }
+        
+        /* Força largura fixa para o DataTable */
+        .dataTables_wrapper {
+            width: 100% !important;
+        }
+        
+        /* Força largura fixa para a tabela do DataTable */
+        .dataTables_wrapper .dataTable {
+            width: 100% !important;
+            table-layout: fixed;
+        }
+        
+        /* Ajusta espaçamento nas células */
+        .dataTables_wrapper .dataTable th,
+        .dataTables_wrapper .dataTable td {
+            box-sizing: border-box;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        /* Evita que o DataTable ajuste dinamicamente as larguras */
+        .dataTables_scrollHeadInner,
+        .dataTables_scrollHeadInner table {
+            width: 100% !important;
+        }
+        
+        /* Status badges */
+        .status-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .status-em-atendimento {
+            background-color: #0d6efd;
+            color: white;
+        }
+        
+        .status-aguardando {
+            background-color: #ffc107;
+            color: black;
+        }
+        
+        .status-novo {
+            background-color: #00b8d4;
+            color: white;
+        }
+
+        /* Estilos para barras de progresso nas tabelas */
+        .progress-thin {
+            height: 6px;
+            margin-top: 4px;
+            background-color: #f0f0f0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-thin .progress-bar {
+            border-radius: 3px;
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-value {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .progress-value-text {
+            font-family: 'Inter', monospace;
+        }
+
+        /* Cores para diferentes níveis de progresso */
+        .progress-danger {
+            background-color: #f5c2c7;
+        }
+        .progress-danger .progress-bar {
+            background-color: #dc3545;
+        }
+
+        .progress-warning {
+            background-color: #fff3cd;
+        }
+        .progress-warning .progress-bar {
+            background-color: #ffc107;
+        }
+
+        .progress-success {
+            background-color: #d1e7dd;
+        }
+        .progress-success .progress-bar {
+            background-color: #198754;
+        }
+
+        .progress-info {
+            background-color: #cff4fc;
+        }
+        .progress-info .progress-bar {
+            background-color: #0dcaf0;
+        }
+
+        /* Estilos para limitar tamanho das colunas e texto */
+        .modal .table td.projeto-col {
+            max-width: 300px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .modal .table td.squad-col,
+        .modal .table td.account-manager-col {
+            max-width: 180px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .modal .table td.status-col,
+        .modal .table td.faturamento-col {
+            max-width: 120px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .truncate-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+
+        .modal .table td, 
+        .modal .table th {
+            padding: 8px 12px;
+            vertical-align: middle;
+        }
+
+        .modal-header {
+            padding: 0.75rem 1.25rem;
+        }
+
+        .modal-footer {
+            padding: 0.75rem;
+        }
+
+        /* Remove os organizadores das colunas */
+        table.dataTable thead .sorting,
+        table.dataTable thead .sorting_asc,
+        table.dataTable thead .sorting_desc {
+            background-image: none;
+        }
+
+        /* Estilos para os badges de filtro nos títulos dos modais */
+        .modal-title .badge {
+            font-size: 0.75rem;
+            font-weight: normal;
+            padding: 0.35em 0.6em;
+            margin-left: 5px;
+            border-radius: 3px;
+            vertical-align: middle;
+            white-space: normal;
+            display: inline-block;
+        }
+
+        .modal-header .badge.bg-light {
+            background-color: rgba(255, 255, 255, 0.25) !important;
+            color: white !important;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* Estilo para contador de registros no footer dos modais */
+        .contador-registros {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            margin-right: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Barra de Navegação Principal Fixa -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('macro.dashboard') }}">
+                <i class="bi bi-speedometer2"></i> Control360
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'gerencial.dashboard' else '' }}" href="{{ url_for('gerencial.dashboard') }}">
+                            <i class="bi bi-kanban"></i>
+                            <span>Gerencial</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'macro.dashboard' else '' }}" href="{{ url_for('macro.dashboard') }}">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>Macro</span>
+                        </a>
+                    </li>
+                    <!-- Item 'Performance' removido -->
+                     <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'macro.apresentacao' else '' }}" href="{{ url_for('macro.apresentacao') }}">
+                            <i class="bi bi-file-earmark-slides"></i>
+                            <span>Status Report</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav> 
+
+    <!-- Container Principal do Gerencial -->
+    <div class="container-fluid mt-4" style="padding-top: 70px;">
+        <!-- Título da Página -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="bi bi-bar-chart-line-fill me-2"></i> Visão Gerencial
+            </h1>
+            <div class="text-muted small">
+                Atualizado em: <span id="current-date"><i class="bi bi-arrow-clockwise spin"></i></span>
+            </div>
+        </div>
+
+        <!-- Alertas e Ações -->
+        <div class="d-flex justify-content-start align-items-center mb-3">
+             <!-- Botão removido daqui -->
+        </div>
+
+        {% if erro %}
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">Erro!</h4>
+            <p>{{ erro }}</p>
+            {% if codigo_erro %}
+            <hr>
+            <p class="mb-0">Código do erro: {{ codigo_erro }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Filtros -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-funnel me-2"></i>Filtros</h6>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3 align-items-end" id="filtrosForm">
+                    <div class="col-md-5">
+                        <label for="squad" class="form-label small">Squad:</label>
+                        <select name="squad" id="squad" class="form-select form-select-sm">
+                            <option value="Todos">Todos Squads</option>
+                            {% for squad in squads_disponiveis %}
+                                <option value="{{ squad }}" {% if filtro_aplicado and filtro_aplicado.squad == squad %}selected{% endif %}>
+                                    {{ squad }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label for="faturamento" class="form-label small">Faturamento:</label>
+                        <select name="faturamento" id="faturamento" class="form-select form-select-sm">
+                            <option value="Todos">Todos Tipos</option>
+                            {% for fat in faturamentos_disponiveis %}
+                                <option value="{{ fat }}" {% if filtro_aplicado and filtro_aplicado.faturamento == fat %}selected{% endif %}>
+                                    {{ fat }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm w-100">Aplicar</button>
+                        <button type="button" onclick="limparFiltros()" class="btn btn-outline-secondary btn-sm w-100">
+                            Limpar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Container de Alertas (inicialmente vazio, preenchido por JS ou se houver alertas no carregamento) -->
+        <div class="alertas-container mb-4">
+             {% if alertas %}
+                {% for alerta in alertas %}
+                <div class="alert alert-{{ 'danger' if alerta.prioridade <= 2 else ('warning' if alerta.prioridade <= 4 else 'info') }} alert-dismissible fade show shadow-sm" role="alert">
+                    <h5 class="alert-heading h6"><i class="bi {{ alerta.icone | default('bi-info-circle') }} me-2"></i>{{ alerta.titulo | default('Alerta') }}</h5>
+                    <p class="mb-1 small">{{ alerta.mensagem }}</p>
+                    {% if alerta.detalhes %}
+                        <hr class="my-2">
+                        <ul class="mb-0 small" style="padding-left: 1.2rem;">
+                        {% for detalhe in alerta.detalhes[:3] %} {# Limita a 3 detalhes para não poluir muito #}
+                            <li>{{ detalhe.Projeto | default('N/A') }}
+                                {% if 'Squad' in detalhe %} - Squad: {{ detalhe.Squad | default('N/D') }}{% endif %}
+                                {% if 'Account Manager' in detalhe %} - AM: {{ detalhe['Account Manager'] | default('N/D') }}{% endif %}
+                                {% if 'HorasRestantes' in detalhe %} - Saldo: {{ detalhe.HorasRestantes | round(1) if detalhe.HorasRestantes is not none else 'N/A' }}h {% endif %}
+                                {% if 'Conclusao' in detalhe %} - Concl: {{ detalhe.Conclusao | round(1) if detalhe.Conclusao is not none else 'N/A' }}% {% endif %}
+                            </li>
+                        {% endfor %}
+                        {% if alerta.detalhes|length > 3 %}<li>... e mais {{ alerta.detalhes|length - 3 }}</li>{% endif %}
+                        </ul>
+                    {% endif %}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <!-- Linha de KPIs -->
+        <div class="row mb-4">
+            <!-- Projetos Ativos -->
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-success shadow h-100 py-2 kpi-action-card" id="card-projetos-ativos" onclick="abrirModalProjetosAtivos()">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                    Projetos Ativos</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ metricas.projetos_ativos if metricas else 0 }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-play-circle-fill fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Projetos em Aberto -->
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-warning shadow h-100 py-2 kpi-action-card" id="card-projetos-em-atendimento" onclick="abrirModalProjetosEmAtendimento()">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                    Em Atendimento</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ metricas.projetos_em_atendimento if metricas else 0 }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-clock-fill fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Burn Rate -->
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-info shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                    Burn Rate</div>
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col-auto">
+                                        <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">{{ metricas.burn_rate|default(0) }}%</div>
+                                    </div>
+                                    <div class="col">
+                                        <div class="progress progress-sm mr-2">
+                                            <div class="progress-bar bg-info" role="progressbar"
+                                                style="width: {{ metricas.burn_rate|default(0) }}%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-fire fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Projetos Críticos (Movido para cima) -->
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-danger shadow h-100 py-2 kpi-action-card" id="card-projetos-criticos" onclick="abrirModalProjetosCriticos()">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                    Projetos Críticos</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ metricas.projetos_criticos_count if metricas else 0 }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-exclamation-triangle fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Para Faturar (Movido para baixo) -->
+        <div class="row mb-4">
+            <div class="col-12 mb-4">
+                <div class="card border-left-purple shadow h-100 py-2 kpi-action-card" id="card-projetos-para-faturar" onclick="abrirModalFaturamento()">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-purple text-uppercase mb-1">
+                                    Para Faturar</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ metricas.projetos_para_faturar if metricas else 0 }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-cash-stack fa-2x text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="row mb-4">
+            <!-- Distribuição por Squad -->
+            <div class="col-xl-6 col-lg-6">
+                <div class="card shadow h-100">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Distribuição por Squad</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="squadChart" style="height: 300px;"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Distribuição por Faturamento -->
+            <div class="col-xl-6 col-lg-6">
+                <div class="card shadow h-100">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Distribuição por Faturamento</h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="faturamentoChart" style="height: 300px;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção de Métricas Avançadas -->
+        <div class="row mb-4">
+            <!-- Ocupação por Squad -->
+            <div class="col-xl-6 mb-4">
+                <div class="card shadow h-100">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary">Ocupação por Squad</h6>
+                        <i class="bi bi-people-fill text-primary"></i>
+                    </div>
+                    <div class="card-body">
+                        <div class="small text-muted mb-3">
+                            <i class="bi bi-info-circle"></i> Projetos com horas negativas têm suas horas restantes ajustadas para 10% do esforço total.
+                            <br>
+                            <i class="bi bi-info-circle"></i> Squad "Em Planejamento - PMO" possui capacidade de 1 pessoa (180h), enquanto os demais squads possuem 3 pessoas (540h).
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Squad</th>
+                                        <th>Capacidade Utilizada</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for squad in metricas.ocupacao_squads|default([]) %}
+                                        {% if squad.nome != 'Em Planejamento - PMO' %}
+                                        <tr>
+                                            <td>{{ squad.nome }}</td>
+                                            <td>
+                                                <div class="progress" style="height: 20px;">
+                                                    <div class="progress-bar {% if squad.capacidade_utilizada > 80 %}bg-danger{% elif squad.capacidade_utilizada > 60 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                         role="progressbar" 
+                                                         style="width: {{ squad.capacidade_utilizada }}%"
+                                                         aria-valuenow="{{ squad.capacidade_utilizada }}" 
+                                                         aria-valuemin="0" 
+                                                         aria-valuemax="100">
+                                                        {{ squad.capacidade_utilizada }}%
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endif %}
+                                    {% endfor %}
+                                    
+                                    {# Projetos em Planejamento - PMO (Comentado conforme solicitação) 
+                                    {% for squad in metricas.ocupacao_squads|default([]) %}
+                                        {% if squad.nome == 'Em Planejamento - PMO' and squad.total_projetos > 0 %}
+                                        <tr class="table-secondary">
+                                            <td>{{ squad.nome }}</td>
+                                            <td>
+                                                <div class="progress" style="height: 20px;">
+                                                    <div class="progress-bar {% if squad.capacidade_utilizada > 80 %}bg-danger{% elif squad.capacidade_utilizada > 60 %}bg-warning{% else %}bg-info{% endif %}" 
+                                                         role="progressbar" 
+                                                         style="width: {{ squad.capacidade_utilizada }}%"
+                                                         aria-valuenow="{{ squad.capacidade_utilizada }}" 
+                                                         aria-valuemin="0" 
+                                                         aria-valuemax="100"
+                                                         data-bs-toggle="tooltip"
+                                                         data-bs-placement="top"
+                                                         title="Baseado em capacidade de 180h (1 pessoa)">
+                                                        {{ squad.capacidade_utilizada }}%
+                                                    </div>
+                                                </div>
+                                                <span class="small text-muted">{{ "%.1f"|format(squad.horas_restantes) }} horas a distribuir</span>
+                                            </td>
+                                        </tr>
+                                        {% endif %}
+                                    {% endfor %}
+                                    #}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance de Entregas -->
+            <div class="col-xl-6 mb-4">
+                <div class="card shadow h-100">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary">Performance de Entregas</h6>
+                        <i class="bi bi-graph-up text-primary"></i>
+                    </div>
+                    <div class="card-body">
+                        {% if metricas.quarter_info %}
+                        <div class="text-muted small mb-3">
+                            {{ metricas.quarter_info.quarter }} - Ano Fiscal Microsoft
+                            <br>
+                            Período: {{ metricas.quarter_info.inicio }} até {{ metricas.quarter_info.fim }}
+                            <br>
+                            Total de projetos concluídos: {{ metricas.quarter_info.projetos_concluidos }}
+                            <br>
+                            Total de projetos previstos: {{ metricas.quarter_info.total_projetos_previstos }}
+                        </div>
+                        {% endif %}
+
+                        <div class="row">
+                            <!-- Taxa de Sucesso -->
+                            <div class="col-md-6 mb-4">
+                                <div class="card border-left-success shadow h-100 py-2">
+                                    <div class="card-body">
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col mr-2">
+                                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                                    Taxa de Sucesso
+                                                </div>
+                                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                                    {{ metricas.taxa_sucesso|default(0) }}%
+                                                </div>
+                                            </div>
+                                            <div class="col-auto">
+                                                <i class="bi bi-check-circle fa-2x text-success"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tempo Médio de Entrega -->
+                            <div class="col-md-6 mb-4">
+                                <div class="card border-left-info shadow h-100 py-2">
+                                    <div class="card-body">
+                                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                            Tempo Médio de Entrega (dias)
+                                        </div>
+                                        {% if metricas.tempo_medio_geral is defined %}
+                                            <div class="h3 mb-0 font-weight-bold text-gray-800 text-center py-2">
+                                                {{ "%.1f"|format(metricas.tempo_medio_geral) }}
+                                            </div>
+                                        {% else %}
+                                            <div class="text-center text-muted small mt-2">
+                                                Sem dados disponíveis
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Disponibilidade e Alertas -->
+        <div class="row mb-4">
+            <!-- Disponibilidade por Squad -->
+            <div class="col-xl-6 mb-4">
+                <div class="card shadow h-100">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary">Disponibilidade por Squad</h6>
+                        <i class="bi bi-calendar-check text-primary"></i>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Squad</th>
+                                        <th>Horas Disponíveis</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if metricas and metricas.horas_disponiveis %}
+                                        {% for squad in metricas.horas_disponiveis %}
+                                        {% if squad != 'Em Planejamento - PMO' %}
+                                        <tr>
+                                            <td>{{ squad }}</td>
+                                            <td>
+                                                <div class="progress" style="height: 20px;">
+                                                    <div class="progress-bar {% if metricas.horas_disponiveis[squad] < 180 %}bg-danger{% elif metricas.horas_disponiveis[squad] < 360 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                         role="progressbar" 
+                                                         style="width: {{ (metricas.horas_disponiveis[squad] / 540) * 100 }}%"
+                                                         aria-valuenow="{{ metricas.horas_disponiveis[squad] }}" 
+                                                         aria-valuemin="0" 
+                                                         aria-valuemax="540">
+                                                        {{ "%.1f"|format(metricas.horas_disponiveis[squad]) }}h
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="2" class="text-center">Sem dados disponíveis</td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alertas Inteligentes -->
+            <div class="col-xl-6 mb-4">
+                <div class="card shadow h-100">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary">Alertas Inteligentes</h6>
+                        <i class="bi bi-exclamation-triangle text-primary"></i>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert-list">
+                            {% if metricas.ocupacao_squads|default([]) %}
+                                {% for squad in metricas.ocupacao_squads %}
+                                    {% if squad.capacidade_utilizada > 80 %}
+                                    <div class="alert alert-danger mb-2">
+                                        <i class="bi bi-exclamation-circle-fill"></i>
+                                        Squad <strong>{{ squad.nome }}</strong> está com alta ocupação ({{ squad.capacidade_utilizada }}%)
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+
+                            {% if metricas.taxa_sucesso|default(0) < 60 %}
+                            <div class="alert alert-warning mb-2">
+                                <i class="bi bi-exclamation-circle-fill"></i>
+                                Taxa de sucesso está abaixo do esperado ({{ metricas.taxa_sucesso|default(0) }}%)
+                            </div>
+                            {% endif %}
+
+                            {% if metricas.horas_disponiveis|default({}) %}
+                                {% for squad, horas in metricas.horas_disponiveis.items() %}
+                                    {% if horas < 180 %}
+                                    <div class="alert alert-warning mb-2">
+                                        <i class="bi bi-exclamation-circle-fill"></i>
+                                        Squad <strong>{{ squad }}</strong> tem poucas horas disponíveis ({{ "%.1f"|format(horas) }}h)
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div> <!-- Fim container-fluid -->
+
+    <!-- Modais (Estrutura Mantida, verificar JS para preenchimento) -->
+
+    <!-- Modal Projetos Ativos -->
+    <div class="modal fade" id="modalProjetosAtivos" tabindex="-1" aria-labelledby="modalProjetosAtivosLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content shadow-lg">
+                <div class="modal-header bg-success text-white border-0">
+                    <h5 class="modal-title" id="modalProjetosAtivosLabel">
+                        <i class="bi bi-list-task me-2"></i> Projetos Ativos
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="table-responsive">
+                        <table id="dataTableProjetosAtivos" class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Número</th>
+                                    <th>Projeto</th>
+                                    <th>Squad</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Conclusão</th>
+                                    <th class="text-end">Horas Rest.</th>
+                                    <th>Vencimento Em</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-projetos-ativos">
+                                <!-- Dados serão carregados via AJAX -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Projetos em Atendimento -->
+    <div class="modal fade" id="modalProjetosEmAtendimento" tabindex="-1" aria-labelledby="modalProjetosEmAtendimentoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content shadow-lg">
+                <div class="modal-header bg-warning text-dark border-0">
+                    <h5 class="modal-title" id="modalProjetosEmAtendimentoLabel">
+                        <i class="bi bi-people-fill me-2"></i> Projetos em Atendimento
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="table-responsive">
+                        <table id="dataTableProjetosEmAtendimento" class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Número</th>
+                                    <th>Projeto</th>
+                                    <th>Squad</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Conclusão</th>
+                                    <th class="text-end">Horas Rest.</th>
+                                    <th>Vencimento Em</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-projetos-em-atendimento">
+                                <!-- Dados serão carregados via AJAX -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Faturamento Pendente -->
+    <div class="modal fade" id="modalFaturamento" tabindex="-1" aria-labelledby="modalFaturamentoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content shadow-lg">
+                <div class="modal-header bg-purple text-white border-0">
+                    <h5 class="modal-title" id="modalFaturamentoLabel">
+                        <i class="bi bi-cash-stack me-2"></i> Projetos para Faturar
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="table-responsive">
+                        <table id="dataTableFaturamento" class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Projeto</th>
+                                    <th>Squad</th>
+                                    <th>Account Manager</th>
+                                    <th>Faturamento</th>
+                                    <th>Status</th>
+                                    <th>Vencimento Em</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-faturamento">
+                                <!-- Dados serão carregados via AJAX -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-purple" onclick="exportarFaturamento()">
+                        <i class="bi bi-download me-1"></i> Exportar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Projetos Críticos -->
+    <div class="modal fade" id="modalProjetosCriticos" tabindex="-1" aria-labelledby="modalProjetosCriticosLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content shadow-lg">
+                <div class="modal-header bg-danger text-white border-0">
+                    <h5 class="modal-title" id="modalProjetosCriticosLabel">
+                        <i class="bi bi-exclamation-triangle me-2"></i> Projetos Críticos
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="table-responsive">
+                        <table id="dataTableCriticos" class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Número</th>
+                                    <th>Projeto</th>
+                                    <th>Squad</th>
+                                    <th>Status</th>
+                                    <th>Conclusão</th>
+                                    <th>Horas Restantes</th>
+                                    <th>Vencimento</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-criticos">
+                                <!-- Dados serão carregados via AJAX -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-danger" onclick="exportarProjetosCriticos()">
+                        <i class="bi bi-download me-1"></i> Exportar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script> <!-- JS do DataTables para BS5 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinycolor/1.4.2/tinycolor.min.js"></script> <!-- Para escurecer cores no gráfico -->
+
+    <script>
+        // Variáveis globais para instâncias dos gráficos e DataTables
+        let squadChartInstance = null;
+        let faturamentoChartInstance = null;
+        let tabelaCriticosDt = null;
+        let tabelaAtivosDt = null;
+        let tabelaAtendimentoDt = null;
+        let tabelaFaturamentoDt = null;
+
+        // --- Funções de Renderização ---
+        function renderSquadChart(data) {
+            const ctx = document.getElementById('squadChart');
+            if (!ctx) return;
+            if (squadChartInstance) {
+                squadChartInstance.destroy(); // Destroi gráfico anterior
+            }
+            const squadColors = ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#6f42c1', '#fd7e14', '#20c997', '#6610f2', '#d63384'];
+            const backgroundColors = data.labels.map((_, index) => squadColors[index % squadColors.length]);
+
+            squadChartInstance = new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Projetos', data: data.data,
+                        backgroundColor: backgroundColors,
+                        borderColor: backgroundColors.map(color => tinycolor(color).darken(10).toString()),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, indexAxis: 'y', // Gráfico de barras horizontais
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.parsed.x} projetos` } } },
+                    scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
+
+        function renderFaturamentoChart(data) {
+            const ctx = document.getElementById('faturamentoChart');
+             if (!ctx) return;
+            if (faturamentoChartInstance) {
+                faturamentoChartInstance.destroy();
+            }
+            
+            // Mapeamento para nomes completos para exibição na legenda
+            const nomesCompletos = {
+                'EAN': 'Em Análise',
+                'FEOP': 'Faturado em outro projeto',
+                'PRIME': 'PRIME',
+                'PLUS': 'PLUS',
+                'INICIO': 'INICIO',
+                'TERMINO': 'TERMINO',
+                'ENGAJAMENTO': 'ENGAJAMENTO'
+            };
+            
+            // Definição de cores para cada tipo (EAN com cor diferente de FEOP)
+            const cores = {
+                'PRIME': '#4e73df', 
+                'PLUS': '#1cc88a', 
+                'INICIO': '#36b9cc', 
+                'TERMINO': '#f6c23e', 
+                'ENGAJAMENTO': '#858796', 
+                'FEOP': '#d2d4de',     // Cinza claro para FEOP
+                'EAN': '#a0a0a0',      // Cinza mais escuro para EAN
+                'DISVALIDADO': '#e74a3b', 
+                'MODO': '#6f42c1', 
+                'ANAL': '#fd7e14', 
+                'PRIOR': '#20c997', 
+                'TURMO': '#6610f2'
+            };
+            
+            const backgroundColors = data.labels.map(label => cores[label] || '#dddfeb');
+            
+            // Transforma os rótulos para mostrar os nomes completos
+            const labelsFormatados = data.labels.map(label => nomesCompletos[label] || label);
+
+            faturamentoChartInstance = new Chart(ctx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: labelsFormatados,
+                    datasets: [{ data: data.data, backgroundColor: backgroundColors, borderWidth: 1 }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, cutout: '65%',
+                    plugins: {
+                        legend: { position: 'right', labels: { boxWidth: 12, padding: 15, usePointStyle: true, pointStyle: 'circle' } },
+                        tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.raw} projeto(s)` } },
+                        datalabels: {
+                            color: '#fff', font: { weight: 'bold', size: 12 },
+                            formatter: (value, context) => {
+                                const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(0) + '%' : '';
+                                return value > 0 ? percentage : ''; // Mostra % se valor > 0
+                            },
+                             anchor: 'center', align: 'center'
+                        }
+                    }
+                },
+                plugins: [ChartDataLabels]
+            });
+        }
+
+        function inicializarDataTable(tableId, options = {}) {
+            try {
+                return $(`#${tableId}`).DataTable({
+                    language: {
+                        url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/pt-BR.json'
+                    },
+                    pageLength: 10,
+                    order: [[0, "asc"]],
+                    ...options
+                });
+            } catch (error) {
+                console.error(`Erro ao inicializar DataTable #${tableId}:`, error);
+                return null;
+            }
+        }
+
+        // Função auxiliar que garante inicialização segura do DataTable
+        function inicializarDataTableSeguro(tableId, options = {}) {
+            // Verifica se o elemento existe
+            if (!document.getElementById(tableId)) {
+                console.error(`Tabela #${tableId} não encontrada no DOM`);
+                return null;
+            }
+            
+            try {
+                // Se já existir uma instância, destrói
+                if ($.fn.DataTable.isDataTable(`#${tableId}`)) {
+                    $(`#${tableId}`).DataTable().destroy();
+                }
+                
+                // Inicializa nova instância imediatamente
+                const dt = $(`#${tableId}`).DataTable({
+                    language: {
+                        url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/pt-BR.json'
+                    },
+                    pageLength: 10,
+                    order: [[0, "asc"]],
+                    ...options,
+                    deferRender: true,
+                    processing: true,
+                    retrieve: true, // Permite recuperar uma instância existente
+                    destroy: true   // Garante que destrua qualquer instância existente
+                });
+                
+                return dt;
+            } catch (error) {
+                console.error(`Erro ao inicializar DataTable #${tableId}:`, error);
+                return null;
+            }
+        }
+
+        function limparFiltros() {
+            // Redireciona para a URL base, MAS adiciona is_filtered=true
+            // para sinalizar que não é um carregamento inicial e não mostrar alertas.
+            window.location.href = "{{ url_for('gerencial.dashboard') }}?is_filtered=true";
+        }
+
+        function atualizarAlertas(alertasData) {
+             const container = document.querySelector('.alertas-container');
+             container.innerHTML = ''; // Limpa alertas antigos
+             $('#alert-count').text(alertasData.length); // Atualiza contador
+
+             if (alertasData && alertasData.length > 0) {
+                 alertasData.forEach(alerta => {
+                     const alertEl = document.createElement('div');
+                     const tipoClasse = alerta.prioridade <= 2 ? 'danger' : (alerta.prioridade <= 4 ? 'warning' : 'info');
+                     let detalhesHtml = '';
+                     if (alerta.detalhes && alerta.detalhes.length > 0) {
+                         detalhesHtml = `
+                             <hr class="my-2">
+                             <ul class="mb-0 small" style="padding-left: 1.2rem;">
+                             ${alerta.detalhes.slice(0, 3).map(d => `
+                                 <li>${d.Projeto || 'N/A'}
+                                     ${'Squad' in d ? ` - Squad: ${d.Squad || 'N/D'}` : ''}
+                                     ${'Account Manager' in d ? ` - AM: ${d['Account Manager'] || 'N/D'}` : ''}
+                                     ${'HorasRestantes' in d ? ` - Saldo: ${d.HorasRestantes !== null ? d.HorasRestantes.toFixed(1) : 'N/A'}h` : ''}
+                                     ${'Conclusao' in d ? ` - Concl: ${d.Conclusao !== null ? d.Conclusao.toFixed(1) : 'N/A'}%` : ''}
+                                 </li>`).join('')}
+                             ${alerta.detalhes.length > 3 ? `<li>... e mais ${alerta.detalhes.length - 3}</li>` : ''}
+                             </ul>`;
+                     }
+
+                     alertEl.className = `alert alert-${tipoClasse} alert-dismissible fade show shadow-sm`;
+                     alertEl.setAttribute('role', 'alert');
+                     alertEl.innerHTML = `
+                         <h5 class="alert-heading h6"><i class="bi ${alerta.icone || 'bi-info-circle'} me-2"></i>${alerta.titulo || 'Alerta'}</h5>
+                         <p class="mb-1 small">${alerta.mensagem}</p>
+                         ${detalhesHtml}
+                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                     `;
+                     container.appendChild(alertEl);
+                 });
+             } else {
+                  $('#alert-count').text('0');
+                  // Opcional: Mostrar mensagem de "nenhum alerta"
+                  // container.innerHTML = '<div class="alert alert-success">Nenhum alerta crítico no momento.</div>';
+             }
+        }
+
+        function mostrarAlertas() {
+            // Busca os alertas mais recentes do backend (se necessário)
+            // Neste exemplo, apenas garantimos que o container está visível
+            // Se os alertas já foram carregados na página, não precisa buscar de novo
+            // Se quiser buscar sempre:
+            /*
+            fetch("{{ url_for('gerencial.dashboard') }}?alertas=true") // Ou um endpoint API dedicado
+                .then(response => response.json()) // Supondo que retorne JSON
+                .then(data => {
+                    atualizarAlertas(data.alertas || []);
+                })
+                .catch(error => console.error("Erro ao buscar alertas:", error));
+            */
+           console.log("Exibindo alertas já carregados ou buscando novos...");
+           // Se os alertas estiverem ocultos, mostre-os. Se não, não faz nada.
+        }
+
+        function formatarLinha(projeto) {
+            // Adicionando log para depurar o formato dos dados recebidos
+            console.log('Projeto recebido:', projeto);
+            
+            // Versão simplificada que evita acessar propriedades potencialmente inexistentes
+            try {
+                // Verifica se o projeto existe
+                if (!projeto) {
+                    console.error('Projeto indefinido ou nulo');
+                    return '<tr><td colspan="7" class="text-center">Dados inválidos</td></tr>';
+                }
+                
+                // Debug específico para o campo numero
+                console.log('Campo numero (minúsculo):', projeto.numero);
+                console.log('Campo Numero (maiúsculo):', projeto.Numero);
+                console.log('Propriedades disponíveis:', Object.keys(projeto));
+                
+                // Usa o operador || para fornecer valores padrão, verificando tanto maiúsculo quanto minúsculo
+                const numero = projeto.numero || projeto.Numero || '';
+                const nomeProjeto = projeto.projeto || projeto.Projeto || 'N/A';
+                const squad = projeto.squad || projeto.Squad || 'N/D';
+                const status = projeto.status || projeto.Status || 'N/D';
+                const conclusao = +(projeto.conclusao || projeto.Conclusao || 0);
+                const horasRestantes = +(projeto.horas_restantes || projeto.HorasRestantes || 0);
+                const vencimento = projeto.data_vencimento || projeto.VencimentoEm || 'N/A';
+                
+                console.log('Valores formatados:', { numero, nomeProjeto, squad, status, conclusao, horasRestantes, vencimento });
+                
+                // Determina a classe de cores baseado no percentual de conclusão
+                let progressClass = 'progress-info';
+                if (conclusao < 30) {
+                    progressClass = 'progress-danger';
+                } else if (conclusao < 70) {
+                    progressClass = 'progress-warning';
+                } else {
+                    progressClass = 'progress-success';
+                }
+                
+                // Formata a célula de conclusão com a barra de progresso
+                const conclusaoHTML = `
+                    <div class="progress-value">
+                        <span class="progress-value-text">${conclusao}%</span>
+                    </div>
+                    <div class="progress-thin ${progressClass}">
+                        <div class="progress-bar" style="width: ${conclusao}%"></div>
+                    </div>
+                `;
+                
+                // Calcula status de horas restantes
+                const horasClass = horasRestantes < 10 ? 'progress-danger' : 
+                                  horasRestantes < 20 ? 'progress-warning' : 'progress-success';
+                
+                // Gera HTML para horas restantes com barra de progresso
+                const horasHTML = `
+                    <div class="progress-value">
+                        <span class="progress-value-text">${horasRestantes}h</span>
+                    </div>
+                    <div class="progress-thin ${horasClass}">
+                        <div class="progress-bar" style="width: 100%"></div>
+                    </div>
+                `;
+                
+                return `
+                    <tr>
+                        <td>${numero}</td>
+                        <td class="projeto-col" title="${nomeProjeto}"><span class="truncate-text">${nomeProjeto}</span></td>
+                        <td class="squad-col" title="${squad}">${squad}</td>
+                        <td class="status-col">${status}</td>
+                        <td class="text-end">${conclusaoHTML}</td>
+                        <td class="text-end">${horasHTML}</td>
+                        <td>${vencimento}</td>
+                    </tr>
+                `;
+            } catch (error) {
+                console.error('Erro ao formatar linha:', error, projeto);
+                return '<tr><td colspan="7" class="text-center text-danger">Erro ao processar dados</td></tr>';
+            }
+        }
+
+        function formatarLinhaFaturamento(projeto) {
+            // Adiciona log para depurar
+            console.log('Projeto faturamento recebido:', projeto);
+            
+            try {
+                // Verifica se o projeto existe
+                if (!projeto) {
+                    console.error('Projeto faturamento indefinido ou nulo');
+                    return '<tr><td colspan="6" class="text-center">Dados inválidos</td></tr>';
+                }
+                
+                // Usa o operador || para fornecer valores padrão
+                const nomeProjeto = projeto.Projeto || projeto.projeto || 'N/A';
+                const squad = projeto.Squad || projeto.squad || 'N/D';
+                const accountManager = projeto['Account Manager'] || projeto.account_manager || 'N/D';
+                const faturamento = projeto.Faturamento || projeto.faturamento || 'N/A';
+                const status = projeto.Status || projeto.status || 'N/D';
+                const vencimento = projeto.VencimentoEm || projeto.vencimento_em || 'N/A';
+                
+                return `
+                    <tr>
+                        <td class="projeto-col" title="${nomeProjeto}"><span class="truncate-text">${nomeProjeto}</span></td>
+                        <td class="squad-col" title="${squad}">${squad}</td>
+                        <td class="account-manager-col" title="${accountManager}">${accountManager}</td>
+                        <td class="faturamento-col">${faturamento}</td>
+                        <td class="status-col">${status}</td>
+                        <td>${vencimento}</td>
+                    </tr>
+                `;
+            } catch (error) {
+                console.error('Erro ao formatar linha de faturamento:', error, projeto);
+                return '<tr><td colspan="6" class="text-center text-danger">Erro ao processar dados</td></tr>';
+            }
+        }
+
+        // Função para obter os filtros atuais da URL
+        function obterFiltrosAtuais() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return {
+                squad: urlParams.get('squad') || '',
+                faturamento: urlParams.get('faturamento') || ''
+            };
+        }
+
+        // Função para adicionar contagem de registros nos modais
+        function atualizarContadorRegistros(tableId, total) {
+            // Encontra o footer da modal
+            const modalId = $(`#${tableId}`).closest('.modal').attr('id');
+            const modalFooter = $(`#${modalId} .modal-footer`);
+            
+            // Remove contador existente se houver
+            modalFooter.find('.contador-registros').remove();
+            
+            // Adiciona o novo contador
+            const contador = $('<div class="contador-registros text-muted me-auto"></div>')
+                .text(`${total} registro${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`);
+            
+            modalFooter.prepend(contador);
+        }
+
+        function abrirModalProjetosAtivos() {
+            const modal = new bootstrap.Modal(document.getElementById('modalProjetosAtivos'));
+            const tabelaBody = document.getElementById('tabela-projetos-ativos');
+            const filtros = obterFiltrosAtuais();
+            
+            // Atualiza o título do modal com informações do filtro
+            const modalTitle = document.getElementById('modalProjetosAtivosLabel');
+            let tituloModal = '<i class="bi bi-list-task me-2"></i> Projetos Ativos';
+            if (filtros.squad && filtros.squad !== 'Todos') {
+                tituloModal += ` <span class="badge bg-light text-dark">Squad: ${filtros.squad}</span>`;
+            }
+            if (filtros.faturamento && filtros.faturamento !== 'Todos') {
+                tituloModal += ` <span class="badge bg-light text-dark">Faturamento: ${filtros.faturamento}</span>`;
+            }
+            modalTitle.innerHTML = tituloModal;
+            
+            if ($.fn.DataTable.isDataTable('#dataTableProjetosAtivos')) {
+                $('#dataTableProjetosAtivos').DataTable().destroy();
+            }
+            
+            modal.show();
+            tabelaBody.innerHTML = '';
+            
+            // Constrói a URL com os filtros
+            let url = '/gerencial/api/projetos-ativos?t=' + new Date().getTime();
+            if (filtros.squad && filtros.squad !== 'Todos') {
+                url += '&squad=' + encodeURIComponent(filtros.squad);
+            }
+            if (filtros.faturamento && filtros.faturamento !== 'Todos') {
+                url += '&faturamento=' + encodeURIComponent(filtros.faturamento);
+            }
+            
+            $.ajax({
+                url: url,
+                type: 'GET',
+                success: function(data) {
+                    let html = '';
+                    if (data && data.length > 0) {
+                        data.forEach(projeto => {
+                            html += formatarLinha(projeto);
+                        });
+                        // Atualiza contador de registros
+                        atualizarContadorRegistros('dataTableProjetosAtivos', data.length);
+                    } else {
+                        html = '<tr><td colspan="7" class="text-center">Nenhum projeto ativo encontrado.</td></tr>';
+                        // Atualiza contador de registros
+                        atualizarContadorRegistros('dataTableProjetosAtivos', 0);
+                    }
+                    
+                    tabelaBody.innerHTML = html;
+                    
+                    tabelaAtivosDt = $('#dataTableProjetosAtivos').DataTable({
+                        language: {
+                            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/pt-BR.json'
+                        },
+                        pageLength: 10,
+                        autoWidth: false,
+                        scrollX: true,
+                        fixedHeader: true,
+                        responsive: false,
+                        columnDefs: [
+                            { width: "80px", targets: 0 }, // Número
+                            { width: "300px", targets: 1 }, // Projeto
+                            { width: "180px", targets: 2 }, // Squad
+                            { width: "120px", targets: 3 }, // Status
+                            { width: "150px", targets: 4 }, // Conclusão - Aumentado para acomodar a barra de progresso
+                            { width: "150px", targets: 5 }, // Horas Restantes - Aumentado para acomodar a barra de progresso
+                            { width: "120px", targets: 6 }  // Vencimento
+                        ],
+                        // Previne redimensionamento do modal ao mudar de página
+                        drawCallback: function() {
+                            $('.dataTables_scrollBody').css('width', '100%');
+                            corrigirLayoutTabelas(); // Chama a função de correção após cada desenho da tabela
+                        }
+                    });
+                    
+                    // Correção de layout após inicialização
+                    corrigirLayoutTabelas();
+                },
+                error: function(xhr, status, error) {
+                    tabelaBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Erro ao carregar dados: ' + error + '</td></tr>';
+                    // Atualiza contador de registros para zero em caso de erro
+                    atualizarContadorRegistros('dataTableProjetosAtivos', 0);
+                }
+            });
+        }
+
+        function abrirModalProjetosEmAtendimento() {
+            const modal = new bootstrap.Modal(document.getElementById('modalProjetosEmAtendimento'));
+            const tabelaBody = document.getElementById('tabela-projetos-em-atendimento');
+            const filtros = obterFiltrosAtuais();
+            
+            // Atualiza o título do modal com informações do filtro
+            const modalTitle = document.getElementById('modalProjetosEmAtendimentoLabel');
+            let tituloModal = '<i class="bi bi-people-fill me-2"></i> Projetos em Atendimento';
+            if (filtros.squad && filtros.squad !== 'Todos') {
+                tituloModal += ` <span class="badge bg-light text-dark">Squad: ${filtros.squad}</span>`;
+            }
+            if (filtros.faturamento && filtros.faturamento !== 'Todos') {
+                tituloModal += ` <span class="badge bg-light text-dark">Faturamento: ${filtros.faturamento}</span>`;
+            }
+            modalTitle.innerHTML = tituloModal;
+            
+            if ($.fn.DataTable.isDataTable('#dataTableProjetosEmAtendimento')) {
+                $('#dataTableProjetosEmAtendimento').DataTable().destroy();
+            }
+            
+            modal.show();
+            tabelaBody.innerHTML = '';
+            
+            // Constrói a URL com os filtros
+            let url = '/gerencial/api/projetos-em-atendimento?t=' + new Date().getTime();
+            if (filtros.squad && filtros.squad !== 'Todos') {
+                url += '&squad=' + encodeURIComponent(filtros.squad);
+            }
+            if (filtros.faturamento && filtros.faturamento !== 'Todos') {
+                url += '&faturamento=' + encodeURIComponent(filtros.faturamento);
+            }
+            
+            $.ajax({
+                url: url,
+                type: 'GET',
+                success: function(data) {
+                    let html = '';
+                    if (data && data.length > 0) {
+                        data.forEach(projeto => {
+                            html += formatarLinha(projeto);
+                        });
+                        // Atualiza contador de registros
+                        atualizarContadorRegistros('dataTableProjetosEmAtendimento', data.length);
+                    } else {
+                        html = '<tr><td colspan="7" class="text-center">Nenhum projeto em atendimento encontrado.</td></tr>';
+                        // Atualiza contador de registros
+                        atualizarContadorRegistros('dataTableProjetosEmAtendimento', 0);
+                    }
+                    
+                    tabelaBody.innerHTML = html;
+                    
+                    tabelaAtendimentoDt = $('#dataTableProjetosEmAtendimento').DataTable({
+                        language: {
+                            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/pt-BR.json'
+                        },
+                        pageLength: 10,
+                        autoWidth: false,
+                        scrollX: true,
+                        fixedHeader: true,
+                        responsive: false,
+                        columnDefs: [
+                            { width: "80px", targets: 0 }, // Número
+                            { width: "300px", targets: 1 }, // Projeto
+                            { width: "180px", targets: 2 }, // Squad
+                            { width: "120px", targets: 3 }, // Status
+                            { width: "150px", targets: 4 }, // Conclusão - Aumentado para acomodar a barra de progresso
+                            { width: "150px", targets: 5 }, // Horas Restantes - Aumentado para acomodar a barra de progresso
+                            { width: "120px", targets: 6 }  // Vencimento
+                        ],
+                        // Previne redimensionamento do modal ao mudar de página
+                        drawCallback: function() {
+                            $('.dataTables_scrollBody').css('width', '100%');
+                            corrigirLayoutTabelas(); // Chama a função de correção após cada desenho da tabela
+                        }
+                    });
+                    
+                    // Correção de layout após inicialização
+                    corrigirLayoutTabelas();
+                },
+                error: function(xhr, status, error) {
+                    tabelaBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Erro ao carregar dados: ' + error + '</td></tr>';
+                    // Atualiza contador de registros para zero em caso de erro
+                    atualizarContadorRegistros('dataTableProjetosEmAtendimento', 0);
+                }
+            });
+        }
+
+        function abrirModalFaturamento() {
+            const modal = new bootstrap.Modal(document.getElementById('modalFaturamento'));
+            const tabelaBody = document.getElementById('tabela-faturamento');
+            const filtros = obterFiltrosAtuais();
+            
+            // Atualiza o título do modal com informações do filtro
+            const modalTitle = document.getElementById('modalFaturamentoLabel');
+            let tituloModal = '<i class="bi bi-cash-stack me-2"></i> Projetos para Faturar';
+            if (filtros.squad && filtros.squad !== 'Todos') {
+                tituloModal += ` <span class="badge bg-light text-dark">Squad: ${filtros.squad}</span>`;
+            }
+            if (filtros.faturamento && filtros.faturamento !== 'Todos') {
+                tituloModal += ` <span class="badge bg-light text-dark">Faturamento: ${filtros.faturamento}</span>`;
+            }
+            modalTitle.innerHTML = tituloModal;
+            
+            if ($.fn.DataTable.isDataTable('#dataTableFaturamento')) {
+                $('#dataTableFaturamento').DataTable().destroy();
+            }
+            
+            modal.show();
+            tabelaBody.innerHTML = '';
+            
+            // Constrói a URL com os filtros
+            let url = '/gerencial/api/projetos-para-faturar?t=' + new Date().getTime();
+            if (filtros.squad && filtros.squad !== 'Todos') {
+                url += '&squad=' + encodeURIComponent(filtros.squad);
+            }
+            if (filtros.faturamento && filtros.faturamento !== 'Todos') {
+                url += '&faturamento=' + encodeURIComponent(filtros.faturamento);
+            }
+            
+            $.ajax({
+                url: url,
+                type: 'GET',
+                success: function(data) {
+                    let html = '';
+                    if (data && data.length > 0) {
+                        data.forEach(projeto => {
+                            html += formatarLinhaFaturamento(projeto);
+                        });
+                        // Atualiza contador de registros
+                        atualizarContadorRegistros('dataTableFaturamento', data.length);
+                    } else {
+                        html = '<tr><td colspan="6" class="text-center">Nenhum projeto para faturar no momento.</td></tr>';
+                        // Atualiza contador de registros
+                        atualizarContadorRegistros('dataTableFaturamento', 0);
+                    }
+                    
+                    tabelaBody.innerHTML = html;
+                    
+                    tabelaFaturamentoDt = $('#dataTableFaturamento').DataTable({
+                        language: {
+                            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/pt-BR.json'
+                        },
+                        pageLength: 10,
+                        autoWidth: false,
+                        scrollX: true,
+                        fixedHeader: true,
+                        responsive: false,
+                        columnDefs: [
+                            { width: "300px", targets: 0 }, // Projeto
+                            { width: "180px", targets: 1 }, // Squad
+                            { width: "180px", targets: 2 }, // Account Manager
+                            { width: "120px", targets: 3 }, // Faturamento
+                            { width: "120px", targets: 4 }, // Status
+                            { width: "120px", targets: 5 }  // Vencimento
+                        ],
+                        // Previne redimensionamento do modal ao mudar de página
+                        drawCallback: function() {
+                            $('.dataTables_scrollBody').css('width', '100%');
+                            corrigirLayoutTabelas(); // Chama a função de correção após cada desenho da tabela
+                        }
+                    });
+                    
+                    // Correção de layout após inicialização
+                    corrigirLayoutTabelas();
+                },
+                error: function(xhr, status, error) {
+                    tabelaBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Erro ao carregar dados: ' + error + '</td></tr>';
+                    // Atualiza contador de registros para zero em caso de erro
+                    atualizarContadorRegistros('dataTableFaturamento', 0);
+                }
+            });
+        }
+
+        function exportarFaturamento() {
+            const data = tabelaFaturamentoDt.data().toArray();
+            const csv = [
+                ['Projeto', 'Squad', 'Account Manager', 'Faturamento', 'Status', 'Vencimento Em'],
+                ...data.map(row => [
+                    row[0].replace(/<[^>]+>/g, ''), // Remove HTML tags
+                    row[1],
+                    row[2],
+                    row[3].replace(/<[^>]+>/g, ''),
+                    row[4],
+                    row[5]
+                ])
+            ].map(row => row.join(';')).join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `projetos_para_faturar_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
+        function abrirModalProjetosCriticos() {
+            const modal = new bootstrap.Modal(document.getElementById('modalProjetosCriticos'));
+            const tabelaBody = document.getElementById('tabela-criticos');
+            const filtros = obterFiltrosAtuais();
+            
+            // Atualiza o título do modal com informações do filtro
+            const modalTitle = document.getElementById('modalProjetosCriticosLabel');
+            let tituloModal = '<i class="bi bi-exclamation-triangle me-2"></i> Projetos Críticos';
+            if (filtros.squad && filtros.squad !== 'Todos') {
+                tituloModal += ` <span class="badge bg-light text-dark">Squad: ${filtros.squad}</span>`;
+            }
+            if (filtros.faturamento && filtros.faturamento !== 'Todos') {
+                tituloModal += ` <span class="badge bg-light text-dark">Faturamento: ${filtros.faturamento}</span>`;
+            }
+            modalTitle.innerHTML = tituloModal;
+            
+            if ($.fn.DataTable.isDataTable('#dataTableCriticos')) {
+                $('#dataTableCriticos').DataTable().destroy();
+            }
+            
+            modal.show();
+            tabelaBody.innerHTML = '';
+            
+            // Constrói a URL com os filtros
+            let url = '/gerencial/api/projetos-criticos?t=' + new Date().getTime();
+            if (filtros.squad && filtros.squad !== 'Todos') {
+                url += '&squad=' + encodeURIComponent(filtros.squad);
+            }
+            if (filtros.faturamento && filtros.faturamento !== 'Todos') {
+                url += '&faturamento=' + encodeURIComponent(filtros.faturamento);
+            }
+            
+            $.ajax({
+                url: url,
+                type: 'GET',
+                success: function(data) {
+                    let html = '';
+                    if (data && data.length > 0) {
+                        data.forEach(projeto => {
+                            html += formatarLinha(projeto);
+                        });
+                        // Atualiza contador de registros
+                        atualizarContadorRegistros('dataTableCriticos', data.length);
+                    } else {
+                        html = '<tr><td colspan="7" class="text-center">Nenhum projeto crítico encontrado.</td></tr>';
+                        // Atualiza contador de registros
+                        atualizarContadorRegistros('dataTableCriticos', 0);
+                    }
+                    
+                    tabelaBody.innerHTML = html;
+                    
+                    tabelaCriticosDt = $('#dataTableCriticos').DataTable({
+                        language: {
+                            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/pt-BR.json'
+                        },
+                        pageLength: 10,
+                        order: [[5, "asc"]],
+                        autoWidth: false,
+                        scrollX: true,
+                        fixedHeader: true,
+                        responsive: false,
+                        columnDefs: [
+                            { width: "80px", targets: 0 }, // Número
+                            { width: "300px", targets: 1 }, // Projeto
+                            { width: "180px", targets: 2 }, // Squad
+                            { width: "120px", targets: 3 }, // Status
+                            { width: "150px", targets: 4 }, // Conclusão - Aumentado para acomodar a barra de progresso
+                            { width: "150px", targets: 5 }, // Horas Restantes - Aumentado para acomodar a barra de progresso
+                            { width: "120px", targets: 6 }  // Vencimento
+                        ],
+                        // Previne redimensionamento do modal ao mudar de página
+                        drawCallback: function() {
+                            $('.dataTables_scrollBody').css('width', '100%');
+                            corrigirLayoutTabelas(); // Chama a função de correção após cada desenho da tabela
+                        }
+                    });
+                    
+                    // Correção de layout após inicialização
+                    corrigirLayoutTabelas();
+                },
+                error: function(xhr, status, error) {
+                    tabelaBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Erro ao carregar dados: ' + error + '</td></tr>';
+                    // Atualiza contador de registros para zero em caso de erro
+                    atualizarContadorRegistros('dataTableCriticos', 0);
+                }
+            });
+        }
+
+        function exportarProjetosCriticos() {
+            const data = tabelaCriticosDt.data().toArray();
+            const csv = [
+                ['Número', 'Projeto', 'Squad', 'Status', 'Conclusão', 'Horas Restantes', 'Vencimento'],
+                ...data.map(row => [
+                    row[0],
+                    row[1],
+                    row[2],
+                    row[3],
+                    row[4],
+                    row[5],
+                    row[6]
+                ])
+            ].map(row => row.join(';')).join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `projetos_criticos_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
+        // Função para corrigir o layout das tabelas nos modais
+        function corrigirLayoutTabelas() {
+            // Corrige problemas de alinhamento e redimensionamento nos DataTables dentro dos modais
+            setTimeout(function() {
+                $('.dataTables_scrollHeadInner, .dataTables_scrollHeadInner table').css({
+                    'width': '100%'
+                });
+                
+                $('.dataTables_scrollBody').css({
+                    'width': '100%',
+                    'overflow-x': 'hidden'
+                });
+                
+                // Força atualização do layout
+                $(window).trigger('resize');
+            }, 100);
+        }
+
+        // Listener para quando qualquer modal é mostrado
+        document.addEventListener('DOMContentLoaded', function() {
+            // Adiciona evento para cada modal quando é aberto
+            $('.modal').on('shown.bs.modal', function() {
+                corrigirLayoutTabelas();
+            });
+            
+            // Também corrige quando muda de página nos DataTables
+            $('body').on('page.dt', function() {
+                corrigirLayoutTabelas();
+            });
+
+            // Data e Hora Atual
+            document.getElementById('current-date').textContent = new Date().toLocaleString('pt-BR');
+
+            // Inicializa gráficos com dados do carregamento inicial
+            try {
+                const dadosSquad = {
+                    labels: {{ grafico_squads.labels|default([])|tojson|safe }},
+                    data: {{ grafico_squads.data|default([])|tojson|safe }}
+                };
+                if (dadosSquad.labels.length > 0) {
+                    renderSquadChart(dadosSquad);
+                } else {
+                    document.getElementById('squadChart').parentElement.innerHTML = '<div class="text-center text-muted p-4">Sem dados para exibir</div>';
+                }
+            } catch (e) { 
+                console.error("Erro ao renderizar gráfico de Squads:", e);
+                document.getElementById('squadChart').parentElement.innerHTML = '<div class="text-center text-danger p-4">Erro ao carregar gráfico</div>';
+            }
+
+            try {
+                const dadosFaturamento = {
+                    labels: {{ grafico_faturamento.labels|default([])|tojson|safe }},
+                    data: {{ grafico_faturamento.data|default([])|tojson|safe }}
+                };
+                if (dadosFaturamento.labels.length > 0) {
+                    renderFaturamentoChart(dadosFaturamento);
+                } else {
+                    document.getElementById('faturamentoChart').parentElement.innerHTML = '<div class="text-center text-muted p-4">Sem dados para exibir</div>';
+                }
+            } catch (e) { 
+                console.error("Erro ao renderizar gráfico de Faturamento:", e);
+                document.getElementById('faturamentoChart').parentElement.innerHTML = '<div class="text-center text-danger p-4">Erro ao carregar gráfico</div>';
+            }
+
+            // Atualiza alertas iniciais (se houver)
+            try {
+                const alertasIniciais = {{ alertas|default([])|tojson|safe }};
+                if (alertasIniciais && alertasIniciais.length > 0) {
+                    atualizarAlertas(alertasIniciais);
+                }
+            } catch (e) {
+                console.error("Erro ao processar alertas iniciais:", e);
+            }
+
+             // Adiciona listener para o formulário de filtros (submissão via GET)
+             $('#filtrosForm').submit(function(e) {
+                // A submissão GET padrão já funciona, mas podemos adicionar um indicador de loading se quisermos
+                $(this).find('button[type="submit"]').prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Aplicando...');
+             });
+
+             // Inicializa tooltips
+             const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+             tooltipTriggerList.map(function (tooltipTriggerEl) {
+                 return new bootstrap.Tooltip(tooltipTriggerEl);
+             });
+
+             console.log("Dashboard Gerencial inicializado.");
+        }); // Fim DOMContentLoaded
+    </script>
+
+</body>
+</html>

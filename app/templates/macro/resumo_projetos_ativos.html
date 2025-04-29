@@ -1,0 +1,179 @@
+{% extends "master/master.html" %}
+
+{% block title %}{{ titulo_pagina }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-4">
+    {% if error %}
+    <div class="alert alert-danger">
+        <p>{{ error }}</p>
+    </div>
+    {% else %}
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="card-title mb-0">{{ titulo_pagina }}</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-12 mb-4">
+                            <h5 class="text-center">Total de Projetos Ativos: <span class="badge bg-primary">{{ total_geral }}</span></h5>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th class="text-center">Status \ Squad</th>
+                                            {% for squad in totais_squad.keys() %}
+                                            <th class="text-center">{{ squad }}</th>
+                                            {% endfor %}
+                                            <th class="text-center bg-light">TOTAL</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for status, squads in status_squads.items() %}
+                                        <tr>
+                                            <td class="align-middle" style="background-color: {{ color_palette[status] }}; color: white;">
+                                                <strong>{{ status }}</strong>
+                                            </td>
+                                            {% for squad, total in squads.items() %}
+                                            <td class="text-center">
+                                                {% if total > 0 %}
+                                                <span class="badge rounded-pill" style="background-color: {{ color_palette[status] }}; font-size: 14px;">
+                                                    {{ total }}
+                                                </span>
+                                                {% else %}
+                                                <span class="text-muted">0</span>
+                                                {% endif %}
+                                            </td>
+                                            {% endfor %}
+                                            <td class="text-center bg-light">
+                                                <strong>{{ totais_status[status] }}</strong>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                        <tr class="table-secondary">
+                                            <td class="align-middle"><strong>TOTAL</strong></td>
+                                            {% for squad, total in totais_squad.items() %}
+                                            <td class="text-center"><strong>{{ total }}</strong></td>
+                                            {% endfor %}
+                                            <td class="text-center bg-primary text-white"><strong>{{ total_geral }}</strong></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-4 shadow-sm">
+                                <div class="card-header bg-light">
+                                    <h5 class="card-title mb-0">Distribuição por Status</h5>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="statusChart" width="100%" height="300"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card mb-4 shadow-sm">
+                                <div class="card-header bg-light">
+                                    <h5 class="card-title mb-0">Distribuição por Squad</h5>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="squadChart" width="100%" height="300"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        {% if not error %}
+        // Dados para o gráfico de Status
+        const statusCtx = document.getElementById('statusChart').getContext('2d');
+        const statusData = {
+            labels: [{% for status in totais_status %} '{{ status }}', {% endfor %}],
+            datasets: [{
+                data: [{% for status, total in totais_status.items() %} {{ total }}, {% endfor %}],
+                backgroundColor: [{% for status in totais_status %} '{{ color_palette[status] }}', {% endfor %}]
+            }]
+        };
+        
+        const statusChart = new Chart(statusCtx, {
+            type: 'pie',
+            data: statusData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Dados para o gráfico de Squads
+        const squadCtx = document.getElementById('squadChart').getContext('2d');
+        const squadData = {
+            labels: [{% for squad in totais_squad %} '{{ squad }}', {% endfor %}],
+            datasets: [{
+                data: [{% for squad, total in totais_squad.items() %} {{ total }}, {% endfor %}],
+                backgroundColor: ['#007bff', '#28a745', '#fd7e14', '#dc3545', '#6610f2']
+            }]
+        };
+        
+        const squadChart = new Chart(squadCtx, {
+            type: 'doughnut',
+            data: squadData,
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        {% endif %}
+    });
+</script>
+{% endblock %} 

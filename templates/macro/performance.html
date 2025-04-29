@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}Performance Macro{% endblock %}
+
+{% block extra_css %}
+    <!-- Adicione CSS específico para a página de performance aqui, se necessário -->
+    <style>
+        .kpi-card {
+            margin-bottom: 1.5rem;
+        }
+        .chart-container {
+            height: 350px;
+            margin-bottom: 2rem;
+        }
+    </style>
+{% endblock %}
+
+{% block module_navigation %}
+    <!-- Cabeçalho Específico da Página de Performance Macro -->
+    <div class="row align-items-center">
+        <div class="col">
+            <h1 class="h3 text-gray-800"><i class="bi bi-graph-up me-2"></i>Performance Macro</h1>
+        </div>
+        <div class="col text-end text-muted small">
+            {% if hora_atualizacao %}
+                Atualizado em: {{ hora_atualizacao.strftime('%d/%m/%Y %H:%M:%S') }}
+            {% else %}
+                 Atualizado em: N/A
+            {% endif %}
+        </div>
+    </div>
+    <!-- Você pode adicionar filtros aqui se necessário -->
+{% endblock %}
+
+{% block content %}
+    <!-- Mensagem de Erro (Opcional) -->
+    {% if erro %}
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <strong>Atenção:</strong> {{ erro }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endif %}
+
+    <!-- Linha de KPIs de Performance -->
+    <div class="row">
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2 kpi-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Taxa de Sucesso (Projetos Concluídos no Prazo)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ kpis.taxa_sucesso | default('N/A') }}%</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-check2-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2 kpi-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Tempo Médio de Entrega (Dias)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "%.1f"|format(kpis.tempo_medio_entrega|default('N/A')) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-clock-history fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+         <div class="col-xl-4 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2 kpi-card">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Burn Rate Médio Geral</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ kpis.burn_rate_medio | default('N/A') }}%</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-fire fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Linha de Gráficos de Performance -->
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Evolução da Taxa de Sucesso</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="taxaSucessoChart"></canvas>
+                    </div>
+                    <p class="text-center small text-muted mt-2">Histórico mensal da taxa de projetos concluídos no prazo.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Evolução do Tempo Médio de Entrega</h6>
+                </div>
+                <div class="card-body">
+                     <div class="chart-container">
+                        <canvas id="tempoMedioChart"></canvas>
+                    </div>
+                    <p class="text-center small text-muted mt-2">Histórico mensal do tempo médio (em dias) para conclusão de projetos.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+     <!-- Tabela de Detalhes (Opcional) -->
+     <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Detalhes por Squad (Exemplo)</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="performanceTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Squad</th>
+                            <th>Projetos Concluídos</th>
+                            <th>Taxa Sucesso (%)</th>
+                            <th>Tempo Médio (dias)</th>
+                            <th>Burn Rate Médio (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Dados podem ser carregados do backend -->
+                        <tr>
+                            <td>Azure</td>
+                            <td>15</td>
+                            <td>80%</td>
+                            <td>25.5</td>
+                            <td>75%</td>
+                        </tr>
+                         <tr>
+                            <td>M365</td>
+                            <td>12</td>
+                            <td>75%</td>
+                            <td>30.2</td>
+                            <td>80%</td>
+                        </tr>
+                         <tr>
+                            <td>Data & Power</td>
+                            <td>10</td>
+                            <td>90%</td>
+                            <td>22.0</td>
+                            <td>70%</td>
+                        </tr>
+                         <!-- Adicionar mais linhas conforme necessário -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block extra_js %}
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+    <!-- Chart.js já carregado em base.html -->
+
+    <script>
+        let taxaSucessoChartInstance = null;
+        let tempoMedioChartInstance = null;
+        let performanceTableInstance = null;
+
+        // Função para renderizar gráfico de linha (exemplo)
+        function renderLineChart(canvasId, chartInstance, labels, data, label, borderColor, backgroundColor) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels, // Ex: ['Jan', 'Fev', 'Mar', 'Abr']
+                    datasets: [{
+                        label: label,
+                        data: data,  // Ex: [75, 80, 78, 82]
+                        borderColor: borderColor,
+                        backgroundColor: backgroundColor,
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                            // Você pode adicionar sugestão de max/min se souber os limites
+                            // suggestedMax: 100 // Para taxas em %
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            // Dados de exemplo para gráficos - Substituir com dados do backend
+            const meses = ['Jan/25', 'Fev/25', 'Mar/25', 'Abr/25']; // Exemplo
+            const taxaSucessoData = [70, 75, 80, 78]; // Exemplo
+            const tempoMedioData = [32.5, 30.1, 28.9, 29.5]; // Exemplo
+
+            // Renderiza Gráfico de Taxa de Sucesso
+            taxaSucessoChartInstance = renderLineChart(
+                'taxaSucessoChart',
+                taxaSucessoChartInstance,
+                meses,
+                taxaSucessoData,
+                'Taxa de Sucesso (%)',
+                'rgba(25, 135, 84, 1)', // Verde Sucesso
+                'rgba(25, 135, 84, 0.1)'
+            );
+
+            // Renderiza Gráfico de Tempo Médio
+            tempoMedioChartInstance = renderLineChart(
+                'tempoMedioChart',
+                tempoMedioChartInstance,
+                meses,
+                tempoMedioData,
+                'Tempo Médio (Dias)',
+                'rgba(13, 110, 253, 1)', // Azul Info
+                'rgba(13, 110, 253, 0.1)'
+            );
+
+            // Inicializa DataTable (opcional, se a tabela tiver muitos dados)
+            if ($('#performanceTable tbody tr').length > 0) { 
+                performanceTableInstance = $('#performanceTable').DataTable({
+                     language: {
+                        url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/pt-BR.json',
+                    },
+                    paging: false, // Desativa paginação para tabelas pequenas
+                    searching: false, // Desativa busca
+                    info: false, // Remove informação de registros
+                    order: [[0, 'asc']], // Ordena por nome do Squad
+                     columnDefs: [
+                        { targets: [2,3,4], className: 'text-center' } // Centraliza colunas numéricas
+                    ]
+                });
+            }
+
+        });
+    </script>
+{% endblock %} 

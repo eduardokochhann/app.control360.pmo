@@ -1,0 +1,1514 @@
+{% extends 'base.html' %} {# Ou o seu template base principal #}
+
+{% block title %}Quadro de Backlog - {{ current_project.name if current_project else 'Projeto' }} {% endblock %}
+
+{% block head %}
+{{ super() }}
+{# CSS movido para extra_css para maior especificidade #}
+{% endblock %}
+
+{# --- Bloco para CSS Específico da Página --- #}
+{% block extra_css %}
+<style>
+  /* --- Ajustes Gerais --- */
+  .kanban-board-wrapper .card {
+      /* Remover sombra dupla se o wrapper já tiver sombra */
+      box-shadow: none; 
+  }
+  .kanban-board-wrapper .card-body {
+      padding: 1rem 1.25rem; /* Leve ajuste no padding */
+      background-color: #f8f9fc; /* Fundo muito leve para área do board */
+  }
+  .kanban-board {
+      display: flex;
+      gap: 1rem; /* Reduz um pouco o espaço entre colunas */
+      overflow-x: auto;
+      padding-bottom: 1rem;
+      /* Tenta calcular altura para preencher espaço vertical */
+      /* Ajuste o valor (318px) se necessário, baseado na altura dos elementos acima */
+      height: calc(100vh - 318px);
+      min-height: 400px; /* Garante altura mínima ainda */
+      justify-content: center; /* Centraliza as colunas se houver espaço */
+  }
+  .kanban-column {
+      flex: 1 1 300px; /* Permite crescer/encolher, base 300px */
+      max-width: 380px; /* Limite máximo para não esticar demais */
+      background-color: #f1f3f5; /* Fundo da coluna um pouco mais escuro que o board */
+      border-radius: 0.375rem; /* Raio padrão Bootstrap */
+      /* Sombra sutil padrão Bootstrap */
+      /* box-shadow: var(--bs-box-shadow-sm); */ 
+      box-shadow: none; /* Remover sombra da coluna, deixar só no card? Testar */
+      border: 1px solid #dee2e6; /* Borda leve para definir a coluna */
+      display: flex;
+      flex-direction: column;
+  }
+  .kanban-column-header {
+      padding: 0.75rem 1rem; /* Ajuste padding */
+      background-color: #fff; /* Cabeçalho branco */
+      border-bottom: 1px solid #dee2e6; /* Borda padrão */
+      font-weight: 500; /* Peso da fonte ligeiramente menor */
+      color: #495057; /* Cor do texto mais escura */
+      border-top-left-radius: calc(0.375rem - 1px); /* Corresponde à coluna */
+      border-top-right-radius: calc(0.375rem - 1px); /* Corresponde à coluna */
+      position: sticky;
+      top: 0;
+      z-index: 10; /* Garante que fique sobre os cards */
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+  }
+  /* Nome da Coluna */
+  .kanban-column-header .column-title {
+      font-size: 0.9rem;
+  }
+  /* Container para contadores */
+  .kanban-column-header .column-meta {
+       display: flex;
+       align-items: center;
+       gap: 0.5rem;
+  }
+  /* Contagem de Tarefas - Estilo Badge sutil */
+  .kanban-column-header .task-count {
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: #6c757d; /* Cor muted */
+      background-color: #e9ecef; /* Fundo bem claro */
+      padding: 0.2rem 0.45rem;
+      border-radius: 0.25rem;
+      display: inline-flex; /* Para alinhar ícone */
+      align-items: center;
+      gap: 0.2rem;
+  }
+  .kanban-column-header .task-count i {
+       font-size: 0.8em; /* Ícone pequeno */
+  }
+  /* Totais de Horas */
+  .kanban-column-header .column-totals {
+     font-size: 0.7rem;
+     color: #6c757d; /* Muted */
+     display: flex;
+     align-items: center;
+     gap: 0.4rem; /* Espaço entre estimadas/restantes */
+  }
+  .kanban-column-header .column-totals span[title] { /* Target spans com title */
+      display: inline-flex;
+      align-items: center;
+      gap: 0.15rem;
+  }
+  .kanban-column-header .column-totals i {
+      font-size: 0.85em;
+      vertical-align: baseline; /* Melhor alinhamento vertical */
+  }
+
+  .kanban-tasks {
+      padding: 0.5rem 0.5rem 0.75rem 0.5rem; /* Padding: cima | dir/esq | baixo */
+      overflow-y: auto;
+      flex-grow: 1;
+      min-height: 150px; /* Garante espaço mínimo mesmo vazio */
+      /* Adiciona um background sutil para diferenciar da coluna */
+      /* background-color: #f8f9fa; */ /* Ou manter o da coluna? Testar */
+      border-bottom-left-radius: 0.375rem;
+      border-bottom-right-radius: 0.375rem;
+  }
+  .kanban-task-card {
+      background-color: #ffffff;
+      border: 1px solid #e1e4e8; /* Borda bem sutil */
+      border-radius: 0.375rem; /* Raio padrão */
+      padding: 0.6rem 0.8rem; /* Padding interno do card */
+      margin: 0.5rem 0.2rem; /* Margem vertical e leve horizontal */
+      cursor: grab;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); /* Sombra bem leve */
+      border-top: 3px solid transparent; /* BORDA SUPERIOR para cor status (inicialmente transparente) */
+      transition: box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out, transform 0.15s ease-in-out;
+  }
+  .kanban-task-card:hover {
+      box-shadow: 0 3px 6px rgba(0,0,0,0.08); /* Sombra hover sutilmente maior */
+      border-color: #ced4da; /* Borda geral fica mais visível no hover */
+      /* Mantém a borda superior colorida se existir */
+      border-top-color: inherit; /* Ou recalcular a cor da coluna */
+      transform: translateY(-1px); /* Leve elevação no hover */
+  }
+  .kanban-task-card .task-header {
+       display: flex;
+       justify-content: space-between;
+       align-items: flex-start;
+       margin-bottom: 0.3rem; /* Menos espaço após header */
+  }
+
+  .kanban-task-card .task-title {
+      font-weight: 500; /* Menos bold */
+      color: #343a40; /* Cor de texto principal */
+      line-height: 1.35;
+      font-size: 0.88rem; /* Tamanho título */
+      flex-grow: 1;
+      margin-right: 0.5rem;
+      /* word-break: break-word; */ /* Evitar quebra feia */
+  }
+  .kanban-task-card .task-full-id {
+      font-size: 0.65em; /* ID ainda menor */
+      color: #adb5bd; /* ID bem claro */
+      background-color: transparent; /* Sem fundo */
+      padding: 0; /* Sem padding extra */
+      border-radius: 0;
+      align-self: flex-start;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-top: 0.1rem; /* Alinha um pouco melhor com o título */
+  }
+
+  .kanban-task-card .task-body {
+      /* Agrupa prioridade e detalhes */
+      margin-top: 0.5rem; /* Aumentado levemente o espaço antes do corpo */
+      /* display: flex; */ /* <<< REMOVIDO: Não mais flex lado a lado */
+      /* justify-content: space-between; */ /* <<< REMOVIDO */
+      /* align-items: center; */ /* <<< REMOVIDO */
+      /* flex-wrap: wrap; */ /* <<< REMOVIDO */
+      /* gap: 0.5rem; */ /* <<< REMOVIDO */
+      display: block; /* <<< ALTERADO: Elementos filhos em bloco */
+  }
+
+  /* Grupo Esquerdo: Badge de Prioridade e Ícone Descrição */
+  .kanban-task-card .task-meta-left {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem; /* Espaço entre badge e ícone desc */
+      margin-bottom: 0.4rem; /* <<< ADICIONADO: Espaço abaixo deste grupo */
+  }
+
+   /* Badge de Prioridade */
+  .kanban-task-card .task-priority-badge {
+      font-size: 0.7rem; /* Badge um pouco maior */
+      font-weight: 600; /* Deixa o texto do badge mais forte */
+      padding: 0.2em 0.5em; /* Mais padding */
+      vertical-align: middle;
+      display: inline-flex; /* Para alinhar o círculo interno */
+      align-items: center;
+      gap: 0.3em; /* Espaço entre círculo e texto */
+      /* Cores definidas pelas classes text-bg-* */
+  }
+
+  /* Ícone de Descrição (se houver) */
+  .kanban-task-card .task-desc-icon {
+      color: #6c757d; /* Cor muted */
+      font-size: 0.9rem; /* Tamanho do ícone */
+      cursor: help; /* Indica que tem tooltip */
+  }
+
+  /* Grupo Direito: Detalhes de Tempo, Sprint, Especialista */
+  .kanban-task-card .task-details {
+      font-size: 0.7rem; /* Tamanho dos detalhes */
+      color: #6c757d; /* Cor muted */
+      display: flex; /* Ícones e texto na mesma linha AINDA ÚTIL para alinhar ícone/texto */
+      align-items: center; /* Alinha itens verticalmente dentro do flex */
+      /* gap: 0.5rem; */ /* <<< REMOVIDO: Gap principal entre grupos não necessário */
+      /* white-space: nowrap; */ /* <<< REMOVIDO: Permite quebrar linha */
+      flex-wrap: wrap; /* <<< ADICIONADO: Permite que itens quebrem linha */
+      gap: 0.2rem 0.6rem; /* <<< ADICIONADO: Gap vertical pequeno, horizontal maior */
+      margin-top: 0.2rem; /* <<< ADICIONADO: Pequeno espaço acima dos detalhes */
+  }
+  .kanban-task-card .task-details span[title] { /* Target spans com title */
+       display: inline-flex;
+       align-items: center;
+       gap: 0.2rem; /* Espaço ícone-texto */
+  }
+  .kanban-task-card .task-details i {
+      margin-right: 0; /* Removido, usando gap */
+      vertical-align: text-bottom;
+      font-size: 0.9em;
+  }
+
+  /* Estilo específico para data de conclusão */
+  .task-completion-date {
+      color: var(--bs-success); /* Verde sucesso */
+      font-weight: 500; /* Leve destaque */
+      display: inline-flex;
+      align-items: center;
+      gap: 0.2rem;
+  }
+
+  /* --- Cores da Borda Superior por Coluna --- */
+  .kanban-task-card.task-col-afazer { border-top-color: var(--bs-primary, #0d6efd); }
+  .kanban-task-card.task-col-andamento { border-top-color: var(--bs-orange, #fd7e14); }
+  .kanban-task-card.task-col-revisao { border-top-color: var(--bs-purple, #6f42c1); }
+  .kanban-task-card.task-col-concluido { border-top-color: var(--bs-success, #198754); }
+  .kanban-task-card.task-col-bloqueado { border-top-color: var(--bs-danger, #dc3545); } /* Exemplo: Se tiver bloqueado */
+  /* Default/Outro: Cinza sutil ou transparente (já definido) */
+  .kanban-task-card.task-col-default { border-top-color: var(--bs-secondary, #6c757d); }
+
+
+  /* --- Indicador de Prioridade (usando badge, remove anterior) --- */
+  /* .kanban-task-card .priority-indicator { display: none; } */
+  /* .priority-indicator.prio-urgente { ... } etc - Removido, usamos text-bg-* no badge */
+  /* --------------------------------------------------------------- */
+
+  /* Estilo para arrastar (SortableJS) */
+  .sortable-ghost {
+      opacity: 0.5;
+      background-color: #cfe2ff; /* Azul claro */
+      border: 1px dashed #0d6efd;
+  }
+  .sortable-chosen {
+      cursor: grabbing;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+      transform: scale(1.02); /* Leve aumento ao pegar */
+  }
+  /* Mensagem quando coluna vazia */
+  .no-tasks {
+      text-align: center;
+      color: #6c757d;
+      padding: 1.5rem 1rem; /* Mais padding vertical */
+      font-style: italic;
+      font-size: 0.8rem;
+  }
+  /* Estilos para o modal (mantendo consistência) */
+  #addTaskModal .modal-dialog {
+      max-width: 750px; /* Aumenta um pouco a largura */
+      margin-top: 3rem; /* Mais margem no topo */
+  }
+  #addTaskModal .modal-content {
+      border: none; /* Remove borda padrão */
+      border-radius: 0.375rem; /* Raio padrão Bootstrap */
+      box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15); /* Sombra mais pronunciada */
+  }
+  #addTaskModal .modal-header {
+      background-color: #343a40; /* FUNDO ESCURO */
+      color: #fff; /* Texto claro */
+      border-bottom: none; /* Sem borda inferior */
+      padding: 1rem 1.5rem; /* Mais padding */
+      align-items: center; /* Alinha título e botão fechar */
+      border-top-left-radius: calc(0.375rem - 1px); /* Ajusta raio */
+      border-top-right-radius: calc(0.375rem - 1px);
+  }
+  #addTaskModal .modal-title {
+      font-size: 1.15rem; /* Título maior */
+      font-weight: 600; /* Mais peso */
+      color: #fff; /* Cor do título clara */
+      display: inline-flex; /* Para alinhar ícone */
+      align-items: center;
+      gap: 0.5rem; /* Espaço entre ícone e texto */
+  }
+  #addTaskModal .btn-close {
+      padding: 0.5rem;
+      margin: -0.5rem -0.5rem -0.5rem auto; /* Ajusta posição */
+      filter: invert(1) grayscale(100%) brightness(200%); /* Deixa o X branco */
+  }
+  #addTaskModal .modal-body {
+       padding: 1.5rem 1.5rem 0.5rem 1.5rem; /* Ajusta padding (menos embaixo antes do footer) */
+  }
+  #addTaskModal .modal-body .row {
+       margin-bottom: 1.25rem; /* Aumenta espaço entre linhas */
+  }
+  /* Linha divisória sutil */
+  #addTaskModal .modal-body hr {
+      margin-top: 1.5rem;
+      margin-bottom: 1.5rem;
+      border-color: #e9ecef; /* Cor bem clara */
+  }
+  /* Ajuste nos labels e inputs do modal para consistência */
+  #addTaskModal .form-label {
+      font-size: 0.78rem; /* Tamanho label */
+      font-weight: 500; /* Leve bold */
+      color: #495057; /* Cor label */
+      margin-bottom: 0.3rem;
+  }
+  #addTaskModal .form-control-sm, #addTaskModal .form-select-sm {
+      font-size: 0.9rem; /* Tamanho do texto interno */
+      padding: 0.45rem 0.8rem; /* Padding interno levemente ajustado */
+      border: 1px solid #ced4da; /* Borda padrão */
+      border-radius: 0.25rem; /* Cantos levemente arredondados */
+      background-color: #fff !important; /* Garante fundo branco */
+  }
+  #addTaskModal .form-control-sm:focus, #addTaskModal .form-select-sm:focus {
+      border-color: #86b7fe; /* Cor de foco padrão Bootstrap */
+      box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25); /* Sombra de foco padrão Bootstrap */
+      background-color: #fff !important;
+  }
+  #addTaskModal textarea.form-control-sm {
+      min-height: 80px; /* Altura mínima para descrição */
+  }
+  #addTaskModal .modal-footer {
+      background-color: #343a40; /* FUNDO ESCURO */
+      color: #fff; /* Texto claro padrão */
+      border-top: none; /* Sem borda superior */
+      padding: 1rem 1.5rem; /* Padding */
+      display: flex; /* Habilita flexbox */
+      justify-content: space-between; /* Separa botão excluir dos outros */
+      border-bottom-left-radius: calc(0.375rem - 1px);
+      border-bottom-right-radius: calc(0.375rem - 1px);
+  }
+
+  /* Estilo dos botões no Footer */
+  #addTaskModal .modal-footer .btn {
+      padding: 0.5rem 1rem; /* Padding botões */
+      font-size: 0.9rem;
+      font-weight: 500;
+      border-radius: 0.25rem;
+      /* Transição suave */
+      transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, color 0.15s ease-in-out;
+  }
+  /* Botão Excluir específico */
+  #addTaskModal #deleteTaskBtn {
+      /* Já tem btn-danger, sem mudanças extras por enquanto */
+  }
+  #addTaskModal #deleteTaskBtn:hover {
+      /* background-color: var(--bs-danger);
+      color: #fff; */
+  }
+  /* Grupo Cancelar/Salvar */
+  #addTaskModal .modal-footer div:last-child { /* Target a div que agrupa Cancelar/Salvar */
+      display: flex;
+      gap: 0.5rem; /* Espaço entre Cancelar e Salvar */
+  }
+
+  /* Estilos para loading (mantidos) */
+  .loading-overlay {
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(255, 255, 255, 0.8); /* Fundo um pouco mais opaco */
+      display: flex; justify-content: center; align-items: center;
+      z-index: 1056; /* Acima do conteúdo do modal */
+      border-radius: inherit; /* Herda raio do modal-content */
+  }
+
+  /* Ajuste na área de detalhes do projeto no topo */
+  #projectDetailsHeader {
+      font-size: 0.85rem; /* Tamanho da fonte para detalhes do projeto */
+      gap: 0.5rem 1.5rem; /* Gap vertical e horizontal */
+  }
+   #projectDetailsHeader .col-md-auto {
+      padding-left: 0; /* Remove padding padrão do col */
+      padding-right: 0;
+   }
+  #projectDetailsHeader small {
+      font-size: 0.7rem; /* Label menor */
+      color: #6c757d; /* Muted */
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 0.1rem;
+  }
+  #projectDetailsHeader span.fw-bold {
+      font-weight: 500 !important; /* Menos bold */
+      color: #343a40;
+  }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    {# Card Principal Envolvendo Tudo - REMOVIDO shadow mb-4 daqui, colocado no wrapper interno #}
+    <div class="card kanban-board-wrapper shadow-sm mb-4"> 
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between bg-light border-bottom"> {# Cabeçalho do card principal mais leve #}
+            <div class="d-flex align-items-center"> {# Agrupa botão Voltar e Título #}
+                <a href="{{ url_for('backlog.project_selection') }}" class="btn btn-sm btn-outline-secondary me-3" title="Voltar para Seleção de Projetos">
+                    <i class="bi bi-arrow-left"></i>
+                    <span class="d-none d-sm-inline"> Projetos</span> {# Texto opcional em telas maiores #}
+                </a>
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-kanban me-1"></i> {# Ícone Kanban #}
+                    Quadro: {{ current_project.name if current_project else 'Projeto Inválido' }} (#{{ current_project.id if current_project else '-' }})
+                </h6>
+            </div>
+            {# --- BOTÃO ADICIONAR TAREFA DIRETAMENTE --- #}
+            <button class="btn btn-sm btn-primary" id="addTaskBtn" {% if not current_backlog_id %}disabled{% endif %}>
+                <i class="bi bi-plus-lg me-1"></i>Nova Tarefa
+            </button>
+        </div>
+        <div class="card-body"> {# Padding já ajustado no CSS #}
+            {# --- ÁREA PARA DETALHES DO PROJETO (CARREGADOS PELA ROTA) --- #}
+            <div id="projectDetailsHeader" class="row border-bottom pb-2 mb-3 align-items-center"> {# Menos padding bottom e margin bottom #}
+                <div class="col-md-auto">
+                    <small class="text-muted d-block">Status</small>
+                    <span id="projectStatus" class="fw-bold">{{ current_project.status if current_project else '-' }}</span>
+                </div>
+                <div class="col-md-auto">
+                    <small class="text-muted d-block">Squad</small>
+                    <span id="projectSquad" class="fw-bold">{{ current_project.squad if current_project else '-' }}</span>
+                </div>
+                <div class="col-md-auto">
+                    <small class="text-muted d-block">Especialista</small>
+                    <span id="projectSpecialist" class="fw-bold">{{ current_project.specialist if current_project else '-' }}</span>
+                </div>
+                {# Horas movidas para o final e agrupadas #}
+                <div class="col-md-auto ms-md-auto d-flex gap-3"> {# Agrupa horas #}
+                    <div>
+                        <small class="text-muted d-block">Estimadas</small>
+                        <span id="projectOverallEstimatedHours" class="fw-bold">{{ "%.1f"|format(current_project.estimated_hours) if current_project and current_project.estimated_hours is not none else '-' }}</span>h
+                    </div>
+                    <div>
+                        <small class="text-muted d-block">Trabalhadas</small>
+                        <span id="projectOverallLoggedHours" class="fw-bold">{{ "%.1f"|format(current_project.logged_hours) if current_project and current_project.logged_hours is not none else '-' }}</span>h
+                    </div>
+                    <div>
+                        <small class="text-muted d-block">Restantes</small>
+                        <span id="projectOverallRemainingHours" class="fw-bold">{{ "%.1f"|format(current_project.remaining_hours) if current_project and current_project.remaining_hours is not none else '-' }}</span>h
+                    </div>
+                     <div>
+                        <small class="text-muted d-block">Kanban (Rest.)</small>
+                        <span id="kanbanTotalRemainingHours" class="fw-bold">-</span>h
+                    </div>
+                </div>
+            </div>
+
+            {# Guarda o ID do backlog atual (se existir) e o ID do projeto atual #}
+            <input type="hidden" id="currentBacklogId" value="{{ current_backlog_id if current_backlog_id else '' }}">
+            <input type="hidden" id="currentProjectId" value="{{ current_project.id if current_project else '' }}">
+
+            {# Mensagem de Status #}
+            <div id="boardStatus" class="alert d-flex align-items-center mb-3" role="alert" style="display: none;">
+              <i class="bi flex-shrink-0 me-2"></i>
+              <div>{# Mensagem será definida pelo JS #}</div>
+            </div>
+
+            {# Placeholder para o botão Criar Backlog, se necessário #}
+            <div id="createBacklogPlaceholder" class="mb-3"></div>
+
+            {# Define estado inicial se não houver backlog #}
+            {% if not current_backlog_id %}
+            <script>
+                // Certifique-se que as funções showBoardStatus e addCreateBacklogListener estão definidas
+                // no script principal ou mova a definição delas para cá se necessário.
+                document.addEventListener('DOMContentLoaded', function() {
+                    if (typeof showBoardStatus === 'function') {
+                        showBoardStatus('Nenhum backlog encontrado para este projeto.', 'warning', false);
+                    } else {
+                        console.error('showBoardStatus não definida no momento da chamada inicial.');
+                    }
+                    const placeholder = document.getElementById('createBacklogPlaceholder');
+                    if (placeholder && typeof addCreateBacklogListener === 'function'){
+                        const createBtn = document.createElement('button');
+                        createBtn.id = 'createBacklogBtn';
+                        createBtn.className = 'btn btn-sm btn-outline-secondary';
+                        createBtn.innerHTML = '<i class="bi bi-plus-lg me-1"></i>Criar Backlog';
+                        placeholder.appendChild(createBtn);
+                        addCreateBacklogListener(createBtn);
+                    } else {
+                        console.error('Placeholder ou addCreateBacklogListener não encontrados/definidos.');
+                    }
+                });
+            </script>
+            {% endif %}
+
+            {# Quadro Kanban #}
+            <div class="kanban-board" id="kanbanBoard">
+                {% for column in columns %}
+                <div class="kanban-column" data-column-id="{{ column.id }}">
+                    <div class="kanban-column-header">
+                        <span class="column-title">{{ column.name }}</span>
+                        {# NOVO: Container para contagem e totais #}
+                        <div class="column-meta">
+                            <span class="task-count" title="Número de Tarefas">
+                                <i class="bi bi-list-task"></i> {# Ícone diferente #}
+                                <span class="count-value">0</span>
+                            </span>
+                            <span class="column-totals text-muted small">
+                                <span title="Total Horas Estimadas"><i class="bi bi-clock-history"></i> <span class="total-estimated">0</span>h</span>
+                                {# <span class="mx-1">|</span> Separador removido, usando gap CSS #}
+                                <span title="Total Horas Restantes"><i class="bi bi-hourglass-split"></i> <span class="total-remaining">0</span>h</span>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="kanban-tasks sortable-list" data-column-id="{{ column.id }}">
+                         <div class="no-tasks">Carregando...</div> {# Mensagem ajustada no CSS #}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div> {# Fim card-body #}
+    </div> {# Fim card #}
+</div> {# Fim container-fluid #}
+
+{# Modal Adicionar/Editar Tarefa (estrutura mantida) #}
+<div class="modal fade" id="addTaskModal" tabindex="-1" aria-labelledby="addTaskModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="addTaskForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addTaskModalLabel">Adicionar Nova Tarefa</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="taskId" name="taskId">
+          
+          {# Seção 1: Nome e Descrição #}
+          <div class="row">
+            <div class="col-12">
+              <label for="taskName" class="form-label">Nome da Tarefa <span class="text-danger">*</span></label>
+              <input type="text" class="form-control form-control-sm" id="taskName" name="name" required>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-12">
+              <label for="taskDescription" class="form-label">Descrição</label>
+              <textarea class="form-control form-control-sm" id="taskDescription" name="description" rows="3"></textarea>
+            </div>
+          </div>
+
+          <hr> {# Divisor #}
+
+          {# Seção 2: Prioridade e Status #}
+          <div class="row">
+            <div class="col-md-6">
+                <label for="taskPriority" class="form-label">Prioridade</label>
+                <select class="form-select form-select-sm" id="taskPriority" name="priority">
+                    <option value="Baixa">Baixa</option>
+                    <option value="Média" selected>Média</option>
+                    <option value="Alta">Alta</option>
+                    <option value="Urgente">Urgente</option>
+                </select>
+            </div>
+             <!-- <div class="col-md-6">
+                 {# Espaço reservado para Status - Exemplo:
+                 <label for="taskStatusColumn" class="form-label">Status (Coluna)</label>
+                 <select class="form-select form-select-sm" id="taskStatusColumn" name="column_id" disabled title="O status é definido ao mover o card no quadro.">
+                     {# Opções seriam carregadas dinamicamente ou estáticas #}
+                 </select>
+                 #}
+             </div> -->
+          </div>
+
+          <hr> {# Divisor #}
+
+          {# Linha 3: Horas Estimadas e Restantes #}
+          <div class="row">
+             <div class="col-md-6">
+              <label for="taskEstimatedHours" class="form-label">Horas Estimadas</label>
+              <input type="number" step="0.1" min="0" class="form-control form-control-sm" id="taskEstimatedHours" name="estimated_hours" placeholder="ex: 8.0">
+            </div>
+            <div class="col-md-6" id="remainingHoursGroup">
+                <label for="taskRemainingHours" class="form-label">Horas Restantes</label>
+                <input type="number" step="0.1" min="0" class="form-control form-control-sm" id="taskRemainingHours" name="remaining_hours" placeholder="Igual Estimadas" title="Pode ser recalculado. Deixe em branco para usar Estimadas.">
+            </div>
+           </div>
+
+           {# Seção 4: Datas Início e Fim #}
+           <div class="row">
+            <div class="col-md-6">
+              <label for="taskStartDate" class="form-label">Data Início</label>
+              <input type="date" class="form-control form-control-sm" id="taskStartDate" name="start_date">
+            </div>
+            <div class="col-md-6">
+              <label for="taskDueDate" class="form-label">Data Fim (Prazo)</label>
+              <input type="date" class="form-control form-control-sm" id="taskDueDate" name="due_date">
+            </div>
+           </div>
+
+           {# <<< INÍCIO: Campo Especialista >>> #}
+           <hr> {# Divisor #}
+           <div class="row">
+                <div class="col-md-6">
+                     <label for="taskSpecialist" class="form-label">Especialista</label>
+                     {# <<< INÍCIO: Substituir input por select >>> #}
+                     <select class="form-select form-select-sm" id="taskSpecialist" name="specialist_name" title="Selecione o especialista ou deixe em branco para usar o padrão do projeto.">
+                        <option value="" selected>-- Padrão do Projeto --</option>
+                        {# Opções serão carregadas pelo JavaScript #}
+                     </select>
+                     {# <<< FIM: Substituir input por select >>> #}
+                     {# TODO: Transformar em <select> futuramente? #}
+                </div>
+           </div>
+           {# <<< FIM: Campo Especialista >>> #}
+        </div>
+        <div class="modal-footer justify-content-between">
+            {# Botão Excluir (visível apenas na edição) #}
+            <button type="button" class="btn btn-danger" id="deleteTaskBtn" style="display: none;">Excluir Tarefa</button>
+            <div>
+                 {# Botão Cancelar #}
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                 {# Botão Salvar/Criar #}
+                <button type="submit" class="btn btn-primary">Salvar Tarefa</button>
+            </div>
+        </div>
+        {# Loading Feedback #}
+        <div class="loading-overlay" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Script dedicado para armazenar os dados JSON das tarefas iniciais #}
+<script id="initial-tasks-data" type="application/json">
+{{ tasks_json|safe if tasks_json else '[]' }}
+</script>
+
+{# SortableJS (link mantido, mas JS removido) #}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+{# JavaScript Específico da Página #}
+<script>
+  // Obtém IDs do Flask
+  const initialBacklogId = document.getElementById('currentBacklogId')?.value || '';
+  const initialProjectId = document.getElementById('currentProjectId')?.value || '';
+  const projectNameForLogs = "{{ current_project.name if current_project else 'Projeto Desconhecido' }}";
+
+  // Lê e parseia as tarefas iniciais do script JSON dedicado
+  let initialTasks = []; // Default para array vazio
+  try {
+      const tasksDataElement = document.getElementById('initial-tasks-data');
+      if (tasksDataElement) {
+          initialTasks = JSON.parse(tasksDataElement.textContent || '[]');
+      } else {
+          console.warn("Elemento #initial-tasks-data não encontrado. Usando array vazio para tarefas.");
+      }
+  } catch (error) {
+      console.error("Erro ao parsear JSON das tarefas iniciais:", error, "Conteúdo:", document.getElementById('initial-tasks-data')?.textContent);
+      // Mantém initialTasks como [] em caso de erro
+      showBoardStatus("Erro ao carregar dados das tarefas iniciais. Verifique o console.", "danger");
+  }
+
+  // Define funções aqui fora se necessário para o script do 'if not current_backlog_id'
+  function showBoardStatus(message, type = 'info', showBoard = false) {
+      const boardStatus = document.getElementById('boardStatus');
+      const kanbanBoard = document.getElementById('kanbanBoard');
+      if (!boardStatus) { console.error("Elemento #boardStatus não encontrado."); return; }
+      const boardStatusDiv = boardStatus.querySelector('div');
+      const boardStatusIcon = boardStatus.querySelector('i');
+      if (!boardStatusDiv || !boardStatusIcon) { console.error("Elementos internos de #boardStatus não encontrados."); return; }
+
+      console.log(`[Status Update] Type: ${type}, Message: ${message}, ShowBoard: ${showBoard}`);
+      boardStatusDiv.textContent = message;
+      let iconClass = 'bi-info-circle-fill';
+      if (type === 'warning') iconClass = 'bi-exclamation-triangle-fill';
+      else if (type === 'danger') iconClass = 'bi-x-octagon-fill';
+      else if (type === 'success') iconClass = 'bi-check-circle-fill';
+      boardStatusIcon.className = `bi ${iconClass} flex-shrink-0 me-2`;
+      boardStatus.className = `alert alert-${type} d-flex align-items-center mb-3`;
+      boardStatus.innerHTML = `
+        <i class="bi ${iconClass} flex-shrink-0 me-2"></i>
+        <div>${message}</div>
+      `;
+      boardStatus.style.display = 'flex';
+      if (kanbanBoard) {
+           kanbanBoard.style.display = showBoard ? 'flex' : 'none';
+      } else { console.error('#kanbanBoard não encontrado ao tentar definir display em showBoardStatus'); }
+  }
+
+  function addCreateBacklogListener(buttonElement) {
+       if (!buttonElement) return;
+       buttonElement.addEventListener('click', async function() {
+          if (!initialProjectId) {
+              alert("Erro crítico: ID do projeto atual não definido.");
+              return;
+          }
+          console.log(`[Create Backlog Button] Clicado para Projeto ID: ${initialProjectId}`);
+          this.disabled = true; this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Criando...';
+          try {
+              const response = await fetch(`/backlog/api/projects/${initialProjectId}/backlog`, {
+                  method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({})
+              });
+              console.log(`[Create Backlog Button] Resposta API (${response.status}):`, response);
+              if (!response.ok) {
+                  let errorMsg = `Erro ${response.status}`;
+                  try { errorMsg = (await response.json()).message || errorMsg; } catch(e) {} 
+                  throw new Error(errorMsg);
+              }
+              const newBacklog = await response.json();
+              console.log("[Create Backlog Button] Backlog criado:", newBacklog);
+              alert(`Backlog para ${projectNameForLogs} criado com sucesso! A página será recarregada.`);
+              window.location.reload();
+          } catch (error) {
+              console.error('[Create Backlog Button] Erro:', error);
+              alert(`Erro ao criar backlog: ${error.message}`);
+              this.disabled = false; this.innerHTML = '<i class="bi bi-plus-lg me-1"></i>Criar Backlog';
+          }
+      });
+  }
+
+  // --- Funções Essenciais de Renderização (Definidas fora do DOMContentLoaded) ---
+  let currentTasksData = []; // Precisa estar no escopo global
+  let editingTaskId = null;  // Precisa estar no escopo global
+  const sortableInstances = []; // Precisa estar no escopo global
+
+  // Limpa as tarefas de todas as colunas
+  function clearBoard() {
+      console.log("[Clear Board] Limpando tarefas das colunas.");
+      const taskLists = document.querySelectorAll('.kanban-tasks');
+      taskLists.forEach(list => {
+          list.innerHTML = '<div class="no-tasks">Nenhuma tarefa nesta coluna.</div>';
+      });
+      // updateColumnTotals() é chamado por renderTasks
+  }
+
+  // Escapa HTML para tooltips seguros
+  function escapeHtml(unsafe) {
+      if (!unsafe) return '';
+      return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+  }
+
+  // Mostra/esconde o overlay de loading no modal
+  function showLoadingFeedback(isLoading) {
+      const form = document.getElementById('addTaskForm');
+      if (!form) return;
+      const overlay = form.querySelector('.loading-overlay');
+      const submitButton = form.querySelector('button[type="submit"]');
+      const cancelButton = form.querySelector('button[data-bs-dismiss="modal"]');
+      const deleteButton = document.getElementById('deleteTaskBtn');
+      if (overlay) {
+          overlay.style.display = isLoading ? 'flex' : 'none';
+      } else {
+           console.warn('Elemento .loading-overlay não encontrado no modal.');
+      }
+      if(submitButton) submitButton.disabled = isLoading;
+      if (cancelButton) cancelButton.disabled = isLoading;
+      if (deleteButton) deleteButton.disabled = isLoading;
+  }
+
+  // Lida com o clique em um card de tarefa para edição
+  async function handleTaskClick(event) {
+      const taskCard = event.currentTarget;
+      const taskId = taskCard.dataset.taskId;
+      if (!taskId) {
+          console.error("Não foi possível obter o ID da tarefa do card.");
+          return;
+      }
+      editingTaskId = taskId; // Atualiza global
+      console.log(`[Task Click] Tarefa ID ${editingTaskId} clicada para edição.`);
+      
+      // Seleciona elementos do modal
+      const addTaskModalEl = document.getElementById('addTaskModal');
+      if (!addTaskModalEl) { console.error("Modal #addTaskModal não encontrado."); return; }
+      const addTaskModalInstance = bootstrap.Modal.getInstance(addTaskModalEl) || new bootstrap.Modal(addTaskModalEl);
+      const addTaskForm = document.getElementById('addTaskForm');
+      const addTaskModalLabel = document.getElementById('addTaskModalLabel');
+      const deleteTaskBtn = document.getElementById('deleteTaskBtn');
+      const remainingHoursGroup = document.getElementById('remainingHoursGroup'); // Seleciona o grupo
+      if (!addTaskForm || !addTaskModalLabel || !deleteTaskBtn || !remainingHoursGroup) {
+           console.error("Elementos do modal (form, label, deleteBtn, remainingHoursGroup) não encontrados!");
+           return;
+      }
+      
+      // Reset e mostra loading ANTES da chamada API
+      addTaskForm.reset(); 
+      // Define título e ícone para EDIÇÃO
+      addTaskModalLabel.innerHTML = '<i class="bi bi-pencil-square me-2"></i>Editar Tarefa';
+      deleteTaskBtn.style.display = 'none'; // Esconde botão excluir enquanto carrega
+      if(remainingHoursGroup) remainingHoursGroup.style.display = 'block'; // *** MOSTRA HORAS RESTANTES NA EDIÇÃO ***
+      showLoadingFeedback(true);
+      addTaskModalInstance.show(); // Mostra o modal com loading
+      
+      try {
+          const response = await fetch(`/backlog/api/tasks/${editingTaskId}`);
+          if (!response.ok) {
+               let errorMsg = `Erro ${response.status}`;
+               try { errorMsg = (await response.json()).message || errorMsg; } catch(e) {} 
+               throw new Error(errorMsg);
+          }
+          const taskData = await response.json();
+          console.log("[Task Click] Dados da tarefa recebidos:", taskData);
+          
+          // Popula o formulário com os dados recebidos
+          addTaskForm.querySelector('#taskId').value = taskData.id;
+          addTaskForm.querySelector('#taskName').value = taskData.name;
+          addTaskForm.querySelector('#taskDescription').value = taskData.description || '';
+          addTaskForm.querySelector('#taskPriority').value = taskData.priority || 'Média';
+          addTaskForm.querySelector('#taskEstimatedHours').value = taskData.estimated_hours != null ? taskData.estimated_hours : '';
+          // Exibe 0.0 se for zero, senão vazio
+          addTaskForm.querySelector('#taskRemainingHours').value = taskData.remaining_hours != null ? taskData.remaining_hours : ''; 
+          addTaskForm.querySelector('#taskStartDate').value = taskData.start_date ? taskData.start_date.substring(0, 10) : '';
+          addTaskForm.querySelector('#taskDueDate').value = taskData.due_date ? taskData.due_date.substring(0, 10) : '';
+          
+          // Atualiza título final (se necessário, embora já setado como Editar)
+          // addTaskModalLabel.textContent = 'Editar Tarefa'; // Removido, já feito com innerHTML e ícone
+          deleteTaskBtn.style.display = 'inline-block'; 
+          
+          // <<< INÍCIO: Popular campo Especialista (agora um select) >>>
+          const specialistSelect = addTaskForm.querySelector('#taskSpecialist');
+          if (specialistSelect) {
+              // Define o valor do select. Se taskData.specialist_name for null/undefined/vazio, selecionará a opção padrão com value=""
+              specialistSelect.value = taskData.specialist_name || ''; 
+          } else {
+              console.error("Elemento select #taskSpecialist não encontrado no modal.");
+          }
+          // <<< FIM: Popular campo Especialista (agora um select) >>>
+          
+      } catch (error) {
+          console.error('[Task Click] Erro ao carregar dados da tarefa:', error);
+          addTaskModalLabel.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>Erro ao Carregar'; // Indica erro no título com ícone
+          alert(`Erro ao carregar dados da tarefa: ${error.message}`);
+          // Considerar fechar o modal ou manter aberto com erro? Manter aberto por enquanto.
+      } finally {
+          // Esconde o loading DEPOIS de popular ou dar erro
+          showLoadingFeedback(false); 
+      }
+  }
+
+  // Adiciona um único card de tarefa à coluna correta
+  function addTaskToBoard(task) {
+      const column = document.querySelector(`.kanban-tasks[data-column-id="${task.column_id}"]`);
+      if (column) {
+          const noTasksMsg = column.querySelector('.no-tasks');
+          if (noTasksMsg) noTasksMsg.remove();
+          const taskCard = document.createElement('div');
+          
+          // Determina a classe da coluna para a cor da borda superior
+          const columnIdentifier = task.column_identifier || 'default'; 
+          const colorClass = `task-col-${columnIdentifier}`;
+          // console.log(`[Task Board] ID: ${task.id}, Identifier: ${columnIdentifier}, Classe CSS Cor: ${colorClass}`); 
+
+          taskCard.className = `kanban-task-card ${colorClass}`; // Adiciona a classe de cor
+          taskCard.dataset.taskId = task.id;
+          taskCard.addEventListener('click', handleTaskClick); 
+          
+          // Monta o ID completo (como antes)
+          const projectPart = initialProjectId || 'PROJ'; 
+          const columnPartForId = (task.column_name || columnIdentifier).substring(0, 3).toUpperCase();
+          const fullTaskId = `${projectPart}-${columnPartForId}-${task.id}`;
+
+          // --- Determina Classe CSS para Badge de Prioridade e ÍCONE ---
+          let priorityBadgeClass = 'text-bg-primary'; // Default: Média
+          let priorityIconClass = 'bi-dash-lg';      // Default: Média
+          const priorityLower = (task.priority || '').toLowerCase();
+          if (priorityLower === 'urgente') {
+              priorityBadgeClass = 'text-bg-danger';
+              priorityIconClass = 'bi-exclamation-octagon-fill';
+          }
+          // Ajuste para Amarelo do Warning ter texto escuro
+          else if (priorityLower === 'alta') {
+               priorityBadgeClass = 'text-bg-warning'; 
+               priorityIconClass = 'bi-chevron-double-up';
+          }
+          else if (priorityLower === 'baixa') {
+              priorityBadgeClass = 'text-bg-secondary';
+              priorityIconClass = 'bi-chevron-double-down';
+          }
+          const priorityText = task.priority || 'Média';
+          // -----------------------------------------------------------
+
+          // --- Formata Data de Conclusão (se aplicável) ---
+          let completionDateHtml = '';
+          if (task.column_identifier === 'concluido' && task.completed_at) {
+              try {
+                  const completedDate = new Date(task.completed_at);
+                  const formattedDate = completedDate.toLocaleDateString('pt-BR', {
+                      day: '2-digit', month: '2-digit', year: 'numeric'
+                  });
+                  completionDateHtml = `
+                      <span class="task-completion-date ms-auto" title="Concluído em">
+                          <i class="bi bi-calendar-check-fill"></i>
+                          ${formattedDate}
+                      </span>
+                  `;
+              } catch (e) {
+                  console.error("Erro ao formatar data de conclusão:", e, task.completed_at);
+                  completionDateHtml = '<span class="task-completion-date text-danger ms-auto" title="Erro na data"><i class="bi bi-exclamation-triangle"></i> Data Inválida</span>';
+              }
+          }
+          // -----------------------------------------------------
+
+          taskCard.innerHTML = `
+              <div class="task-header">
+                  <strong class="task-title">${escapeHtml(task.name)}</strong>
+                  <code class="task-full-id" title="ID Completo da Tarefa">${fullTaskId}</code>
+              </div>
+              <div class="task-body">
+                  <div class="task-meta-left"> {# Badge e Ícone Desc #}
+                      <span class="badge ${priorityBadgeClass} task-priority-badge" title="Prioridade: ${priorityText}">
+                          <i class="bi ${priorityIconClass}"></i> {# Ícone de Prioridade #}
+                          <span>${priorityText}</span>
+                      </span>
+                      ${task.description ? `<i class="bi bi-text-paragraph task-desc-icon" title="Descrição: ${escapeHtml(task.description)}"></i>` : ''}
+                  </div>
+                  <div class="task-details"> {# Detalhes de Tempo #}
+                      <span title="Estimado"><i class="bi bi-clock-history"></i>${task.estimated_hours != null ? task.estimated_hours.toFixed(1) + 'h' : '-'}</span>
+                      <span title="Restante"><i class="bi bi-hourglass-split"></i>${task.remaining_hours != null ? task.remaining_hours.toFixed(1) + 'h' : '-'}</span>
+                      ${task.sprint_name ? 
+                        `<span class="task-sprint-info" title="Sprint Alocada"><i class="bi bi-calendar3-week"></i> ${escapeHtml(task.sprint_name)}</span>` 
+                        : ''
+                      }
+                      {# <<< INÍCIO: Exibir Especialista no Card >>> #}
+                      ${task.specialist_name ? 
+                        `<span class="task-specialist-info text-muted" title="Especialista">
+                           <i class="bi bi-person"></i> ${escapeHtml(task.specialist_name)}
+                         </span>` 
+                        : ''
+                      }
+                      {# <<< FIM: Exibir Especialista no Card >>> #}
+                      {# Span da data de conclusão é adicionado/removido dinamicamente pelo JS agora #}
+                      <span class="task-completion-date" title="Concluído em" style="display: none;"></span> {# Removido ms-auto daqui #}
+                  </div>
+              </div>
+          `;
+          column.appendChild(taskCard);
+      } else {
+          console.warn(`[Add Task To Board] Coluna ID ${task.column_id} não encontrada para a tarefa ID ${task.id}`);
+      }
+  }
+
+  // (Re)Inicializa o SortableJS para todas as colunas
+  function initializeSortable() {
+      sortableInstances.forEach(instance => instance.destroy());
+      sortableInstances.length = 0;
+      const taskLists = document.querySelectorAll('.kanban-tasks');
+      taskLists.forEach(list => {
+          const instance = new Sortable(list, {
+              group: 'kanban',
+              animation: 150,
+              ghostClass: 'sortable-ghost',
+              chosenClass: 'sortable-chosen',
+              draggable: '.kanban-task-card',
+              onEnd: async function (evt) {
+                  const taskId = evt.item.dataset.taskId;
+                  const newColumnId = evt.to.dataset.columnId;
+                  const newIndex = evt.newIndex; // Índice baseado em 0 na nova lista
+
+                  console.log(`[Task Moved] Tarefa ID: ${taskId}, Nova Coluna ID: ${newColumnId}, Nova Posição (Índice): ${newIndex}`);
+
+                  // Prepara dados para a API
+                  const moveData = {
+                      column_id: newColumnId,
+                      position: newIndex // API espera a posição (índice) na nova coluna
+                  };
+
+                  // Adiciona um feedback visual temporário (opcional)
+                  evt.item.style.opacity = '0.5'; 
+
+                  let updatedTask = null; // << DECLARA FORA DO TRY
+                  try {
+                      const response = await fetch(`/backlog/api/tasks/${taskId}/move`, {
+                          method: 'PUT',
+                          headers: {'Content-Type': 'application/json'},
+                          body: JSON.stringify(moveData)
+                      });
+
+                      console.log(`[Task Moved] Resposta API (${response.status}):`, response);
+                      if (!response.ok) {
+                          let errorMsg = `Erro ${response.status}`;
+                          try { errorMsg = (await response.json()).message || errorMsg; } catch(e) {}
+                          throw new Error(errorMsg);
+                      }
+
+                      updatedTask = await response.json(); // << ATRIBUI AQUI
+                      console.log("[Task Moved] Tarefa atualizada pela API:", updatedTask);
+
+                      // Atualiza o currentTasksData localmente (IMPORTANTE!)
+                      const taskIndex = currentTasksData.findIndex(t => t.id == updatedTask.id);
+                      if (taskIndex > -1) {
+                          currentTasksData[taskIndex] = updatedTask;
+                      } else {
+                          currentTasksData.push(updatedTask);
+                      }
+                      
+                      // --- ATUALIZAÇÃO VISUAL DO CARD MOVIDO --- 
+                      // 1. Atualiza a classe de cor (borda superior)
+                      const newColumnIdentifier = updatedTask.column_identifier || 'default';
+                      const newColorClass = `task-col-${newColumnIdentifier}`;
+                      // Remove classes de cor antigas (ex: task-col-afazer, task-col-andamento, etc.)
+                      evt.item.classList.forEach(className => {
+                          if (className.startsWith('task-col-')) {
+                              evt.item.classList.remove(className);
+                          }
+                      });
+                      evt.item.classList.add(newColorClass); // Adiciona a nova classe
+                      console.log(`[Task Moved UI] Classe de cor (borda) atualizada para ${newColorClass} no item ${updatedTask.id}`);
+
+                      // 2. Atualiza o ID completo exibido (se necessário)
+                      const taskIdElement = evt.item.querySelector('.task-full-id');
+                      if (taskIdElement) {
+                          const projPart = initialProjectId || 'PROJ';
+                          const colPart = (updatedTask.column_name || newColumnIdentifier).substring(0, 3).toUpperCase();
+                          const newFullId = `${projPart}-${colPart}-${updatedTask.id}`;
+                          if (taskIdElement.textContent !== newFullId) {
+                                taskIdElement.textContent = newFullId;
+                                console.log(`[Task Moved UI] ID completo atualizado para ${newFullId} no item ${updatedTask.id}`);
+                          }
+                      }
+                      // ---------------------------------------------
+
+                      // Recalcula totais
+                      updateColumnTotals();
+                      
+                  } catch (error) {
+                      console.error('[Task Moved] Erro ao salvar nova posição:', error);
+                      alert(`Erro ao mover tarefa: ${error.message}. A interface pode estar dessincronizada. Recarregue a página.`);
+                      // TODO: Reverter a mudança visual do SortableJS em caso de erro?
+                      // Sortable.active.sort(originalOrder); // Requer guardar a ordem original
+                  } finally {
+                       // Restaura a opacidade normal
+                       evt.item.style.opacity = '1';
+                  }
+                  
+                  // --- Atualização da UI para Mensagem "Nenhuma Tarefa" ---
+                  // Verifica coluna de DESTINO
+                  const destinationColumnTasks = evt.to.querySelectorAll('.kanban-task-card');
+                  const destNoTasksMsg = evt.to.querySelector('.no-tasks');
+                  if (destinationColumnTasks.length > 0 && destNoTasksMsg) {
+                      destNoTasksMsg.remove(); // Remove se há tarefas e a msg existe
+                      console.log(`[Task Moved UI] Removida msg 'no-tasks' da coluna destino ID: ${evt.to.dataset.columnId}`);
+                  }
+                  
+                  // Verifica coluna de ORIGEM (se diferente da destino)
+                  if (evt.from !== evt.to) {
+                      const sourceColumnTasks = evt.from.querySelectorAll('.kanban-task-card');
+                      const sourceNoTasksMsg = evt.from.querySelector('.no-tasks');
+                      if (sourceColumnTasks.length === 0 && !sourceNoTasksMsg) {
+                          const noTasksDiv = document.createElement('div');
+                          noTasksDiv.className = 'no-tasks';
+                          noTasksDiv.textContent = 'Nenhuma tarefa nesta coluna.';
+                          evt.from.appendChild(noTasksDiv);
+                          console.log(`[Task Moved UI] Adicionada msg 'no-tasks' à coluna origem ID: ${evt.from.dataset.columnId}`);
+                      }
+                  }
+                  // ----------------------------------------------------------
+
+                  // --- ATUALIZAÇÃO VISUAL: Data de Conclusão ---
+                  const completionDateSpan = evt.item.querySelector('.task-completion-date');
+                  let newCompletionHtml = ''; // HTML a ser inserido
+                  if (updatedTask && updatedTask.column_identifier === 'concluido' && updatedTask.completed_at) { // Verifica se updatedTask existe
+                      try {
+                          const completedDate = new Date(updatedTask.completed_at);
+                          const formattedDate = completedDate.toLocaleDateString('pt-BR', {
+                              day: '2-digit', month: '2-digit', year: 'numeric'
+                          });
+                          newCompletionHtml = `
+                              <i class="bi bi-calendar-check-fill"></i>
+                              ${formattedDate}
+                          `; // Gera apenas o conteúdo interno do span
+                      } catch (e) {
+                          console.error("Erro ao formatar data de conclusão (onEnd):", e, updatedTask.completed_at);
+                          newCompletionHtml = '<i class="bi bi-exclamation-triangle text-danger"></i> Data Inválida';
+                      }
+                  }
+
+                  // Atualiza ou cria o span da data de conclusão
+                  if (completionDateSpan) {
+                       // Se o span já existe, apenas atualiza o conteúdo ou remove se não for mais necessário
+                       if (newCompletionHtml) {
+                           completionDateSpan.innerHTML = newCompletionHtml;
+                           completionDateSpan.style.display = 'inline-flex'; // Garante visibilidade
+                       } else {
+                           completionDateSpan.style.display = 'none'; // Esconde se não aplicável
+                           completionDateSpan.innerHTML = ''; // Limpa conteúdo
+                       }
+                  } else if (newCompletionHtml) {
+                       // Se o span não existe E deveria existir (tarefa movida para concluído)
+                       // Cria o span e adiciona na div de detalhes
+                       const detailsDiv = evt.item.querySelector('.task-details');
+                       if (detailsDiv) {
+                           const newSpan = document.createElement('span');
+                           newSpan.className = 'task-completion-date'; // Removido ms-auto
+                           newSpan.title = 'Concluído em';
+                           newSpan.innerHTML = newCompletionHtml;
+                           newSpan.style.display = 'inline-flex'; // Garante display
+                           detailsDiv.appendChild(newSpan);
+                           console.log(`[Task Moved UI] Span de data de conclusão criado para ${updatedTask.id}`);
+                       }
+                  }
+                  // ---------------------------------------------------
+              }
+          });
+          sortableInstances.push(instance);
+      });
+      console.log(`[Sortable Init] ${sortableInstances.length} instâncias criadas/recriadas.`);
+  }
+
+  // Calcula e exibe os totais de horas por coluna e o total Kanban
+  function updateColumnTotals() {
+      console.log("[Column Totals] Iniciando cálculo de totais...");
+      let grandTotalRemainingKanban = 0;
+      const columns = document.querySelectorAll('.kanban-column');
+      const kanbanTotalRemainingHoursEl = document.getElementById('kanbanTotalRemainingHours');
+      columns.forEach(column => {
+          const columnId = column.dataset.columnId; // Pega o ID da coluna
+          const tasksInColumn = column.querySelectorAll('.kanban-task-card');
+          const taskCount = tasksInColumn.length; // Conta os cards na coluna
+          
+          let totalEstimated = 0;
+          let totalRemaining = 0;
+
+          // Itera sobre currentTasksData FILTRANDO pela coluna atual
+          // Isso garante que estamos usando os dados mais recentes, não o DOM
+          currentTasksData.filter(task => task.column_id == columnId).forEach(taskData => {
+               totalEstimated += taskData.estimated_hours || 0;
+               totalRemaining += taskData.remaining_hours || 0;
+          });
+          
+          // Atualiza os elementos no DOM
+          const countEl = column.querySelector('.task-count .count-value');
+          const estimatedEl = column.querySelector('.total-estimated');
+          const remainingEl = column.querySelector('.total-remaining');
+          
+          if (countEl) countEl.textContent = taskCount; // Usa a contagem do DOM
+          else console.warn(`Count element not found in column ID ${columnId}`);
+          
+          if (estimatedEl) estimatedEl.textContent = totalEstimated.toFixed(1);
+          else console.warn(`Estimated element not found in column ID ${columnId}`);
+          
+          if (remainingEl) remainingEl.textContent = totalRemaining.toFixed(1);
+           else console.warn(`Remaining element not found in column ID ${columnId}`);
+
+          grandTotalRemainingKanban += totalRemaining; // Soma para o total geral
+      });
+      
+      // Atualiza o total geral no cabeçalho da página
+      if (kanbanTotalRemainingHoursEl) {
+          kanbanTotalRemainingHoursEl.textContent = grandTotalRemainingKanban.toFixed(1);
+      } else {
+          console.warn("[Column Totals] Elemento #kanbanTotalRemainingHours não encontrado.");
+      }
+      console.log("[Column Totals] Cálculo de totais concluído. Total Kanban Restante:", grandTotalRemainingKanban.toFixed(1));
+  }
+
+  // !!! DEFINIÇÃO DE RENDER TASKS !!!
+  function renderTasks(tasks) {
+      console.log("[Render Tasks] Iniciando renderização. Tarefas recebidas (tipo inicial):", typeof tasks, tasks);
+      let parsedTasks = [];
+      if (typeof tasks === 'string' && tasks !== '[]') {
+          try {
+              parsedTasks = JSON.parse(tasks);
+          } catch (e) {
+              console.error("Erro ao fazer parse das tarefas JSON:", e);
+              parsedTasks = [];
+          }
+      } else if (Array.isArray(tasks)) {
+          parsedTasks = tasks;
+      } else {
+           console.warn("Tipo inesperado ou string vazia para initialTasks, usando array vazio.");
+           parsedTasks = [];
+      }
+      currentTasksData = parsedTasks;
+      const boardStatus = document.getElementById('boardStatus');
+      const kanbanBoard = document.getElementById('kanbanBoard');
+      const addTaskBtn = document.getElementById('addTaskBtn');
+      clearBoard();
+      if (currentTasksData.length > 0) {
+          // Ordena por posição ANTES de renderizar
+          currentTasksData.sort((a, b) => (a.position != null ? a.position : Infinity) - (b.position != null ? b.position : Infinity));
+          
+          currentTasksData.forEach(task => addTaskToBoard(task)); // Adiciona cada card ao DOM
+          
+          // Esconde mensagem de status, mostra quadro, habilita botão Add
+          if (boardStatus && boardStatus.style.display !== 'none') {
+              boardStatus.style.display = 'none'; 
+          }
+          if (kanbanBoard) kanbanBoard.style.display = 'flex'; 
+          if (addTaskBtn) addTaskBtn.disabled = !initialBacklogId; 
+      } else {
+           // Quadro está vazio
+           if (initialBacklogId) { // Se temos um backlog, mostra msg "nenhuma tarefa"
+               if(boardStatus && boardStatus.style.display === 'none') { // Só mostra se já não estiver visível
+                   showBoardStatus('Nenhuma tarefa neste backlog. Adicione uma nova tarefa!', 'info', true); // True para mostrar o board vazio
+               }
+               if (kanbanBoard) kanbanBoard.style.display = 'flex'; // Mostra o board mesmo vazio
+           } else {
+               // Sem backlog ID, a mensagem de "Criar Backlog" já deve estar visível (controlado pelo Jinja/JS inicial)
+               if (kanbanBoard) kanbanBoard.style.display = 'none'; // Esconde o board se não há backlog
+           }
+           if (addTaskBtn) addTaskBtn.disabled = !initialBacklogId; // Desabilita Add se não há backlog
+      }
+      
+      // Sempre (re)inicializa sortable e atualiza totais depois de renderizar
+      initializeSortable(); 
+      updateColumnTotals(); 
+      console.log("[Render Tasks] Renderização concluída. Tarefas no quadro:", currentTasksData.length);
+  }
+  // !!! FIM DA DEFINIÇÃO DE RENDER TASKS !!!
+
+  // --- Fim Funções Essenciais ---
+
+  // Listener para quando o modal é fechado (Mantido)
+  const addTaskModalElGlobal = document.getElementById('addTaskModal');
+  if (addTaskModalElGlobal) {
+      addTaskModalElGlobal.addEventListener('hidden.bs.modal', function (event) {
+          console.log("[Modal Hidden] Resetando formulário e estado de edição.");
+          const form = document.getElementById('addTaskForm');
+          const label = document.getElementById('addTaskModalLabel');
+          const deleteBtn = document.getElementById('deleteTaskBtn');
+          const remainingHoursGroup = document.getElementById('remainingHoursGroup'); // Seleciona o grupo
+          if (form) form.reset();
+          editingTaskId = null;
+          if (label) label.textContent = 'Adicionar Nova Tarefa';
+          if (deleteBtn) deleteBtn.style.display = 'none';
+          if (remainingHoursGroup) remainingHoursGroup.style.display = 'none'; // *** ESCONDE HORAS RESTANTES NA CRIAÇÃO ***
+          showLoadingFeedback(false); // Garante que o loading overlay seja escondido
+      });
+  } else {
+      console.error("Elemento do Modal #addTaskModal não encontrado para adicionar listener hidden.bs.modal");
+  }
+
+  // Listener para submissão do formulário (Criar/Editar Tarefa) - RESTAURADO E AJUSTADO
+  const addTaskFormGlobal = document.getElementById('addTaskForm');
+  if (addTaskFormGlobal) {
+      addTaskFormGlobal.addEventListener('submit', async function(event) {
+          event.preventDefault();
+          const form = event.target; // Referência ao formulário
+
+          // --- Coleta Manual de Dados --- 
+          const taskData = {};
+          taskData.taskId = form.querySelector('#taskId')?.value; // Pode ser vazio na criação
+          taskData.name = form.querySelector('#taskName')?.value.trim();
+          taskData.description = form.querySelector('#taskDescription')?.value || '';
+          taskData.priority = form.querySelector('#taskPriority')?.value || 'Média';
+          
+          // Leitura explícita e parse das horas
+          const estimatedStr = form.querySelector('#taskEstimatedHours')?.value;
+          const remainingStr = form.querySelector('#taskRemainingHours')?.value;
+          taskData.estimated_hours = estimatedStr ? parseFloat(estimatedStr) : null;
+          taskData.remaining_hours = remainingStr ? parseFloat(remainingStr) : taskData.estimated_hours;
+
+          // Leitura explícita das datas
+          taskData.start_date = form.querySelector('#taskStartDate')?.value || null;
+          taskData.due_date = form.querySelector('#taskDueDate')?.value || null;
+
+          // <<< INÍCIO: Ler campo Especialista (agora um select) >>>
+          const selectedSpecialist = form.querySelector('#taskSpecialist')?.value;
+          taskData.specialist_name = selectedSpecialist || null; // Se for string vazia (opção padrão), envia null
+          // <<< FIM: Ler campo Especialista (agora um select) >>>
+
+          // DEBUG: Logar o valor RAW das datas para verificar formato YYYY-MM-DD
+          console.log("[Form Submit] Raw Date Values - Start:", form.querySelector('#taskStartDate')?.value, "Due:", form.querySelector('#taskDueDate')?.value);
+
+          console.log("[Form Submit] Dados coletados MANUALMENTE:", taskData);
+
+          // Validação básica
+          if (!taskData.name) {
+              alert("O nome da tarefa é obrigatório.");
+              return;
+          }
+          const isEditing = !!editingTaskId; 
+          if (!isEditing && !initialBacklogId) {
+              alert("Erro: ID do backlog não definido. Não é possível criar a tarefa.");
+              return;
+          }
+          
+          // Ajuste URLs e Método
+          const url = isEditing ? `/backlog/api/tasks/${editingTaskId}` : `/backlog/api/backlogs/${initialBacklogId}/tasks`;
+          const method = isEditing ? 'PUT' : 'POST';
+
+          console.log(`[Form Submit] ${isEditing ? 'Editando' : 'Criando'} Tarefa ID: ${editingTaskId || '(novo)'}. URL: ${url}, Method: ${method}`);
+
+          // Ajusta payload para Criação vs Edição
+          let payload = { ...taskData }; // Cria cópia para modificar
+          delete payload.taskId; // Remove o campo taskId do payload final em ambos os casos
+
+          if (!isEditing) {
+              payload.backlog_id = initialBacklogId ? parseInt(initialBacklogId, 10) : null; // Converte para Inteiro
+              // Define a coluna inicial como a primeira coluna visível
+              const firstColumnEl = document.querySelector('.kanban-column[data-column-id]');
+              const firstColumnIdStr = firstColumnEl ? firstColumnEl.dataset.columnId : null;
+              payload.column_id = firstColumnIdStr ? parseInt(firstColumnIdStr, 10) : null; // Converte para Inteiro
+              if (!payload.column_id) {
+                  alert("Erro crítico: Não foi possível determinar a coluna inicial para a nova tarefa.");
+                  showLoadingFeedback(false); // Esconder loading
+                  return;
+              }
+               // Define posição inicial como 0 (topo da coluna)
+               payload.position = 0; 
+          } else {
+               // Para edição (PUT /tasks/{id}), não precisamos enviar backlog_id, column_id ou position no payload principal.
+               // A API /move é usada para isso.
+               delete payload.backlog_id;
+               delete payload.column_id;
+               delete payload.position;
+          } 
+
+          console.log("[Form Submit] Payload FINAL a enviar:", payload);
+
+          showLoadingFeedback(true);
+          try {
+              const response = await fetch(url, {
+                  method: method,
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(payload)
+              });
+
+              console.log(`[Form Submit] Resposta API (${response.status}):`, response);
+              if (!response.ok) {
+                  let errorMsg = `Erro ${response.status}`;
+                  try { errorMsg = (await response.json()).message || errorMsg; } catch(e) {} 
+                  throw new Error(errorMsg);
+              }
+
+              const savedTask = await response.json();
+              console.log("[Form Submit] Tarefa salva/atualizada:", savedTask);
+
+              // Atualiza a UI e os dados locais
+              const taskIndex = currentTasksData.findIndex(t => t.id == savedTask.id);
+              if (taskIndex > -1) {
+                  currentTasksData[taskIndex] = savedTask; // Atualiza
+              } else {
+                  currentTasksData.push(savedTask); // Adiciona se for nova
+              }
+              
+              // Re-renderiza tudo para garantir consistência
+              renderTasks(currentTasksData);
+
+              const modalInstance = bootstrap.Modal.getInstance(addTaskModalElGlobal);
+              if (modalInstance) modalInstance.hide();
+
+          } catch (error) {
+              console.error('[Form Submit] Erro:', error);
+              alert(`Erro ao ${isEditing ? 'salvar' : 'criar'} tarefa: ${error.message}`);
+          } finally {
+              showLoadingFeedback(false);
+          }
+      });
+  } else {
+       console.error("Elemento #addTaskForm não encontrado para adicionar listener submit");
+  }
+
+  // Listener para o botão Excluir Tarefa - RESTAURADO
+  const deleteTaskBtnGlobal = document.getElementById('deleteTaskBtn');
+  if (deleteTaskBtnGlobal) {
+      deleteTaskBtnGlobal.addEventListener('click', async function() {
+          if (!editingTaskId) return;
+
+          if (confirm('Tem certeza que deseja excluir esta tarefa?')) {
+              console.log(`[Delete Task] Solicitando exclusão da Tarefa ID: ${editingTaskId}`);
+              showLoadingFeedback(true);
+              try {
+                  const response = await fetch(`/backlog/api/tasks/${editingTaskId}`, { method: 'DELETE' });
+                  console.log(`[Delete Task] Resposta API (${response.status}):`, response);
+
+                  if (!response.ok && response.status !== 204) { // 204 No Content também é sucesso
+                      let errorMsg = `Erro ${response.status}`;
+                      try { errorMsg = (await response.json()).message || errorMsg; } catch(e) {} 
+                      throw new Error(errorMsg);
+                  }
+
+                  console.log("[Delete Task] Tarefa excluída com sucesso da API.");
+                  
+                  // Encontra o card no DOM para remover ANTES de re-renderizar tudo
+                  const taskCardElement = document.querySelector(`.kanban-task-card[data-task-id="${editingTaskId}"]`);
+                  if (taskCardElement) {
+                       const parentColumn = taskCardElement.closest('.kanban-tasks');
+                       taskCardElement.remove();
+                       console.log("[Delete Task] Card removido do DOM.");
+                       // Verifica se a coluna ficou vazia após remover
+                       if (parentColumn && !parentColumn.querySelector('.kanban-task-card')) {
+                           const noTasksDiv = document.createElement('div');
+                           noTasksDiv.className = 'no-tasks';
+                           noTasksDiv.textContent = 'Nenhuma tarefa nesta coluna.';
+                           parentColumn.appendChild(noTasksDiv);
+                           console.log(`[Delete Task] Coluna ID ${parentColumn.dataset.columnId} ficou vazia, adicionada msg.`);
+                       }
+                  } else {
+                       console.warn(`[Delete Task] Card com ID ${editingTaskId} não encontrado no DOM para remoção visual imediata.`);
+                  }
+
+                  // Remove a tarefa dos dados locais
+                  currentTasksData = currentTasksData.filter(t => t.id != editingTaskId);
+                  console.log("[Delete Task] Tarefa removida do array currentTasksData.");
+                  
+                  // Atualiza os totais das colunas e o total geral (sem re-renderizar tudo)
+                  updateColumnTotals(); 
+
+                  const modalInstance = bootstrap.Modal.getInstance(addTaskModalElGlobal);
+                  if (modalInstance) modalInstance.hide();
+
+              } catch (error) {
+                  console.error('[Delete Task] Erro:', error);
+                  alert(`Erro ao excluir tarefa: ${error.message}`);
+              } finally {
+                  showLoadingFeedback(false);
+                  editingTaskId = null; // Limpa ID de edição após tentativa
+              }
+          }
+      });
+  } else {
+       console.error("Elemento #deleteTaskBtn não encontrado para adicionar listener click");
+  }
+  
+  // --- Listener para o botão "Adicionar Tarefa" (estático) - RESTAURADO ---
+  const addTaskBtnGlobal = document.getElementById('addTaskBtn');
+  if (addTaskBtnGlobal) {
+      addTaskBtnGlobal.addEventListener('click', () => {
+          if (!initialBacklogId) {
+              alert("Não é possível adicionar tarefas sem um backlog ativo.");
+              return;
+          }
+          console.log("[Add Task Button] Clicked. Opening modal.");
+          // Reseta o formulário E o estado de edição
+          editingTaskId = null; // Garante que está no modo CRIAR
+          const form = document.getElementById('addTaskForm');
+          const label = document.getElementById('addTaskModalLabel');
+          const deleteBtn = document.getElementById('deleteTaskBtn');
+          const remainingHoursGroup = document.getElementById('remainingHoursGroup'); // Seleciona o grupo
+          if(form) form.reset();
+          // Define título e ícone para CRIAÇÃO
+          if(label) label.innerHTML = '<i class="bi bi-plus-square-dotted me-2"></i>Adicionar Nova Tarefa'; 
+          if(deleteBtn) deleteBtn.style.display = 'none';
+          if(remainingHoursGroup) remainingHoursGroup.style.display = 'none'; // *** ESCONDE HORAS RESTANTES NA CRIAÇÃO ***
+          showLoadingFeedback(false);
+          
+          // Foca no campo nome ao abrir para criação
+          const taskNameInput = addTaskModalElGlobal?.querySelector('#taskName');
+          // Adiciona um pequeno delay para garantir que o modal esteja visível antes de focar
+          addTaskModalElGlobal?.addEventListener('shown.bs.modal', () => {
+                if (taskNameInput) {
+                     taskNameInput.focus();
+                }
+          }, { once: true }); // Listener é removido após ser acionado uma vez
+
+          const modalInstance = bootstrap.Modal.getInstance(addTaskModalElGlobal) || new bootstrap.Modal(addTaskModalElGlobal);
+          modalInstance.show();
+      });
+  } else { console.error("Botão #addTaskBtn não encontrado."); }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    console.log("[Board Init] Inicialização do quadro concluída (JS simplificado).");
+    console.log("[Board Init] Tarefas iniciais recebidas:", initialTasks);
+    console.log(`[Board Init] Projeto: ${projectNameForLogs} (ID: ${initialProjectId}), Backlog ID: ${initialBacklogId || 'Nenhum'}`);
+
+    // *** CONTROLE DE VISIBILIDADE INICIAL DO QUADRO ***
+    const kanbanBoardElement = document.getElementById('kanbanBoard');
+    if (kanbanBoardElement) {
+        kanbanBoardElement.style.display = initialBacklogId ? 'flex' : 'none';
+    } else {
+        console.error("#kanbanBoard não encontrado durante inicialização.");
+    }
+    // ****************************************************
+
+    // *** CHAMADA ESSENCIAL PARA RENDERIZAR AS TAREFAS ***
+    renderTasks(initialTasks);
+    // ****************************************************
+
+    // <<< INÍCIO: Chamar carregamento de especialistas >>>
+    loadSpecialistOptions();
+    // <<< FIM: Chamar carregamento de especialistas >>>
+
+  }); // Fecha o DOMContentLoaded
+
+  // <<< INÍCIO: Função para carregar opções de especialista >>>
+  async function loadSpecialistOptions() {
+      const specialistSelect = document.getElementById('taskSpecialist');
+      if (!specialistSelect) {
+          console.error("Elemento select #taskSpecialist não encontrado para carregar opções.");
+          return;
+      }
+      
+      try {
+          const response = await fetch('/backlog/api/available-specialists');
+          if (!response.ok) {
+              throw new Error(`Erro ${response.status} ao buscar especialistas`);
+          }
+          const specialists = await response.json();
+          console.log("[Specialists Load] Lista recebida:", specialists);
+          
+          // Limpa opções existentes (exceto a primeira "-- Padrão --")
+          specialistSelect.options.length = 1; 
+          
+          // Adiciona novas opções
+          specialists.forEach(name => {
+              const option = document.createElement('option');
+              option.value = name;
+              option.textContent = name;
+              specialistSelect.appendChild(option);
+          });
+           console.log(`[Specialists Load] ${specialists.length} opções adicionadas ao select.`);
+      } catch (error) {
+          console.error("[Specialists Load] Erro ao carregar opções de especialista:", error);
+          // Poderia mostrar um alerta ou manter o select vazio/desabilitado
+      }
+  }
+  // <<< FIM: Função para carregar opções de especialista >>>
+
+</script>
+{% endblock %} 

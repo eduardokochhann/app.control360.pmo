@@ -1,0 +1,34 @@
+<!-- Barra de Navegação Principal Fixa -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{{ url_for('macro.dashboard') }}">
+            <i class="bi bi-speedometer2"></i> Control360
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'macro.dashboard' else '' }}" href="{{ url_for('macro.dashboard') }}">
+                        <i class="bi bi-speedometer2"></i>
+                        <span>Macro</span>
+                    </a>
+                </li>
+                <!-- Item 'Performance' removido -->
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'gerencial.dashboard' else '' }}" href="{{ url_for('gerencial.dashboard') }}">
+                        <i class="bi bi-kanban"></i>
+                        <span>Gerencial</span>
+                    </a>
+                </li>
+                 <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'macro.apresentacao' else '' }}" href="{{ url_for('macro.apresentacao') }}">
+                        <i class="bi bi-file-earmark-slides"></i>
+                        <span>Apresentação</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav> 

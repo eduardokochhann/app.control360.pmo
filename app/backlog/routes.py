@@ -1,0 +1,835 @@
+from flask import render_template, jsonify, request, abort, current_app, redirect, url_for
+from . import backlog_bp # Importa o blueprint
+from .. import db # Importa a instância do banco de dados
+from ..models import Backlog, Task, Column, Sprint, TaskStatus # Importa os modelos
+from ..macro.services import MacroService # Importa o serviço Macro
+import pandas as pd
+from datetime import datetime # Adicionado datetime
+
+# Função auxiliar para serializar uma tarefa
+def serialize_task(task):
+    # Calcula horas restantes (se possível)
+    remaining_hours = None
+    if task.estimated_effort is not None:
+        # Assume 0 se logged_time for None para cálculo
+        logged = task.logged_time or 0
+        remaining_hours = task.estimated_effort - logged
+
+    # Encontra o nome da coluna e gera um prefixo/identificador
+    column_identifier = 'default' # Identificador padrão
+    column_full_name = 'Coluna Desconhecida'
+    if task.column:
+        column_full_name = task.column.name
+        # Gera um identificador simplificado baseado no nome da coluna para usar na classe CSS
+        name_lower = column_full_name.lower()
+        if 'a fazer' in name_lower:
+            column_identifier = 'afazer'
+        elif 'andamento' in name_lower:
+            column_identifier = 'andamento'
+        elif 'revis' in name_lower: # Pega "Revisão"
+            column_identifier = 'revisao'
+        elif 'concluído' in name_lower:
+            column_identifier = 'concluido'
+        # Adicionar mais elifs se houver outras colunas padrão
+
+    return {
+        'id': task.id,
+        # 'short_id' não é mais necessário com o ID completo sendo montado no frontend
+        # 'column_prefix' também não é mais necessário, usaremos column_identifier indiretamente
+        'name': task.title,
+        'title': task.title,
+        'description': task.description,
+        'status': task.status.value if task.status else None,
+        'priority': task.priority,
+        'estimated_hours': task.estimated_effort,
+        'logged_time': task.logged_time,
+        'remaining_hours': remaining_hours,
+        'position': task.position,
+        'created_at': task.created_at.isoformat() if task.created_at else None,
+        'updated_at': task.updated_at.isoformat() if task.updated_at else None,
+        'start_date': task.start_date.isoformat() if task.start_date else None,
+        'due_date': task.due_date.isoformat() if task.due_date else None,
+        'completed_at': task.completed_at.isoformat() if task.completed_at else None,
+        'backlog_id': task.backlog_id,
+        'column_id': task.column_id,
+        'column_name': column_full_name, # Passa o nome completo
+        'column_identifier': column_identifier, # <<< NOVO campo para classe CSS
+        'sprint_id': task.sprint_id,
+        'project_id': task.backlog.project_id if task.backlog else None, # <<< ADICIONA project_id
+        'sprint_name': task.sprint.name if task.sprint else None, # <<< ADICIONA sprint_name
+        'specialist_name': task.specialist_name # <<< ADICIONA specialist_name >>>
+    }
+
+# Rota principal - AGORA REDIRECIONA PARA A SELEÇÃO
+@backlog_bp.route('/')
+def index():
+    # Redireciona para a nova página de seleção de projetos
+    return redirect(url_for('.project_selection')) 
+
+# NOVA ROTA - Página de Seleção de Projetos
+@backlog_bp.route('/projetos')
+def project_selection():
+    try:
+        macro_service = MacroService()
+        grouping_mode = request.args.get('group_by', 'squad') # Pega parâmetro ou default 'squad'
+        dados_df = macro_service.carregar_dados()
+        if dados_df.empty:
+            current_app.logger.warning("Seleção de Projetos: DataFrame vazio ou não carregado.")
+            projects = []
+        else:
+            projects = macro_service.obter_projetos_ativos(dados_df)
+            projects.sort(key=lambda x: x.get('projeto', ''))
+
+        current_app.logger.info(f"Processando {len(projects)} projetos para seleção.")
+        projects_for_template = []
+        squads = set() # Para popular o filtro de Squads
+        statuses = set() # Para popular o filtro de Status
+        specialists = set() # Para popular o filtro de Especialistas
+        
+        for p_dict in projects:
+            project_id_str = str(p_dict.get('numero')) # Garante que é string
+            task_count = 0
+            backlog_exists = False
+            try:
+                # Busca o backlog para este project_id
+                backlog = Backlog.query.filter_by(project_id=project_id_str).first()
+                if backlog:
+                    backlog_exists = True
+                    # Conta as tarefas associadas a este backlog
+                    # Usar count() é mais eficiente que carregar todas as tarefas
+                    task_count = db.session.query(Task.id).filter(Task.backlog_id == backlog.id).count() 
+                    current_app.logger.debug(f"Projeto {project_id_str}: Backlog ID {backlog.id}, Tarefas: {task_count}")
+                else:
+                     current_app.logger.debug(f"Projeto {project_id_str}: Nenhum backlog encontrado.")
+
+            except Exception as db_error:
+                 current_app.logger.error(f"Erro ao buscar backlog/tarefas para projeto {project_id_str}: {db_error}")
+                 # Continua mesmo com erro, task_count será 0
+
+            project_data = {
+                'id': project_id_str, # Usa a string consistente
+                'name': p_dict.get('projeto'),
+                'squad': p_dict.get('squad'),
+                'specialist': p_dict.get('especialista'),
+                'status': p_dict.get('status'),
+                'task_count': task_count, # <<< Adiciona a contagem
+                'backlog_exists': backlog_exists # <<< Indica se backlog existe
+            }
+            projects_for_template.append(project_data)
+            
+            # Coleta squads, status e specialist para filtros (ignorando None ou vazios)
+            if project_data['squad']:
+                squads.add(project_data['squad'])
+            if project_data['status']:
+                statuses.add(project_data['status'])
+            if project_data['specialist']:
+                specialists.add(project_data['specialist'])
+
+        # --- Ordenação Condicional --- 
+        if grouping_mode == 'specialist':
+            # Ordena por Especialista (None/vazio por último), depois por Nome
+            projects_for_template.sort(key=lambda x: (x.get('specialist', '') or 'ZZZ', x.get('name', '')))
+            current_app.logger.info("Ordenando projetos por Especialista.")
+        else: # Default para Squad
+            # Ordena por Squad (None/vazio por último), depois por Nome
+            projects_for_template.sort(key=lambda x: (x.get('squad', '') or 'ZZZ', x.get('name', '')))
+            current_app.logger.info("Ordenando projetos por Squad.")
+        # ---------------------------
+        
+        # Ordena as opções dos dropdowns
+        sorted_squads = sorted(list(squads))
+        sorted_statuses = sorted(list(statuses))
+        sorted_specialists = sorted(list(specialists))
+
+        current_app.logger.info(f"Renderizando seleção com {len(projects_for_template)} projetos. Squads: {len(sorted_squads)}, Status: {len(sorted_statuses)}, Especialistas: {len(sorted_specialists)}")
+        return render_template(
+            'backlog/project_selection.html', 
+            projects=projects_for_template,
+            squad_options=sorted_squads, # Passa squads para o filtro
+            status_options=sorted_statuses, # Passa status para o filtro
+            specialist_options=sorted_specialists, # Passa especialistas para o filtro
+            current_grouping=grouping_mode # <<< Passa modo de agrupamento atual
+        )
+            
+    except Exception as e:
+        current_app.logger.error(f"Erro ao carregar página de seleção de projetos: {e}", exc_info=True)
+        # Renderiza a página com erro ou redireciona para uma página de erro
+        return render_template('backlog/project_selection.html', projects=[], error="Erro ao carregar projetos.")
+
+# NOVA ROTA - Quadro Kanban para um Projeto Específico
+@backlog_bp.route('/board/<string:project_id>')
+def board_by_project(project_id):
+    try:
+        current_app.logger.info(f"Carregando quadro para project_id: {project_id}")
+        
+        # 1. Busca detalhes do projeto (para cabeçalho)
+        macro_service = MacroService()
+        project_details = macro_service.obter_detalhes_projeto(project_id)
+        if not project_details:
+            current_app.logger.warning(f"Detalhes não encontrados para projeto {project_id}. Redirecionando para seleção.")
+            # TODO: Adicionar flash message informando erro?
+            return redirect(url_for('.project_selection'))
+            
+        # 2. Busca o backlog associado
+        current_backlog = Backlog.query.filter_by(project_id=project_id).first()
+        backlog_id = current_backlog.id if current_backlog else None
+        backlog_name = current_backlog.name if current_backlog else "Backlog não criado"
+        
+        # 3. Busca as tarefas do backlog (se existir)
+        tasks_list = []
+        if backlog_id:
+            tasks = Task.query.filter_by(backlog_id=backlog_id).order_by(Task.position).all()
+            tasks_list = [serialize_task(t) for t in tasks]
+            current_app.logger.info(f"Encontradas {len(tasks_list)} tarefas para o backlog {backlog_id}.")
+        else:
+            current_app.logger.info(f"Nenhum backlog encontrado para o projeto {project_id}.")
+            # O template board.html precisa lidar com backlog_id=None (ex: mostrar botão criar)
+        
+        # 4. Busca colunas (necessário para estrutura do quadro)
+        columns = Column.query.order_by(Column.position).all()
+        
+        # 5. Renderiza o template do quadro passando os dados específicos
+        return render_template(
+            'backlog/board.html', 
+            columns=columns, 
+            # Passa a lista de tarefas serializadas diretamente para o JS consumir
+            # O template não precisará mais agrupar por coluna aqui
+            tasks_json=jsonify(tasks_list).get_data(as_text=True), 
+            current_project=project_details, # Passa os detalhes do projeto atual
+            current_backlog_id=backlog_id, 
+            current_backlog_name=backlog_name
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"Erro ao carregar quadro para projeto {project_id}: {e}", exc_info=True)
+        # TODO: Adicionar flash message?
+        return redirect(url_for('.project_selection'))
+
+# --- API Endpoints --- 
+
+# API para obter a lista de projetos ativos (usada pela página de seleção agora)
+@backlog_bp.route('/api/projects')
+def get_active_projects():
+    try:
+        macro_service = MacroService()
+        dados_df = macro_service.carregar_dados()
+        # Verifica se o DataFrame inicial está vazio
+        if dados_df.empty:
+            current_app.logger.info("DataFrame inicial vazio ou não carregado.")
+            return jsonify([])
+            
+        # Chama obter_projetos_ativos, que agora retorna a lista completa de dicionários
+        ativos_list = macro_service.obter_projetos_ativos(dados_df)
+        
+        # Verifica se a LISTA está vazia
+        if not ativos_list:
+             current_app.logger.info("Nenhum projeto ativo encontrado pelo MacroService.")
+             return jsonify([])
+
+        # --- SIMPLIFICAÇÃO: Retorna a lista como recebida do service --- 
+        # A formatação, tratamento de nulos e seleção de colunas 
+        # já foram feitos em obter_projetos_ativos.
+        
+        # Opcional: Ordenar aqui se não for feito no service
+        ativos_list.sort(key=lambda x: x.get('projeto', '')) 
+        
+        # Renomeia as chaves para o frontend esperar (se necessário)
+        # Ou ajusta o frontend para esperar 'numero', 'projeto', 'squad', etc.
+        # Vamos manter as chaves do service por enquanto: 'numero', 'projeto', 'squad', 'especialista', 'status'
+        # Apenas mapeamos 'numero' para 'id' e 'projeto' para 'name' para compatibilidade mínima
+        projetos_final = []
+        for p_dict in ativos_list:
+            projetos_final.append({
+                'id': p_dict.get('numero'), 
+                'name': p_dict.get('projeto'),
+                'squad': p_dict.get('squad'),
+                'specialist': p_dict.get('especialista'),
+                'status': p_dict.get('status')
+            })
+            
+        current_app.logger.info(f"Retornando {len(projetos_final)} projetos ativos com detalhes para API.")
+        return jsonify(projetos_final)
+        # ---------------------------------------------------------------
+        
+    except Exception as e:
+        # Log do erro completo
+        current_app.logger.error(f"Erro ao buscar projetos ativos: {e}", exc_info=True)
+        abort(500, description="Erro interno ao buscar projetos ativos.")
+
+# API para obter colunas
+@backlog_bp.route('/api/columns')
+def get_columns():
+    columns = Column.query.order_by(Column.position).all()
+    columns_list = [{'id': c.id, 'name': c.name, 'position': c.position} for c in columns]
+    return jsonify(columns_list)
+
+# API para obter tarefas (Agora pode ser chamada pelo board_by_project ou pelo JS)
+# Vamos manter o filtro por backlog_id
+@backlog_bp.route('/api/tasks')
+def get_tasks():
+    backlog_id_filter = request.args.get('backlog_id', type=int)
+    query = Task.query
+    if backlog_id_filter:
+        query = query.filter_by(backlog_id=backlog_id_filter)
+    
+    tasks = query.order_by(Task.position).all()
+    tasks_list = [serialize_task(t) for t in tasks]
+    return jsonify(tasks_list)
+
+# API para obter detalhes de uma tarefa específica
+@backlog_bp.route('/api/tasks/<int:task_id>', methods=['GET'])
+def get_task_details(task_id):
+    task = Task.query.get_or_404(task_id) # Busca a tarefa ou retorna 404 se não encontrar
+    return jsonify(serialize_task(task)) # Retorna os dados serializados da tarefa
+
+# API para atualizar detalhes de uma tarefa existente
+@backlog_bp.route('/api/tasks/<int:task_id>', methods=['PUT'])
+def update_task_details(task_id):
+    task = Task.query.get_or_404(task_id)
+    data = request.get_json()
+
+    if not data:
+        abort(400, description="Nenhum dado fornecido para atualização.")
+
+    # Atualiza campos permitidos
+    if 'name' in data:
+        title = data['name'].strip()
+        if not title:
+            abort(400, description="Título (Nome) não pode ser vazio.")
+        task.title = title
+        
+    if 'description' in data:
+        task.description = data['description']
+        
+    if 'priority' in data:
+        task.priority = data['priority']
+
+    # --- Atualização das Horas --- 
+    # Mapeia 'estimated_hours' do frontend para 'estimated_effort' do backend
+    if 'estimated_hours' in data:
+        try:
+            # Permite None ou valor vazio para limpar a estimativa
+            if data['estimated_hours'] is None or str(data['estimated_hours']).strip() == '':
+                 task.estimated_effort = None
+            else:
+                estimated = float(data['estimated_hours'])
+                if estimated < 0:
+                    abort(400, description="Horas estimadas não podem ser negativas.")
+                task.estimated_effort = estimated
+        except (ValueError, TypeError):
+             abort(400, description="Valor inválido para 'estimated_hours'. Use um número.")
+
+    # Nota: 'remaining_hours' não é atualizado diretamente aqui.
+    # Ele é calculado na função serialize_task com base em estimated_effort e logged_time.
+    # Se precisarmos editar 'logged_time', um campo e lógica similar a 'estimated_hours' seriam necessários.
+    # Por exemplo:
+    # if 'logged_time' in data:
+    #     try:
+    #         if data['logged_time'] is None or str(data['logged_time']).strip() == '':
+    #              task.logged_time = None
+    #         else:
+    #             logged = float(data['logged_time'])
+    #             if logged < 0:
+    #                 abort(400, description="Horas trabalhadas não podem ser negativas.")
+    #             task.logged_time = logged
+    #     except (ValueError, TypeError):
+    #          abort(400, description="Valor inválido para 'logged_time'. Use um número.")
+    # ------------------------------
+        
+    if 'start_date' in data:
+        if data['start_date']: # Se não for vazio/null
+            try:
+                task.start_date = datetime.strptime(data['start_date'], '%Y-%m-%d')
+            except (ValueError, TypeError):
+                abort(400, description="Formato inválido para 'start_date'. Use YYYY-MM-DD.")
+        else: # Permite limpar a data
+            task.start_date = None
+            
+    if 'due_date' in data: # <<< ADICIONADO PARA DUE_DATE
+        if data['due_date']:
+            try:
+                task.due_date = datetime.strptime(data['due_date'], '%Y-%m-%d')
+            except (ValueError, TypeError):
+                abort(400, description="Formato inválido para 'due_date'. Use YYYY-MM-DD.")
+        else:
+            task.due_date = None
+            
+    if 'logged_time' in data: # <<< ADICIONADO PARA LOGGED_TIME
+        if data['logged_time'] is not None and data['logged_time'] != '':
+            try:
+                logged = float(data['logged_time'])
+                if logged < 0:
+                    abort(400, description="'logged_time' não pode ser negativo.")
+                task.logged_time = logged
+            except (ValueError, TypeError):
+                 abort(400, description="Valor inválido para 'logged_time'. Use um número.")
+        else:
+             # Permitir zerar o tempo logado? Ou apenas incrementar?
+             # Por ora, permite definir/limpar.
+             task.logged_time = None 
+    
+    # <<< INÍCIO: Atualizar especialista >>>
+    if 'specialist_name' in data:
+        # Permite string vazia ou None para limpar o especialista
+        task.specialist_name = data['specialist_name'] if data['specialist_name'] else None
+    # <<< FIM: Atualizar especialista >>>
+
+    try:
+        db.session.commit()
+        db.session.refresh(task) 
+        return jsonify(serialize_task(task))
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao salvar alterações da tarefa {task_id}: {e}", exc_info=True)
+        abort(500, description="Erro interno ao salvar alterações da tarefa.")
+
+# API para excluir uma tarefa
+@backlog_bp.route('/api/tasks/<int:task_id>', methods=['DELETE'])
+def delete_task(task_id):
+    task = Task.query.get_or_404(task_id)
+    
+    try:
+        # Lógica para reajustar posições na coluna da tarefa excluída
+        old_column_id = task.column_id
+        old_position = task.position
+        
+        # Decrementa posição das tarefas na coluna antiga que estavam depois da tarefa excluída
+        Task.query.filter(
+            Task.column_id == old_column_id,
+            Task.position > old_position
+        ).update({Task.position: Task.position - 1}, synchronize_session='fetch') # Importante usar fetch ou avaliar impacto
+        
+        # Exclui a tarefa
+        db.session.delete(task)
+        db.session.commit()
+        current_app.logger.info(f"Tarefa {task_id} excluída com sucesso.")
+        # Retorna 204 No Content, padrão para DELETE bem-sucedido sem corpo
+        return '', 204 
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao excluir tarefa {task_id}: {e}", exc_info=True)
+        abort(500, description="Erro interno ao excluir a tarefa.")
+
+# API para criar uma nova tarefa em um backlog específico
+@backlog_bp.route('/api/backlogs/<int:backlog_id>/tasks', methods=['POST'])
+def create_task(backlog_id):
+    backlog = Backlog.query.get_or_404(backlog_id)
+    data = request.get_json()
+
+    # <<< INÍCIO: Obter especialista padrão do projeto >>>
+    default_specialist = None
+    try:
+        macro_service = MacroService()
+        project_details = macro_service.obter_detalhes_projeto(backlog.project_id)
+        if project_details and project_details.get('specialist'):
+            default_specialist = project_details['specialist']
+            current_app.logger.info(f"Especialista padrão para projeto {backlog.project_id}: {default_specialist}")
+        else:
+            current_app.logger.warning(f"Não foi possível obter especialista padrão para projeto {backlog.project_id}.")
+    except Exception as e:
+        current_app.logger.error(f"Erro ao buscar detalhes do projeto {backlog.project_id} para obter especialista padrão: {e}", exc_info=True)
+        # Continua a criação da tarefa mesmo se não encontrar o especialista padrão
+    # <<< FIM: Obter especialista padrão do projeto >>>
+
+    # Encontra a primeira coluna (ex: 'A Fazer') por posição
+    first_column = Column.query.order_by(Column.position).first()
+    if not first_column:
+        abort(500, description="Nenhuma coluna encontrada no sistema. Crie colunas primeiro.")
+
+    # Calcula a posição da nova tarefa (no final da primeira coluna)
+    max_pos = db.session.query(db.func.max(Task.position)).filter_by(column_id=first_column.id).scalar()
+    new_position = (max_pos or -1) + 1
+
+    # Processa campos opcionais
+    start_date_obj = None # Inicializa fora do try
+    if data.get('start_date'):
+        try:
+            start_date_obj = datetime.strptime(data['start_date'], '%Y-%m-%d')
+        except ValueError:
+            abort(400, description="Formato inválido para 'start_date'. Use YYYY-MM-DD.")
+
+    estimated_effort_val = None # Inicializa fora do try
+    # --- CORREÇÃO: Espera 'estimated_hours' vindo do frontend --- 
+    if data.get('estimated_hours') is not None and data['estimated_hours'] != '':
+        try:
+            estimated_effort_val = float(data['estimated_hours'])
+            if estimated_effort_val < 0:
+                abort(400, description="'estimated_hours' não pode ser negativo.")
+        except ValueError:
+            abort(400, description="Valor inválido para 'estimated_hours'. Use um número.")
+
+    due_date_obj = None # Inicializa fora do try
+    if data.get('due_date'):
+        try:
+            due_date_obj = datetime.strptime(data['due_date'], '%Y-%m-%d') # Valida o formato
+        except ValueError:
+            abort(400, description="Formato inválido para 'due_date'. Use YYYY-MM-DD.")
+
+    new_task = Task(
+        title=data['name'].strip(),
+        description=data.get('description'),
+        status=TaskStatus.TODO, # Status inicial sempre TODO
+        priority=data.get('priority', 'Média'), # Adiciona prioridade
+        estimated_effort=estimated_effort_val, # <<< Usa a variável processada
+        position=new_position,
+        start_date=start_date_obj, # <<< Usa a variável processada
+        due_date=due_date_obj, # <<< CORREÇÃO: Usa o objeto datetime validado
+        # logged_time deve iniciar como 0 ou None (não vem do form de criação)
+        # sprint_id também não vem do form de criação
+        backlog_id=backlog.id,
+        column_id=first_column.id, # Atribui à primeira coluna
+        specialist_name=default_specialist, # <<< Define o especialista padrão >>>
+        # sprint_id=data.get('sprint_id') # Remover se não for enviado
+    )
+    db.session.add(new_task)
+    db.session.commit()
+    
+    # Recarrega a tarefa para obter relacionamentos (como task.column)
+    db.session.refresh(new_task)
+
+    return jsonify(serialize_task(new_task)), 201 # Retorna a tarefa criada
+
+# API para mover/atualizar uma tarefa (coluna, posição, etc.)
+@backlog_bp.route('/api/tasks/<int:task_id>/move', methods=['PUT'])
+def move_task(task_id):
+    task = Task.query.get_or_404(task_id)
+    data = request.get_json()
+
+    if not data:
+        abort(400, description="Nenhum dado fornecido para atualização.")
+
+    new_column_id = data.get('column_id')
+    new_position = data.get('position') # A posição enviada pelo frontend (ex: 0, 1, 2...)
+
+    if new_column_id is None or new_position is None:
+        abort(400, description="'column_id' e 'position' são obrigatórios para mover.")
+
+    target_column = Column.query.get(new_column_id)
+    if not target_column:
+        abort(400, description=f"Coluna de destino com id {new_column_id} não encontrada.")
+
+    old_column_id = task.column_id
+    old_position = task.position
+    is_moving_to_done = target_column.name.upper() == 'CONCLUÍDO' # Verifica se está movendo para Concluído
+    was_in_done = task.column.name.upper() == 'CONCLUÍDO' if task.column else False
+
+    # Lógica para reordenar as tarefas nas colunas afetadas
+    # Se moveu para uma coluna diferente
+    if old_column_id != new_column_id:
+        # Decrementa posição das tarefas na coluna antiga que estavam depois da tarefa movida
+        Task.query.filter(
+            Task.column_id == old_column_id,
+            Task.position > old_position
+        ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
+        
+        # Incrementa posição das tarefas na coluna nova que estão na nova posição ou depois
+        Task.query.filter(
+            Task.column_id == new_column_id,
+            Task.position >= new_position
+        ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
+    else:
+        # Moveu dentro da mesma coluna
+        if new_position > old_position:
+            # Moveu para baixo: decrementa os entre old_pos+1 e new_pos
+            Task.query.filter(
+                Task.column_id == new_column_id,
+                Task.position > old_position,
+                Task.position <= new_position
+            ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
+        elif new_position < old_position:
+            # Moveu para cima: incrementa os entre new_pos e old_pos-1
+            Task.query.filter(
+                Task.column_id == new_column_id,
+                Task.position >= new_position,
+                Task.position < old_position
+            ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
+
+    # Atualiza a tarefa movida
+    task.column_id = new_column_id
+    task.position = new_position
+
+    # Atualiza status e data de conclusão
+    if is_moving_to_done:
+        task.status = TaskStatus.DONE
+        if not task.completed_at: # Define apenas na primeira vez que entra em DONE
+            task.completed_at = datetime.utcnow()
+    else:
+        # Se saiu de DONE, volta para um status apropriado e limpa data de conclusão
+        if was_in_done:
+             task.completed_at = None 
+        # Tenta mapear nome da coluna para status comparando com os valores do Enum
+        found_status = False
+        for status_member in TaskStatus:
+            if status_member.value.upper() == target_column.name.upper():
+                task.status = status_member
+                found_status = True
+                break # Encontrou o status correspondente
+        
+        if not found_status and not is_moving_to_done: # Se não encontrou e não está indo para DONE
+            task.status = TaskStatus.TODO # Mantém o fallback para TODO
+            current_app.logger.warning(f"Não foi possível mapear o nome da coluna '{target_column.name}' para um TaskStatus.")
+    
+    db.session.commit()
+    
+    # Recarrega a tarefa para obter relacionamentos atualizados
+    db.session.refresh(task)
+
+    return jsonify(serialize_task(task))
+
+# API para obter ou criar backlog para um projeto específico
+@backlog_bp.route('/api/projects/<string:project_id>/backlog', methods=['GET', 'POST'])
+def project_backlog(project_id):
+    if request.method == 'GET':
+        backlog = Backlog.query.filter_by(project_id=project_id).first()
+        if backlog:
+            return jsonify({'id': backlog.id, 'name': backlog.name, 'project_id': backlog.project_id})
+        else:
+            # Retorna 404 se o backlog não existe (o frontend pode oferecer criar)
+            return jsonify({'message': 'Backlog não encontrado para este projeto'}), 404
+            
+    elif request.method == 'POST':
+        # Verifica se já existe
+        existing_backlog = Backlog.query.filter_by(project_id=project_id).first()
+        if existing_backlog:
+            return jsonify({'message': 'Backlog já existe para este projeto', 'id': existing_backlog.id}), 409 # Conflict
+        
+        # TODO: Validar se project_id realmente existe nos dados do MacroService?
+        # (Opcional, mas recomendado)
+        
+        # Cria o novo backlog
+        data = request.get_json() or {}
+        backlog_name = data.get('name', f'Backlog Projeto {project_id}') # Nome padrão
+        
+        new_backlog = Backlog(project_id=project_id, name=backlog_name)
+        db.session.add(new_backlog)
+        db.session.commit()
+        
+        return jsonify({'id': new_backlog.id, 'name': new_backlog.name, 'project_id': new_backlog.project_id}), 201
+
+# --- ADICIONAR ROTA PARA DETALHES DO PROJETO --- 
+@backlog_bp.route('/api/projects/<string:project_id>/details', methods=['GET'])
+def get_project_details(project_id):
+    try:
+        # --- USA O MÉTODO REAL DO MacroService --- 
+        macro_service = MacroService()
+        project_details = macro_service.obter_detalhes_projeto(project_id)
+        # -----------------------------------------
+        
+        if not project_details: 
+             # O método do serviço já logou o warning/erro
+             return jsonify({'message': 'Detalhes do projeto não encontrados'}), 404
+             
+        return jsonify(project_details)
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao buscar detalhes do projeto {project_id}: {e}", exc_info=True)
+        abort(500, description="Erro interno ao buscar detalhes do projeto.")
+# ------------------------------------------------
+
+# Adicionar rotas para CRUD de Sprints se necessário... 
+
+# API para obter tarefas não alocadas a sprints, agrupadas por backlog/projeto
+@backlog_bp.route('/api/backlogs/unassigned-tasks')
+def get_unassigned_tasks():
+    macro_service = MacroService() # Re-adiciona instância do serviço
+    try:
+        # 1. Busca todas as tarefas sem sprint_id, ordenadas por backlog e posição
+        unassigned_tasks = Task.query.filter(Task.sprint_id == None)\
+                                      .join(Backlog)\
+                                      .order_by(Task.backlog_id, Task.position).all()
+
+        # 2. Agrupa as tarefas por backlog_id
+        tasks_by_backlog = {}
+        for task in unassigned_tasks:
+            if task.backlog_id not in tasks_by_backlog:
+                tasks_by_backlog[task.backlog_id] = []
+            tasks_by_backlog[task.backlog_id].append(serialize_task(task))
+
+        # 3. Formata a resposta final
+        result = []
+        if tasks_by_backlog:
+            # Busca os detalhes dos backlogs que têm tarefas não alocadas
+            backlog_ids = list(tasks_by_backlog.keys())
+            backlogs = Backlog.query.filter(Backlog.id.in_(backlog_ids)).all()
+            backlog_details_map = {b.id: b for b in backlogs}
+
+            # Re-adiciona busca de detalhes dos projetos
+            project_ids = list(set(b.project_id for b in backlogs)) # Evita buscar o mesmo ID várias vezes
+            project_details_map = {pid: macro_service.obter_detalhes_projeto(pid) for pid in project_ids}
+
+            for backlog_id, tasks in tasks_by_backlog.items():
+                backlog = backlog_details_map.get(backlog_id)
+                if backlog:
+                    project_details = project_details_map.get(backlog.project_id)
+                    # Pega o NOME DO PROJETO, usa 'Nome Indisponível' se não encontrar
+                    project_name = project_details.get('name', 'Nome Indisponível') if project_details else 'Nome Indisponível'
+
+                    result.append({
+                        'backlog_id': backlog.id,
+                        'backlog_name': backlog.name, # Nome do Backlog (Ex: Backlog Principal)
+                        'project_id': backlog.project_id, # ID do Projeto associado
+                        'project_name': project_name, # << NOME DO PROJETO
+                        'tasks': tasks
+                    })
+                else:
+                    # Caso raro: tarefas órfãs? Logar isso.
+                    current_app.logger.warning(f"Tarefas encontradas para backlog_id {backlog_id} que não existe mais.")
+
+        # Opcional: Ordenar a lista de backlogs/projetos resultantes
+        result.sort(key=lambda x: (x.get('project_id', '')))
+
+        return jsonify(result)
+
+    except Exception as e:
+        current_app.logger.error(f"Erro ao buscar tarefas não alocadas: {e}", exc_info=True)
+        return jsonify({"message": "Erro interno ao buscar tarefas não alocadas."}), 500 
+
+# API para associar/desassociar uma tarefa a uma Sprint
+@backlog_bp.route('/api/tasks/<int:task_id>/assign', methods=['PUT'])
+def assign_task_to_sprint(task_id):
+    task = Task.query.get_or_404(task_id)
+    data = request.get_json()
+
+    if data is None: # Verifica se o corpo da requisição é null ou vazio
+        abort(400, description="Corpo da requisição ausente ou inválido.")
+
+    # Espera um campo 'sprint_id' no corpo.
+    # Pode ser um número (ID da sprint) ou null/None para desassociar.
+    new_sprint_id = data.get('sprint_id')
+
+    # Espera um campo 'position' no corpo.
+    new_position = data.get('position')
+    if new_position is None or not isinstance(new_position, int) or new_position < 0:
+        abort(400, description="Campo 'position' ausente ou inválido. Deve ser um inteiro não negativo.")
+
+    # Validação: Se for um ID, verifica se a Sprint existe
+    if new_sprint_id is not None:
+        try:
+            # Converte para int se não for None
+            new_sprint_id = int(new_sprint_id)
+            target_sprint = Sprint.query.get(new_sprint_id)
+            if not target_sprint:
+                abort(400, description=f"Sprint com ID {new_sprint_id} não encontrada.")
+        except (ValueError, TypeError):
+             abort(400, description="Valor inválido para 'sprint_id'. Deve ser um número ou null.")
+
+    # Guarda os valores antigos para lógica de reordenação
+    old_sprint_id = task.sprint_id
+    old_position = task.position
+
+    current_app.logger.info(f"[AssignTask] Iniciando. TaskID: {task_id}, OldSprint: {old_sprint_id}, OldPos: {old_position}, NewSprint: {new_sprint_id}, NewPos: {new_position}")
+
+    # --- Lógica de Reordenação --- 
+    try:
+        # 1. Ajusta posições na lista de ORIGEM (se diferente da destino)
+        if old_sprint_id != new_sprint_id:
+            if old_sprint_id is None: # Origem era o Backlog
+                # Decrementa backlog tasks que estavam depois
+                current_app.logger.debug(f"[AssignTask] Decrementando posições no Backlog ID {task.backlog_id} após pos {old_position}")
+                Task.query.filter(
+                    Task.backlog_id == task.backlog_id, 
+                    Task.sprint_id == None, 
+                    Task.position > old_position
+                ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
+            else: # Origem era outra Sprint
+                 # Decrementa sprint tasks que estavam depois
+                current_app.logger.debug(f"[AssignTask] Decrementando posições na Sprint ID {old_sprint_id} após pos {old_position}")
+                Task.query.filter(
+                    Task.sprint_id == old_sprint_id, 
+                    Task.position > old_position
+                ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
+        
+        # 2. Ajusta posições na lista de DESTINO
+        if old_sprint_id != new_sprint_id: # Se moveu entre listas diferentes
+             if new_sprint_id is None: # Destino é o Backlog
+                # Incrementa backlog tasks a partir da nova posição
+                current_app.logger.debug(f"[AssignTask] Incrementando posições no Backlog ID {task.backlog_id} a partir da pos {new_position}")
+                Task.query.filter(
+                    Task.backlog_id == task.backlog_id, 
+                    Task.sprint_id == None, 
+                    Task.position >= new_position
+                ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
+             else: # Destino é uma Sprint
+                # Incrementa sprint tasks a partir da nova posição
+                current_app.logger.debug(f"[AssignTask] Incrementando posições na Sprint ID {new_sprint_id} a partir da pos {new_position}")
+                Task.query.filter(
+                    Task.sprint_id == new_sprint_id, 
+                    Task.position >= new_position
+                ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
+        else: # Movimento dentro da mesma lista (mesma sprint ou mesmo backlog)
+            if new_position > old_position: # Moveu para baixo
+                if new_sprint_id is not None: # Dentro da Sprint
+                    Task.query.filter(
+                        Task.sprint_id == new_sprint_id,
+                        Task.position > old_position,
+                        Task.position <= new_position
+                    ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
+                else: # Dentro do Backlog
+                     Task.query.filter(
+                        Task.backlog_id == task.backlog_id,
+                        Task.sprint_id == None,
+                        Task.position > old_position,
+                        Task.position <= new_position
+                    ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
+            elif new_position < old_position: # Moveu para cima
+                if new_sprint_id is not None: # Dentro da Sprint
+                    Task.query.filter(
+                        Task.sprint_id == new_sprint_id,
+                        Task.position >= new_position,
+                        Task.position < old_position
+                    ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
+                else: # Dentro do Backlog
+                    Task.query.filter(
+                        Task.backlog_id == task.backlog_id,
+                        Task.sprint_id == None,
+                        Task.position >= new_position,
+                        Task.position < old_position
+                    ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
+
+        # 3. Atualiza a tarefa movida
+        current_app.logger.debug(f"[AssignTask] Atualizando Task ID {task.id}: sprint_id={new_sprint_id}, position={new_position}")
+        task.sprint_id = new_sprint_id
+        task.position = new_position
+
+        # 4. Commit das alterações
+        current_app.logger.info(f"[AssignTask] Prestes a commitar alterações para Task ID {task.id}")
+        db.session.commit()
+        current_app.logger.info(f"[AssignTask] Commit bem-sucedido para Task ID {task.id}")
+        db.session.refresh(task)
+        return jsonify(serialize_task(task))
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao reordenar/associar tarefa {task_id} à sprint {new_sprint_id}: {e}", exc_info=True)
+        abort(500, description="Erro interno ao atualizar posição/associação da sprint.")
+
+    # --- Código antigo de atualização simples removido ---
+    # task.sprint_id = new_sprint_id 
+    # Poderíamos reajustar a posição da tarefa aqui se necessário, mas 
+    # por ora, a posição dentro da sprint/backlog não está sendo gerenciada neste endpoint.
+    # 
+    # try:
+    #     db.session.commit()
+    #     current_app.logger.info(f"Tarefa {task_id} associada à Sprint ID: {new_sprint_id}")
+    #     # Retorna a tarefa atualizada? Ou apenas sucesso?
+    #     # Retornar a tarefa pode ser útil para o frontend confirmar.
+    #     db.session.refresh(task)
+    #     return jsonify(serialize_task(task))
+    # except Exception as e:
+    #     db.session.rollback()
+    #     current_app.logger.error(f"Erro ao associar tarefa {task_id} à sprint {new_sprint_id}: {e}", exc_info=True)
+    #     abort(500, description="Erro interno ao atualizar associação da sprint.") 
+
+# <<< INÍCIO: Nova API para listar especialistas disponíveis >>>
+@backlog_bp.route('/api/available-specialists')
+def get_available_specialists():
+    """Retorna a lista de nomes de especialistas únicos do MacroService."""
+    try:
+        macro_service = MacroService()
+        specialist_list = macro_service.get_specialist_list()
+        return jsonify(specialist_list)
+    except Exception as e:
+        current_app.logger.error(f"Erro ao buscar lista de especialistas disponíveis: {e}", exc_info=True)
+        # Retorna lista vazia em caso de erro grave
+        return jsonify([]), 500
+# <<< FIM: Nova API para listar especialistas disponíveis >>> 

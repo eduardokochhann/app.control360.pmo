@@ -1,0 +1,161 @@
+/* Estilos Gerais e de Hover (Opcional) */
+.card-hoverable:hover {
+    transform: translateY(-3px);
+    transition: all 0.2s ease;
+}
+
+.table-responsive {
+    /* Ajuste a altura máxima conforme necessário ou remova se não quiser scroll */
+    max-height: 450px; /* Aumentado um pouco */
+    overflow-y: auto;
+}
+
+/* --- ESTILOS DE KPI REMOVIDOS/COMENTADOS --- */
+/*
+/* .kpi-card {
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.kpi-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+}
+
+.kpi-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+}
+*/ */
+
+/* Estilos para Barras de Progresso (Se usar em outro lugar) */
+.progress {
+    border-radius: 4px;
+    overflow: hidden;
+    height: 10px; /* Exemplo de altura menor */
+}
+
+/* Estilos para Tabelas */
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.03); /* Suavizado */
+}
+
+/* Estilos para Abas (Mantidos) */
+.nav-tabs {
+    border-bottom: 1px solid #dee2e6; /* Linha sutil abaixo das abas */
+}
+
+.nav-tabs .nav-link {
+    border: 1px solid transparent; /* Remove borda padrão */
+    border-top-left-radius: .35rem; /* Arredonda cantos superiores */
+    border-top-right-radius: .35rem;
+    color: #495057;
+    font-weight: 500;
+    margin-bottom: -1px; /* Alinha com a borda inferior */
+    padding: 0.75rem 1.25rem; /* Ajusta padding */
+}
+.nav-tabs .nav-link:hover {
+     border-color: #e9ecef #e9ecef #dee2e6; /* Borda sutil no hover */
+     isolation: isolate;
+     background-color: #f8f9fa; /* Fundo leve no hover */
+}
+
+
+.nav-tabs .nav-link.active {
+    color: #0d6efd;
+    background-color: #fff; /* Fundo branco para aba ativa */
+    border-color: #dee2e6 #dee2e6 #fff; /* Borda que conecta com o conteúdo */
+    border-bottom: 3px solid #0d6efd; /* Linha azul mais grossa abaixo */
+    font-weight: 600; /* Destaca texto da aba ativa */
+}
+
+.tab-content {
+    border: 1px solid #dee2e6; /* Borda ao redor do conteúdo */
+    border-top: none; /* Remove borda superior que já é feita pela aba */
+    padding: 1.5rem; /* Padding interno do conteúdo */
+    background-color: #fff; /* Fundo branco */
+    border-bottom-left-radius: .35rem; /* Arredonda cantos inferiores */
+    border-bottom-right-radius: .35rem;
+}
+
+/* --- ESTILOS PARA PROJETOS EM RISCO (MANTIDOS) --- */
+/* Usando classes Bootstrap diretamente no HTML agora (table-danger, table-warning),
+   mas pode manter estas se quiser customizar mais */
+.alert-critico {
+    /* Exemplo: fundo vermelho mais claro e texto escuro */
+    background-color: #f8d7da !important;
+    color: #58151c !important;
+    --bs-table-accent-bg: #f8d7da; /* Força cor de fundo no Bootstrap 5.3+ */
+
+}
+
+.alert-aviso {
+     /* Exemplo: fundo amarelo mais claro e texto escuro */
+    background-color: #fff3cd !important;
+    color: #664d03 !important;
+     --bs-table-accent-bg: #fff3cd; /* Força cor de fundo no Bootstrap 5.3+ */
+}
+
+/* Ajuste para garantir que o hover não sobrescreva totalmente a cor de alerta */
+.table-hover > tbody > tr.alert-critico:hover > *,
+.table-hover > tbody > tr.alert-aviso:hover > * {
+    --bs-table-hover-bg: rgba(0, 0, 0, 0.06); /* Um pouco mais escuro que o hover padrão */
+}
+
+/* Estilos para os modais */
+.modal-dialog {
+    display: flex;
+    align-items: center;
+    min-height: calc(100% - 1rem);
+}
+
+.modal-content {
+    width: 100%;
+}
+
+/* Evita quebra de linha nas células da tabela */
+.table td, .table th {
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+/* Adiciona scroll horizontal na tabela quando necessário */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Ajusta o tamanho do modal para telas maiores */
+@media (min-width: 992px) {
+    .modal-lg {
+        max-width: 900px;
+    }
+}
+
+/* Estilo para o tooltip */
+.tooltip {
+    font-size: 12px;
+}
+
+/* Ajusta o padding das células para tabelas compactas */
+.table-sm td, .table-sm th {
+    padding: 0.3rem 0.5rem;
+}
+
+/* Melhora a visibilidade do hover nas linhas da tabela */
+.table-hover tbody tr:hover {
+    background-color: rgba(0,0,0,.075);
+}
+
+/* Estilo para badges de status */
+.badge {
+    min-width: 80px;
+    text-align: center;
+}
+
+/* Estilo para valores negativos */
+.text-danger.fw-bold {
+    font-weight: 600 !important;
+}
+

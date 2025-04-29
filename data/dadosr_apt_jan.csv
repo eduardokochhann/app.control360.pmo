@@ -1,0 +1,61 @@
+Número;Cliente (Completo);Serviço (2º Nível);Status;Esforço estimado;Tempo trabalhado;Andamento;Data da última ação;Tipo de faturamento;Responsável;Account Manager ;Aberto em;Resolvido em;Vencimento em
+1205;JAMEF TRANSPORTES LTDA;Vitória Germann;Em atendimento;2;347:42:00;50%;;Descontar do PLUS no final do projeto;Vitória Germann;Eder Rodrigues;04/10/2023;;
+1582;JAMEF TRANSPORTES LTDA;CDB Data Solutions;Em atendimento;0;1050:24:00;;;Descontar do PLUS no final do projeto;CDB Data Solutions;Eder Rodrigues;23/10/2023;;
+3219;STELLA - ULTRA FILIAL;Luciano Seabra;Em atendimento;208;49:34:00;50%;;Faturar no inicio do projeto;Luciano Seabra;Edison Sprandel;19/01/2024;;13/02/2025 23:00
+3329;FOCUS ENGENHARIA;CDB Data Solutions;Em atendimento;180;20:12:00;;;Descontar do PLUS no inicio do projeto;CDB Data Solutions;Eder Rodrigues;26/01/2024;;05/04/2024 00:00
+10027;CristalPet Brasil - Matriz Suape;Marcelo Zola;Aguardando;4;0:24:00;;;PRIME;Marcelo Zola;Denilson Barboza;31/01/2025;;
+10038;GDM;Eduardo Kochhann;Em atendimento;93;0:00:00;;;Faturar no inicio do projeto;Eduardo Kochhann;Erika Okada;31/01/2025;;
+9956;PROTECTING BRAINS & SAVING FUTURES SISTEMA DE DIAGNOSTICOS INTEGRADOS LTDA;Eduardo Kochhann;Em atendimento;120;00:00:00;;;Descontar do PLUS no inicio do projeto;Eduardo Kochhann;Eder Rodrigues;28/01/2025;;
+9866;Construtora Planeta;Gabriel de Menezes;Novo;20;0:35:00;;;Faturar no inicio do projeto;Gabriel de Menezes;Thiago Alcantara;21/01/2025;;
+9898;BLB Auditores;Gabriel de Menezes;Novo;45;00:02:00;;;Faturar no final do projeto;Gabriel de Menezes;Gustavo Moyses;23/01/2025;;
+9550;BBMO SOCIEDADE DE ADVOGADOS;Gabriel de Menezes;Em atendimento;10;9:22:00;75%;;Faturar no final do projeto;Gabriel de Menezes;Gustavo Moyses;06/01/2025;;30/01/2025 18:00
+9978;SuperFrio;Gabriel de Menezes;Novo;32;0:01:00;;;Faturar no final do projeto;Gabriel de Menezes;Gustavo Moyses;29/01/2025;;
+9229;HAVAN;Gabriel de Menezes;Novo;40;00:02:00;;;Descontar do PLUS no inicio do projeto;Gabriel de Menezes;Edison Sprandel;10/12/2024;;
+9684;PLANTECH;Gabriel de Menezes;Em atendimento;10;03:11:00;25%;;Descontar do PLUS no inicio do projeto;Gabriel de Menezes;Denilson Barboza;13/01/2025;;10/02/2025 18:00
+6602;Cerradinho;Gabriel de Menezes;Bloqueado;10;14:14:00;5%;;Faturar no final do projeto;Gabriel de Menezes;Mateus Silva;23/07/2024;;27/12/2024 18:00
+8215;Sicoob Coopecredi;Gabriel de Menezes;Aguardando;30;16:07:00;75%;;Faturar no inicio do projeto;Gabriel de Menezes;Gustavo Moyses;16/10/2024;;30/01/2025 23:59
+7326;HAVAN;Gabriel de Menezes;Em atendimento;34;02:31:00;25%;;Faturar no inicio do projeto;Gabriel de Menezes;Edison Sprandel;30/08/2024;;27/12/2024 23:59
+6103;USAGRO;Gabriel de Menezes;Aguardando;35;10:38:00;75%;;Faturado em outro projeto.;Gabriel de Menezes;Mateus Silva;25/06/2024;;31/01/2025 23:23
+10013;Doctor Clin Operadora de Planos de Saúde;Gabriel de Menezes;Novo;45;00:00:00;5%;;Faturado em outro projeto.;Gabriel de Menezes;Denilson Barboza;30/01/2025;;
+8808;PRIME HOLDING;Gabriel de Menezes;Em atendimento;300;16:36:00;50%;;PRIME;Gabriel de Menezes;Junior Brevia;19/11/2024;;26/12/2024 15:00
+9011;YOSEN;Gabriel de Menezes;Aguardando;50;02:28:00;50%;;Faturar no final do projeto;Gabriel de Menezes;Mateus Silva;29/11/2024;;04/02/2025 16:15
+9634;GS Inima Brasil;Mateus Augusto;Aguardando;33;00:52:00;5%;;Descontar do PLUS no inicio do projeto;Mateus Augusto;Eder Rodrigues;09/01/2025;;04/03/2025 20:00
+9642;ASSOCIACAO;Mateus Augusto;Aguardando;15;10:32:00;100%;;PRIME;Mateus Augusto;Erika Okada;09/01/2025;;29/01/2025 18:00
+10067;PHARLAB INDUSTRIA FARMACEUTICA S.A;René Pretto de Braga;Em atendimento;20;09:43:00;5%;;Faturar no inicio do projeto;René Pretto de Braga;Cleber Bastos;03/02/2025;;10/02/2025 18:00
+9623;IDEVER INTELIGENCIA DIGITAL LTDA;René Pretto de Braga;Novo;80;04:11:00;;;Descontar do PLUS no inicio do projeto;René Pretto de Braga;Gustavo Moyses;08/01/2025;;
+6889;Marilan;René Pretto de Braga;Em atendimento;700;00:45:00;75%;;Faturar no final do projeto;René Pretto de Braga;Mateus Silva;08/08/2024;;03/02/2025 14:00
+5481;PHARLAB INDUSTRIA FARMACEUTICA S.A;René Pretto de Braga;Em atendimento;20;18:15:00;75%;;Faturar no inicio do projeto;René Pretto de Braga;Cleber Bastos;20/05/2024;;16/01/2025 00:00
+9134;YOSEN;Luciano Seabra;Novo;20;00:00:00;;;Faturar no final do projeto;Luciano Seabra;Mateus Silva;05/12/2024;;
+9849;JEM SYSTEM;Luciano Seabra;Novo;45;00:01:00;;;Descontar do PLUS no inicio do projeto;Luciano Seabra;Juliana Santos;21/01/2025;;
+9851;JEM SYSTEM;Luciano Seabra;Novo;55;00:01:00;;;Faturado em outro projeto.;Luciano Seabra;Juliana Santos;21/01/2025;;
+5558;NEC ENERGIA;Luciano Seabra;Aguardando;60;05:47:00;50%;;Faturar no inicio do projeto;Luciano Seabra;Junior Brevia;24/05/2024;;31/01/2025 00:00
+9486;PAYCON - PAYROLL;Luciano Seabra;Em atendimento;70;01:33:00;25%;;Faturar no inicio do projeto;Luciano Seabra;Keila Sayuri;30/12/2024;;21/02/2025 20:00
+9417;ASA Investments;Luciano Seabra;Em atendimento;50;12:24:00;75%;;Faturar no inicio do projeto;Luciano Seabra;Erika Okada;19/12/2024;;07/02/2025 14:00
+9767;Novo Cliente Projetos,TradersClub;Luciano Seabra;Em atendimento;30;01:01:00;75%;;Faturar no final do projeto;Luciano Seabra;Erika Okada;16/01/2025;;06/02/2025 18:00
+9814;Casa do Pica Pau;Luciano Seabra;Em atendimento;10;00:02:00;;;Faturar no inicio do projeto;Luciano Seabra;Tatiana Lesnieski;20/01/2025;;14/02/2025 18:00
+9954;ZILOR;Luciano Seabra;Novo;30;00:00:00;;;Descontar do PLUS no inicio do projeto;Luciano Seabra;Eder Rodrigues;28/01/2025;;
+9472;JEM SYSTEM;Luciano Seabra;Novo;85;00:07:00;;;Descontar do PLUS no inicio do projeto;Luciano Seabra;Juliana Santos;27/12/2024;;
+9800;CONVERT COMPANY;Tadeu Trajano;Novo;43;00:00:00;;;Descontar do PLUS no inicio do projeto;Tadeu Trajano;João Mendonça - TEEVO;17/01/2025;;
+9747;MUSASHI DO BRASIL LTDA;Tadeu Trajano;Novo;50;00:01:00;;;Faturar no inicio do projeto;Tadeu Trajano;Thiago Alcantara;15/01/2025;;
+9666;CONVERT COMPANY;Tadeu Trajano;Novo;10;00:01:00;;;Descontar do PLUS no inicio do projeto;Tadeu Trajano;João Mendonça - TEEVO;10/01/2025;;
+9447;CAMPOS MELLO ADVOGADOS;Tadeu Trajano;Aguardando;50;15:03:00;5%;;Faturado em outro projeto.;Tadeu Trajano;Thiago Alcantara;23/12/2024;;15/01/2025 18:00
+7329;HT MICRON;Tadeu Trajano;Bloqueado;80;14:20:00;25%;;PRIME;Tadeu Trajano;Denilson Barboza;30/08/2024;;14/02/2025 18:00
+6998;LIONS TRUST ADMINISTRADORA DE RECURSOS LTDA;Tadeu Trajano;Aguardando;250;06:39:00;75%;;Descontar do PLUS no inicio do projeto;Tadeu Trajano;Jéssica Oliveira;14/08/2024;;31/01/2025 18:00
+9283;SISCOM;Tadeu Trajano;Aguardando;90;06:17:00;5%;;Descontar do PLUS no inicio do projeto;Tadeu Trajano;Erika Okada;12/12/2024;;25/03/2025 18:00
+6525;TradersClub;Helen Machado;Em atendimento;60;12:37:00;50%;;Descontar do PLUS no inicio do projeto;Helen Machado;Erika Okada;17/07/2024;;
+9135;YOSEN;Helen Machado;Aguardando;50;04:23:00;;;Faturar no final do projeto;Helen Machado;Mateus Silva;05/12/2024;;
+7764;HT MICRON;Helen Machado;Aguardando;40;08:01:00;75%;;Descontar do PLUS no inicio do projeto;Helen Machado;Denilson Barboza;24/09/2024;;
+8912;CAMPOS MELLO ADVOGADOS;Helen Machado;Em atendimento;65;17:57:00;50%;;Descontar do PLUS no inicio do projeto;Helen Machado;Thiago Alcantara;25/11/2024;;
+8497;COMERCIAL ZAFFARI (GAUCHINHO);CDB Data Solutions;Em atendimento;200;00:57:00;;;Descontar do PLUS no inicio do projeto;CDB Data Solutions;Eder Rodrigues;01/11/2024;;
+9957;IDEVER INTELIGENCIA DIGITAL LTDA;CDB Data Solutions;Em atendimento;32;00:00:00;;;Faturado em outro projeto.;CDB Data Solutions;Gustavo Moyses;28/01/2025;;
+6574;Novo Cliente Projetos;Gabriel Kolber;Em atendimento;138;22:38:00;75%;;Descontar do PLUS no inicio do projeto;Gabriel Kolber;Thiago Alcantara;19/07/2024;;
+4200;ENFORCE GESTAO DE ATIVOS S.A.;Gabriel Kolber;Em atendimento;84;10:06:00;100%;;Faturar no inicio do projeto;Gabriel Kolber;Thiago Alcantara;14/03/2024;;19/07/2024 00:00
+9959;ENFORCE GESTAO DE ATIVOS S.A.;Gabriel Kolber;Em atendimento;160;23:03:00;5%;;Faturar no inicio do projeto;Gabriel Kolber;Thiago Alcantara;28/01/2025;;07/03/2025 18:00
+9147;A7 REALIZACOES;Gabriel de Menezes;Fechado;55;04:40:00;100%;;PRIME;Gabriel de Menezes;Jéssica Oliveira;05/12/2024;21/01/2025;21/01/2025 22:00
+9111;Cestas de Natal;Mateus Augusto;Fechado;20;15:52:00;100%;;Faturar no final do projeto;Mateus Augusto;Cleber Bastos;04/12/2024;07/01/2025;
+8292;HIDROPAN DISTRIBUICAO DE ENERGIA S.A.;Luciano Seabra;Fechado;30;19:45:00;100%;;Descontar do PLUS no inicio do projeto;Luciano Seabra;Jéssica Oliveira;22/10/2024;14/01/2025;14/01/2025 23:00
+8998;A7 REALIZACOES;Luciano Seabra;Fechado;25;04:17:00;100%;;Faturar no inicio do projeto;Luciano Seabra;Jéssica Oliveira;28/11/2024;21/01/2025;17/01/2025 17:00
+4956;Tuper - Divisao Tubos;Luciano Seabra;Fechado;80;21:47:00;100%;;PRIME;Luciano Seabra;Cleber Bastos;19/04/2024;09/01/2025;13/01/2025 22:00
+9361;VITECH MEDICAL;Luciano Seabra;Fechado;30;0,190277778;100;;PRIME;Luciano Seabra;Thiago Alcantara;45643,40694;06/01/2025;27/01/2025 18:00
+9423;USAFLEX FRANQUIAS;Tadeu Trajano;Fechado;10;0,125;100;;Descontar do PLUS no inicio do projeto;Tadeu Trajano;Edison Sprandel;45646,44722;21/01/2025;
+8476;GDM;Tadeu Trajano;Fechado;173;3,466666667;100;;Faturar no inicio do projeto;Tadeu Trajano;Erika Okada;45596,62639;07/01/2025;06/01/2025 18:00
