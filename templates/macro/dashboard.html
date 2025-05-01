@@ -123,8 +123,7 @@
             padding: 0.75rem;
         }
         .modal-xl {
-            max-width: 90%;
-            width: fit-content;
+            max-width: 95%;
             max-height: 90vh;
         }
         .modal-body {
@@ -161,7 +160,7 @@
         }
         
         .modal .table tbody tr:hover {
-            background-color: #f8f9fa;
+            background-color: rgba(0,0,0,0.02);
         }
         
         .table-responsive {
@@ -200,9 +199,87 @@
             font-weight: 500;
         }
         
-        .table-hover tbody tr:hover { 
-            background-color: rgba(0,0,0,0.02); 
+        .table-hover tbody tr:hover {
+            background-color: rgba(0,0,0,0.02);
         }
+
+        /* <<< INÍCIO: Estilos Tabela Gerencial (Barras de Progresso, etc.) >>> */
+        .progress-thin {
+            height: 6px;
+            margin-top: 4px;
+            background-color: #f0f0f0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-thin .progress-bar {
+            border-radius: 3px;
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-value {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .progress-value-text {
+            font-family: 'Inter', monospace;
+        }
+
+        /* Cores para diferentes níveis de progresso (Conclusão E Horas Restantes) - FORÇADO */
+        .progress-danger .progress-bar {
+            background-color: #dc3545 !important; /* Vermelho */
+        }
+        .progress-warning .progress-bar {
+            background-color: #ffc107 !important; /* Amarelo */
+        }
+        .progress-success .progress-bar {
+            background-color: #198754 !important; /* Verde */
+        }
+        .progress-info .progress-bar {
+            background-color: #0dcaf0 !important; /* Azul Info (caso usado) */
+        }
+
+        /* Cores/Estilos específicos para Horas Restantes - REMOVIDO (usando padrão acima) */
+        /* .horas-restantes-positivo .progress-bar { background-color: #198754 !important; } */
+        /* .horas-restantes-negativo .progress-bar { background-color: #dc3545 !important; } */
+        /* .horas-restantes-zerado .progress-bar { background-color: #ffc107 !important; } */
+
+        /* Estilos para limitar tamanho das colunas e texto */
+        .modal .table td.projeto-col {
+            max-width: 300px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .modal .table td.squad-col {
+            max-width: 180px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .modal .table td.status-col {
+            max-width: 120px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .truncate-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+        /* <<< FIM: Estilos Tabela Gerencial >>> */
+
     </style>
 </head>
 <body style="padding-top: 70px;">
@@ -1140,6 +1217,122 @@
                 });
             }
 
+            // Função para formatar linha da tabela nos modais Ativos/Críticos do Macro
+            function formatarLinhaMacro(p) {
+                console.log("Formatando linha para:", p); // <-- DEBUG: Ver o objeto recebido
+                try {
+                    if (!p) {
+                        console.error('Projeto indefinido ou nulo no Macro');
+                        return '<tr><td colspan="7" class="text-center">Dados inválidos</td></tr>';
+                    }
+
+                    const numero = p.numero || '';
+                    const nomeProjeto = p.projeto || 'N/A';
+                    const status = p.status || 'N/D';
+                    const squad = p.squad || 'N/D';
+                    const conclusaoRaw = p.conclusao;
+                    const horasRestantesRaw = p.horasRestantes;
+                    const esforcoRaw = p.Horas;
+                    
+                    // Validação e conversão numérica mais robusta
+                    const conclusao = !isNaN(parseFloat(conclusaoRaw)) ? parseFloat(conclusaoRaw) : 0;
+                    const horasRestantes = !isNaN(parseFloat(horasRestantesRaw)) ? parseFloat(horasRestantesRaw) : 0;
+                    const esforco = !isNaN(parseFloat(esforcoRaw)) ? parseFloat(esforcoRaw) : 0;
+                    
+                    const vencimento = p.dataPrevEnc || 'N/A'; // Usar dataPrevEnc do Macro
+
+                    // --- Lógica de formatação copiada do Gerencial --- 
+                    // Classe de cores para Conclusão
+                    let progressClassConclusao = 'progress-info'; // Default
+                    if (conclusao < 30) {
+                        progressClassConclusao = 'progress-danger';
+                    } else if (conclusao < 70) {
+                        progressClassConclusao = 'progress-warning';
+                    } else if (conclusao >= 70) { // >= 70 para ser verde
+                        progressClassConclusao = 'progress-success';
+                    }
+
+                    // Formata a célula de conclusão com a barra de progresso
+                    const conclusaoHTML = `
+                        <div class="progress-value">
+                            <span class="progress-value-text">${conclusao}%</span>
+                        </div>
+                        <div class="progress-thin ${progressClassConclusao}">
+                            <div class="progress-bar" style="width: ${conclusao}%"></div>
+                        </div>
+                    `;
+                    
+                    // --- Lógica para Horas Restantes (Espelhada do Gerencial - Cor Inline) ---
+                    console.log(`[HR Debug ${numero}] Entrada: horas=${horasRestantes}, esforco=${esforco}`);
+                    let horasClass = 'progress-success'; // Mantém para possível estilo adicional
+                    let corBarra = '#198754'; // Default: Verde
+                    let percentualHoras = 0;
+
+                    if (horasRestantes < 0) {
+                        horasClass = 'progress-danger';
+                        corBarra = '#dc3545'; // Vermelho
+                        percentualHoras = 100;
+                        console.log(`[HR Debug ${numero}] Condição: Negativo`);
+                    } else if (horasRestantes < 10) {
+                        horasClass = 'progress-warning';
+                        corBarra = '#ffc107'; // Amarelo
+                        console.log(`[HR Debug ${numero}] Condição: Positivo < 10`);
+                        if (esforco > 0) {
+                            percentualHoras = Math.min(100, Math.max(0, (horasRestantes / esforco) * 100));
+                            console.log(`[HR Debug ${numero}] Calculado (<10): esforco=${esforco}, percentual=${percentualHoras}`);
+                        } else {
+                             console.log(`[HR Debug ${numero}] Ignorado (<10): esforco=${esforco}`);
+                             percentualHoras = 0; // Garante 0 se esforço inválido
+                        } 
+                    } else { // horasRestantes >= 10
+                        // horasClass já é 'progress-success'
+                        // corBarra já é '#198754' (Verde)
+                        console.log(`[HR Debug ${numero}] Condição: Positivo >= 10`);
+                        if (esforco > 0) {
+                            percentualHoras = Math.min(100, Math.max(0, (horasRestantes / esforco) * 100));
+                             console.log(`[HR Debug ${numero}] Calculado (>=10): esforco=${esforco}, percentual=${percentualHoras}`);
+                        } else {
+                             console.log(`[HR Debug ${numero}] Ignorado (>=10): esforco=${esforco}`);
+                             percentualHoras = 0; // Garante 0 se esforço inválido
+                        } 
+                    }
+                    console.log(`[HR Debug ${numero}] Final: classe=${horasClass}, cor=${corBarra}, largura=${percentualHoras.toFixed(1)}%`); 
+
+                    const horasHTML = `
+                        <div class="progress-value">
+                            <span class="progress-value-text ${horasRestantes < 0 ? 'text-danger fw-bold' : ''}">${(!isNaN(horasRestantes)) ? horasRestantes.toFixed(1) : 'N/A'}h</span>
+                        </div>
+                        <div class="progress-thin ${horasClass}">
+                            <div class="progress-bar" style="width: ${percentualHoras.toFixed(1)}%; background-color: ${corBarra};"></div>
+                        </div>
+                    `;
+                    // --- Fim Lógica Horas Restantes (Gerencial - Cor Inline) ---
+
+                    // Link para o ticket se o número existir
+                    const numeroLink = numero ? `<a href="https://atendimento.sou.cloud/Ticket/Edit/${numero}" target="_blank" style="text-decoration: none; color: inherit;">${numero}</a>` : 'N/A';
+
+                    // Badge para Status (usando a função getStatusColor já existente no Macro)
+                    const statusBadge = `<span class="badge bg-${getStatusColor(status || '')}">${status || 'N/A'}</span>`; // Garante string vazia se status for null
+
+                    console.log(`Calculados para ${p.numero || 'N/A'}: esforco=${esforco}, horasRest=${horasRestantes}, concl=${conclusao}`); // <-- DEBUG: Ver valores calculados
+
+                    return `
+                        <tr>
+                            <td>${numeroLink}</td>
+                            <td class="projeto-col" title="${nomeProjeto}"><span class="truncate-text">${nomeProjeto}</span></td>
+                            <td class="status-col">${statusBadge}</td>
+                            <td class="squad-col" title="${squad}">${squad}</td>
+                            <td class="text-end">${conclusaoHTML}</td>
+                            <td class="text-end">${horasHTML}</td>
+                            <td>${vencimento}</td>
+                        </tr>
+                    `;
+                } catch (error) {
+                    console.error('Erro ao formatar linha no Macro:', error, p);
+                    return '<tr><td colspan="7" class="text-center text-danger">Erro ao processar dados</td></tr>';
+                }
+            }
+
             // Função para carregar dados dos KPIs
             function carregarDadosKPI() {
                 console.log("Carregando dados dos KPIs...");
@@ -1150,17 +1343,7 @@
                     .then(projetos => {
                         const tbody = document.getElementById('tabelaProjetosAtivos');
                         if (projetos && projetos.length > 0) {
-                            tbody.innerHTML = projetos.map(p => `
-                                <tr>
-                                    <td>${p.numero ? `<a href="https://atendimento.sou.cloud/Ticket/Edit/${p.numero}" target="_blank" style="text-decoration: none; color: inherit;">${p.numero}</a>` : 'N/A'}</td>
-                                    <td>${p.projeto || 'N/A'}</td>
-                                    <td><span class="badge bg-${getStatusColor(p.status)}">${p.status || 'N/A'}</span></td>
-                                    <td>${p.squad || 'N/A'}</td>
-                                    <td class="text-end">${p.conclusao != null ? p.conclusao + '%' : 'N/A'}</td>
-                                    <td class="text-end">${p.horasRestantes != null ? p.horasRestantes.toFixed(1) + 'h' : 'N/A'}</td>
-                                    <td>${p.dataPrevEnc || 'N/A'}</td>
-                                </tr>
-                            `).join('');
+                            tbody.innerHTML = projetos.map(p => formatarLinhaMacro(p)).join('');
                         } else {
                             tbody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum projeto ativo encontrado</td></tr>';
                         }
@@ -1177,17 +1360,7 @@
                     .then(projetos => {
                         const tbody = document.getElementById('tabelaProjetosCriticos');
                         if (projetos && projetos.length > 0) {
-                            tbody.innerHTML = projetos.map(p => `
-                                <tr>
-                                    <td>${p.numero ? `<a href="https://atendimento.sou.cloud/Ticket/Edit/${p.numero}" target="_blank" style="text-decoration: none; color: inherit;">${p.numero}</a>` : 'N/A'}</td>
-                                    <td>${p.projeto || 'N/A'}</td>
-                                    <td><span class="badge bg-${getStatusColor(p.status)}">${p.status || 'N/A'}</span></td>
-                                    <td>${p.squad || 'N/A'}</td>
-                                    <td class="text-end">${p.conclusao != null ? p.conclusao + '%' : 'N/A'}</td>
-                                    <td class="text-end">${p.horasRestantes != null ? p.horasRestantes.toFixed(1) + 'h' : 'N/A'}</td>
-                                    <td>${p.dataPrevEnc || 'N/A'}</td>
-                                </tr>
-                            `).join('');
+                            tbody.innerHTML = projetos.map(p => formatarLinhaMacro(p)).join('');
                         } else {
                             tbody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum projeto crítico encontrado</td></tr>';
                         }

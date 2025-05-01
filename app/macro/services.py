@@ -550,7 +550,7 @@ class MacroService(BaseService):
             }
             
             # Prepara dados para o modal
-            colunas_modal = ['Numero', 'Projeto', 'Status', 'Squad', 'Conclusao', 'HorasRestantes', 'VencimentoEm']
+            colunas_modal = ['Numero', 'Projeto', 'Status', 'Squad', 'Conclusao', 'HorasRestantes', 'VencimentoEm', 'Horas']
             
             # Certifica-se de que a coluna Numero existe
             if 'Numero' not in projetos_ativos.columns and 'Número' in projetos_ativos.columns:
@@ -671,7 +671,7 @@ class MacroService(BaseService):
             }
             
             # Prepara dados para o modal
-            colunas_modal = ['Numero', 'Projeto', 'Status', 'Squad', 'Conclusao', 'HorasRestantes', 'VencimentoEm', 'motivo']
+            colunas_modal = ['Numero', 'Projeto', 'Status', 'Squad', 'Conclusao', 'HorasRestantes', 'VencimentoEm', 'motivo', 'Horas']
             
             # Certifica-se de que a coluna Numero existe
             if 'Numero' not in projetos_criticos.columns and 'Número' in projetos_criticos.columns:
