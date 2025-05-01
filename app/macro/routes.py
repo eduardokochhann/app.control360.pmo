@@ -378,7 +378,8 @@ def api_projetos_por_especialista(nome_especialista):
             'Squad': 'squad',
             'HorasRestantes': 'horasRestantes',
             'Conclusao': 'conclusao',
-            'VencimentoEm': 'dataPrevEnc'
+            'VencimentoEm': 'dataPrevEnc',
+            'Horas': 'Horas' # Adicionado Horas (Esforço) - Não precisa renomear
         }
         
         # Garantir que todas as colunas existem
@@ -520,7 +521,8 @@ def api_projetos_por_account(nome_account):
             'Especialista': 'especialista',
             'HorasRestantes': 'horasRestantes',
             'Conclusao': 'conclusao',
-            'VencimentoEm': 'dataPrevEnc'
+            'VencimentoEm': 'dataPrevEnc',
+            'Horas': 'Horas' # Adicionado Horas (Esforço) - Não precisa renomear
         }
         
         # Garantir que todas as colunas existem

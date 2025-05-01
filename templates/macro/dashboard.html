@@ -128,6 +128,7 @@
         }
         .modal-body {
             max-height: calc(90vh - 120px);
+            min-height: 600px; /* Adicionado para altura mínima consistente */
             overflow-y: auto;
         }
         
@@ -789,7 +790,7 @@
                         </div>
                         <div class="modal-body">
                             <div class="table-responsive">
-                                <table class="table table-striped table-hover" style="min-width: 800px;">
+                                <table class="table table-hover" style="min-width: 800px;">
                                     <thead>
                                         <tr>
                                             <th>Número</th>
@@ -826,7 +827,7 @@
                         </div>
                         <div class="modal-body">
                             <div class="table-responsive">
-                                <table class="table table-striped table-hover" style="min-width: 800px;">
+                                <table class="table table-hover" style="min-width: 800px;">
                                     <thead>
                                         <tr>
                                             <th>Número</th>
@@ -863,7 +864,7 @@
                         </div>
                         <div class="modal-body">
                             <div class="table-responsive">
-                                <table class="table table-striped table-hover" style="min-width: 800px;">
+                                <table class="table table-hover" style="min-width: 800px;">
                                     <thead>
                                         <tr>
                                             <th>Projeto</th>
@@ -899,7 +900,7 @@
                         </div>
                         <div class="modal-body">
                             <div class="table-responsive">
-                                <table class="table table-striped table-hover" style="min-width: 800px;">
+                                <table class="table table-hover" style="min-width: 800px;">
                                     <thead>
                                         <tr>
                                             <th>Projeto</th>
@@ -1104,9 +1105,12 @@
                             .then(projetos => {
                                 console.log("Projetos recebidos:", projetos);
                                 if (projetos && projetos.length > 0) {
+                                    // Formata as linhas usando a função padronizada
+                                    const linhasHTML = projetos.map(p => formatarLinhaMacro(p)).join('');
+                                    
                                     modalBody.innerHTML = `
                                         <div class="table-responsive">
-                                            <table class="table table-sm table-striped">
+                                            <table class="table table-sm table-hover"> <!-- Removido table-striped, adicionado table-hover -->
                                                 <thead>
                                                     <tr>
                                                         <th>Número</th>
@@ -1119,17 +1123,7 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    ${projetos.map(p => `
-                                                        <tr>
-                                                            <td>${p.numero ? `<a href="https://atendimento.sou.cloud/Ticket/Edit/${p.numero}" target="_blank" style="text-decoration: none; color: inherit;">${p.numero}</a>` : 'N/A'}</td>
-                                                            <td>${p.projeto || 'N/A'}</td>
-                                                            <td>${p.status || 'N/A'}</td>
-                                                            <td>${p.squad || 'N/A'}</td>
-                                                            <td>${p.conclusao != null ? p.conclusao + '%' : 'N/A'}</td>
-                                                            <td>${p.horasRestantes != null ? p.horasRestantes.toFixed(1) + 'h' : 'N/A'}</td>
-                                                            <td>${p.dataPrevEnc || 'N/A'}</td>
-                                                        </tr>
-                                                    `).join('')}
+                                                    ${linhasHTML} <!-- Usa as linhas formatadas -->
                                                 </tbody>
                                             </table>
                                         </div>`;
@@ -1174,9 +1168,12 @@
                             .then(projetos => {
                                 console.log("Projetos recebidos:", projetos);
                                 if (projetos && projetos.length > 0) {
+                                    // Formata as linhas usando a função padronizada
+                                    const linhasHTML = projetos.map(p => formatarLinhaMacro(p)).join('');
+                                    
                                     modalBody.innerHTML = `
                                         <div class="table-responsive">
-                                            <table class="table table-sm table-striped">
+                                            <table class="table table-sm table-hover"> <!-- Removido table-striped, adicionado table-hover -->
                                                 <thead>
                                                     <tr>
                                                         <th>Número</th>
@@ -1190,18 +1187,7 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    ${projetos.map(p => `
-                                                        <tr>
-                                                            <td>${p.numero ? `<a href="https://atendimento.sou.cloud/Ticket/Edit/${p.numero}" target="_blank" style="text-decoration: none; color: inherit;">${p.numero}</a>` : 'N/A'}</td>
-                                                            <td>${p.projeto || 'N/A'}</td>
-                                                            <td>${p.status || 'N/A'}</td>
-                                                            <td>${p.squad || 'N/A'}</td>
-                                                            <td>${p.especialista || 'N/A'}</td>
-                                                            <td>${p.conclusao != null ? p.conclusao + '%' : 'N/A'}</td>
-                                                            <td>${p.horasRestantes != null ? p.horasRestantes.toFixed(1) + 'h' : 'N/A'}</td>
-                                                            <td>${p.dataPrevEnc || 'N/A'}</td>
-                                                        </tr>
-                                                    `).join('')}
+                                                    ${linhasHTML} <!-- Usa as linhas formatadas -->
                                                 </tbody>
                                             </table>
                                         </div>`;
