@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Mantém seu CSS principal, pode precisar de ajustes -->
     <!--<link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">><!-->
-    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css"> <!-- Usar versão Bootstrap 5 -->
+    <!-- <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css"> --> <!-- CSS DataTables Comentado -->
     <style>
         /* Estilo básico para garantir espaçamento e fundo */
         body { background-color: #f8f9fa; }
@@ -293,6 +293,78 @@
             opacity: 0.8;
             margin-right: 1rem;
         }
+
+        /* Ajustes para controles movidos para header/footer */
+        .modal-header {
+            display: flex;
+            align-items: center;
+        }
+        .modal-header .modal-title {
+            margin-right: auto; /* Empurra título para a esquerda */
+        }
+        .modal-header .dt-controls-header {
+             /* O ms-auto no HTML já deve empurrar para a direita */
+             display: flex;
+             align-items: center;
+             gap: 1rem; /* Espaço entre length e search */
+        }
+        /* .modal-header .dt-search, .modal-header .dt-length { */ /* Removido - controle agora dentro do dt-controls-header */
+            /* margin-left: 1rem; */
+        /* } */
+
+        .modal-footer {
+            display: flex; /* Habilita flexbox */
+            flex-wrap: wrap; /* Permite quebrar linha se necessário */
+            justify-content: space-between; /* Espaça itens */
+            align-items: center; /* Alinha verticalmente */
+        }
+
+        .modal-footer .dt-controls-footer {
+             display: flex;
+             flex-grow: 1; /* Ocupa espaço disponível */
+             justify-content: space-between;
+             align-items: center;
+             margin-right: 1rem; /* Espaço antes dos botões */
+        }
+
+        /* .modal-footer .dt-info { */ /* Removido - controle agora dentro do dt-controls-footer */
+            /* margin-right: auto; */
+            /* padding-right: 1rem; */
+        /* } */
+
+        /* .modal-footer .dt-paging { */ /* Removido - controle agora dentro do dt-controls-footer */
+            /* margin-left: auto; */
+            /* padding-left: 1rem; */
+        /* } */
+
+        /* .modal-dialog-scrollable .modal-body { */ /* Regra vazia removida */
+        /* } */
+
+        /* --- Fixação Cabeçalho Tabela (thead) nos Modais --- */
+
+        /* Garante que o container da tabela tenha altura e permita rolagem */
+        .modal .table-responsive {
+            /* Altura precisa ser suficiente para causar rolagem */
+            max-height: calc(80vh - 150px); /* Reduzi um pouco para garantir espaço */
+            overflow-y: auto !important; /* Garante a rolagem vertical */
+            /* position: relative; */ /* Removido - Geralmente não necessário */
+        }
+
+        /* Fixa o cabeçalho da tabela HTML padrão */
+        .modal .table-responsive > table > thead > tr > th { /* Seletor mais específico */
+            position: -webkit-sticky; /* Prefixo para compatibilidade */
+            position: sticky;
+            top: 0; /* Fixa no topo do container de rolagem (.table-responsive) */
+            background-color: #f8f9fa; /* Fundo para não ser transparente */
+            z-index: 10; /* Acima do tbody */
+            /* Adiciona sombra para melhor separação visual */
+            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Regra para .dataTables_scrollHead removida pois não usamos mais DataTables aqui */
+
+        /* --- Fim Fixação Cabeçalho --- */
+
     </style>
 </head>
 <body>
@@ -799,12 +871,13 @@
 
     <!-- Modal Projetos Ativos -->
     <div class="modal fade" id="modalProjetosAtivos" tabindex="-1" aria-labelledby="modalProjetosAtivosLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content shadow-lg">
                 <div class="modal-header bg-success text-white border-0">
                     <h5 class="modal-title" id="modalProjetosAtivosLabel">
                         <i class="bi bi-list-task me-2"></i> Projetos Ativos
                     </h5>
+                    <!-- <div class="dt-controls-header ms-auto d-flex align-items-center"></div> --> <!-- Placeholder Removido -->
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
@@ -828,7 +901,8 @@
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <div class="dt-controls-footer d-flex justify-content-between align-items-center w-100 mb-2"></div> <!-- Placeholder para controles do footer -->
+                    <button type="button" class="btn btn-outline-secondary ms-auto" data-bs-dismiss="modal">Fechar</button>
                 </div>
             </div>
         </div>
@@ -836,12 +910,13 @@
 
     <!-- Modal Projetos em Atendimento -->
     <div class="modal fade" id="modalProjetosEmAtendimento" tabindex="-1" aria-labelledby="modalProjetosEmAtendimentoLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content shadow-lg">
                 <div class="modal-header bg-warning text-dark border-0">
                     <h5 class="modal-title" id="modalProjetosEmAtendimentoLabel">
                         <i class="bi bi-people-fill me-2"></i> Projetos em Atendimento
                     </h5>
+                    <div class="dt-controls-header ms-auto d-flex align-items-center"></div> <!-- Placeholder para controles do header -->
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
@@ -865,7 +940,8 @@
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <div class="dt-controls-footer d-flex justify-content-between align-items-center w-100 mb-2"></div> <!-- Placeholder para controles do footer -->
+                    <button type="button" class="btn btn-outline-secondary ms-auto" data-bs-dismiss="modal">Fechar</button>
                 </div>
             </div>
         </div>
@@ -873,12 +949,13 @@
 
     <!-- Modal Faturamento Pendente -->
     <div class="modal fade" id="modalFaturamento" tabindex="-1" aria-labelledby="modalFaturamentoLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content shadow-lg">
                 <div class="modal-header bg-purple text-white border-0">
                     <h5 class="modal-title" id="modalFaturamentoLabel">
                         <i class="bi bi-cash-stack me-2"></i> Projetos para Faturar
                     </h5>
+                    <div class="dt-controls-header ms-auto d-flex align-items-center"></div> <!-- Placeholder para controles do header -->
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
@@ -901,10 +978,13 @@
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
-                    <button type="button" class="btn btn-purple" onclick="exportarFaturamento()">
-                        <i class="bi bi-download me-1"></i> Exportar
-                    </button>
+                    <div class="dt-controls-footer d-flex justify-content-between align-items-center w-100 mb-2"></div> <!-- Placeholder para controles do footer -->
+                    <div class="ms-auto"> <!-- Wrapper para botões ficarem à direita -->
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                        <button type="button" class="btn btn-purple" onclick="exportarFaturamento()">
+                            <i class="bi bi-download me-1"></i> Exportar
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -912,12 +992,13 @@
 
     <!-- Modal Projetos Críticos -->
     <div class="modal fade" id="modalProjetosCriticos" tabindex="-1" aria-labelledby="modalProjetosCriticosLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content shadow-lg">
                 <div class="modal-header bg-danger text-white border-0">
                     <h5 class="modal-title" id="modalProjetosCriticosLabel">
                         <i class="bi bi-exclamation-triangle me-2"></i> Projetos Críticos
                     </h5>
+                    <div class="dt-controls-header ms-auto d-flex align-items-center"></div> <!-- Placeholder para controles do header -->
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
@@ -941,10 +1022,13 @@
                     </div>
                 </div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
-                    <button type="button" class="btn btn-danger" onclick="exportarProjetosCriticos()">
-                        <i class="bi bi-download me-1"></i> Exportar
-                    </button>
+                    <div class="dt-controls-footer d-flex justify-content-between align-items-center w-100 mb-2"></div> <!-- Placeholder para controles do footer -->
+                    <div class="ms-auto"> <!-- Wrapper para botões ficarem à direita -->
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                        <button type="button" class="btn btn-danger" onclick="exportarProjetosCriticos()">
+                            <i class="bi bi-download me-1"></i> Exportar
+                        </button>
+                     </div>
                 </div>
             </div>
         </div>
@@ -1312,7 +1396,7 @@
             
             // Adiciona o novo contador
             const contador = $('<div class="contador-registros text-muted me-auto"></div>')
-                .text(`${total} registro${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`);
+                .text(`${total} registro${total !== 1 ? 's' : ''} encontrado${total !== 1 ? 's' : ''}`); // Revertido: removido "esse é o arquivo: "
             
             modalFooter.prepend(contador);
         }
@@ -1368,6 +1452,8 @@
                     
                     tabelaBody.innerHTML = html;
                     
+                    // Inicialização do DataTable REMOVIDA
+                    /*
                     tabelaAtivosDt = $('#dataTableProjetosAtivos').DataTable({
                         language: {
                             url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/pt-BR.json'
@@ -1375,26 +1461,26 @@
                         pageLength: 10,
                         autoWidth: false,
                         scrollX: true,
-                        fixedHeader: true,
                         responsive: false,
                         columnDefs: [
                             { width: "80px", targets: 0 }, // Número
                             { width: "300px", targets: 1 }, // Projeto
                             { width: "180px", targets: 2 }, // Squad
                             { width: "120px", targets: 3 }, // Status
-                            { width: "150px", targets: 4 }, // Conclusão - Aumentado para acomodar a barra de progresso
-                            { width: "150px", targets: 5 }, // Horas Restantes - Aumentado para acomodar a barra de progresso
+                            { width: "150px", targets: 4 }, // Conclusão
+                            { width: "150px", targets: 5 }, // Horas Restantes
                             { width: "120px", targets: 6 }  // Vencimento
                         ],
-                        // Previne redimensionamento do modal ao mudar de página
-                        drawCallback: function() {
-                            $('.dataTables_scrollBody').css('width', '100%');
-                            corrigirLayoutTabelas(); // Chama a função de correção após cada desenho da tabela
-                        }
+                        // Define onde os controles padrão do DT serão colocados
+                        dom: "<'row'<'col-sm-12't>>" + // A tabela em si, dentro de um container responsivo
+                             "<'.dt-controls-header'lf>" + // Length e Filter no placeholder do header (usando classe)
+                             "<'.dt-controls-footer'ip>", // Info e Pagination no placeholder do footer (usando classe)
+
                     });
-                    
-                    // Correção de layout após inicialização
-                    corrigirLayoutTabelas();
+                    */
+
+                    // Correção de layout inicial (pode ser desnecessária)
+                    // corrigirLayoutTabelas();
                 },
                 error: function(xhr, status, error) {
                     tabelaBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Erro ao carregar dados: ' + error + '</td></tr>';
@@ -1455,33 +1541,35 @@
                     
                     tabelaBody.innerHTML = html;
                     
+                    // Inicialização do DataTable REMOVIDA
+                    /*
                     tabelaAtendimentoDt = $('#dataTableProjetosEmAtendimento').DataTable({
-                        language: {
+                         language: {
                             url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/pt-BR.json'
                         },
-                        pageLength: 10,
+                        
                         autoWidth: false,
                         scrollX: true,
-                        fixedHeader: true,
                         responsive: false,
                         columnDefs: [
                             { width: "80px", targets: 0 }, // Número
                             { width: "300px", targets: 1 }, // Projeto
                             { width: "180px", targets: 2 }, // Squad
                             { width: "120px", targets: 3 }, // Status
-                            { width: "150px", targets: 4 }, // Conclusão - Aumentado para acomodar a barra de progresso
-                            { width: "150px", targets: 5 }, // Horas Restantes - Aumentado para acomodar a barra de progresso
+                            { width: "150px", targets: 4 }, // Conclusão
+                            { width: "150px", targets: 5 }, // Horas Restantes
                             { width: "120px", targets: 6 }  // Vencimento
                         ],
-                        // Previne redimensionamento do modal ao mudar de página
-                        drawCallback: function() {
-                            $('.dataTables_scrollBody').css('width', '100%');
-                            corrigirLayoutTabelas(); // Chama a função de correção após cada desenho da tabela
-                        }
+                         // Define onde os controles padrão do DT serão colocados
+                        dom: "<'row'<'col-sm-12't>>" + // A tabela em si
+                             "<'.dt-controls-header'lf>" + // Length e Filter no placeholder do header (usando classe)
+                             "<'.dt-controls-footer'ip>", // Info e Pagination no placeholder do footer (usando classe)
+
                     });
-                    
-                    // Correção de layout após inicialização
-                    corrigirLayoutTabelas();
+                    */
+
+                    // Correção de layout inicial
+                    // corrigirLayoutTabelas();
                 },
                 error: function(xhr, status, error) {
                     tabelaBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Erro ao carregar dados: ' + error + '</td></tr>';
@@ -1542,14 +1630,15 @@
                     
                     tabelaBody.innerHTML = html;
                     
+                    // Inicialização do DataTable REMOVIDA
+                    /*
                     tabelaFaturamentoDt = $('#dataTableFaturamento').DataTable({
-                        language: {
+                         language: {
                             url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/pt-BR.json'
                         },
-                        pageLength: 10,
+                        
                         autoWidth: false,
                         scrollX: true,
-                        fixedHeader: true,
                         responsive: false,
                         columnDefs: [
                             { width: "300px", targets: 0 }, // Projeto
@@ -1559,15 +1648,16 @@
                             { width: "120px", targets: 4 }, // Status
                             { width: "120px", targets: 5 }  // Vencimento
                         ],
-                        // Previne redimensionamento do modal ao mudar de página
-                        drawCallback: function() {
-                            $('.dataTables_scrollBody').css('width', '100%');
-                            corrigirLayoutTabelas(); // Chama a função de correção após cada desenho da tabela
-                        }
+                          // Define onde os controles padrão do DT serão colocados
+                        dom: "<'row'<'col-sm-12't>>" + // A tabela em si
+                             "<'.dt-controls-header'lf>" + // Length e Filter no placeholder do header (usando classe)
+                             "<'.dt-controls-footer'ip>", // Info e Pagination no placeholder do footer (usando classe)
+
                     });
-                    
-                    // Correção de layout após inicialização
-                    corrigirLayoutTabelas();
+                    */
+
+                    // Correção de layout inicial
+                    // corrigirLayoutTabelas();
                 },
                 error: function(xhr, status, error) {
                     tabelaBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Erro ao carregar dados: ' + error + '</td></tr>';
@@ -1649,34 +1739,36 @@
                     
                     tabelaBody.innerHTML = html;
                     
+                    // Inicialização do DataTable REMOVIDA
+                    /*
                     tabelaCriticosDt = $('#dataTableCriticos').DataTable({
                         language: {
                             url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/pt-BR.json'
                         },
                         pageLength: 10,
-                        order: [[5, "asc"]],
+                        order: [[5, "asc"]], // Ordena por Horas Restantes por padrão
                         autoWidth: false,
                         scrollX: true,
-                        fixedHeader: true,
                         responsive: false,
                         columnDefs: [
                             { width: "80px", targets: 0 }, // Número
                             { width: "300px", targets: 1 }, // Projeto
                             { width: "180px", targets: 2 }, // Squad
                             { width: "120px", targets: 3 }, // Status
-                            { width: "150px", targets: 4 }, // Conclusão - Aumentado para acomodar a barra de progresso
-                            { width: "150px", targets: 5 }, // Horas Restantes - Aumentado para acomodar a barra de progresso
+                            { width: "150px", targets: 4 }, // Conclusão
+                            { width: "150px", targets: 5 }, // Horas Restantes
                             { width: "120px", targets: 6 }  // Vencimento
                         ],
-                        // Previne redimensionamento do modal ao mudar de página
-                        drawCallback: function() {
-                            $('.dataTables_scrollBody').css('width', '100%');
-                            corrigirLayoutTabelas(); // Chama a função de correção após cada desenho da tabela
-                        }
+                         // Define onde os controles padrão do DT serão colocados
+                        dom: "<'row'<'col-sm-12't>>" + // A tabela em si
+                             "<'.dt-controls-header'lf>" + // Length e Filter no placeholder do header (usando classe)
+                             "<'.dt-controls-footer'ip>", // Info e Pagination no placeholder do footer (usando classe)
+
                     });
+                    */
                     
-                    // Correção de layout após inicialização
-                    corrigirLayoutTabelas();
+                    // Correção de layout inicial
+                    // corrigirLayoutTabelas();
                 },
                 error: function(xhr, status, error) {
                     tabelaBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Erro ao carregar dados: ' + error + '</td></tr>';
