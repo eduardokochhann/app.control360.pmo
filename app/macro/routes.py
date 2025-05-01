@@ -694,6 +694,8 @@ def apresentacao():
             fonte_dados_ref = None
             if mes_referencia.month == 3 and mes_referencia.year == 2025:
                 fonte_dados_ref = 'dadosr_apt_mar'
+            elif mes_referencia.month == 4 and mes_referencia.year == 2025: # <-- Adicionado Abril
+                fonte_dados_ref = 'dadosr_apt_abr'
             elif mes_referencia.month == 2 and mes_referencia.year == 2025:
                 fonte_dados_ref = 'dadosr_apt_fev'
             elif mes_referencia.month == 1 and mes_referencia.year == 2025:
@@ -740,6 +742,7 @@ def apresentacao():
             else:
                 # Lógica para determinar a fonte histórica (igual à anterior, mas precisa ser mais completa)
                 if mes_loop == 3 and ano_loop == 2025: fonte_mes_loop = 'dadosr_apt_mar'
+                elif mes_loop == 4 and ano_loop == 2025: fonte_mes_loop = 'dadosr_apt_abr' # <-- Adicionado Abril
                 elif mes_loop == 2 and ano_loop == 2025: fonte_mes_loop = 'dadosr_apt_fev'
                 elif mes_loop == 1 and ano_loop == 2025: fonte_mes_loop = 'dadosr_apt_jan'
                 # Adicionar mais fontes aqui...
@@ -793,7 +796,9 @@ def apresentacao():
                 fonte_mes_loop = None
                 
                 # Lógica para determinar a fonte (precisa ser expandida)
-                if mes_loop == 2 and ano_loop == 2025: fonte_mes_loop = 'dadosr_apt_fev'
+                if mes_loop == 3 and ano_loop == 2025: fonte_mes_loop = 'dadosr_apt_mar'
+                elif mes_loop == 4 and ano_loop == 2025: fonte_mes_loop = 'dadosr_apt_abr' # <-- Precisa de Março aqui para comparar Abril
+                elif mes_loop == 2 and ano_loop == 2025: fonte_mes_loop = 'dadosr_apt_fev'
                 elif mes_loop == 1 and ano_loop == 2025: fonte_mes_loop = 'dadosr_apt_jan'
                 elif mes_loop == 12 and ano_loop == 2024: fonte_mes_loop = 'dadosr_apt_dez' 
                 # Adicionar mais regras aqui...

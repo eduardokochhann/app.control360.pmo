@@ -336,6 +336,14 @@
                        Mar/2025
                     </a>
                 </li>
+                <!-- Adicionado Link para Abr/2025 -->
+                <li class="nav-item">
+                    {% set is_abr = request.args.get('mes') == '4' and request.args.get('ano') == '2025' %}
+                    <a class="nav-link {{ 'active' if is_abr else '' }}" 
+                       href="{{ url_for('macro.apresentacao', mes=4, ano=2025) }}">
+                       Abr/2025
+                    </a>
+                </li>
                 <!-- Adicionar mais meses históricos aqui se necessário -->
             </ul>
         </div>
@@ -605,8 +613,13 @@
                                                         <tr>
                                                             <td>{{ item.mes }}</td>
                                                             <td class="text-end">{{ item.quantidade }}</td>
-                                                            <td class="text-end {% if item.variacao_percentual > 0 %}text-success{% elif item.variacao_percentual < 0 %}text-danger{% else %}text-muted{% endif %}">
-                                                                {% if item.variacao != '-' %}{{ '%.1f'|format(item.variacao_percentual) }}%{% else %}-{% endif %}
+                                                            {# Ajuste para tratar variacao_percentual como string '-' ou número #}
+                                                            <td class="text-end 
+                                                                {% if item.variacao_percentual is number and item.variacao_percentual > 0 %}text-success
+                                                                {% elif item.variacao_percentual is number and item.variacao_percentual < 0 %}text-danger
+                                                                {% else %}text-muted{% endif %}">
+                                                                {# Exibe o valor percentual se for número, senão exibe '-' #}
+                                                                {% if item.variacao_percentual is number %}{{ '%.1f'|format(item.variacao_percentual) }}%{% else %}-{% endif %}
                                                             </td>
                                                         </tr>
                                                         {% endfor %}

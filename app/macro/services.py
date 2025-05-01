@@ -2652,28 +2652,9 @@ class MacroService(BaseService):
                         
                 quantidades_meses[i] = quantidade
 
-            # Busca valor de Janeiro do ano atual para base do cálculo percentual
-            ano_base = mes_referencia.year
-            fonte_janeiro = self._obter_fonte_historica(ano_base, 1)
-            qtd_base_pct = 0
-            
-            if fonte_janeiro:
-                dados_janeiro = self.carregar_dados(fonte=fonte_janeiro)
-                if not dados_janeiro.empty:
-                    data_inicio_jan = datetime(ano_base, 1, 1)
-                    data_fim_jan = datetime(ano_base, 2, 1) - timedelta(days=1)
-                    concluidos_jan = self.filtrar_projetos_concluidos(dados_janeiro, data_inicio_jan, data_fim_jan)
-                    qtd_base_pct = len(concluidos_jan)
-                    logger.info(f"[_calcular_historico_dinamico] Base para cálculo percentual (Janeiro/{ano_base}): {qtd_base_pct}")
-                else:
-                    logger.warning(f"[_calcular_historico_dinamico] Não foi possível carregar dados de Janeiro/{ano_base}")
-            else:
-                # Verifica valor hardcoded para Janeiro como fallback
-                if ano_base == 2025:
-                    qtd_base_pct = 8
-                    logger.info(f"[_calcular_historico_dinamico] Usando valor hardcoded para Janeiro/{ano_base}: {qtd_base_pct}")
-                else:
-                    logger.warning(f"[_calcular_historico_dinamico] Nenhuma fonte ou valor fixo para Janeiro/{ano_base}")
+            # Define a quantidade do primeiro mês do histórico (M-3) como base
+            qtd_base_pct = quantidades_meses.get(3, 0)
+            logger.info(f"[_calcular_historico_dinamico] Base para cálculo percentual (Mês M-3): {qtd_base_pct}")
 
             # Monta o resultado final e calcula variações
             for i in range(3, 0, -1):
@@ -2682,25 +2663,31 @@ class MacroService(BaseService):
                 qtd_atual = quantidades_meses[i]
                 variacao_abs = '-'
                 variacao_pct = 0
-                
+
+                # Calcula variação ABSOLUTA em relação ao mês anterior (se houver)
                 if i < 3:
-                    qtd_anterior = quantidades_meses[i + 1]
+                    qtd_anterior = quantidades_meses.get(i + 1, 0) # Usa .get para segurança
                     variacao_abs = qtd_atual - qtd_anterior
-                
-                # Calcula variação PERCENTUAL em relação a JANEIRO
-                if qtd_base_pct > 0:
-                    variacao_pct = round(((qtd_atual - qtd_base_pct) / qtd_base_pct) * 100, 1)
-                elif qtd_atual > 0: # Base era 0, atual não é
-                    variacao_pct = 100.0 
-                # else: ambos 0, pct é 0
-                        
+                # else: Mês M-3, variacao_abs permanece '-'
+
+                # Calcula variação PERCENTUAL em relação ao MÊS BASE (M-3)
+                # Exceto para o próprio mês base (i=3), onde a variação é 0 ou '-'
+                if i < 3: # Apenas para M-2 e M-1
+                    if qtd_base_pct > 0:
+                        variacao_pct = round(((qtd_atual - qtd_base_pct) / qtd_base_pct) * 100, 1)
+                    elif qtd_atual > 0: # Base era 0, atual não é
+                        variacao_pct = 100.0
+                    # else: base 0 ou ambos 0, pct é 0
+                # else: i == 3 (mês base), variacao_pct permanece 0
+
                 historico.append({
                     'mes': nome_mes,
                     'quantidade': qtd_atual,
                     'variacao': f"{variacao_abs:+}" if isinstance(variacao_abs, int) else variacao_abs,
-                    'variacao_percentual': variacao_pct
+                    # Mantém '-' para o primeiro mês, ou o percentual calculado para os outros
+                    'variacao_percentual': variacao_pct if i < 3 else '-'
                 })
-                
+
             logger.info(f"[_calcular_historico_dinamico] Histórico final calculado: {historico}")
             return historico
         
