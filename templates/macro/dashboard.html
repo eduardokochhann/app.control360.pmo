@@ -1043,7 +1043,7 @@
                                                          aria-valuenow="{{ projeto.Conclusao }}" 
                                                          aria-valuemin="0" 
                                                          aria-valuemax="100">
-                                                        {{ projeto.Conclusao }}%
+                                                        {{ "%.1f"|format(projeto.Conclusao) }}%
                                                     </div>
                                                 </div>
                                             </td>
@@ -1118,6 +1118,7 @@
                                                         <th>Conclusão</th>
                                                         <th>Horas Rest.</th>
                                                         <th>Previsão</th>
+                                                        <th>Ações</th> <!-- Nova coluna -->
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -1182,6 +1183,7 @@
                                                         <th>Conclusão</th>
                                                         <th>Horas Rest.</th>
                                                         <th>Previsão</th>
+                                                        <th>Ações</th> <!-- Nova coluna -->
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -1309,6 +1311,11 @@
                             <td class="text-end">${conclusaoHTML}</td>
                             <td class="text-end">${horasHTML}</td>
                             <td>${vencimento}</td>
+                            <td>
+                                <a href="/macro/status-report/${numero}" target="_blank" class="btn btn-sm btn-outline-primary" title="Status Report">
+                                    <i class="bi bi-file-earmark-text"></i>
+                                </a>
+                            </td>
                         </tr>
                     `;
                 } catch (error) {
@@ -1385,6 +1392,11 @@
                             <td class="text-end">${conclusaoHTML}</td>
                             <td class="text-end">${horasHTML}</td>
                             <td>${vencimento}</td>
+                            <td>
+                                <a href="/macro/status-report/${numero}" target="_blank" class="btn btn-sm btn-outline-primary" title="Status Report">
+                                    <i class="bi bi-file-earmark-text"></i>
+                                </a>
+                            </td>
                         </tr>
                     `;
                 } catch (error) {

@@ -1,9 +1,22 @@
-from flask import Blueprint, render_template, jsonify, request, current_app, redirect, url_for
+from flask import Blueprint, render_template, jsonify, request, current_app, redirect, url_for, flash, Response
 from . import macro_bp, macro_service
 from urllib.parse import unquote
 import logging
 from datetime import datetime, timedelta
 import pandas as pd
+from io import BytesIO
+import os # Removido para debug - PATH OK
+
+# Tenta importar WeasyPrint e define uma flag
+try:
+    from weasyprint import HTML, CSS
+    from weasyprint.fonts import FontConfiguration
+    weasyprint_installed = True
+except ImportError:
+    weasyprint_installed = False
+    HTML = None # Define como None se não instalado
+    CSS = None
+    FontConfiguration = None
 
 # Use o logger configurado no app factory (se aplicável)
 # logger = current_app.logger
@@ -1278,3 +1291,105 @@ def api_projetos_squad_status_mes():
     except Exception as e:
         logger.exception(f"Erro na API de projetos por squad e status: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+# <<< INÍCIO: Nova Rota para Status Report >>>
+@macro_bp.route('/status-report/<project_id>')
+def status_report(project_id):
+    """Rota para exibir o Status Report de um projeto específico."""
+    try:
+        logger.info(f"Gerando Status Report para projeto ID: {project_id}")
+        
+        # Chama a função do service para preparar os dados
+        report_data = macro_service.gerar_dados_status_report(project_id)
+        
+        # Temporariamente, apenas busca os detalhes básicos
+        # dados_projeto = macro_service.obter_detalhes_projeto(project_id) # REMOVIDO
+        
+        if not report_data:
+            logger.error(f"Não foi possível gerar os dados para o Status Report do projeto ID {project_id}.")
+            # Retornar um erro 404 ou uma página de erro específica?
+            # Por enquanto, renderiza o template com erro.
+            return render_template('macro/status_report.html',  # <-- Caminho corrigido
+                                 error=f"Não foi possível gerar dados para o projeto ID {project_id}. Verifique os logs.",
+                                 project_id=project_id,
+                                 report_data=None)
+
+        # Preparar contexto 
+        context = {
+            'report_data': report_data,
+            'project_id': project_id,
+            'titulo_pagina': f"Status Report - {report_data['info_geral'].get('nome', project_id)}",
+            'data_geracao': datetime.now().strftime('%d/%m/%Y %H:%M'),
+            'weasyprint_installed': weasyprint_installed # Passa a flag para o template
+        }
+        
+        return render_template('macro/status_report.html', **context)
+
+    except Exception as e:
+        logger.exception(f"Erro ao gerar Status Report para projeto ID {project_id}: {str(e)}")
+        # Renderiza o template com uma mensagem de erro genérica
+        return render_template('macro/status_report.html', # <-- Caminho corrigido
+                             error=f"Erro ao gerar o Status Report: {str(e)}",
+                             project_id=project_id,
+                             report_data=None)
+# <<< FIM: Nova Rota para Status Report >>>
+
+# <<< INÍCIO: Nova Rota para Download do PDF >>>
+@macro_bp.route('/status-report/<project_id>/download')
+def download_status_report(project_id):
+    """Gera e faz o download do Status Report em PDF usando WeasyPrint."""
+    if not weasyprint_installed:
+        logger.error("Tentativa de download de PDF sem WeasyPrint instalado.")
+        # Poderia redirecionar de volta ou mostrar uma mensagem de erro mais explícita
+        flash("Erro: Funcionalidade de download de PDF não está habilitada no servidor.", "danger")
+        return redirect(url_for('macro.status_report', project_id=project_id))
+
+    try:
+        logger.info(f"[PDF Download] Iniciando geração para projeto ID: {project_id}")
+        # 1. Obter os dados do relatório
+        report_data = macro_service.gerar_dados_status_report(project_id)
+        if not report_data:
+            logger.error(f"[PDF Download] Falha ao obter dados para o projeto ID {project_id}.")
+            flash(f"Erro ao gerar PDF: Não foi possível obter dados para o projeto {project_id}.", "danger")
+            return redirect(url_for('macro.status_report', project_id=project_id))
+
+        # 2. Preparar contexto para renderizar o HTML (sem a flag weasyprint_installed)
+        context = {
+            'report_data': report_data,
+            'project_id': project_id,
+            'titulo_pagina': f"Status Report - {report_data['info_geral'].get('nome', project_id)}",
+            'data_geracao': datetime.now().strftime('%d/%m/%Y %H:%M'),
+            # NÃO passamos a flag aqui, pois não precisamos do botão/aviso no PDF
+        }
+
+        # 3. Renderizar o template HTML para uma string
+        #    Usamos render_template_string se o template estender base.html
+        #    ou diretamente render_template se ele for autônomo para PDF
+        #    Vamos assumir que ele pode estender base.html, mas os estilos @print o esconderão.
+        html_string = render_template('macro/status_report.html', **context)
+
+        # 4. Configurar WeasyPrint (opcional, mas bom para fontes)
+        font_config = FontConfiguration()
+        # css = CSS(string=''' /* CSS adicional específico para PDF se necessário */ ''', font_config=font_config)
+        
+        # 5. Gerar o PDF na memória
+        pdf_bytes = HTML(string=html_string, base_url=request.base_url).write_pdf(font_config=font_config)
+        
+        # 6. Criar nome do arquivo
+        safe_project_name = report_data['info_geral'].get('nome', str(project_id)).replace(' ', '_').lower()
+        pdf_filename = f"status_report_{safe_project_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
+
+        logger.info(f"[PDF Download] PDF gerado com sucesso para projeto ID: {project_id}. Nome: {pdf_filename}")
+
+        # 7. Enviar o PDF como resposta para download
+        return Response(
+            pdf_bytes,
+            mimetype="application/pdf",
+            headers={ "Content-Disposition": f"attachment;filename={pdf_filename}" }
+        )
+
+    except Exception as e:
+        logger.exception(f"[PDF Download] Erro ao gerar PDF para projeto ID {project_id}: {e}")
+        flash(f"Ocorreu um erro inesperado ao gerar o PDF. Por favor, tente novamente ou contate o suporte.", "danger")
+        return redirect(url_for('macro.status_report', project_id=project_id))
+# <<< FIM: Nova Rota para Download do PDF >>>

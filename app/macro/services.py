@@ -3073,3 +3073,122 @@ class MacroService(BaseService):
             return [] # Retorna lista vazia em caso de erro
     # <<< FIM: Novo método para obter lista de especialistas >>>
 
+    # <<< INÍCIO: Nova função para dados do Status Report >>>
+    def gerar_dados_status_report(self, project_id):
+        """
+        Prepara os dados necessários para o Status Report de um projeto.
+        """
+        try:
+            self.logger.info(f"[Status Report] Gerando dados para projeto ID: {project_id}")
+
+            # 1. Carrega todos os dados (padrão)
+            dados_todos = self.carregar_dados(fonte=None)
+            if dados_todos.empty:
+                self.logger.error("[Status Report] Falha ao carregar dados gerais.")
+                return None
+
+            # 2. Converte ID para int para filtro
+            try:
+                project_id_int = int(project_id)
+            except (ValueError, TypeError):
+                self.logger.error(f"[Status Report] project_id inválido: {project_id}")
+                return None
+            
+            # Garante que a coluna 'Numero' existe e é numérica
+            if 'Numero' not in dados_todos.columns:
+                self.logger.error("[Status Report] Coluna 'Numero' não encontrada nos dados.")
+                return None
+            dados_todos['Numero'] = pd.to_numeric(dados_todos['Numero'], errors='coerce').astype('Int64')
+
+            # 3. Filtra pelo projeto específico
+            dados_projeto_df = dados_todos[dados_todos['Numero'] == project_id_int]
+
+            if dados_projeto_df.empty:
+                self.logger.warning(f"[Status Report] Projeto ID {project_id_int} não encontrado nos dados carregados.")
+                return None
+            
+            dados_projeto = dados_projeto_df.iloc[0]
+
+            # 4. Extrair e Calcular Dados para o Report
+            
+            # Progresso
+            percentual_concluido = float(dados_projeto.get('Conclusao', 0.0))
+            data_prevista_termino_dt = pd.to_datetime(dados_projeto.get('VencimentoEm'), errors='coerce')
+            data_prevista_termino_str = data_prevista_termino_dt.strftime('%d/%m/%Y') if pd.notna(data_prevista_termino_dt) else 'N/A'
+
+            # Calcular Status do Prazo
+            status_prazo = 'A Definir'
+            hoje_data = datetime.now().date() # Pega apenas a data atual
+            if pd.notna(data_prevista_termino_dt):
+                data_prevista_termino_data = data_prevista_termino_dt.date() # Pega apenas a data prevista
+                if data_prevista_termino_data < hoje_data:
+                    status_prazo = 'Atrasado'
+                # Compara apenas as datas
+                elif data_prevista_termino_data >= hoje_data and data_prevista_termino_data <= hoje_data + timedelta(days=15):
+                     status_prazo = 'Próximo (15d)'
+                else: 
+                    status_prazo = 'No Prazo'
+            else:
+                 status_prazo = 'Sem Prazo Definido'
+
+            # Esforço
+            horas_planejadas = float(dados_projeto.get('Horas', 0.0))
+            horas_utilizadas = float(dados_projeto.get('HorasTrabalhadas', 0.0))
+            percentual_consumido = 0.0
+            if horas_planejadas > 0:
+                percentual_consumido = round((horas_utilizadas / horas_planejadas) * 100, 1)
+            
+            # Status Geral (Lógica Refinada)
+            status_geral_indicador = 'cinza' # Default: Sem prazo e sem estouro
+            horas_estouradas = horas_utilizadas > horas_planejadas and horas_planejadas > 0
+
+            if status_prazo == 'Atrasado' or horas_estouradas:
+                status_geral_indicador = 'vermelho'
+            elif status_prazo == 'Próximo (15d)':
+                # Atenção se próximo e progresso baixo OU consumo desproporcional
+                if percentual_concluido < 70 or (percentual_consumido >= 80 and percentual_concluido < 70):
+                    status_geral_indicador = 'amarelo' 
+                else:
+                    status_geral_indicador = 'verde' # Próximo, mas progresso/consumo OK
+            elif status_prazo == 'No Prazo':
+                status_geral_indicador = 'verde'
+            elif status_prazo == 'Sem Prazo Definido':
+                status_geral_indicador = 'cinza' # Mantém cinza se não tem prazo e não estourou horas
+            
+            # Sobrescreve se horas estouraram (redundante com a primeira condição, mas garante)
+            # if horas_estouradas:
+            #      status_geral_indicador = 'vermelho'
+
+            # 5. Montar a estrutura do report
+            report_data = {
+                'info_geral': {
+                    'id': project_id,
+                    'nome': dados_projeto.get('Projeto', 'N/A'),
+                    'squad': dados_projeto.get('Squad', 'N/A'),
+                    'especialista': dados_projeto.get('Especialista', 'N/A'),
+                    'status_atual': dados_projeto.get('Status', 'N/A')
+                },
+                'progresso': {
+                    'percentual_concluido': round(percentual_concluido, 1),
+                    'data_prevista_termino': data_prevista_termino_str,
+                    'status_prazo': status_prazo 
+                },
+                'esforco': {
+                    'horas_planejadas': round(horas_planejadas, 1),
+                    'horas_utilizadas': round(horas_utilizadas, 1),
+                    'percentual_consumido': percentual_consumido
+                },
+                'status_geral_indicador': status_geral_indicador,
+                'marcos_recentes': [], # Placeholder
+                'riscos_impedimentos': [], # Placeholder
+                'proximos_passos': [] # Placeholder
+            }
+
+            self.logger.info(f"[Status Report] Dados calculados para projeto {project_id}: Progresso={percentual_concluido}%, Prazo='{status_prazo}', Status Geral='{status_geral_indicador}'")
+            return report_data
+
+        except Exception as e:
+            self.logger.exception(f"[Status Report] Erro ao gerar dados para projeto ID {project_id}: {str(e)}")
+            return None
+    # <<< FIM: Nova função para dados do Status Report >>>
+

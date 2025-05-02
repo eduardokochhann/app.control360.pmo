@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ titulo_pagina if titulo_pagina else 'Status Report' }}</title>
+    <!-- Incluir CSS básico (ex: Bootstrap ou customizado) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding: 20px; }
+        .report-header { margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid #dee2e6; }
+        .section-title { margin-top: 20px; margin-bottom: 10px; font-weight: bold; font-size: 1.2em; color: #0056b3; }
+        .card-kpi { margin-bottom: 15px; }
+        .placeholder { color: #999; font-style: italic; }
+        .status-dot { height: 20px; width: 20px; border-radius: 50%; display: inline-block; vertical-align: middle; margin-right: 5px; }
+        .status-verde { background-color: #28a745; }
+        .status-amarelo { background-color: #ffc107; }
+        .status-vermelho { background-color: #dc3545; }
+        .status-cinza { background-color: #6c757d; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    {% if error %}
+        <div class="alert alert-danger" role="alert">
+            <h4>Erro ao Gerar Status Report</h4>
+            <p>{{ error }}</p>
+        </div>
+    {% elif report_data %}
+        <div class="report-header text-center">
+            <h2>Status Report - Projeto {{ report_data.info_geral.nome | default(project_id, true) }}</h2>
+            <p class="text-muted">Gerado em: {{ data_geracao | default('N/A', true) }}</p>
+            <!-- <p>Período: [TODO: Definir Período]</p> -->
+        </div>
+
+        <!-- Resumo -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card card-kpi">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Status Geral</h5>
+                        {% set status_color = report_data.status_geral_indicador | default('cinza') %}
+                        <span class="status-dot status-{{ status_color }}"></span>
+                        <span class="fw-bold text-{{ status_color }}">{{ status_color | capitalize | default('A Definir') }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card card-kpi">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">% Concluído</h5>
+                        <p class="card-text fs-4 fw-bold">{{ report_data.progresso.percentual_concluido | round(1) }}%</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card card-kpi">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Prazo</h5>
+                        <p class="card-text">{{ report_data.progresso.data_prevista_termino | default('N/A', true) }}</p>
+                        <span class="badge bg-secondary">{{ report_data.progresso.status_prazo | default('A Definir') }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção de Detalhes -->
+        <div class="row">
+            <div class="col-md-6">
+                <h4 class="section-title">Detalhes do Projeto</h4>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item"><strong>ID:</strong> {{ report_data.info_geral.id | default('N/A') }}</li>
+                    <li class="list-group-item"><strong>Nome:</strong> {{ report_data.info_geral.nome | default('N/A') }}</li>
+                    <li class="list-group-item"><strong>Status Atual:</strong> {{ report_data.info_geral.status_atual | default('N/A') }}</li>
+                    <li class="list-group-item"><strong>Squad:</strong> {{ report_data.info_geral.squad | default('N/A') }}</li>
+                    <li class="list-group-item"><strong>Especialista:</strong> {{ report_data.info_geral.especialista | default('N/A') }}</li>
+                </ul>
+
+                <h4 class="section-title">Esforço (Horas)</h4>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item"><strong>Planejado:</strong> {{ report_data.esforco.horas_planejadas | round(1) }}h</li>
+                    <li class="list-group-item"><strong>Utilizado:</strong> {{ report_data.esforco.horas_utilizadas | round(1) }}h</li>
+                    <li class="list-group-item"><strong>Consumido:</strong> {{ report_data.esforco.percentual_consumido | round(1) }}%</li>
+                </ul>
+                <!-- TODO: Adicionar gráfico de esforço -->
+
+            </div>
+            <div class="col-md-6">
+                <h4 class="section-title">Marcos Recentes</h4>
+                <p class="placeholder">[Placeholder para Marcos Recentes]</p>
+                <!-- <ul class="list-group list-group-flush">
+                    {% for marco in report_data.marcos_recentes %}
+                        <li class="list-group-item">{{ marco.data }}: {{ marco.descricao }}</li>
+                    {% else %}
+                        <li class="list-group-item placeholder">Nenhum marco recente registrado.</li>
+                    {% endfor %}
+                </ul> -->
+
+                <h4 class="section-title">Riscos e Impedimentos</h4>
+                 <p class="placeholder">[Placeholder para Riscos e Impedimentos]</p>
+                <!-- <ul class="list-group list-group-flush">
+                    {% for risco in report_data.riscos_impedimentos %}
+                        <li class="list-group-item">{{ risco.descricao }} ({{ risco.status }})</li>
+                    {% else %}
+                        <li class="list-group-item placeholder">Nenhum risco ou impedimento ativo.</li>
+                    {% endfor %}
+                </ul> -->
+
+                <h4 class="section-title">Próximos Passos</h4>
+                 <p class="placeholder">[Placeholder para Próximos Passos]</p>
+                <!-- <ul class="list-group list-group-flush">
+                    {% for passo in report_data.proximos_passos %}
+                        <li class="list-group-item">{{ passo.descricao }}</li>
+                    {% else %}
+                        <li class="list-group-item placeholder">Nenhum próximo passo definido.</li>
+                    {% endfor %}
+                </ul> -->
+            </div>
+        </div>
+
+        <!-- TODO: Adicionar gráficos -->
+
+    {% else %}
+         <div class="alert alert-warning" role="alert">
+            Não foi possível carregar os dados para o Status Report do projeto ID {{ project_id }}.
+        </div>
+    {% endif %}
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Incluir JS para gráficos (ex: Chart.js) se necessário -->
+
+</body>
+</html> 
