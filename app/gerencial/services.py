@@ -760,52 +760,43 @@ class GerencialService(BaseService):
             logger.info(f"DEBUG - Card - Projetos ativos: {projetos_ativos}")
             logger.info(f"DEBUG - Card - Projetos em atendimento: {projetos_em_atendimento}")
 
-            # --- CÁLCULO DO BURN RATE ---
-            burn_rate = 0.0
-            burn_rate_projetado = 0.0
+            # --- CÁLCULO DO BURN RATE (Mensalizado) ---
+            # Determina o mês/ano anterior para cálculo
+            hoje = datetime.now()
+            data_mes_anterior = hoje - timedelta(days=hoje.day) # Vai para o último dia do mês anterior
+            ano_calc = data_mes_anterior.year
+            mes_calc = data_mes_anterior.month
             
-            if 'HorasTrabalhadas' in dados_limpos.columns:
-                # Filtra squads válidos
-                dados_burn = dados_limpos[
-                    (~dados_limpos['Status'].isin(self.status_concluidos)) &
-                    (dados_limpos['Squad'] != 'Em Planejamento - PMO') &
-                    (dados_limpos['Squad'] != 'CDB DATA SOLUTIONS')
-                ].copy()
-                
-                squads_validos = [squad for squad in dados_burn['Squad'].unique() 
-                                if pd.notna(squad) and str(squad).strip()]
-                total_squads = len(squads_validos)
-                
-                if total_squads > 0:
-                    CAPACIDADE_TOTAL = 540 * total_squads
-                    horas_consumidas = dados_burn['HorasTrabalhadas'].sum()
-                    
-                    logger.debug(f"Horas consumidas: {horas_consumidas:.2f}, Squads: {total_squads}, Capacidade: {CAPACIDADE_TOTAL}")
-                    
-                    if horas_consumidas > 0 and CAPACIDADE_TOTAL > 0:
-                        burn_rate = round((horas_consumidas / CAPACIDADE_TOTAL) * 100, 1)
-                        
-                        # Burn Rate projetado
-                        hoje = pd.Timestamp.now()
-                        dias_decorridos = hoje.day
-                        dias_uteis_mes = 22  # Pode ser parametrizado
-                        
-                        if dias_decorridos > 0:
-                            consumo_diario = horas_consumidas / dias_decorridos
-                            horas_projetadas = consumo_diario * dias_uteis_mes
-                            burn_rate_projetado = round((horas_projetadas / CAPACIDADE_TOTAL) * 100, 1)
+            # Extrai o filtro de squad aplicado na rota (se houver)
+            squad_filtro_rota = None
+            # Verifica se dados_limpos não está vazio antes de acessar .unique()
+            if not dados_limpos.empty and 'Squad' in dados_limpos.columns:
+                squads_unicos = dados_limpos['Squad'].unique()
+                if len(squads_unicos) == 1 and squads_unicos[0] != 'Em Planejamento - PMO':
+                    squad_filtro_rota = squads_unicos[0]
+                    logger.info(f"[Burn Rate Mensal] Detectado filtro de squad único: {squad_filtro_rota}")
+            
+            # Chama a nova função para obter o burn rate mensal
+            burn_rate = self.calcular_burn_rate_mensal(ano_calc, mes_calc, squad_filtro=squad_filtro_rota)
+            
+            # Calcula o Burn Rate Projetado usando o valor mensal como base
+            burn_rate_projetado = 0.0
+            # ... (lógica de projeção removida, como decidido anteriormente) ...
+            logger.warning("[Burn Rate Mensal] Projeção removida. Dados históricos não suportam projeção intra-mês.")
 
-            # Métricas de projetos para faturar
-            hoje = pd.Timestamp.now()
-            mes_atual = hoje.month
-            ano_atual = hoje.year
+            # --- FIM CÁLCULO DO BURN RATE ---
+
+            # --- Métricas de projetos para faturar (CORRIGIDO INDENTAÇÃO) ---
+            hoje_fatura = pd.Timestamp.now()
+            mes_atual_fatura = hoje_fatura.month
+            ano_atual_fatura = hoje_fatura.year # Usar ano de hoje_fatura
             
             # NOVA LÓGICA PARA CALCULAR PROJETOS PARA FATURAR
             # Condição para faturar no início (PRIME, PLUS, INICIO)
             cond_inicio = (
                 dados_limpos['Faturamento'].isin(['PRIME', 'PLUS', 'INICIO']) &
-                (dados_limpos['DataInicio'].dt.month == mes_atual) &
-                (dados_limpos['DataInicio'].dt.year == ano_atual)
+                (dados_limpos['DataInicio'].dt.month == mes_atual_fatura) &
+                (dados_limpos['DataInicio'].dt.year == ano_atual_fatura)
             )
             
             # Condição para faturar no término (TERMINO e ENGAJAMENTO)
@@ -814,29 +805,29 @@ class GerencialService(BaseService):
                 (
                     # Verifica se a data prevista (VencimentoEm) é no mês atual para projetos em andamento
                     ((~dados_limpos['Status'].isin(['Fechado', 'Resolvido'])) & 
-                     (dados_limpos['VencimentoEm'].dt.month == mes_atual) & 
-                     (dados_limpos['VencimentoEm'].dt.year == ano_atual)) |
+                     (dados_limpos['VencimentoEm'].dt.month == mes_atual_fatura) & 
+                     (dados_limpos['VencimentoEm'].dt.year == ano_atual_fatura)) |
                     # OU se a data de término (DataTermino) é no mês atual para projetos concluídos
                     ((dados_limpos['Status'].isin(['Fechado', 'Resolvido'])) & 
-                     (dados_limpos['DataTermino'].dt.month == mes_atual) & 
-                     (dados_limpos['DataTermino'].dt.year == ano_atual))
+                     (dados_limpos['DataTermino'].dt.month == mes_atual_fatura) & 
+                     (dados_limpos['DataTermino'].dt.year == ano_atual_fatura))
                 )
             )
             
             # Filtra projetos para faturar (exclui FTOP)
-            projetos_para_faturamento = dados_limpos[
+            projetos_para_faturamento_df = dados_limpos[
                 (cond_inicio | cond_termino) & 
                 (dados_limpos['Faturamento'] != 'FTOP')
             ]
             
             # Número de projetos para faturar
-            projetos_para_faturar = len(projetos_para_faturamento)
+            projetos_para_faturar_count = len(projetos_para_faturamento_df)
             
             # Registra no log para debug
-            logger.info(f"Total de projetos para faturar (nova lógica): {projetos_para_faturar}")
+            logger.info(f"Total de projetos para faturar (nova lógica): {projetos_para_faturar_count}")
 
-            # Métricas avançadas
-            metricas = self.calcular_metricas_avancadas(dados_limpos)
+            # Métricas avançadas (Passa dados_limpos originais)
+            metricas_avancadas = self.calcular_metricas_avancadas(dados_limpos)
 
             # Prepara resultado final
             resultado = {
@@ -845,9 +836,9 @@ class GerencialService(BaseService):
                     'projetos_em_atendimento': projetos_em_atendimento,
                     'burn_rate': burn_rate,
                     'burn_rate_projetado': burn_rate_projetado,
-                    'projetos_para_faturar': projetos_para_faturar,
+                    'projetos_para_faturar': projetos_para_faturar_count, # Usa a contagem
                     'projetos_criticos_count': len(self.obter_projetos_criticos(dados_limpos)),
-                    **metricas
+                    **metricas_avancadas # Inclui as métricas avançadas
                 },
                 'projetos_criticos': self.obter_projetos_criticos(dados_limpos),
                 'projetos_por_squad': dados_limpos[~dados_limpos['Status'].isin(self.status_concluidos)]
@@ -857,6 +848,7 @@ class GerencialService(BaseService):
                 'squads_disponiveis': sorted(dados_limpos['Squad'].dropna().unique().tolist()),
                 'faturamentos_disponiveis': sorted(dados_limpos['Faturamento'].dropna().unique().tolist())
             }
+            
             
             logger.info(f"Métricas calculadas - Burn Rate: {burn_rate}%, Projetado: {burn_rate_projetado}%")
             return resultado
@@ -902,10 +894,11 @@ class GerencialService(BaseService):
                 dados_base = dados_base[~dados_base['Especialista'].str.upper().isin(['CDB DATA SOLUTIONS'])]
                 logger.info(f"Projetos após filtrar Especialista CDB DATA SOLUTIONS: {len(dados_base)}")
             
-            # 2. Filtra apenas projetos ativos e exclui o Squad CDB DATA SOLUTIONS também
+            # 2. Filtra apenas projetos ativos
+            # Removido filtro por Squad CDB DATA SOLUTIONS, pois já filtramos pelo Especialista
             dados_calc = dados_base[
-                (~dados_base['Status'].isin(self.status_concluidos)) &
-                (~dados_base['Squad'].str.upper().isin(['CDB DATA SOLUTIONS']))
+                (~dados_base['Status'].isin(self.status_concluidos))
+                # Removido: & (~dados_base['Squad'].str.upper().isin(['CDB DATA SOLUTIONS']))
             ].copy()
             
             # Adiciona logs detalhados para depuração, especialmente para DATA E POWER
@@ -1578,5 +1571,1251 @@ class GerencialService(BaseService):
             import traceback
             print(traceback.format_exc())
             return []
+    
+    def _carregar_dados_historicos(self, ano, mes):
+        """Carrega e processa dados de um arquivo histórico específico (dadosr_apt_mes.csv)."""
+        try:
+            mes_str = f"{mes:02d}" # Formata mês com zero à esquerda (01, 02, ..., 12)
+            # Mapeia número do mês para abreviação de 3 letras em minúsculo
+            mes_abrev_map = {1: 'jan', 2: 'fev', 3: 'mar', 4: 'abr', 5: 'mai', 6: 'jun', 
+                             7: 'jul', 8: 'ago', 9: 'set', 10: 'out', 11: 'nov', 12: 'dez'}
+            mes_abrev = mes_abrev_map.get(mes)
+            
+            if not mes_abrev:
+                logger.error(f"Mês inválido fornecido para dados históricos: {mes}")
+                return pd.DataFrame()
+                
+            nome_arquivo = f"dadosr_apt_{mes_abrev}.csv" # Formato do nome do arquivo
+            caminho_historico = self.csv_path.parent / nome_arquivo # Assume que está na mesma pasta 'data'
+            
+            logger.info(f"Tentando carregar dados históricos de: {caminho_historico}")
+            
+            if not caminho_historico.is_file():
+                logger.error(f"Arquivo histórico CSV não encontrado: {caminho_historico}")
+                return pd.DataFrame()
+            
+            # Lê o CSV histórico (mesmos parâmetros de carregar_dados)
+            dados = pd.read_csv(
+                caminho_historico, 
+                dtype=str, 
+                sep=';', 
+                encoding='latin1'
+            )
+            logger.info(f"Arquivo histórico {nome_arquivo} carregado com {len(dados)} linhas.")
+            
+            # Aplica EXATAMENTE O MESMO pré-processamento de carregar_dados
+            # (Conversão de Datas, Números, Tempo, Renomeação, Padronização)
+            # --- Copiado e adaptado de carregar_dados --- 
+            # 1.2.1 Conversão de Datas
+            colunas_data_simples = ['Aberto em', 'Resolvido em', 'Data da última ação']
+            # ... (resto do código de conversão de datas igual a carregar_dados) ...
+            for col in colunas_data_simples:
+                 if col in dados.columns:
+                     dados[col] = pd.to_datetime(dados[col], format='%d/%m/%Y', errors='coerce')
+                 # else: # Não loga warning para históricos, podem ter colunas diferentes
+                 #    logger.warning(f"[Histórico] Coluna de data {col} não encontrada em {nome_arquivo}")
+            
+            if 'Vencimento em' in dados.columns:
+                 dados['Vencimento em_Original'] = dados['Vencimento em']
+                 dados['Vencimento em'] = pd.to_datetime(dados['Vencimento em_Original'], format='%d/%m/%Y %H:%M', errors='coerce')
+                 mask_nat = dados['Vencimento em'].isna()
+                 if mask_nat.any():
+                     dados.loc[mask_nat, 'Vencimento em'] = pd.to_datetime(dados.loc[mask_nat, 'Vencimento em_Original'], format='%d/%m/%Y', errors='coerce')
+                 # del dados['Vencimento em_Original'] 
+            
+            # 1.2.2 Conversão Numérica
+            if 'Número' in dados.columns:
+                 dados['Número'] = pd.to_numeric(dados['Número'], errors='coerce').astype('Int64')
+            if 'Esforço estimado' in dados.columns:
+                 dados['Esforço estimado'] = dados['Esforço estimado'].str.replace(',', '.', regex=False)
+                 dados['Esforço estimado'] = pd.to_numeric(dados['Esforço estimado'], errors='coerce').fillna(0.0)
+            else: dados['Esforço estimado'] = 0.0
+            if 'Andamento' in dados.columns:
+                 dados['Andamento'] = dados['Andamento'].str.rstrip('%').str.replace(',', '.', regex=False)
+                 dados['Andamento'] = pd.to_numeric(dados['Andamento'], errors='coerce').fillna(0.0).clip(lower=0, upper=100)
+            else: dados['Andamento'] = 0.0
+            if 'Tempo trabalhado' in dados.columns:
+                 dados['Tempo trabalhado'] = dados['Tempo trabalhado'].apply(self.converter_tempo_para_horas)
+            else: dados['Tempo trabalhado'] = 0.0
+            
+            # 1.3 Renomeação
+            rename_map_new_to_old = { ... } # Usar o mesmo mapa de carregar_dados
+            rename_map_new_to_old = {
+                'Número': 'Numero',
+                'Cliente (Completo)': 'Projeto',
+                'Serviço (2º Nível)': 'Squad',
+                'Status': 'Status',
+                'Esforço estimado': 'Horas',
+                'Tempo trabalhado': 'HorasTrabalhadas',
+                'Andamento': 'Conclusao',
+                'Data da última ação': 'UltimaInteracao',
+                'Tipo de faturamento': 'Faturamento',
+                'Responsável': 'Especialista',
+                'Account Manager ': 'Account Manager',
+                'Aberto em': 'DataInicio',
+                'Resolvido em': 'DataTermino',
+                'Vencimento em': 'VencimentoEm'
+            }
+            colunas_para_renomear = {k: v for k, v in rename_map_new_to_old.items() if k in dados.columns}
+            dados.rename(columns=colunas_para_renomear, inplace=True)
+            
+            # 1.4 Padronização Final
+            if 'Status' in dados.columns: dados['Status'] = dados['Status'].astype(str).str.strip().str.title()
+            faturamento_map = { ... } # Usar o mesmo mapa de carregar_dados
+            faturamento_map = {
+                "PRIME": "PRIME",
+                "Descontar do PLUS no inicio do projeto": "PLUS",
+                "Faturar no inicio do projeto": "INICIO",
+                "Faturar no final do projeto": "TERMINO",
+                "Faturado em outro projeto": "FEOP",
+                "Faturado em outro projeto.": "FEOP",
+                "Engajamento": "ENGAJAMENTO"
+            }
+            if 'Faturamento' in dados.columns:
+                dados['Faturamento'] = dados['Faturamento'].astype(str).str.strip()
+                dados['Faturamento_Original'] = dados['Faturamento']
+                dados['Faturamento'] = dados['Faturamento'].map(faturamento_map)
+                nao_mapeados = dados['Faturamento'].isna()
+                if nao_mapeados.any():
+                    mask_nan = dados['Faturamento_Original'].isna() | (dados['Faturamento_Original'] == 'nan')
+                    if mask_nan.any(): dados.loc[mask_nan, 'Faturamento'] = 'EAN'
+                    dados['Faturamento'] = dados['Faturamento'].fillna('NAO_MAPEADO')
+                # del dados['Faturamento_Original']
+            colunas_texto_padrao = ['Projeto', 'Squad', 'Especialista', 'Account Manager']
+            for col in colunas_texto_padrao:
+                if col in dados.columns:
+                    dados[col] = dados[col].astype(str).str.strip()
+                    if col == 'Squad': dados[col] = dados[col].replace({'': 'Em Planejamento - PMO', 'nan': 'Em Planejamento - PMO', 'NÃO DEFINIDO': 'Em Planejamento - PMO'}).fillna('Em Planejamento - PMO')
+                    else: dados[col] = dados[col].replace({'': 'NÃO DEFINIDO', 'nan': 'NÃO DEFINIDO'}).fillna('NÃO DEFINIDO')
+            
+            # Recalcula HorasRestantes (importante após carregar e renomear)
+            if 'Horas' in dados.columns and 'HorasTrabalhadas' in dados.columns:
+                 dados['HorasRestantes'] = (dados['Horas'] - dados['HorasTrabalhadas']).round(1)
+            else: dados['HorasRestantes'] = 0.0
+            # --- Fim do código copiado --- 
+            
+            logger.info(f"Dados históricos de {mes_abrev.upper()}/{ano} processados.")
+            return dados
+
+        except Exception as e:
+            logger.error(f"Erro ao carregar dados históricos para {ano}-{mes_str}: {str(e)}")
+            return pd.DataFrame()
+    
+    def calcular_burn_rate_mensal(self, ano, mes, squad_filtro=None):
+        """Calcula o Burn Rate para um mês específico usando dados históricos."""
+        try:
+            logger.info(f"[Burn Rate Mensal] Calculando para {mes:02d}/{ano}, filtro squad: '{squad_filtro if squad_filtro else 'Nenhum'}'")
+            
+            # Carrega dados do mês atual (mês para o qual calculamos o burn rate)
+            df_atual = self._carregar_dados_historicos(ano, mes)
+            if df_atual.empty:
+                logger.warning(f"[Burn Rate Mensal] Não foi possível carregar dados para {mes:02d}/{ano}. Retornando 0.")
+                return 0.0, 0.0 # Retorna Burn Rate e Burn Rate Projetado
+                
+            # Determina o mês/ano anterior
+            data_ref = datetime(ano, mes, 1)
+            data_anterior = data_ref - timedelta(days=1)
+            ano_prev = data_anterior.year
+            mes_prev = data_anterior.month
+            
+            # Carrega dados do mês anterior
+            df_prev = self._carregar_dados_historicos(ano_prev, mes_prev)
+            if df_prev.empty:
+                logger.warning(f"[Burn Rate Mensal] Não foi possível carregar dados do mês anterior ({mes_prev:02d}/{ano_prev}). Calculando com base apenas no mês atual.")
+                # Se não há dados anteriores, não podemos calcular a diferença.
+                # Poderíamos retornar 0 ou calcular usando o total atual (mas isso seria o cálculo antigo)
+                # Vamos retornar 0 por segurança, pois a métrica seria enganosa.
+                return 0.0, 0.0
+
+            # Seleciona colunas necessárias para merge e cálculo
+            cols_atual = ['Numero', 'Projeto', 'Squad', 'Especialista', 'Status', 'HorasTrabalhadas']
+            cols_prev = ['Numero', 'HorasTrabalhadas']
+            
+            # Garante que as colunas existem
+            for col in cols_atual: 
+                if col not in df_atual.columns: df_atual[col] = 0 if col == 'HorasTrabalhadas' else ('N/A' if col != 'Numero' else pd.NA)
+            for col in cols_prev: 
+                if col not in df_prev.columns: df_prev[col] = 0 if col == 'HorasTrabalhadas' else pd.NA
+                
+            # Renomeia colunas do df_prev para evitar conflito no merge
+            df_prev_renamed = df_prev[cols_prev].rename(columns={'HorasTrabalhadas': 'HT_prev'})
+            
+            # Merge usando 'Numero' como chave (garantir que 'Numero' seja tipo consistente)
+            df_atual['Numero'] = df_atual['Numero'].astype(str)
+            df_prev_renamed['Numero'] = df_prev_renamed['Numero'].astype(str)
+            
+            df_merged = pd.merge(df_atual[cols_atual], df_prev_renamed, on='Numero', how='left')
+            
+            # Calcula Horas Trabalhadas Mensais
+            df_merged['HT_prev'] = df_merged['HT_prev'].fillna(0)
+            df_merged['HT_mensal'] = df_merged['HorasTrabalhadas'] - df_merged['HT_prev']
+            
+            # Lida com possíveis valores negativos (pode indicar inconsistência, mas clampamos para 0)
+            df_merged['HT_mensal'] = df_merged['HT_mensal'].clip(lower=0)
+            
+            logger.info(f"[Burn Rate Mensal] {len(df_merged)} projetos após merge.")
+            logger.info(f"[Burn Rate Mensal] Amostra HT_mensal: {df_merged['HT_mensal'].head().tolist()}")
+            
+            # Aplica filtros para cálculo do Burn Rate
+            df_burn = df_merged[
+                (~df_merged['Status'].isin(self.status_concluidos)) &
+                (df_merged['Squad'] != 'Em Planejamento - PMO') &
+                (df_merged['Especialista'].str.upper() != 'CDB DATA SOLUTIONS')
+            ].copy()
+            
+            # Aplica filtro de squad se fornecido
+            if squad_filtro and squad_filtro != 'Todos':
+                df_burn = df_burn[df_burn['Squad'].str.upper() == squad_filtro.upper()]
+                logger.info(f"[Burn Rate Mensal] Aplicado filtro para Squad: '{squad_filtro}'. {len(df_burn)} projetos restantes.")
+            else:
+                 logger.info("[Burn Rate Mensal] Nenhum filtro de squad específico aplicado.")
+
+            if df_burn.empty:
+                logger.warning("[Burn Rate Mensal] Nenhum projeto encontrado após filtros. Burn Rate será 0.")
+                return 0.0, 0.0
+                
+            # Calcula horas consumidas e capacidade
+            horas_consumidas_mes = df_burn['HT_mensal'].sum()
+            squads_presentes = df_burn['Squad'].unique()
+            num_squads = len(squads_presentes)
+            capacidade_mensal = 540 * num_squads # Assume 540h/squad
+            
+            logger.info(f"[Burn Rate Mensal] Horas Consumidas (Mensal): {horas_consumidas_mes:.2f}")
+            logger.info(f"[Burn Rate Mensal] Squads considerados: {squads_presentes.tolist()}, Num: {num_squads}")
+            logger.info(f"[Burn Rate Mensal] Capacidade Mensal: {capacidade_mensal}")
+            
+            # Calcula Burn Rate Mensal
+            burn_rate_mensal = 0.0
+            if capacidade_mensal > 0:
+                burn_rate_mensal = round((horas_consumidas_mes / capacidade_mensal) * 100, 1)
+            else:
+                 logger.warning("[Burn Rate Mensal] Capacidade mensal calculada como 0. Burn Rate será 0.")
+            
+            logger.info(f"[Burn Rate Mensal] Calculado: {burn_rate_mensal}%")
+
+            # Calcula Burn Rate Projetado (usando o mensal como base)
+            burn_rate_projetado = 0.0
+            # Para projeção, precisamos saber o dia atual *relativo ao mês que calculamos*
+            # Se estamos calculando para Abril (mês 4), e hoje é 1 de Maio, o mês de Abril está completo.
+            # Se hoje for 15 de Abril, e calculamos para Março, Março está completo.
+            # A projeção só faz sentido se calcularmos para o mês *corrente*.
+            # VAMOS SIMPLIFICAR: a função retorna o mensal e a projeção é feita em processar_gerencial.
+            
+            return burn_rate_mensal
+            
+        except Exception as e:
+            logger.error(f"Erro ao calcular Burn Rate Mensal para {mes:02d}/{ano}: {str(e)}", exc_info=True)
+            return 0.0 # Retorna 0 em caso de erro
+
+    def processar_gerencial(self, dados):
+        """Processa dados para la visão gerencial"""
+        try:
+            if dados.empty:
+                logger.warning("DataFrame vazio recebido em processar_gerencial")
+                return self.criar_estrutura_vazia()
+            
+            # Prepara dados base
+            dados_limpos = dados.copy()
+
+            # --- PRÉ-PROCESSAMENTO DO TEMPO TRABALHADO ---
+            if 'Tempo trabalhado' in dados_limpos.columns:
+                # Função robusta para conversão de horas
+                def converter_horas(time_str):
+                    try:
+                        # Remove espaços e divide em componentes
+                        parts = str(time_str).strip().split(':')
+                        # Garante que temos 3 componentes (HH:MM:SS)
+                        if len(parts) == 3:
+                            h, m, s = map(int, parts)
+                            return h + m/60 + s/3600
+                        return 0.0
+                    except (ValueError, AttributeError):
+                        return 0.0
+                
+                # Aplica conversão e verifica resultados
+                dados_limpos['HorasTrabalhadas'] = dados_limpos['Tempo trabalhado'].apply(converter_horas)
+                
+                # Debug: Verifique a conversão
+                logger.debug(f"Total horas convertidas: {dados_limpos['HorasTrabalhadas'].sum():.2f}")
+                logger.debug(f"Exemplo de conversão: {dados_limpos['Tempo trabalhado'].iloc[0]} -> {dados_limpos['HorasTrabalhadas'].iloc[0]:.2f}")
+
+            # Calcula métricas existentes
+            projetos_ativos = len(dados_limpos[~dados_limpos['Status'].isin(self.status_concluidos)])
+            projetos_em_atendimento = len(dados_limpos[
+                dados_limpos['Status'].isin(['Em Atendimento', 'Novo'])
+            ])
+            
+            # Adicione logs para debug
+            logger.info(f"DEBUG - Card - Total de projetos no dataframe: {len(dados_limpos)}")
+            logger.info(f"DEBUG - Card - Valores únicos na coluna Status: {dados_limpos['Status'].unique().tolist()}")
+            logger.info(f"DEBUG - Card - Projetos ativos: {projetos_ativos}")
+            logger.info(f"DEBUG - Card - Projetos em atendimento: {projetos_em_atendimento}")
+
+            # --- CÁLCULO DO BURN RATE (Mensalizado) ---
+            # Determina o mês/ano anterior para cálculo
+            hoje = datetime.now()
+            data_mes_anterior = hoje - timedelta(days=hoje.day) # Vai para o último dia do mês anterior
+            ano_calc = data_mes_anterior.year
+            mes_calc = data_mes_anterior.month
+            
+            # Extrai o filtro de squad aplicado na rota (se houver)
+            squad_filtro_rota = None
+            if len(dados_limpos['Squad'].unique()) == 1 and dados_limpos['Squad'].unique()[0] != 'Em Planejamento - PMO':
+                 squad_filtro_rota = dados_limpos['Squad'].unique()[0]
+                 logger.info(f"[Burn Rate Mensal] Detectado filtro de squad único: {squad_filtro_rota}")
+            
+            # Chama a nova função para obter o burn rate mensal
+            burn_rate = self.calcular_burn_rate_mensal(ano_calc, mes_calc, squad_filtro=squad_filtro_rota)
+            
+            # Calcula o Burn Rate Projetado usando o valor mensal como base
+            burn_rate_projetado = 0.0
+            if burn_rate > 0: # Só projeta se houver burn rate mensal
+                dias_decorridos = hoje.day
+                # Simplificação: Assume 22 dias úteis por mês para projeção
+                # Uma lógica mais precisa consideraria feriados e dias úteis reais do mês.
+                dias_uteis_mes = 22 
+            if dias_decorridos > 0 and dias_decorridos <= dias_uteis_mes:
+                     # Estima o consumo total no mês com base no burn rate até agora
+                     # (Burn Rate Atual / Dias Decorridos) * Dias Uteis Totais
+                     # Nota: Isso é uma APROXIMAÇÃO.
+                     # A capacidade diária é CapacidadeTotal / dias_uteis_mes
+                     # Consumo mensal é (burn_rate/100) * CapacidadeTotal
+                     # Consumo diário médio = Consumo mensal / dias_uteis_mes
+                     # Consumo até agora = Consumo diário médio * dias_decorridos
+                     # O burn_rate já é a % da capacidade total gasta no mês anterior completo.
+                     # A projeção deveria ser baseada no consumo do *mês corrente*.
+                     # REFATORANDO A PROJEÇÃO:
+                     # 1. Precisamos das horas consumidas ATÉ AGORA no mês corrente.
+                     #    Não temos isso diretamente com a abordagem histórica.
+                     # 2. SOLUÇÃO TEMPORÁRIA: Manter a lógica de projeção antiga, mas usando o burn_rate MENSAL como base?
+                     #    Isso não é ideal, pois projeta o mês inteiro com base no ritmo do mês anterior.
+                     # 3. OPÇÃO MELHOR: Remover a projeção por enquanto, já que não temos dados mensais incrementais.
+                     
+                     # **DECISÃO:** Remover a projeção por enquanto, pois não temos dados para calculá-la corretamente
+                     # com a abordagem de snapshots mensais.
+                     logger.warning("[Burn Rate Mensal] Projeção removida. Dados históricos não suportam projeção intra-mês.")
+                     pass # burn_rate_projetado continua 0.0
+            elif dias_decorridos > dias_uteis_mes:
+                      # Se já passou dos dias úteis, a projeção é o próprio burn rate mensal.
+                      # burn_rate_projetado = burn_rate # Comentado pois removemos a projeção.
+                      pass
+            
+            # REMOVIDO: Bloco de cálculo antigo do Burn Rate baseado em HorasTrabalhadas totais
+            # if 'HorasTrabalhadas' in dados_limpos.columns: ... (código antigo)
+
+            # --- FIM CÁLCULO DO BURN RATE ---
+
+            # Métricas de projetos para faturar (código existente mantido)
+            hoje_fatura = pd.Timestamp.now()
+            mes_atual_fatura = hoje_fatura.month
+
+            # NOVA LÓGICA PARA CALCULAR PROJETOS PARA FATURAR
+            # Condição para faturar no início (PRIME, PLUS, INICIO)
+            cond_inicio = (
+                dados_limpos['Faturamento'].isin(['PRIME', 'PLUS', 'INICIO']) &
+                (dados_limpos['DataInicio'].dt.month == mes_atual_fatura) &
+                (dados_limpos['DataInicio'].dt.year == hoje_fatura.year)
+            )
+            
+            # Condição para faturar no término (TERMINO e ENGAJAMENTO)
+            cond_termino = (
+                dados_limpos['Faturamento'].isin(['TERMINO', 'ENGAJAMENTO']) &
+                (
+                    # Verifica se a data prevista (VencimentoEm) é no mês atual para projetos em andamento
+                    ((~dados_limpos['Status'].isin(['Fechado', 'Resolvido'])) & 
+                     (dados_limpos['VencimentoEm'].dt.month == mes_atual_fatura) & 
+                     (dados_limpos['VencimentoEm'].dt.year == hoje_fatura.year)) |
+                    # OU se a data de término (DataTermino) é no mês atual para projetos concluídos
+                    ((dados_limpos['Status'].isin(['Fechado', 'Resolvido'])) & 
+                     (dados_limpos['DataTermino'].dt.month == mes_atual_fatura) & 
+                     (dados_limpos['DataTermino'].dt.year == hoje_fatura.year))
+                )
+            )
+            
+            # Filtra projetos para faturar (exclui FTOP)
+            projetos_para_faturamento = dados_limpos[
+                (cond_inicio | cond_termino) & 
+                (dados_limpos['Faturamento'] != 'FTOP')
+            ]
+            
+            # Número de projetos para faturar
+            projetos_para_faturar = len(projetos_para_faturamento)
+            
+            # Registra no log para debug
+            logger.info(f"Total de projetos para faturar (nova lógica): {projetos_para_faturar}")
+
+            # Métricas avançadas
+            metricas = self.calcular_metricas_avancadas(dados_limpos)
+
+            # Prepara resultado final
+            resultado = {
+                'metricas': {
+                    'projetos_ativos': projetos_ativos,
+                    'projetos_em_atendimento': projetos_em_atendimento,
+                    'burn_rate': burn_rate,
+                    'burn_rate_projetado': burn_rate_projetado,
+                    'projetos_para_faturar': projetos_para_faturar,
+                    'projetos_criticos_count': len(self.obter_projetos_criticos(dados_limpos)),
+                    **metricas
+                },
+                'projetos_criticos': self.obter_projetos_criticos(dados_limpos),
+                'projetos_por_squad': dados_limpos[~dados_limpos['Status'].isin(self.status_concluidos)]
+                                    .groupby('Squad').size().to_dict(),
+                'projetos_por_faturamento': dados_limpos[~dados_limpos['Status'].isin(self.status_concluidos)]
+                                        .groupby('Faturamento').size().to_dict(),
+                'squads_disponiveis': sorted(dados_limpos['Squad'].dropna().unique().tolist()),
+                'faturamentos_disponiveis': sorted(dados_limpos['Faturamento'].dropna().unique().tolist())
+            }
+            
+            logger.info(f"Métricas calculadas - Burn Rate (Mensal): {burn_rate}%")
+            return resultado
+            
+        except Exception as e:
+            logger.error(f"Erro no processamento gerencial: {str(e)}", exc_info=True)
+            return self.criar_estrutura_vazia()
+
+    def criar_estrutura_vazia(self):
+        """Retorna uma estrutura vazia padrão"""
+        return {
+            'metricas': {
+                'projetos_ativos': 0,
+                'projetos_em_atendimento': 0,
+                'burn_rate': 0.0,
+                'projetos_para_faturar': 0,
+                'projetos_criticos_count': 0
+            },
+            'projetos_criticos': [],
+            'projetos_por_squad': {},
+            'projetos_por_faturamento': {},
+            'squads_disponiveis': [],
+            'faturamentos_disponiveis': [],
+            'ocupacao_squads': []
+        }
+
+    def calcular_metricas_avancadas(self, dados):
+        """Calcula métricas gerenciais avançadas"""
+        try:
+            metricas = {}
+            # Configurações de capacidade por squad
+            HORAS_POR_PESSOA = 180  # horas/mês
+            PESSOAS_POR_SQUAD = 3  # pessoas por squad
+            CAPACIDADE_TOTAL = HORAS_POR_PESSOA * PESSOAS_POR_SQUAD  # 540 horas por squad
+            
+            # Preparar dados base para cálculos
+            dados_base = dados.copy()
+            
+            # 1. Primeiro filtramos especialistas da CDB DATA SOLUTIONS (antes de qualquer outro filtro)
+            # Isso garante que não incluímos projetos da CDB DATA SOLUTIONS no cálculo
+            if 'Especialista' in dados_base.columns:
+                # Utilizamos upper para garantir que filtraremos independente de case
+                dados_base = dados_base[~dados_base['Especialista'].str.upper().isin(['CDB DATA SOLUTIONS'])]
+                logger.info(f"Projetos após filtrar Especialista CDB DATA SOLUTIONS: {len(dados_base)}")
+            
+            # 2. Filtra apenas projetos ativos
+            # Removido filtro por Squad CDB DATA SOLUTIONS, pois já filtramos pelo Especialista
+            dados_calc = dados_base[
+                (~dados_base['Status'].isin(self.status_concluidos))
+                # Removido: & (~dados_base['Squad'].str.upper().isin(['CDB DATA SOLUTIONS']))
+            ].copy()
+            
+            # Adiciona logs detalhados para depuração, especialmente para DATA E POWER
+            data_power_projetos = dados_calc[dados_calc['Squad'] == 'DATA E POWER']
+            if not data_power_projetos.empty:
+                logger.info(f"Encontrados {len(data_power_projetos)} projetos para o squad DATA E POWER:")
+                for _, projeto in data_power_projetos.iterrows():
+                    logger.info(f"  Projeto: {projeto.get('Projeto', 'N/A')}")
+                    logger.info(f"    Status: {projeto.get('Status', 'N/A')}")
+                    logger.info(f"    Horas Originais: {projeto.get('Horas', 0.0)}")
+                    logger.info(f"    Horas Trabalhadas: {projeto.get('HorasTrabalhadas', 0.0)}")
+                    logger.info(f"    Horas Restantes: {projeto.get('HorasRestantes', 0.0)}")
+                    logger.info(f"    Especialista: {projeto.get('Especialista', 'N/A')}")
+            
+            # Ajusta horas restantes: para negativas, usa 10% do esforço inicial
+            def ajustar_horas_restantes(row):
+                if row['HorasRestantes'] >= 0:
+                    return row['HorasRestantes']
+                else:
+                    valor_ajustado = 0.10 * row['Horas']
+                    if row['Squad'] == 'DATA E POWER':
+                        logger.info(f"  Ajustando projeto {row.get('Projeto', 'N/A')}: "
+                                  f"Horas Restantes: {row['HorasRestantes']} -> "
+                                  f"Ajustado (10% de {row['Horas']}): {valor_ajustado}")
+                    return valor_ajustado
+            
+            dados_calc['HorasRestantesAjustadas'] = dados_calc.apply(ajustar_horas_restantes, axis=1)
+            
+            # Separa projetos em planejamento
+            planejamento_pmo = dados_calc[dados_calc['Squad'] == 'Em Planejamento - PMO'].copy()
+            dados_squads = dados_calc[dados_calc['Squad'] != 'Em Planejamento - PMO'].copy()
+            
+            # Calcula horas totais em planejamento
+            total_horas_planejamento = planejamento_pmo['HorasRestantesAjustadas'].sum() if not planejamento_pmo.empty else 0
+            total_projetos_planejamento = len(planejamento_pmo)
+            
+            # Adiciona as métricas de planejamento
+            metricas['projetos_planejamento'] = total_projetos_planejamento
+            metricas['horas_planejamento'] = round(total_horas_planejamento, 1)
+            
+            # Lista para armazenar resultado da ocupação dos squads
+            resultado_ocupacao_squads = []
+            
+            # Ocupação por Squad (apenas squads regulares)
+            if 'Squad' in dados_squads.columns and not dados_squads.empty:
+                # Agrupa por Squad
+                squads = dados_squads.groupby('Squad').agg({
+                    'Projeto': 'count',
+                    'HorasRestantesAjustadas': 'sum'
+                }).reset_index()
+                
+                for _, squad in squads.iterrows():
+                    nome_squad = squad['Squad']
+                    # Calcula o percentual de ocupação baseado na capacidade mensal
+                    horas_restantes = squad['HorasRestantesAjustadas']
+                    capacidade_utilizada = round((horas_restantes / CAPACIDADE_TOTAL * 100), 1)
+                    horas_disponiveis = round(CAPACIDADE_TOTAL - horas_restantes, 1)
+                    
+                    # Verifica se há projetos com horas negativas para este squad
+                    projetos_squad = dados_squads[dados_squads['Squad'] == nome_squad]
+                    tem_horas_negativas = any(projetos_squad['HorasRestantes'] < 0)
+                    
+                    # Log detalhado para o squad DATA E POWER
+                    if nome_squad == 'DATA E POWER':
+                        logger.info(f"Detalhes do cálculo para Squad DATA E POWER:")
+                        logger.info(f"  Total de projetos: {len(projetos_squad)}")
+                        logger.info(f"  Soma das Horas Restantes (não ajustadas): {projetos_squad['HorasRestantes'].sum()}")
+                        logger.info(f"  Soma das Horas Restantes Ajustadas: {horas_restantes}")
+                    
+                    # Adiciona HorasRestantesAjustadas à saída dos projetos para coerência na exibição
+                    projetos_output = projetos_squad[['Projeto', 'Status', 'HorasRestantes', 'Conclusao']].copy()
+                    # Adiciona a coluna de horas ajustadas para referência
+                    projetos_output['HorasRestantesAjustadas'] = projetos_squad['HorasRestantesAjustadas']
+                    
+                    # Prepara os dados do squad
+                    squad_info = {
+                        'nome': nome_squad,
+                        'horas_restantes': round(horas_restantes, 1),
+                        'total_projetos': int(squad['Projeto']),
+                        'percentual_ocupacao': capacidade_utilizada,
+                        'tem_horas_negativas': tem_horas_negativas,
+                        'capacidade_utilizada': capacidade_utilizada,
+                        'horas_disponiveis': horas_disponiveis,
+                        'projetos': projetos_output.to_dict('records')
+                    }
+                    resultado_ocupacao_squads.append(squad_info)
+            
+            # Adiciona linha para Em Planejamento - PMO se houver projetos
+            if total_projetos_planejamento > 0:
+                # PMO tem capacidade de apenas 1 pessoa (180 horas), não 3 pessoas
+                CAPACIDADE_PMO = HORAS_POR_PESSOA  # 180 horas (1 pessoa)
+                
+                # Calcula capacidade utilizada para PMO
+                capacidade_utilizada_pmo = (
+                    (total_horas_planejamento / CAPACIDADE_PMO) * 100
+                ).round(1) if CAPACIDADE_PMO > 0 else 0
+                
+                # Calcula horas disponíveis para PMO
+                horas_disponiveis_pmo = (
+                    CAPACIDADE_PMO - total_horas_planejamento
+                ).round(1) if total_horas_planejamento <= CAPACIDADE_PMO else 0
+                
+                # Prepara os dados do PMO
+                projetos_output_pmo = planejamento_pmo[['Projeto', 'Status', 'HorasRestantes', 'Conclusao']].copy()
+                projetos_output_pmo['HorasRestantesAjustadas'] = planejamento_pmo['HorasRestantesAjustadas']
+                
+                pmo_info = {
+                    'nome': 'Em Planejamento - PMO',
+                    'horas_restantes': round(total_horas_planejamento, 1),
+                    'total_projetos': total_projetos_planejamento,
+                    'percentual_ocupacao': 0,  # Não calculamos percentual para planejamento
+                    'tem_horas_negativas': False,
+                    'capacidade_utilizada': capacidade_utilizada_pmo,
+                    'horas_disponiveis': horas_disponiveis_pmo,
+                    'projetos': projetos_output_pmo.to_dict('records')
+                }
+                resultado_ocupacao_squads.append(pmo_info)
+            
+            # Ordena por horas restantes (decrescente)
+            resultado_ocupacao_squads = sorted(resultado_ocupacao_squads, key=lambda x: x['horas_restantes'], reverse=True)
+            
+            # Adiciona o resultado de ocupação de squads às métricas
+            metricas['ocupacao_squads'] = resultado_ocupacao_squads
+            
+            # Cria dicionário de horas disponíveis (compatibilidade com código legado)
+            horas_disponiveis_dict = {}
+            for squad_info in resultado_ocupacao_squads:
+                if squad_info['nome'] != 'Em Planejamento - PMO':
+                    horas_disponiveis_dict[squad_info['nome']] = squad_info['horas_disponiveis']
+            
+            metricas['horas_disponiveis'] = horas_disponiveis_dict
+            
+            # Calcula métricas de Performance de Entregas
+            self._calcular_metricas_performance(dados_base, metricas)
+            
+            return metricas
+        except Exception as e:
+            logger.error(f"Erro ao calcular métricas avançadas: {str(e)}")
+            return {}
+            
+    def _calcular_metricas_performance(self, dados, metricas):
+        """Calcula métricas de Performance de Entregas (Taxa de Sucesso e Tempo Médio)"""
+        try:
+            # Verifica se os dados são válidos
+            if dados.empty:
+                logger.warning("DataFrame vazio ao calcular métricas de performance")
+                metricas['taxa_sucesso'] = 0
+                metricas['tempo_medio_geral'] = 0.0
+                return
+                
+            # Log inicial dos dados
+            logger.info("=== DIAGNÓSTICO DE DADOS ===")
+            logger.info(f"Total de projetos no DataFrame: {len(dados)}")
+            logger.info(f"Colunas disponíveis: {dados.columns.tolist()}")
+            logger.info(f"Status únicos encontrados: {dados['Status'].unique().tolist()}")
+            
+            # Log das datas antes da conversão
+            logger.info("=== AMOSTRA DE DATAS ANTES DA CONVERSÃO ===")
+            for coluna in ['DataInicio', 'DataTermino', 'VencimentoEm']:
+                if coluna in dados.columns:
+                    logger.info(f"{coluna} - Primeiros 5 valores: {dados[coluna].head().tolist()}")
+            
+            # Converte colunas de data para datetime
+            for coluna in ['DataInicio', 'DataTermino', 'VencimentoEm']:
+                if coluna in dados.columns:
+                    dados[coluna] = pd.to_datetime(dados[coluna], errors='coerce')
+                    # Log após conversão
+                    logger.info(f"=== {coluna} após conversão - Primeiros 5 valores: {dados[coluna].head().tolist()}")
+            
+            # Período de análise fixo: Q4 FY25 (1/4/2025 a 30/6/2025)
+            inicio_periodo = datetime(2025, 4, 1)
+            fim_periodo = datetime(2025, 6, 30)
+            
+            logger.info("=== PERÍODO DE ANÁLISE ===")
+            logger.info(f"Início: {inicio_periodo}")
+            logger.info(f"Fim: {fim_periodo}")
+            
+            # Log de projetos com status de conclusão
+            projetos_fechados = dados[dados['Status'].isin(['Fechado', 'Resolvido'])]
+            logger.info(f"\nTotal de projetos fechados/resolvidos (geral): {len(projetos_fechados)}")
+            if not projetos_fechados.empty:
+                logger.info("Amostra de projetos fechados:")
+                for _, proj in projetos_fechados.head().iterrows():
+                    logger.info(f"Projeto: {proj['Projeto']}")
+                    logger.info(f"Status: {proj['Status']}")
+                    logger.info(f"Data Término: {proj['DataTermino']}")
+                    logger.info(f"Data Vencimento: {proj['VencimentoEm']}")
+                    logger.info("---")
+            
+            # 1. Filtra todos os projetos concluídos no período
+            projetos_concluidos = dados[
+                (dados['Status'].isin(['Fechado', 'Resolvido'])) &
+                (pd.notna(dados['DataTermino'])) &
+                (dados['DataTermino'] >= inicio_periodo) &
+                (dados['DataTermino'] <= fim_periodo)
+            ]
+            
+            logger.info("\n=== PROJETOS CONCLUÍDOS NO PERÍODO ===")
+            logger.info(f"Total: {len(projetos_concluidos)}")
+            if not projetos_concluidos.empty:
+                logger.info("Detalhes dos projetos concluídos:")
+                for _, proj in projetos_concluidos.iterrows():
+                    logger.info(f"Projeto: {proj['Projeto']}")
+                    logger.info(f"Status: {proj['Status']}")
+                    logger.info(f"Data Término: {proj['DataTermino']}")
+                    logger.info(f"Data Vencimento: {proj['VencimentoEm']}")
+                    logger.info("---")
+            
+            # 2. Filtra projetos com vencimento no período
+            projetos_previstos = dados[
+                (pd.notna(dados['VencimentoEm'])) &
+                (dados['VencimentoEm'] >= inicio_periodo) &
+                (dados['VencimentoEm'] <= fim_periodo)
+            ]
+            
+            logger.info("\n=== PROJETOS PREVISTOS PARA O PERÍODO ===")
+            logger.info(f"Total: {len(projetos_previstos)}")
+            if not projetos_previstos.empty:
+                logger.info("Detalhes dos projetos previstos:")
+                for _, proj in projetos_previstos.iterrows():
+                    logger.info(f"Projeto: {proj['Projeto']}")
+                    logger.info(f"Status: {proj['Status']}")
+                    logger.info(f"Data Vencimento: {proj['VencimentoEm']}")
+                    logger.info("---")
+            
+            # 3. Identifica projetos entregues NO MÊS PREVISTO (e dentro do período Q4)
+            # Filtra projetos concluídos onde o mês/ano de término == mês/ano de vencimento
+            entregues_mes_previsto = projetos_concluidos[
+                (projetos_concluidos['DataTermino'].dt.year == projetos_concluidos['VencimentoEm'].dt.year) &
+                (projetos_concluidos['DataTermino'].dt.month == projetos_concluidos['VencimentoEm'].dt.month)
+            ]
+            
+            logger.info("\n=== PROJETOS ENTREGUES NO MÊS PREVISTO ===") # Log Atualizado
+            logger.info(f"Total: {len(entregues_mes_previsto)}")
+            if not entregues_mes_previsto.empty:
+                logger.info("Detalhes dos projetos entregues no mês previsto:")
+                for _, proj in entregues_mes_previsto.iterrows():
+                    logger.info(f"Projeto: {proj['Projeto']}")
+                    logger.info(f"Data Término: {proj['DataTermino']}")
+                    logger.info(f"Data Vencimento: {proj['VencimentoEm']}")
+                    logger.info("---")
+            
+            # 4. Calcula métricas
+            total_previstos = len(projetos_previstos)
+            total_concluidos = len(projetos_concluidos)
+            total_entregues_mes_previsto = len(entregues_mes_previsto) # Usa a nova contagem
+            
+            if total_previstos > 0:
+                # Usa a nova contagem no numerador
+                taxa_sucesso = round((total_entregues_mes_previsto / total_previstos) * 100)
+            else:
+                taxa_sucesso = 0
+            
+            # Calcula tempo médio de entrega (agora usa entregues_mes_previsto como base? Ou mantém concluidos? Manter concluidos parece mais geral)
+            # *** Decisão: Manter o cálculo do tempo médio baseado nos projetos concluídos no prazo original ***
+            # *** Isso evita penalizar o tempo médio por entregas no mês certo, mas no último dia vs primeiro.***
+            entregues_no_prazo_para_tempo_medio = projetos_concluidos[
+                projetos_concluidos['DataTermino'] <= projetos_concluidos['VencimentoEm']
+            ]
+            if not entregues_no_prazo_para_tempo_medio.empty:
+                entregues_no_prazo_para_tempo_medio['duracao_dias'] = (
+                    entregues_no_prazo_para_tempo_medio['DataTermino'] - entregues_no_prazo_para_tempo_medio['DataInicio']
+                ).dt.days
+                
+                # Remove outliers
+                entregues_validos = entregues_no_prazo_para_tempo_medio[
+                    (entregues_no_prazo_para_tempo_medio['duracao_dias'] >= 0) &
+                    (entregues_no_prazo_para_tempo_medio['duracao_dias'] <= 365)
+                ]
+                
+                tempo_medio = round(entregues_validos['duracao_dias'].mean(), 1) if not entregues_validos.empty else 0.0
+            else:
+                tempo_medio = 0.0
+            
+            # Adiciona as métricas
+            metricas['taxa_sucesso'] = taxa_sucesso
+            metricas['tempo_medio_geral'] = tempo_medio
+            
+            # Adiciona informações do trimestre (ajustado para usar a nova métrica)
+            metricas['quarter_info'] = {
+                'quarter': 'Q4 - Ano Fiscal Microsoft',
+                'inicio': inicio_periodo.strftime('%d/%m/%Y'),
+                'fim': fim_periodo.strftime('%d/%m/%Y'),
+                'total_projetos_previstos': total_previstos,
+                'projetos_concluidos': total_concluidos,
+                'projetos_entregues_mes_previsto': total_entregues_mes_previsto, # Adicionado/Renomeado
+                'projetos_em_andamento': total_previstos - total_concluidos # Lógica mantida
+            }
+            
+            logger.info("\n=== MÉTRICAS FINAIS ===")
+            logger.info(f"Taxa de Sucesso (Concluídos no Mês Previsto / Previstos): {taxa_sucesso}%") # Log atualizado
+            logger.info(f"Tempo Médio (baseado nos entregues no prazo original): {tempo_medio} dias") # Log atualizado
+            logger.info(f"Total Previstos (no período): {total_previstos}")
+            logger.info(f"Total Concluídos (no período): {total_concluidos}")
+            # logger.info(f"Total Entregues no Prazo (no período): {total_no_prazo}") # Log antigo removido
+            logger.info(f"Total Entregues no Mês Previsto (no período): {total_entregues_mes_previsto}") # Log novo
+            logger.info(f"Conteúdo final de quarter_info: {metricas['quarter_info']}") # Log final
+                
+        except Exception as e:
+            logger.error(f"Erro ao calcular métricas de performance: {str(e)}", exc_info=True)
+            metricas['taxa_sucesso'] = 0
+            metricas['tempo_medio_geral'] = 0.0
+
+    def validar_dados(self, dados):
+        """Valida a estrutura básica dos dados"""
+        if not isinstance(dados, pd.DataFrame):
+            raise ValueError("Dados devem ser um DataFrame")
+        if dados.empty:
+            raise ValueError("DataFrame vazio recebido")
+            
+        # Verifica colunas obrigatórias
+        colunas_faltantes = [col for col in COLUNAS_OBRIGATORIAS if col not in dados.columns]
+        if colunas_faltantes:
+            logger.warning(f"Colunas obrigatórias não encontradas: {', '.join(colunas_faltantes)}")
+            # Adiciona colunas faltantes com valores padrão
+            for col in colunas_faltantes:
+                if col in COLUNAS_NUMERICAS:
+                    dados[col] = 0.0
+                else:
+                    dados[col] = 'NÃO DEFINIDO'
+                logger.info(f"Coluna '{col}' adicionada com valor padrão")
+            
+        # Verifica tipos de dados
+        for col in COLUNAS_NUMERICAS:
+            if col in dados.columns:
+                if not pd.api.types.is_numeric_dtype(dados[col]):
+                    logger.warning(f"Coluna {col} não é numérica. Tentando converter...")
+                    try:
+                        if dados[col].dtype == 'object':
+                            dados[col] = dados[col].str.replace(',', '.', regex=False)
+                        dados[col] = pd.to_numeric(dados[col], errors='coerce')
+                        logger.info(f"Coluna {col} convertida para numérica com sucesso")
+                    except Exception as e:
+                        logger.error(f"Erro ao converter coluna {col} para numérica: {str(e)}")
+                        dados[col] = 0.0
+        
+        # Verifica valores nulos em colunas críticas
+        for col in COLUNAS_OBRIGATORIAS:
+            if col in dados.columns:
+                nulos = dados[col].isna().sum()
+                if nulos > 0:
+                    logger.warning(f"Encontrados {nulos} valores nulos na coluna {col}")
+                    if col in COLUNAS_NUMERICAS:
+                        dados[col] = dados[col].fillna(0.0)
+                    else:
+                        dados[col] = dados[col].fillna('NÃO DEFINIDO')
+            
+        return True
+
+    def calcular_alertas(self, dados):
+        """Calcula alertas críticos baseado em indicadores-chave"""
+        alertas = []
+        
+        # Regras de alerta prioritárias (nível CRÍTICO)
+        if dados.empty:
+            alertas.append({
+                'tipo': 'critico',
+                'codigo': 'ALERTA_001',
+                'titulo': 'Dados não encontrados',
+                'mensagem': 'Nenhum projeto encontrado com os filtros atuais',
+                'icone': 'bi-database-exclamation',
+                'prioridade': 1
+            })
+            return alertas  # Retorna imediatamente pois os outros checks não fazem sentido
+        
+        total_projetos = len(dados)
+        
+        # 1. Alertas de SLA (Status)
+        projetos_atrasados = dados[dados['Status'] == 'Atrasado']
+        if len(projetos_atrasados) > 0:
+            alertas.append({
+                'tipo': 'critico',
+                'codigo': 'ALERTA_101',
+                'titulo': 'Projetos atrasados',
+                'mensagem': f"{len(projetos_atrasados)} projeto(s) com status 'Atrasado'",
+                'icone': 'bi-clock-history',
+                'prioridade': 2,
+                'detalhes': projetos_atrasados[['Projeto', 'Squad']].to_dict('records')
+            })
+        
+        # 2. Alertas de Alocação
+        projetos_sem_squad = dados[dados['Squad'] == 'Em Planejamento - PMO']
+        if len(projetos_sem_squad) > 0:
+            alertas.append({
+                'tipo': 'alocacao',
+                'codigo': 'ALERTA_102',
+                'titulo': 'Projetos em planejamento',
+                'mensagem': f"{len(projetos_sem_squad)} projeto(s) em fase de planejamento aguardando alocação",
+                'icone': 'bi-people',
+                'prioridade': 3,
+                'detalhes': projetos_sem_squad[['Projeto', 'Account Manager']].to_dict('records')
+            })
+        
+        # 3. Alertas de Horas (Micro)
+        if 'HorasRestantes' in dados.columns:
+            projetos_sem_horas = dados[dados['HorasRestantes'] <= 0]
+            if len(projetos_sem_horas) > 0:
+                alertas.append({
+                    'tipo': 'horas',
+                    'codigo': 'ALERTA_103',
+                    'titulo': 'Saldo de horas esgotado',
+                    'mensagem': f"{len(projetos_sem_horas)} projeto(s) com saldo zero ou negativo de horas",
+                    'icone': 'bi-hourglass-bottom',
+                    'prioridade': 4,
+                    'detalhes': projetos_sem_horas[['Projeto', 'HorasRestantes']].to_dict('records')
+                })
+        
+        # 4. Alertas de Conclusão (Progresso)
+        if 'Conclusao' in dados.columns:
+            projetos_estagnados = dados[(dados['Conclusao'] < 50) & 
+                                       (dados['Status'] == 'Ativo')]
+            if len(projetos_estagnados) > 0:
+                alertas.append({
+                    'tipo': 'progresso',
+                    'codigo': 'ALERTA_104',
+                    'titulo': 'Projetos estagnados',
+                    'mensagem': f"{len(projetos_estagnados)} projeto(s) ativos com menos de 50% de conclusão",
+                    'icone': 'bi-speedometer',
+                    'prioridade': 5,
+                    'detalhes': projetos_estagnados[['Projeto', 'Conclusao']].to_dict('records')
+                })
+        
+        # 5. Alertas de Faturamento (Financeiro)
+        if 'Faturamento' in dados.columns:
+            projetos_para_faturar = dados[dados['Faturamento'].isin(['PRIME', 'PLUS', 'INICIO'])]
+            if len(projetos_para_faturar) > 0:
+                alertas.append({
+                    'tipo': 'financeiro',
+                    'codigo': 'ALERTA_105',
+                    'titulo': 'Projetos para faturar',
+                    'mensagem': f"{len(projetos_para_faturar)} projeto(s) com faturamento PRIME/PLUS/INICIO",
+                    'icone': 'bi-cash-stack',
+                    'prioridade': 6,
+                    'detalhes': projetos_para_faturar[['Projeto', 'Faturamento']].to_dict('records')
+                })
+        
+        # Ordenar alertas por prioridade
+        alertas.sort(key=lambda x: x['prioridade'])
+        
+        return alertas
+
+    def calcular_faturamento_pendente(self, dados):
+        try:
+            hoje = datetime.now()
+            mes_atual = hoje.month
+            ano_atual = hoje.year
+            
+            # Verifica se as colunas necessárias existem
+            colunas_necessarias = ['Faturamento', 'DataInicio', 'DataTermino', 'VencimentoEm', 'Status']
+            for coluna in colunas_necessarias:
+                if coluna not in dados.columns:
+                    logger.warning(f"Coluna {coluna} não encontrada para cálculo de faturamento pendente")
+                    return []
+            
+            # Condição para faturar no início (PRIME, PLUS, INICIO) que começaram neste mês
+            cond_inicio = (
+                dados['Faturamento'].isin(['PRIME', 'PLUS', 'INICIO']) &
+                (dados['DataInicio'].dt.month == mes_atual) &
+                (dados['DataInicio'].dt.year == ano_atual)
+            )
+            
+            # Condição para faturar no término (TERMINO e ENGAJAMENTO)
+            cond_termino = (
+                dados['Faturamento'].isin(['TERMINO', 'ENGAJAMENTO']) &
+                (
+                    # Verifica se a data prevista (VencimentoEm) é no mês atual para projetos em andamento
+                    ((~dados['Status'].isin(['Fechado', 'Resolvido'])) & 
+                     (dados['VencimentoEm'].dt.month == mes_atual) & 
+                     (dados['VencimentoEm'].dt.year == ano_atual)) |
+                    # OU se a data de término (DataTermino) é no mês atual para projetos concluídos
+                    ((dados['Status'].isin(['Fechado', 'Resolvido'])) & 
+                     (dados['DataTermino'].dt.month == mes_atual) & 
+                     (dados['DataTermino'].dt.year == ano_atual))
+                )
+            )
+            
+            # Filtra projetos para faturar (exclui FTOP)
+            projetos_faturar = dados[
+                (cond_inicio | cond_termino) & 
+                (dados['Faturamento'] != 'FTOP')
+            ].copy()
+            
+            # Inicializa a coluna de data formatada para exibição
+            projetos_faturar['DataFaturamento'] = None
+            
+            # Caso 1: PRIME/PLUS/INICIO usam DataInicio
+            mask_inicio = projetos_faturar['Faturamento'].isin(['PRIME', 'PLUS', 'INICIO'])
+            if mask_inicio.any():
+                mask_inicio_valido = mask_inicio & pd.notna(projetos_faturar['DataInicio'])
+                if mask_inicio_valido.any():
+                    projetos_faturar.loc[mask_inicio_valido, 'DataFaturamento'] = projetos_faturar.loc[mask_inicio_valido, 'DataInicio'].dt.strftime('%d/%m/%Y')
+            
+            # Caso 2: TERMINO/ENGAJAMENTO com status não concluído usam VencimentoEm
+            mask_termino_ativo = (
+                projetos_faturar['Faturamento'].isin(['TERMINO', 'ENGAJAMENTO']) & 
+                ~projetos_faturar['Status'].isin(['Fechado', 'Resolvido'])
+            )
+            if mask_termino_ativo.any():
+                mask_termino_ativo_valido = mask_termino_ativo & pd.notna(projetos_faturar['VencimentoEm'])
+                if mask_termino_ativo_valido.any():
+                    projetos_faturar.loc[mask_termino_ativo_valido, 'DataFaturamento'] = projetos_faturar.loc[mask_termino_ativo_valido, 'VencimentoEm'].dt.strftime('%d/%m/%Y')
+            
+            # Caso 3: TERMINO/ENGAJAMENTO com status concluído usam DataTermino
+            mask_termino_concluido = (
+                projetos_faturar['Faturamento'].isin(['TERMINO', 'ENGAJAMENTO']) & 
+                projetos_faturar['Status'].isin(['Fechado', 'Resolvido'])
+            )
+            if mask_termino_concluido.any():
+                mask_termino_concluido_valido = mask_termino_concluido & pd.notna(projetos_faturar['DataTermino'])
+                if mask_termino_concluido_valido.any():
+                    projetos_faturar.loc[mask_termino_concluido_valido, 'DataFaturamento'] = projetos_faturar.loc[mask_termino_concluido_valido, 'DataTermino'].dt.strftime('%d/%m/%Y')
+            
+            # Atualiza a coluna VencimentoEm para exibição
+            projetos_faturar['VencimentoEm'] = projetos_faturar['DataFaturamento']
+            
+            # Seleciona e renomeia as colunas necessárias
+            colunas = ['Projeto', 'Squad', 'Account Manager', 'Faturamento', 'Status', 'VencimentoEm']
+            colunas_existentes = [col for col in colunas if col in projetos_faturar.columns]
+            projetos_formatados = projetos_faturar[colunas_existentes].copy()
+            
+            # Garantir que Squad não tenha valores nulos
+            if 'Squad' in projetos_formatados.columns:
+                projetos_formatados['Squad'] = projetos_formatados['Squad'].fillna('Em Planejamento - PMO')
+                projetos_formatados['Squad'] = projetos_formatados['Squad'].replace({'nan': 'Em Planejamento - PMO', '': 'Em Planejamento - PMO', 'NÃO DEFINIDO': 'Em Planejamento - PMO'})
+            
+            return projetos_formatados.replace({np.nan: None}).to_dict('records')
+            
+        except Exception as e:
+            logger.error(f"Erro ao calcular faturamento pendente: {str(e)}")
+            return []
+    
+    def obter_metricas_gerencial(self):
+        """Retorna métricas gerenciais"""
+        try:
+            dados = self.carregar_dados()
+            if dados.empty:
+                return {
+                    'projetos_ativos': 0,
+                    'projetos_criticos': 0,
+                    'projetos_em_atendimento': 0,
+                    'projetos_para_faturar': 0,
+                    'faturamento_pendente': 0
+                }
+
+            self.validar_dados(dados)
+            
+            # Define o mês e ano atual
+            hoje = datetime.now()
+            mes_atual = hoje.month
+            ano_atual = hoje.year
+            
+            # Definir status em Title Case (consistente com o processamento que padroniza os status)
+            status_concluidos = ['Fechado', 'Encerrado', 'Resolvido', 'Cancelado']
+            status_em_atendimento = ['Em Atendimento', 'Novo']
+            
+            # Projetos ativos (todos que não estão concluídos)
+            projetos_ativos = dados[~dados['Status'].isin(status_concluidos)]
+            
+            # Projetos críticos - usa critérios avançados do método obter_projetos_criticos
+            projetos_criticos = self.obter_projetos_criticos(dados)
+            
+            # Projetos em atendimento
+            projetos_em_atendimento = dados[dados['Status'].isin(status_em_atendimento)]
+            
+            # Condição para faturar no início (PRIME, PLUS, INICIO)
+            cond_inicio = (
+                dados['Faturamento'].isin(['PRIME', 'PLUS', 'INICIO']) &
+                (dados['DataInicio'].dt.month == mes_atual) &
+                (dados['DataInicio'].dt.year == ano_atual)
+            )
+            
+            # Condição para faturar no término (TERMINO e ENGAJAMENTO)
+            cond_termino = (
+                dados['Faturamento'].isin(['TERMINO', 'ENGAJAMENTO']) &
+                (
+                    # Verifica se a data prevista (VencimentoEm) é no mês atual para projetos em andamento
+                    ((~dados['Status'].isin(['Fechado', 'Resolvido'])) & 
+                     (dados['VencimentoEm'].dt.month == mes_atual) & 
+                     (dados['VencimentoEm'].dt.year == ano_atual)) |
+                    # OU se a data de término (DataTermino) é no mês atual para projetos concluídos
+                    ((dados['Status'].isin(['Fechado', 'Resolvido'])) & 
+                     (dados['DataTermino'].dt.month == mes_atual) & 
+                     (dados['DataTermino'].dt.year == ano_atual))
+                )
+            )
+            
+            # Filtra projetos para faturar (exclui FTOP)
+            projetos_para_faturar = dados[
+                (cond_inicio | cond_termino) & 
+                (dados['Faturamento'] != 'FTOP')
+            ]
+            
+            # Número de projetos para faturar
+            num_projetos_para_faturar = len(projetos_para_faturar)
+            
+            # Log para debug
+            logger.info(f"DEBUG - Total de projetos no dataframe: {len(dados)}")
+            logger.info(f"DEBUG - Status concluídos considerados: {status_concluidos}")
+            logger.info(f"DEBUG - Status em atendimento considerados: {status_em_atendimento}")
+            logger.info(f"DEBUG - Valores únicos na coluna Status: {dados['Status'].unique().tolist()}")
+            logger.info(f"DEBUG - Projetos ativos: {len(projetos_ativos)}")
+            logger.info(f"DEBUG - Projetos críticos: {len(projetos_criticos)}")
+            logger.info(f"DEBUG - Projetos em atendimento: {len(projetos_em_atendimento)}")
+            
+            metricas = {
+                'projetos_ativos': len(projetos_ativos),
+                'projetos_criticos': len(projetos_criticos),
+                'projetos_em_atendimento': len(projetos_em_atendimento),
+                'projetos_para_faturar': num_projetos_para_faturar,
+                'faturamento_pendente': num_projetos_para_faturar,  # Mantém compatibilidade com o frontend
+                'projetos_criticos_count': len(projetos_criticos)   # Garante que projetos_criticos_count use a mesma contagem
+            }
+            
+            logger.info(f"Métricas gerenciais calculadas: {metricas}")
+            return metricas
+            
+        except Exception as e:
+            logger.error(f"Erro ao obter métricas gerenciais: {str(e)}")
+            return {
+                'projetos_ativos': 0,
+                'projetos_criticos': 0,
+                'projetos_em_atendimento': 0,
+                'projetos_para_faturar': 0,
+                'faturamento_pendente': 0,
+                'projetos_criticos_count': 0
+            }
+    
+    def teste_projetos_para_faturar(self):
+        """Função para testar a obtenção de projetos para faturar"""
+        try:
+            dados = self.carregar_dados()
+            if dados.empty:
+                print("Dados vazios!")
+                return
+                
+            # Para testes, vamos forçar a data atual para ver se isso afeta os resultados
+            # Comentar esta linha para usar a data atual real
+            # hoje = datetime(2025, 4, 11)  # Data dos testes
+            hoje = datetime.now()
+            print(f"Data de teste: {hoje.strftime('%d/%m/%Y')}")
+            print(f"Total de projetos no dataset: {len(dados)}")
+            
+            # Verificar tipos de faturamento disponíveis
+            if 'Faturamento' in dados.columns:
+                faturamentos = dados['Faturamento'].value_counts().to_dict()
+                print(f"Tipos de faturamento disponíveis: {faturamentos}")
+            
+            # Verificar projetos por mês de início
+            if 'DataInicio' in dados.columns:
+                meses_inicio = dados['DataInicio'].dt.month.value_counts().sort_index().to_dict()
+                print(f"Distribuição por mês de início: {meses_inicio}")
+            
+            # Verificar distribuição de meses em DataTermino
+            if 'DataTermino' in dados.columns:
+                meses_termino = dados['DataTermino'].dt.month.value_counts().sort_index().to_dict()
+                print(f"Distribuição por mês de término: {meses_termino}")
+            
+            # Executar a função que queremos testar
+            projetos = self.obter_projetos_para_faturar(dados)
+            
+            # Exibir resultados
+            print(f"\nTotal de projetos para faturar: {len(projetos)}")
+            if projetos:
+                for i, p in enumerate(projetos):
+                    print(f"{i+1}. {p['Projeto']} - {p['Faturamento']} - {p['Status']} - {p['VencimentoEm']}")
+            
+            return projetos
+        except Exception as e:
+            print(f"ERRO no teste: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            return []
+    
+    def _carregar_dados_historicos(self, ano, mes):
+        """Carrega e processa dados de um arquivo histórico específico (dadosr_apt_mes.csv)."""
+        try:
+            mes_str = f"{mes:02d}" # Formata mês com zero à esquerda (01, 02, ..., 12)
+            # Mapeia número do mês para abreviação de 3 letras em minúsculo
+            mes_abrev_map = {1: 'jan', 2: 'fev', 3: 'mar', 4: 'abr', 5: 'mai', 6: 'jun', 
+                             7: 'jul', 8: 'ago', 9: 'set', 10: 'out', 11: 'nov', 12: 'dez'}
+            mes_abrev = mes_abrev_map.get(mes)
+            
+            if not mes_abrev:
+                logger.error(f"Mês inválido fornecido para dados históricos: {mes}")
+                return pd.DataFrame()
+                
+            nome_arquivo = f"dadosr_apt_{mes_abrev}.csv" # Formato do nome do arquivo
+            caminho_historico = self.csv_path.parent / nome_arquivo # Assume que está na mesma pasta 'data'
+            
+            logger.info(f"Tentando carregar dados históricos de: {caminho_historico}")
+            
+            if not caminho_historico.is_file():
+                logger.error(f"Arquivo histórico CSV não encontrado: {caminho_historico}")
+                return pd.DataFrame()
+            
+            # Lê o CSV histórico (mesmos parâmetros de carregar_dados)
+            dados = pd.read_csv(
+                caminho_historico, 
+                dtype=str, 
+                sep=';', 
+                encoding='latin1'
+            )
+            logger.info(f"Arquivo histórico {nome_arquivo} carregado com {len(dados)} linhas.")
+            
+            # Aplica EXATAMENTE O MESMO pré-processamento de carregar_dados
+            # (Conversão de Datas, Números, Tempo, Renomeação, Padronização)
+            # --- Copiado e adaptado de carregar_dados --- 
+            # 1.2.1 Conversão de Datas
+            colunas_data_simples = ['Aberto em', 'Resolvido em', 'Data da última ação']
+            # ... (resto do código de conversão de datas igual a carregar_dados) ...
+            for col in colunas_data_simples:
+                 if col in dados.columns:
+                     dados[col] = pd.to_datetime(dados[col], format='%d/%m/%Y', errors='coerce')
+                 # else: # Não loga warning para históricos, podem ter colunas diferentes
+                 #    logger.warning(f"[Histórico] Coluna de data {col} não encontrada em {nome_arquivo}")
+            
+            if 'Vencimento em' in dados.columns:
+                 dados['Vencimento em_Original'] = dados['Vencimento em']
+                 dados['Vencimento em'] = pd.to_datetime(dados['Vencimento em_Original'], format='%d/%m/%Y %H:%M', errors='coerce')
+                 mask_nat = dados['Vencimento em'].isna()
+                 if mask_nat.any():
+                     dados.loc[mask_nat, 'Vencimento em'] = pd.to_datetime(dados.loc[mask_nat, 'Vencimento em_Original'], format='%d/%m/%Y', errors='coerce')
+                 # del dados['Vencimento em_Original'] 
+            
+            # 1.2.2 Conversão Numérica
+            if 'Número' in dados.columns:
+                 dados['Número'] = pd.to_numeric(dados['Número'], errors='coerce').astype('Int64')
+            if 'Esforço estimado' in dados.columns:
+                 dados['Esforço estimado'] = dados['Esforço estimado'].str.replace(',', '.', regex=False)
+                 dados['Esforço estimado'] = pd.to_numeric(dados['Esforço estimado'], errors='coerce').fillna(0.0)
+            else: dados['Esforço estimado'] = 0.0
+            if 'Andamento' in dados.columns:
+                 dados['Andamento'] = dados['Andamento'].str.rstrip('%').str.replace(',', '.', regex=False)
+                 dados['Andamento'] = pd.to_numeric(dados['Andamento'], errors='coerce').fillna(0.0).clip(lower=0, upper=100)
+            else: dados['Andamento'] = 0.0
+            if 'Tempo trabalhado' in dados.columns:
+                 dados['Tempo trabalhado'] = dados['Tempo trabalhado'].apply(self.converter_tempo_para_horas)
+            else: dados['Tempo trabalhado'] = 0.0
+            
+            # 1.3 Renomeação
+            rename_map_new_to_old = { ... } # Usar o mesmo mapa de carregar_dados
+            rename_map_new_to_old = {
+                'Número': 'Numero',
+                'Cliente (Completo)': 'Projeto',
+                'Serviço (2º Nível)': 'Squad',
+                'Status': 'Status',
+                'Esforço estimado': 'Horas',
+                'Tempo trabalhado': 'HorasTrabalhadas',
+                'Andamento': 'Conclusao',
+                'Data da última ação': 'UltimaInteracao',
+                'Tipo de faturamento': 'Faturamento',
+                'Responsável': 'Especialista',
+                'Account Manager ': 'Account Manager',
+                'Aberto em': 'DataInicio',
+                'Resolvido em': 'DataTermino',
+                'Vencimento em': 'VencimentoEm'
+            }
+            colunas_para_renomear = {k: v for k, v in rename_map_new_to_old.items() if k in dados.columns}
+            dados.rename(columns=colunas_para_renomear, inplace=True)
+            
+            # 1.4 Padronização Final
+            if 'Status' in dados.columns: dados['Status'] = dados['Status'].astype(str).str.strip().str.title()
+            faturamento_map = { ... } # Usar o mesmo mapa de carregar_dados
+            faturamento_map = {
+                "PRIME": "PRIME",
+                "Descontar do PLUS no inicio do projeto": "PLUS",
+                "Faturar no inicio do projeto": "INICIO",
+                "Faturar no final do projeto": "TERMINO",
+                "Faturado em outro projeto": "FEOP",
+                "Faturado em outro projeto.": "FEOP",
+                "Engajamento": "ENGAJAMENTO"
+            }
+            if 'Faturamento' in dados.columns:
+                dados['Faturamento'] = dados['Faturamento'].astype(str).str.strip()
+                dados['Faturamento_Original'] = dados['Faturamento']
+                dados['Faturamento'] = dados['Faturamento'].map(faturamento_map)
+                nao_mapeados = dados['Faturamento'].isna()
+                if nao_mapeados.any():
+                    mask_nan = dados['Faturamento_Original'].isna() | (dados['Faturamento_Original'] == 'nan')
+                    if mask_nan.any(): dados.loc[mask_nan, 'Faturamento'] = 'EAN'
+                    dados['Faturamento'] = dados['Faturamento'].fillna('NAO_MAPEADO')
+                # del dados['Faturamento_Original']
+            colunas_texto_padrao = ['Projeto', 'Squad', 'Especialista', 'Account Manager']
+            for col in colunas_texto_padrao:
+                if col in dados.columns:
+                    dados[col] = dados[col].astype(str).str.strip()
+                    if col == 'Squad': dados[col] = dados[col].replace({'': 'Em Planejamento - PMO', 'nan': 'Em Planejamento - PMO', 'NÃO DEFINIDO': 'Em Planejamento - PMO'}).fillna('Em Planejamento - PMO')
+                    else: dados[col] = dados[col].replace({'': 'NÃO DEFINIDO', 'nan': 'NÃO DEFINIDO'}).fillna('NÃO DEFINIDO')
+            
+            # Recalcula HorasRestantes (importante após carregar e renomear)
+            if 'Horas' in dados.columns and 'HorasTrabalhadas' in dados.columns:
+                 dados['HorasRestantes'] = (dados['Horas'] - dados['HorasTrabalhadas']).round(1)
+            else: dados['HorasRestantes'] = 0.0
+            # --- Fim do código copiado --- 
+            
+            logger.info(f"Dados históricos de {mes_abrev.upper()}/{ano} processados.")
+            return dados
+
+        except Exception as e:
+            logger.error(f"Erro ao carregar dados históricos para {ano}-{mes_str}: {str(e)}")
+            return pd.DataFrame()
     
     

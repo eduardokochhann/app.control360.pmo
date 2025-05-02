@@ -36,8 +36,26 @@ def dashboard():
         
         # Aplica filtros se necessário
         dados_filtrados = dados.copy()
+        
+        # Log ANTES de filtrar Squad
+        logger.info(f"[Filtro Rota Debug] Valor do filtro Squad recebido: '{squad}'")
+        if not dados_filtrados.empty:
+            logger.info(f"[Filtro Rota Debug] Squads Únicos ANTES do filtro: {dados_filtrados['Squad'].unique().tolist()}")
+        
         if squad and squad != 'Todos':
-            dados_filtrados = dados_filtrados[dados_filtrados['Squad'] == squad]
+            # Comparação case-insensitive para garantir que o filtro funcione
+            dados_filtrados = dados_filtrados[dados_filtrados['Squad'].str.upper() == squad.upper()]
+            # Log DEPOIS de filtrar Squad
+            logger.info(f"[Filtro Rota Debug] Filtro de Squad '{squad}' aplicado (case-insensitive).")
+            logger.info(f"[Filtro Rota Debug] Total de registros APÓS filtro de Squad: {len(dados_filtrados)}")
+            if not dados_filtrados.empty:
+                logger.info(f"[Filtro Rota Debug] Squads Únicos APÓS filtro: {dados_filtrados['Squad'].unique().tolist()}")
+            else:
+                logger.warning("[Filtro Rota Debug] DataFrame vazio após filtro de Squad!")
+        else:
+            logger.info("[Filtro Rota Debug] Nenhum filtro de Squad aplicado (Squad vazio ou 'Todos').")
+        
+        # Filtro de Faturamento (mantido como estava)
         if faturamento and faturamento != 'Todos':
             dados_filtrados = dados_filtrados[dados_filtrados['Faturamento'] == faturamento]
         
