@@ -998,24 +998,46 @@ class MacroService(BaseService):
             
             # Usa dados já tratados
             dados_base = self.preparar_dados_base(dados)
-            
-            # Filtra projetos que têm horas planejadas e trabalhadas
-            projetos_validos = dados_base[
-                (dados_base['Horas'] > 0) &
-                (dados_base['HorasTrabalhadas'] > 0)
+
+            # --- NOVO: Filtra projetos da CDB DATA SOLUTIONS ---
+            if 'Especialista' in dados_base.columns:
+                # Usar .str.upper() para comparação case-insensitive e .isin() para clareza
+                dados_filtrados_cdb = dados_base[~dados_base['Especialista'].astype(str).str.upper().isin(['CDB DATA SOLUTIONS'])]
+                logger.info(f"Eficiência: Removidos {len(dados_base) - len(dados_filtrados_cdb)} projetos da CDB DATA SOLUTIONS.")
+            else:
+                logger.warning("Eficiência: Coluna 'Especialista' não encontrada para filtrar CDB.")
+                dados_filtrados_cdb = dados_base.copy()
+            # --- FIM NOVO FILTRO ---
+
+            # --- NOVO: Filtra apenas projetos CONCLUÍDOS ---            
+            projetos_concluidos_filtrados = dados_filtrados_cdb[
+                dados_filtrados_cdb['Status'].isin(self.status_concluidos)
             ].copy()
+            logger.info(f"Eficiência: Calculando com base em {len(projetos_concluidos_filtrados)} projetos concluídos (após filtro CDB).")
+            # --- FIM NOVO FILTRO CONCLUÍDOS ---
+
+            # Filtra projetos válidos (horas > 0) DENTRE OS CONCLUÍDOS
+            projetos_validos = projetos_concluidos_filtrados[
+                (projetos_concluidos_filtrados['Horas'] > 0) &
+                (projetos_concluidos_filtrados['HorasTrabalhadas'] > 0)
+            ].copy()
+
+            # Calcula eficiência por projeto (INVERTIDO: Horas / HorasTrabalhadas)
+            projetos_validos['eficiencia'] = (projetos_validos['Horas'] / projetos_validos['HorasTrabalhadas'] * 100).round(1)
             
-            # Calcula eficiência por projeto
-            projetos_validos['eficiencia'] = (projetos_validos['HorasTrabalhadas'] / projetos_validos['Horas'] * 100).round(1)
-            
-            # Calcula eficiência geral
+            # Calcula eficiência geral (INVERTIDO: Horas / HorasTrabalhadas)
             if len(projetos_validos) > 0:
                 horas_planejadas_total = projetos_validos['Horas'].sum()
                 horas_trabalhadas_total = projetos_validos['HorasTrabalhadas'].sum()
-                eficiencia_geral = round((horas_trabalhadas_total / horas_planejadas_total * 100), 1)
+                # Verifica se horas_trabalhadas_total > 0 para evitar divisão por zero (embora o filtro já deva garantir)
+                if horas_trabalhadas_total > 0:
+                    eficiencia_geral = round((horas_planejadas_total / horas_trabalhadas_total * 100), 1)
+                else:
+                    logger.warning("Eficiência: Total de horas trabalhadas é zero, definindo eficiência geral como 0.")
+                    eficiencia_geral = 0.0 
             else:
                 eficiencia_geral = 0.0
-            
+
             # Prepara dados para o modal
             colunas_modal = ['Projeto', 'Status', 'Squad', 'Horas', 'HorasTrabalhadas', 'eficiencia']
             dados_modal = projetos_validos[colunas_modal].copy()

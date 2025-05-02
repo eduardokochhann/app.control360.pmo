@@ -139,7 +139,7 @@ def dashboard():
         projetos_criticos = macro_service.calcular_projetos_criticos(dados_atuais)
         media_horas = macro_service.calcular_media_horas(dados_atuais)
         projetos_concluidos = macro_service.calcular_projetos_concluidos(dados_atuais)
-        eficiencia_entrega = macro_service.calcular_eficiencia_entrega(dados_atuais)
+        eficiencia_entrega = macro_service.calcular_eficiencia_entrega(dados_combinados_dash) # Usa dados dos últimos 3 meses
         projetos_risco = macro_service.calcular_projetos_risco(dados_atuais)
         # tempo_medio_vida já foi calculado acima com dados combinados
         
