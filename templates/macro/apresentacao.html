@@ -743,11 +743,19 @@
                                 
                                 <!-- Diferença de projetos entregues -->
                                 <div class="text-center">
-                                    <div class="d-flex align-items-center justify-content-center">
-                                        {% set variacao_ent = diferenca_entregues_abs | default(0) %}
+                                    {% set variacao_ent = diferenca_entregues_abs | default(0) %}
+                                    {# Busca a variação percentual correspondente #}
+                                    {% set variacao_ent_pct = variacao_entregues_pct | default(0.0) %}
+                                    
+                                    {# Container para alinhar número e porcentagem #}
+                                    <div class="d-flex align-items-baseline justify-content-center">
                                         <span class="fs-3 fw-bold {% if variacao_ent > 0 %}text-success{% elif variacao_ent < 0 %}text-danger{% else %}text-muted{% endif %}">
                                             {{ '%+d'|format(variacao_ent) }}
                                         </span>
+                                        {# Adiciona a porcentagem ao lado, se não for zero, com fonte menor e espaço #}
+                                        {% if variacao_ent != 0 %}
+                                            <span class="ms-2 fs-6 fw-normal {% if variacao_ent > 0 %}text-success{% elif variacao_ent < 0 %}text-danger{% else %}text-muted{% endif %}">({{ '%+.1f'|format(variacao_ent_pct) }}%)</span>
+                                        {% endif %}
                                     </div>
                                     <small class="text-muted">Projetos entregues com<br>relação a {{ nome_mes_comparativo | default('mês anterior') }}</small>
                                 </div>

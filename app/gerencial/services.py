@@ -1131,16 +1131,18 @@ class GerencialService(BaseService):
                     logger.info(f"Data Vencimento: {proj['VencimentoEm']}")
                     logger.info("---")
             
-            # 3. Identifica projetos entregues no prazo
-            entregues_no_prazo = projetos_concluidos[
-                projetos_concluidos['DataTermino'] <= projetos_concluidos['VencimentoEm']
+            # 3. Identifica projetos entregues NO MÊS PREVISTO (e dentro do período Q4)
+            # Filtra projetos concluídos onde o mês/ano de término == mês/ano de vencimento
+            entregues_mes_previsto = projetos_concluidos[
+                (projetos_concluidos['DataTermino'].dt.year == projetos_concluidos['VencimentoEm'].dt.year) &
+                (projetos_concluidos['DataTermino'].dt.month == projetos_concluidos['VencimentoEm'].dt.month)
             ]
             
-            logger.info("\n=== PROJETOS ENTREGUES NO PRAZO ===")
-            logger.info(f"Total: {len(entregues_no_prazo)}")
-            if not entregues_no_prazo.empty:
-                logger.info("Detalhes dos projetos entregues no prazo:")
-                for _, proj in entregues_no_prazo.iterrows():
+            logger.info("\n=== PROJETOS ENTREGUES NO MÊS PREVISTO ===") # Log Atualizado
+            logger.info(f"Total: {len(entregues_mes_previsto)}")
+            if not entregues_mes_previsto.empty:
+                logger.info("Detalhes dos projetos entregues no mês previsto:")
+                for _, proj in entregues_mes_previsto.iterrows():
                     logger.info(f"Projeto: {proj['Projeto']}")
                     logger.info(f"Data Término: {proj['DataTermino']}")
                     logger.info(f"Data Vencimento: {proj['VencimentoEm']}")
@@ -1149,23 +1151,29 @@ class GerencialService(BaseService):
             # 4. Calcula métricas
             total_previstos = len(projetos_previstos)
             total_concluidos = len(projetos_concluidos)
-            total_no_prazo = len(entregues_no_prazo)
+            total_entregues_mes_previsto = len(entregues_mes_previsto) # Usa a nova contagem
             
             if total_previstos > 0:
-                taxa_sucesso = round((total_no_prazo / total_previstos) * 100)
+                # Usa a nova contagem no numerador
+                taxa_sucesso = round((total_entregues_mes_previsto / total_previstos) * 100)
             else:
                 taxa_sucesso = 0
             
-            # Calcula tempo médio de entrega
-            if not entregues_no_prazo.empty:
-                entregues_no_prazo['duracao_dias'] = (
-                    entregues_no_prazo['DataTermino'] - entregues_no_prazo['DataInicio']
+            # Calcula tempo médio de entrega (agora usa entregues_mes_previsto como base? Ou mantém concluidos? Manter concluidos parece mais geral)
+            # *** Decisão: Manter o cálculo do tempo médio baseado nos projetos concluídos no prazo original ***
+            # *** Isso evita penalizar o tempo médio por entregas no mês certo, mas no último dia vs primeiro.***
+            entregues_no_prazo_para_tempo_medio = projetos_concluidos[
+                projetos_concluidos['DataTermino'] <= projetos_concluidos['VencimentoEm']
+            ]
+            if not entregues_no_prazo_para_tempo_medio.empty:
+                entregues_no_prazo_para_tempo_medio['duracao_dias'] = (
+                    entregues_no_prazo_para_tempo_medio['DataTermino'] - entregues_no_prazo_para_tempo_medio['DataInicio']
                 ).dt.days
                 
                 # Remove outliers
-                entregues_validos = entregues_no_prazo[
-                    (entregues_no_prazo['duracao_dias'] >= 0) &
-                    (entregues_no_prazo['duracao_dias'] <= 365)
+                entregues_validos = entregues_no_prazo_para_tempo_medio[
+                    (entregues_no_prazo_para_tempo_medio['duracao_dias'] >= 0) &
+                    (entregues_no_prazo_para_tempo_medio['duracao_dias'] <= 365)
                 ]
                 
                 tempo_medio = round(entregues_validos['duracao_dias'].mean(), 1) if not entregues_validos.empty else 0.0
@@ -1176,22 +1184,24 @@ class GerencialService(BaseService):
             metricas['taxa_sucesso'] = taxa_sucesso
             metricas['tempo_medio_geral'] = tempo_medio
             
-            # Adiciona informações do trimestre
+            # Adiciona informações do trimestre (ajustado para usar a nova métrica)
             metricas['quarter_info'] = {
                 'quarter': 'Q4 - Ano Fiscal Microsoft',
                 'inicio': inicio_periodo.strftime('%d/%m/%Y'),
                 'fim': fim_periodo.strftime('%d/%m/%Y'),
-                'total_projetos_previstos': total_previstos, # Renomeado para clareza
-                'projetos_concluidos': total_concluidos, # Garante que usa a contagem filtrada pelo período
-                'projetos_em_andamento': total_previstos - total_concluidos
+                'total_projetos_previstos': total_previstos,
+                'projetos_concluidos': total_concluidos,
+                'projetos_entregues_mes_previsto': total_entregues_mes_previsto, # Adicionado/Renomeado
+                'projetos_em_andamento': total_previstos - total_concluidos # Lógica mantida
             }
             
             logger.info("\n=== MÉTRICAS FINAIS ===")
-            logger.info(f"Taxa de Sucesso: {taxa_sucesso}%")
-            logger.info(f"Tempo Médio: {tempo_medio} dias")
+            logger.info(f"Taxa de Sucesso (Concluídos no Mês Previsto / Previstos): {taxa_sucesso}%") # Log atualizado
+            logger.info(f"Tempo Médio (baseado nos entregues no prazo original): {tempo_medio} dias") # Log atualizado
             logger.info(f"Total Previstos (no período): {total_previstos}")
             logger.info(f"Total Concluídos (no período): {total_concluidos}")
-            logger.info(f"Total Entregues no Prazo (no período): {total_no_prazo}")
+            # logger.info(f"Total Entregues no Prazo (no período): {total_no_prazo}") # Log antigo removido
+            logger.info(f"Total Entregues no Mês Previsto (no período): {total_entregues_mes_previsto}") # Log novo
             logger.info(f"Conteúdo final de quarter_info: {metricas['quarter_info']}") # Log final
                 
         except Exception as e:

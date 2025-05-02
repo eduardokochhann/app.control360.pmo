@@ -890,7 +890,15 @@ def apresentacao():
             
         # Calcular a diferença absoluta
         diferenca_entregues_abs = entregues_atual - entregues_anterior_val
-        logger.info(f"[Entregas Comp.] Comparativo calculado. Atual: {entregues_atual}, Anterior: {entregues_anterior_val}, VarAbs: {diferenca_entregues_abs}")
+        
+        # Calcular a diferença percentual
+        variacao_entregues_pct = 0.0
+        if entregues_anterior_val > 0:
+            variacao_entregues_pct = round(((entregues_atual - entregues_anterior_val) / entregues_anterior_val) * 100, 1)
+        elif entregues_atual > 0: # Anterior era 0, atual não é
+            variacao_entregues_pct = 100.0
+            
+        logger.info(f"[Entregas Comp.] Comparativo calculado. Atual: {entregues_atual}, Anterior: {entregues_anterior_val}, VarAbs: {diferenca_entregues_abs}, VarPct: {variacao_entregues_pct}%") # Log atualizado
         # --- FIM: Calcular comparação de Projetos Entregues --- 
 
         # --- INÍCIO: Calcular variação de novos projetos (Refatorado) --- 
@@ -1149,46 +1157,46 @@ def apresentacao():
         logger.info(f"Agregação geral por status calculada: {por_status_geral}")
         # --- FIM: Calcular Agregação Geral por Status --- 
 
+        # --- Preparação do Contexto para o Template ---
+        # Define as listas de squads e status esperados para o contexto
+        squads_para_contar = ['AZURE', 'M365', 'DATA E POWER', 'CDB']
+        status_para_contar = ['NOVO', 'EM ATENDIMENTO', 'AGUARDANDO', 'BLOQUEADO']
+
         # Prepara contexto adicional
         context = {
             # 'comparativo': comparativo, # Removido, dados agora são passados individualmente
             'get_status_color': get_status_color,
             'get_conclusao_color': get_conclusao_color,
             # 'titulo_pagina': f"Apresentação Diretoria - {comparativo['mes_atual']['nome']}", # Substituído
-            'titulo_pagina': f"Apresentação Diretoria - {mes_referencia.strftime('%B/%Y')}",
-            'fonte_dados': fonte_dados_ref or 'dadosr.csv',
-            'squads_esperados': squads_para_contar, # Usa a lista definida acima
-            'status_esperados': status_para_contar + ['TOTAL'], # Usa a lista definida acima
-            'projetos_entregues': projetos_entregues,
-            'novos_projetos_comparativo': novos_projetos_comparativo,
-            'tempo_medio_vida': tempo_medio_vida_dados,
-            'diferenca_entregues_abs': diferenca_entregues_abs,
-            'nome_mes_comparativo': {
-                1: 'JAN', 2: 'FEV', 3: 'MAR', 4: 'ABR', 5: 'MAI', 6: 'JUN',
-                7: 'JUL', 8: 'AGO', 9: 'SET', 10: 'OUT', 11: 'NOV', 12: 'DEZ'
-            }.get(mes_comparativo.month, '???'),
-            'faturamento_comparativo': faturamento_comparativo,
-            'tempo_medio_vida_variacao_pct': variacao_pct_tmv,
-            'mes_comparativo_abrev': {
-                1: 'Jan', 2: 'Fev', 3: 'Mar', 4: 'Abr', 5: 'Mai', 6: 'Jun',
-                7: 'Jul', 8: 'Ago', 9: 'Set', 10: 'Out', 11: 'Nov', 12: 'Dez'
-            }.get(mes_comparativo.month, '???'),
+            'titulo_pagina': f"Apresentação Diretoria - {mes_referencia.strftime('%B/%Y')}", # <-- Chave corrigida para aspas simples
+            'fonte_dados': fonte_dados_ref if not is_visao_atual else 'dadosr.csv',
+            'mes_referencia': mes_referencia.strftime('%B/%Y'), # Usado para exibição
+            'nome_mes_comparativo': nome_mes_comparativo_pt.capitalize() if nome_mes_comparativo_pt else 'mês anterior',
+            'mes_comparativo_abrev': mes_comparativo.strftime('%b') if mes_comparativo else 'mês ant.',
             'total_ativos_atual': total_ativos_atual,
             'total_ativos_anterior': total_ativos_anterior,
-            # Novas chaves para agregações:
-            'agregacoes_por_status': por_status_geral,
+            'agregacoes_por_status': por_status_geral, # <-- Corrigido para usar a variável correta
             'agregacoes_por_status_squad_especialista': por_status_squad_especialista,
-            'nome_mes_referencia': mes_referencia.strftime('%B/%Y')
+            'projetos_entregues': projetos_entregues, # Já contém o 'historico'
+            'diferenca_entregues_abs': diferenca_entregues_abs,
+            'variacao_entregues_pct': variacao_entregues_pct, # <-- ADICIONADO AO CONTEXTO
+            'novos_projetos_comparativo': novos_projetos_comparativo,
+            'tempo_medio_vida': tempo_medio_vida_dados,
+            'tempo_medio_vida_variacao_pct': variacao_pct_tmv,
+            'faturamento_comparativo': faturamento_comparativo,
+            'is_visao_atual': is_visao_atual,
+            'error': None # Assume sem erro inicialmente
         }
         
         # Calcula totais de squad para os gráficos
         totais_squad = {}
-        for squad in context['squads_esperados']:
+        # Usa as variáveis locais definidas anteriormente
+        for squad in squads_para_contar: 
             total = 0
-            # Usa a nova chave do contexto
-            for status in context['status_esperados']:
-                if status != 'TOTAL': # Evita tentar buscar status 'TOTAL' que não existe
-                     total += context['agregacoes_por_status_squad_especialista'].get(squad, {}).get(status, 0)
+            # Usa a chave correta do contexto e a variável local de status
+            for status in status_para_contar: 
+                 # O status TOTAL não existe mais na lista, então a verificação if status != 'TOTAL' não é necessária
+                 total += context['agregacoes_por_status_squad_especialista'].get(squad, {}).get(status, 0)
             totais_squad[squad] = total
         
         context['totais_squad'] = totais_squad
