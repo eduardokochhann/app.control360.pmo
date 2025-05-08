@@ -17,6 +17,82 @@
         .status-amarelo { background-color: #ffc107; }
         .status-vermelho { background-color: #dc3545; }
         .status-cinza { background-color: #6c757d; }
+        
+        /* Timeline moderna com alinhamento aprimorado */
+        .timeline-section {
+            margin-bottom: 0 !important;
+        }
+
+        .timeline-section .section-header {
+            padding: 3px 10px !important;
+            margin: 0 !important;
+            background-color: #f8f9fa !important;
+            border-bottom: 1px solid #e9ecef !important;
+        }
+
+        .timeline-section .list-group {
+            margin-bottom: 0 !important;
+        }
+
+        .timeline-section .list-group-item {
+            padding: 4px 10px !important;
+            font-size: 0.75rem !important;
+            border: none !important;
+            border-bottom: 1px solid #f0f0f0 !important;
+            margin: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            transition: background-color 0.15s ease-in-out !important;
+        }
+
+        .timeline-section .list-group-item:hover {
+            background-color: #f8f9fa !important;
+        }
+
+        .timeline-section .list-group-item:last-child {
+            border-bottom: none !important;
+        }
+
+        .timeline-section .badge {
+            font-size: 0.65rem !important;
+            padding: 2px 6px !important;
+            border-radius: 3px !important;
+            margin: 0 8px !important;
+            flex-shrink: 0 !important;
+        }
+
+        .timeline-section .text-muted.small {
+            font-size: 0.65rem !important;
+            white-space: nowrap !important;
+            flex-shrink: 0 !important;
+            margin-left: auto !important;
+            display: flex !important;
+            align-items: center !important;
+            color: #6c757d !important;
+        }
+
+        /* Título da tarefa em destaque */
+        .timeline-task-name {
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            margin-right: 0 !important;
+            font-weight: 500 !important;
+            color: #495057 !important;
+            flex-grow: 1 !important;
+            max-width: 55% !important;
+        }
+
+        /* Garantir que os ícones e textos de data fiquem lado a lado */
+        .timeline-section .text-muted.small i {
+            margin-right: 2px !important;
+        }
+
+        .timeline-section .text-muted.small span.mx-1 {
+            margin-left: 3px !important;
+            margin-right: 3px !important;
+            opacity: 0.7 !important;
+        }
     </style>
 </head>
 <body>
@@ -213,14 +289,56 @@
                 <div class="card shadow-sm h-100">
                     <div class="card-header bg-light">
                         <h5 class="card-title mb-0">
-                            <i class="fas fa-clock"></i>
+                            <i class="bi bi-clock"></i>
                             Linha do Tempo (Tarefas)
                         </h5>
                     </div>
-                    <div class="card-body p-3 text-center">
-                        <p class="text-muted small">
-                            [Uma visualização da linha do tempo das tarefas será adicionada aqui]
-                        </p>
+                    <div class="card-body p-0">
+                        <!-- Timeline de tarefas -->
+                        <div id="timeline-loading" class="text-center p-3">
+                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                            <span class="text-muted small">Carregando tarefas...</span>
+                        </div>
+                        
+                        <div id="timeline-error" class="text-center p-3 text-danger" style="display: none;">
+                            <i class="bi bi-exclamation-circle me-2"></i>
+                            <span id="timeline-error-message" class="small">Erro ao carregar tarefas</span>
+                        </div>
+                        
+                        <div id="timeline-empty" class="text-center p-3 text-muted" style="display: none;">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <span class="small">Nenhuma tarefa encontrada</span>
+                        </div>
+                        
+                        <!-- Lista de tarefas -->
+                        <div id="timeline-content" style="display: none;">
+                            <!-- Próximas tarefas -->
+                            <div class="timeline-section">
+                                <div class="section-header bg-light p-2 border-bottom">
+                                    <i class="bi bi-calendar-event text-warning"></i>
+                                    <span class="ms-2 fw-bold">Próximas Tarefas</span>
+                                </div>
+                                <ul class="list-group list-group-flush" id="upcoming-tasks-list"></ul>
+                            </div>
+                            
+                            <!-- Tarefas em andamento -->
+                            <div class="timeline-section">
+                                <div class="section-header bg-light p-2 border-bottom">
+                                    <i class="bi bi-play-circle text-primary"></i>
+                                    <span class="ms-2 fw-bold">Em Andamento</span>
+                                </div>
+                                <ul class="list-group list-group-flush" id="started-tasks-list"></ul>
+                            </div>
+                            
+                            <!-- Tarefas concluídas -->
+                            <div class="timeline-section">
+                                <div class="section-header bg-light p-2 border-bottom">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    <span class="ms-2 fw-bold">Concluídas</span>
+                                </div>
+                                <ul class="list-group list-group-flush" id="completed-tasks-list"></ul>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -275,6 +393,188 @@
 </script>
 <script src="/macro/static/js/status_report.js"></script>
 <!-- Fim dos scripts -->
+
+<!-- Adicionar scripts extras (Font Awesome e nosso código JS) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous"></script>
+<script>
+// Formatação de data
+function formatDateString(dateStr) {
+    if (!dateStr) return "-";
+    try {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return dateStr; // Retorna a string original se a data for inválida
+        return date.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'});
+    } catch (e) {
+        console.error("Erro ao formatar data:", e, dateStr);
+        return dateStr;
+    }
+}
+
+// Escapa HTML para tooltips seguros
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe
+        .toString()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// Função para carregar a timeline de tarefas
+document.addEventListener('DOMContentLoaded', function() {
+    // Elementos DOM para manipulação
+    const loadingElement = document.getElementById('timeline-loading');
+    const errorElement = document.getElementById('timeline-error');
+    const errorMessageElement = document.getElementById('timeline-error-message');
+    const emptyElement = document.getElementById('timeline-empty');
+    const contentElement = document.getElementById('timeline-content');
+    
+    // Listas para as tarefas
+    const upcomingTasksList = document.getElementById('upcoming-tasks-list');
+    const startedTasksList = document.getElementById('started-tasks-list');
+    const completedTasksList = document.getElementById('completed-tasks-list');
+    
+    // Verifica se os elementos existem
+    if (!loadingElement || !errorElement || !emptyElement || !contentElement ||
+        !upcomingTasksList || !startedTasksList || !completedTasksList) {
+        console.error("Elementos da linha do tempo não encontrados");
+        return;
+    }
+    
+    // Função para mostrar/ocultar elementos de status
+    function setTimelineStatus(isLoading, hasError, errorMsg, isEmpty) {
+        loadingElement.style.display = isLoading ? 'block' : 'none';
+        errorElement.style.display = hasError ? 'block' : 'none';
+        if (errorMsg) errorMessageElement.textContent = errorMsg;
+        emptyElement.style.display = isEmpty ? 'block' : 'none';
+        contentElement.style.display = (!isLoading && !hasError && !isEmpty) ? 'block' : 'none';
+    }
+    
+    // Busca o ID do projeto da página
+    const projectId = "{{ project_id }}";
+    if (!projectId) {
+        setTimelineStatus(false, true, "ID do projeto não definido", false);
+        return;
+    }
+    
+    // Busca o backlog do projeto
+    console.log("Buscando backlog para projeto", projectId);
+    fetch(`/backlog/api/projects/${projectId}/backlog`)
+        .then(response => {
+            if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error("Nenhum backlog encontrado para este projeto");
+                }
+                throw new Error(`Erro ao buscar backlog: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(backlogData => {
+            const backlogId = backlogData.id;
+            console.log("Backlog encontrado:", backlogId);
+            
+            // Agora busca as tarefas da timeline
+            return fetch(`/backlog/api/backlogs/${backlogId}/timeline-tasks`);
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Erro ao carregar tarefas: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log("Dados da timeline recebidos:", data);
+            
+            // Verifica se há tarefas para exibir
+            const hasUpcoming = data.upcoming_tasks && data.upcoming_tasks.length > 0;
+            const hasStarted = data.recently_started && data.recently_started.length > 0;
+            const hasCompleted = data.recently_completed && data.recently_completed.length > 0;
+            
+            if (!hasUpcoming && !hasStarted && !hasCompleted) {
+                setTimelineStatus(false, false, null, true);
+                return;
+            }
+            
+            // Renderiza tarefas futuras
+            if (hasUpcoming) {
+                let html = '';
+                data.upcoming_tasks.forEach(task => {
+                    const startDate = task.start_date ? formatDateString(task.start_date) : '-';
+                    const dueDate = task.due_date ? formatDateString(task.due_date) : '-';
+                    
+                    html += `
+                        <li class="list-group-item" title="${escapeHtml(task.description || '')}">
+                            <span class="timeline-task-name">${escapeHtml(task.title)}</span>
+                            <span class="badge bg-light text-dark">A Fazer</span>
+                            <span class="text-muted small">
+                                <i class="bi bi-calendar-date text-primary" title="Data de Início"></i> ${startDate}
+                                <span class="mx-1">→</span>
+                                <i class="bi bi-calendar-check text-success" title="Prazo"></i> ${dueDate}
+                            </span>
+                        </li>
+                    `;
+                });
+                upcomingTasksList.innerHTML = html || '<li class="list-group-item text-center text-muted small">Nenhuma tarefa futura</li>';
+            } else {
+                upcomingTasksList.innerHTML = '<li class="list-group-item text-center text-muted small">Nenhuma tarefa futura</li>';
+            }
+            
+            // Renderiza tarefas em andamento
+            if (hasStarted) {
+                let html = '';
+                data.recently_started.forEach(task => {
+                    const startDate = task.start_date ? formatDateString(task.start_date) : '-';
+                    const dueDate = task.due_date ? formatDateString(task.due_date) : '-';
+                    
+                    html += `
+                        <li class="list-group-item" title="${escapeHtml(task.description || '')}">
+                            <span class="timeline-task-name">${escapeHtml(task.title)}</span>
+                            <span class="badge bg-primary">Em Andamento</span>
+                            <span class="text-muted small">
+                                <i class="bi bi-play-circle text-primary" title="Iniciado em"></i> ${startDate}
+                                <span class="mx-1">→</span>
+                                <i class="bi bi-calendar-check text-success" title="Prazo"></i> ${dueDate}
+                            </span>
+                        </li>
+                    `;
+                });
+                startedTasksList.innerHTML = html || '<li class="list-group-item text-center text-muted small">Nenhuma tarefa em andamento</li>';
+            } else {
+                startedTasksList.innerHTML = '<li class="list-group-item text-center text-muted small">Nenhuma tarefa em andamento</li>';
+            }
+            
+            // Renderiza tarefas concluídas
+            if (hasCompleted) {
+                let html = '';
+                data.recently_completed.forEach(task => {
+                    const completedDate = task.completed_at ? formatDateString(task.completed_at) : '-';
+                    
+                    html += `
+                        <li class="list-group-item" title="${escapeHtml(task.description || '')}">
+                            <span class="timeline-task-name">${escapeHtml(task.title)}</span>
+                            <span class="badge bg-success">Concluído</span>
+                            <span class="text-muted small">
+                                <i class="bi bi-check-circle text-success" title="Concluído em"></i> ${completedDate}
+                            </span>
+                        </li>
+                    `;
+                });
+                completedTasksList.innerHTML = html || '<li class="list-group-item text-center text-muted small">Nenhuma tarefa concluída</li>';
+            } else {
+                completedTasksList.innerHTML = '<li class="list-group-item text-center text-muted small">Nenhuma tarefa concluída</li>';
+            }
+            
+            // Mostra o conteúdo
+            setTimelineStatus(false, false, null, false);
+        })
+        .catch(error => {
+            console.error("Erro ao carregar timeline:", error);
+            setTimelineStatus(false, true, error.message, false);
+        });
+});
+</script>
 
 </body>
 </html> 

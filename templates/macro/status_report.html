@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 {{ super() }}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
 <style>
     /* Classes para controlar visibilidade na tela e no PDF */
     .pdf-only {
@@ -271,11 +272,15 @@
     .milestone-name {
         font-weight: 600 !important;
         color: #333 !important;
+        text-align: left !important;
+        display: inline-block !important;
     }
     
     .milestone-date {
         color: #666 !important;
         font-size: 0.85em !important;
+        text-align: right !important;
+        display: block !important;
     }
 
     /* Classe para estilo ao gerar PDF via browser */
@@ -416,6 +421,209 @@
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
+    }
+
+    /* Timeline estilo tabular (igual Marcos) */
+    .timeline-section {
+        margin-bottom: 15px !important;
+        border: 1px solid #e3e6f0 !important;
+        border-radius: 0.25rem !important;
+        overflow: hidden !important;
+    }
+
+    .timeline-section .section-header {
+        padding: 8px 12px !important;
+        margin: 0 !important;
+        background-color: #f8f9fa !important;
+        border-bottom: 1px solid #e9ecef !important;
+        font-weight: 600 !important;
+        color: #495057 !important;
+        text-align: left !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+    
+    .timeline-section .section-header i {
+        margin-right: 8px !important;
+        font-size: 1rem !important;
+    }
+    
+    .timeline-section .section-header span {
+        line-height: 1.2 !important;
+        font-size: 0.85rem !important;
+    }
+    
+    /* Cabeçalho da tabela de timeline */
+    .timeline-section .column-headers {
+        display: flex !important;
+        padding: 6px 12px !important;
+        font-size: 0.7rem !important;
+        font-weight: 700 !important;
+        background-color: #eef0f2 !important;
+        border-bottom: 1px solid #dee2e6 !important;
+        color: #555 !important;
+    }
+    
+    .timeline-section .column-headers .task-column {
+        flex: 0 0 50% !important;
+        text-align: left !important;
+        padding-left: 0 !important;
+    }
+    
+    .timeline-section .column-headers .status-column {
+        flex: 0 0 25% !important;
+        text-align: center !important;
+    }
+    
+    .timeline-section .column-headers .date-column {
+        flex: 0 0 25% !important;
+        text-align: right !important;
+        padding-right: 12px !important;
+    }
+    
+    .timeline-section .list-group {
+        margin-bottom: 0 !important;
+    }
+    
+    .timeline-section .list-group-item {
+        padding: 6px 12px !important;
+        font-size: 0.8rem !important;
+        border: none !important;
+        border-bottom: 1px solid #f0f0f0 !important;
+        margin: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        transition: background-color 0.15s ease-in-out !important;
+    }
+    
+    .timeline-section .list-group-item:hover {
+        background-color: #f8f9fa !important;
+    }
+    
+    .timeline-section .list-group-item:last-child {
+        border-bottom: none !important;
+    }
+    
+    .timeline-section .badge {
+        flex: 0 0 25% !important;
+        font-size: 0.7rem !important;
+        padding: 4px 8px !important;
+        border-radius: 3px !important;
+        margin: 0 auto !important; /* Centralizar horizontalmente */
+        text-align: center !important;
+        display: inline-block !important;
+        width: auto !important;
+        min-width: 80px !important;
+        max-width: 90px !important; /* Limitar largura máxima */
+    }
+    
+    /* Container de status para centralizar o badge */
+    .timeline-section .status-container {
+        flex: 0 0 25% !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+    }
+    
+    /* Badge para A Fazer em cinza */
+    .timeline-section .badge.bg-secondary {
+        background-color: #6c757d !important;
+        color: white !important;
+    }
+    
+    .timeline-section .text-muted.small {
+        flex: 0 0 25% !important;
+        font-size: 0.75rem !important;
+        white-space: nowrap !important;
+        text-align: right !important;
+        color: #6c757d !important;
+        padding-right: 12px !important;
+    }
+    
+    .timeline-task-name {
+        flex: 0 0 50% !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        margin-right: 0 !important;
+        font-weight: 500 !important;
+        color: #495057 !important;
+        text-align: left !important;
+        font-size: 0.8rem !important;
+    }
+    
+    /* Alinhar estilo da tabela de marcos */
+    .table-sm th {
+        font-weight: 700 !important;
+        font-size: 0.7rem !important;
+        background-color: #eef0f2 !important;
+        color: #555 !important;
+        padding: 6px 12px !important;
+        border-bottom: 1px solid #dee2e6 !important;
+    }
+    
+    .table-sm td {
+        font-size: 0.8rem !important;
+        padding: 6px 12px !important;
+        vertical-align: middle !important;
+    }
+    
+    /* Garantir que os ícones e textos de data fiquem lado a lado */
+    .timeline-section .text-muted.small i {
+        margin-right: 2px !important;
+    }
+    
+    .timeline-section .text-muted.small span.mx-1 {
+        margin-left: 3px !important;
+        margin-right: 3px !important;
+        opacity: 0.7 !important;
+    }
+
+    /* Alinhamento específico para a tabela de marcos */
+    .table-sm th:first-child {
+        text-align: left !important;
+    }
+    
+    .table-sm th:last-child {
+        text-align: right !important;
+    }
+    
+    .table-sm td:first-child {
+        text-align: left !important;
+    }
+    
+    .table-sm td:last-child {
+        text-align: right !important;
+    }
+
+    /* Garantir que os badges em ambas as seções sejam idênticos */
+    .timeline-section .badge,
+    .table-sm .badge {
+        font-size: 0.7rem !important;
+        padding: 4px 8px !important;
+        border-radius: 3px !important;
+        display: inline-block !important;
+        text-align: center !important;
+        min-width: 80px !important;
+    }
+
+    /* Ajuste para o ícone de Marco (ponto de exclamação) */
+    .table-sm td .badge.bg-danger {
+        font-size: 0.65rem !important;
+        padding: 2px 4px !important;
+        margin-right: 6px !important;
+        width: auto !important;
+        min-width: auto !important;
+    }
+    
+    /* Ajuste para o badge de status de Marco */
+    .table-sm td:nth-child(2) .badge {
+        font-size: 0.7rem !important;
+        padding: 4px 8px !important;
+        border-radius: 3px !important;
+        display: inline-block !important;
+        text-align: center !important;
+        min-width: 80px !important;
     }
 </style>
 {% endblock %}
@@ -607,10 +815,9 @@
                         <table class="table table-sm table-hover">
                             <thead>
                                 <tr class="table-light">
-                                    <th style="width: 40%">Marco</th>
-                                    <th style="width: 20%">Data Planejada</th>
-                                    <th style="width: 20%">Status</th>
-                                    <th style="width: 20%">Responsável</th>
+                                    <th style="width: 50%">Marco</th>
+                                    <th style="width: 25%">Status</th>
+                                    <th style="width: 25%">Data Planejada</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -621,17 +828,16 @@
                                             <span class="milestone-name">{{ marco.nome }}</span>
                                         </td>
                                         <td>
-                                            <span class="milestone-date">{{ marco.data_planejada }}</span>
-                                        </td>
-                                        <td>
-                                            <span class="badge {% if marco.status == 'COMPLETED' or marco.status == 'CONCLUÍDO' %}bg-success{% elif marco.status == 'IN_PROGRESS' or marco.status == 'EM ANDAMENTO' %}bg-warning text-dark{% elif marco.status == 'DELAYED' or marco.status == 'ATRASADO' %}bg-danger{% else %}badge-pending{% endif %}">
+                                            <span class="badge {% if marco.status == 'COMPLETED' or marco.status == 'CONCLUÍDO' %}bg-success{% elif marco.status == 'IN_PROGRESS' or marco.status == 'EM ANDAMENTO' %}bg-primary{% elif marco.status == 'DELAYED' or marco.status == 'ATRASADO' %}bg-danger{% else %}bg-secondary{% endif %}">
                                                 {% if marco.status == 'COMPLETED' or marco.status == 'CONCLUÍDO' %}Concluído
                                                 {% elif marco.status == 'IN_PROGRESS' or marco.status == 'EM ANDAMENTO' %}Em Andamento
                                                 {% elif marco.status == 'DELAYED' or marco.status == 'ATRASADO' %}Atrasado
                                                 {% else %}Pendente{% endif %}
                                             </span>
                                         </td>
-                                        <td>{{ marco.responsavel|default('Não atribuído') }}</td>
+                                        <td>
+                                            <span class="milestone-date">{{ marco.data_planejada }}</span>
+                                        </td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
@@ -652,7 +858,52 @@
                     <i class="bi bi-list-task text-primary me-2"></i>
                     <h6 class="section-title mb-0">Linha do Tempo (Tarefas)</h6>
                 </div>
-                <p class="editable-field" data-field="linha-tempo">[Uma visualização da linha do tempo das tarefas será adicionada aqui]</p>
+                <div class="card shadow-sm h-100">
+                    <div id="timeline-loading" class="text-center p-3">
+                        <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                        <span class="text-muted small">Carregando tarefas...</span>
+                    </div>
+                    
+                    <div id="timeline-error" class="text-center p-3 text-danger" style="display: none;">
+                        <i class="bi bi-exclamation-circle me-2"></i>
+                        <span id="timeline-error-message" class="small">Erro ao carregar tarefas</span>
+                    </div>
+                    
+                    <div id="timeline-empty" class="text-center p-3 text-muted" style="display: none;">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <span class="small">Nenhuma tarefa encontrada</span>
+                    </div>
+                    
+                    <!-- Lista de tarefas -->
+                    <div id="timeline-content" style="display: none;">
+                        <!-- Próximas tarefas -->
+                        <div class="timeline-section">
+                            <div class="section-header">
+                                <i class="bi bi-calendar-event text-warning"></i>
+                                <span class="fw-bold">Próximas Tarefas</span>
+                            </div>
+                            <ul class="list-group list-group-flush" id="upcoming-tasks-list"></ul>
+                        </div>
+                        
+                        <!-- Tarefas em andamento -->
+                        <div class="timeline-section">
+                            <div class="section-header">
+                                <i class="bi bi-play-circle text-primary"></i>
+                                <span class="fw-bold">Em Andamento</span>
+                            </div>
+                            <ul class="list-group list-group-flush" id="started-tasks-list"></ul>
+                        </div>
+                        
+                        <!-- Tarefas concluídas -->
+                        <div class="timeline-section">
+                            <div class="section-header">
+                                <i class="bi bi-check-circle text-success"></i>
+                                <span class="fw-bold">Concluídas</span>
+                            </div>
+                            <ul class="list-group list-group-flush" id="completed-tasks-list"></ul>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -700,6 +951,7 @@
 {% endblock %}
 
 {% block extra_js %}
+{{ super() }}
 <!-- Importar bibliotecas necessárias para geração de PDF no navegador -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
@@ -1240,5 +1492,212 @@
             });
         }
     });
+</script>
+
+<!-- Script para carregar a linha do tempo -->
+<script>
+// Formatação de data
+function formatDateString(dateStr) {
+    if (!dateStr) return "-";
+    try {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return dateStr; // Retorna a string original se a data for inválida
+        return date.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'});
+    } catch (e) {
+        console.error("Erro ao formatar data:", e, dateStr);
+        return dateStr;
+    }
+}
+
+// Escapa HTML para tooltips seguros
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe
+        .toString()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// Função para carregar a timeline de tarefas
+document.addEventListener('DOMContentLoaded', function() {
+    // Elementos DOM para manipulação
+    const loadingElement = document.getElementById('timeline-loading');
+    const errorElement = document.getElementById('timeline-error');
+    const errorMessageElement = document.getElementById('timeline-error-message');
+    const emptyElement = document.getElementById('timeline-empty');
+    const contentElement = document.getElementById('timeline-content');
+    
+    // Listas para as tarefas
+    const upcomingTasksList = document.getElementById('upcoming-tasks-list');
+    const startedTasksList = document.getElementById('started-tasks-list');
+    const completedTasksList = document.getElementById('completed-tasks-list');
+    
+    // Verifica se os elementos existem
+    if (!loadingElement || !errorElement || !emptyElement || !contentElement ||
+        !upcomingTasksList || !startedTasksList || !completedTasksList) {
+        console.error("Elementos da linha do tempo não encontrados");
+        return;
+    }
+    
+    // Função para mostrar/ocultar elementos de status
+    function setTimelineStatus(isLoading, hasError, errorMsg, isEmpty) {
+        loadingElement.style.display = isLoading ? 'block' : 'none';
+        errorElement.style.display = hasError ? 'block' : 'none';
+        if (errorMsg) errorMessageElement.textContent = errorMsg;
+        emptyElement.style.display = isEmpty ? 'block' : 'none';
+        contentElement.style.display = (!isLoading && !hasError && !isEmpty) ? 'block' : 'none';
+    }
+    
+    // Busca o ID do projeto da página
+    const projectId = "{{ project_id }}";
+    if (!projectId) {
+        setTimelineStatus(false, true, "ID do projeto não definido", false);
+        return;
+    }
+    
+    // Busca o backlog do projeto
+    console.log("Buscando backlog para projeto", projectId);
+    fetch(`/backlog/api/projects/${projectId}/backlog`)
+        .then(response => {
+            if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error("Nenhum backlog encontrado para este projeto");
+                }
+                throw new Error(`Erro ao buscar backlog: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(backlogData => {
+            const backlogId = backlogData.id;
+            console.log("Backlog encontrado:", backlogId);
+            
+            // Agora busca as tarefas da timeline
+            return fetch(`/backlog/api/backlogs/${backlogId}/timeline-tasks`);
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Erro ao carregar tarefas: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log("Dados da timeline recebidos:", data);
+            
+            // Verifica se há tarefas para exibir
+            const hasUpcoming = data.upcoming_tasks && data.upcoming_tasks.length > 0;
+            const hasStarted = data.recently_started && data.recently_started.length > 0;
+            const hasCompleted = data.recently_completed && data.recently_completed.length > 0;
+            
+            if (!hasUpcoming && !hasStarted && !hasCompleted) {
+                setTimelineStatus(false, false, null, true);
+                return;
+            }
+            
+            // Renderiza tarefas futuras
+            if (hasUpcoming) {
+                let html = '';
+                // Adicionar cabeçalho
+                html += `
+                    <div class="column-headers">
+                        <div class="task-column">Tarefa</div>
+                        <div class="status-column">Status</div>
+                        <div class="date-column">Período</div>
+                    </div>
+                `;
+                data.upcoming_tasks.forEach(task => {
+                    const startDate = task.start_date ? formatDateString(task.start_date) : '-';
+                    const dueDate = task.due_date ? formatDateString(task.due_date) : '-';
+                    
+                    html += `
+                        <li class="list-group-item" title="${escapeHtml(task.description || '')}">
+                            <span class="timeline-task-name">${escapeHtml(task.title)}</span>
+                            <div class="status-container">
+                                <span class="badge bg-secondary">A Fazer</span>
+                            </div>
+                            <span class="text-muted small">
+                                ${startDate} → ${dueDate}
+                            </span>
+                        </li>
+                    `;
+                });
+                upcomingTasksList.innerHTML = html || '<li class="list-group-item text-center text-muted small">Nenhuma tarefa futura</li>';
+            } else {
+                upcomingTasksList.innerHTML = '<li class="list-group-item text-center text-muted small">Nenhuma tarefa futura</li>';
+            }
+            
+            // Renderiza tarefas em andamento
+            if (hasStarted) {
+                let html = '';
+                // Adicionar cabeçalho
+                html += `
+                    <div class="column-headers">
+                        <div class="task-column">Tarefa</div>
+                        <div class="status-column">Status</div>
+                        <div class="date-column">Período</div>
+                    </div>
+                `;
+                data.recently_started.forEach(task => {
+                    const startDate = task.start_date ? formatDateString(task.start_date) : '-';
+                    const dueDate = task.due_date ? formatDateString(task.due_date) : '-';
+                    
+                    html += `
+                        <li class="list-group-item" title="${escapeHtml(task.description || '')}">
+                            <span class="timeline-task-name">${escapeHtml(task.title)}</span>
+                            <div class="status-container">
+                                <span class="badge bg-primary">Andamento</span>
+                            </div>
+                            <span class="text-muted small">
+                                ${startDate} → ${dueDate}
+                            </span>
+                        </li>
+                    `;
+                });
+                startedTasksList.innerHTML = html || '<li class="list-group-item text-center text-muted small">Nenhuma tarefa em andamento</li>';
+            } else {
+                startedTasksList.innerHTML = '<li class="list-group-item text-center text-muted small">Nenhuma tarefa em andamento</li>';
+            }
+            
+            // Renderiza tarefas concluídas
+            if (hasCompleted) {
+                let html = '';
+                // Adicionar cabeçalho
+                html += `
+                    <div class="column-headers">
+                        <div class="task-column">Tarefa</div>
+                        <div class="status-column">Status</div>
+                        <div class="date-column">Data Conclusão</div>
+                    </div>
+                `;
+                data.recently_completed.forEach(task => {
+                    const completedDate = task.completed_at ? formatDateString(task.completed_at) : '-';
+                    
+                    html += `
+                        <li class="list-group-item" title="${escapeHtml(task.description || '')}">
+                            <span class="timeline-task-name">${escapeHtml(task.title)}</span>
+                            <div class="status-container">
+                                <span class="badge bg-success">Concluído</span>
+                            </div>
+                            <span class="text-muted small">
+                                ${completedDate}
+                            </span>
+                        </li>
+                    `;
+                });
+                completedTasksList.innerHTML = html || '<li class="list-group-item text-center text-muted small">Nenhuma tarefa concluída</li>';
+            } else {
+                completedTasksList.innerHTML = '<li class="list-group-item text-center text-muted small">Nenhuma tarefa concluída</li>';
+            }
+            
+            // Mostra o conteúdo
+            setTimelineStatus(false, false, null, false);
+        })
+        .catch(error => {
+            console.error("Erro ao carregar timeline:", error);
+            setTimelineStatus(false, true, error.message, false);
+        });
+});
 </script>
 {% endblock %} 
