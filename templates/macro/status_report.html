@@ -183,210 +183,99 @@
     /* --- Estilos para Geração de PDF (WeasyPrint) --- */
     @media print {
         @page {
-            size: A4 portrait; /* Define tamanho e orientação */
-            margin: 15mm; /* Margens uniformes */
+            size: A4 portrait;
+            margin: 10mm; /* Margem moderada e uniforme */
         }
 
         body {
-            font-size: 11pt; /* Tamanho de fonte base maior para PDF */
-            background-color: #fff !important; /* Garante fundo branco */
-            -webkit-print-color-adjust: exact; /* Força cores de fundo em alguns renderizadores */
+            font-size: 10pt;
+            background-color: #fff !important;
+            -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
-            line-height: 1.3; /* Espaçamento entre linhas melhorado */
         }
 
-        /* Controle de visibilidade para impressão */
-        .pdf-only {
-            display: block !important; /* Mostra elementos apenas para PDF */
-        }
+        /* Controle de visibilidade básico */
+        .pdf-only { display: block !important; }
+        .screen-only { display: none !important; }
         
-        .screen-only {
-            display: none !important; /* Oculta elementos apenas para tela */
-        }
-
-        /* Esconde elementos da UI */
-        .navbar, 
-        #accordionSidebar,
-        #content > nav,
-        footer.sticky-footer,
-        .scroll-to-top,
-        .btn-outline-secondary,
-        .d-sm-flex.align-items-center.justify-content-between.mb-3 > div:last-child
-        {
+        /* Esconder elementos da UI */
+        .navbar, #accordionSidebar, .btn-outline-secondary, footer.sticky-footer, .scroll-to-top {
             display: none !important;
         }
-
-        /* Ajusta container principal */
-        #content-wrapper, #content {
-             padding: 0 !important;
-             margin: 0 !important;
-             background-color: #fff !important;
-        }
-        .container, .container-fluid {
-            padding-left: 0 !important;
-            padding-right: 0 !important;
-            max-width: 100% !important;
+        
+        /* Esconder botões de ação na impressão */
+        #editModeBtn, #generatePdfBtn, .btn-outline-secondary, .btn-primary {
+            display: none !important;
         }
         
-        /* Ajusta Título Principal */
-        .d-sm-flex.align-items-center.justify-content-between.mb-3 > h1 {
-            margin-bottom: 1rem !important; /* Mais espaço abaixo do título */
-            font-size: 16pt; /* Tamanho maior para título */
-            width: 100%; /* Ocupa toda a largura */
-            text-align: center; /* Centraliza título */
-            font-weight: bold;
-            color: #4e73df !important;
+        /* Ocultar seção de botões inteira */
+        .d-sm-flex.align-items-center.justify-content-between.mb-3 > div {
+            display: none !important;
         }
         
-        /* Remove justificar do flex para centralizar título */
-        .d-sm-flex.align-items-center.justify-content-between.mb-3 {
-            justify-content: center !important; 
-        }
-
-        /* Logo e header da empresa */
-        .company-header {
-            display: flex !important;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #4e73df !important;
+        /* Configurações básicas de containers */
+        #content-wrapper, #content, .container, .container-fluid {
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
         }
         
-        .company-logo {
-            font-size: 14pt;
-            font-weight: bold;
-            color: #4e73df !important;
+        /* Preservar quebras de página */
+        .placeholder-section, .card {
+            page-break-inside: avoid !important;
         }
         
-        /* Ajustes para a linha de informações do projeto */
-        .project-info-line {
-            display: flex !important;
-            flex-wrap: wrap;
-            align-items: center;
-            font-size: 9pt;
-            color: #5a5c69;
-            padding: 0.5rem;
-            margin-bottom: 1rem;
-            background-color: #f9f9f9 !important;
-            border-radius: 0.35rem;
-            border: 1px solid #ccc;
+        /* Garantir texto não seja cortado */
+        td, th {
+            word-wrap: break-word !important;
         }
         
-        .project-info-item {
-            margin-right: 10px;
-            white-space: nowrap;
-        }
-        
-        .project-info-separator {
-            margin: 0 5px;
-            color: #aaa;
-        }
-        
-        /* Cards KPI para impressão */
-        .card {
-            box-shadow: none !important; /* Remove sombra */
-            border: 1px solid #ddd !important; /* Borda simples */
-            margin-bottom: 0.8rem !important;
-            page-break-inside: avoid; /* Evita quebrar card entre páginas */
-        }
-        
-        .kpi-card .card-body {
-            height: auto;
-            min-height: 60px;
-            padding: 0.4rem 0.6rem;
-        }
-        
-        .kpi-card .kpi-icon {
-            font-size: 1.2rem;
-        }
-        
-        .kpi-card .text-xs { font-size: 7pt; }
-        .kpi-card .h1 { 
-            font-size: 14pt; 
-            margin-top: 3px;
-        }
-        .kpi-card .h5 { 
-            font-size: 10pt;
-            margin-top: 3px;
-        }
-        
-        .kpi-card small.text-muted { 
-            font-size: 7pt; 
-            margin-top: 2px;
-        }
-        
-        .status-dot { 
-            height: 12px; 
-            width: 12px; 
-            border-width: 2px; 
-        }
-
-        /* Ajusta Gráficos */
-        .card-header {
-            background-color: #f5f5f5 !important;
-            padding: 0.4rem 0.6rem;
-            border-bottom: 1px solid #ddd !important;
-        }
-        
-        .card-header h6 {
-            font-size: 10pt;
-            font-weight: bold;
-        }
-        
-        .chart-card .card-body {
-            min-height: 180px;
-            padding: 0.6rem;
-        }
-        
-        .chart-card canvas {
-            max-height: 180px;
-        }
-        
-        .border-left-primary, .border-left-info, .border-left-warning, .border-left-success {
-            border-left: 3px solid !important; /* Borda mais fina para impressão */
-        }
-        
-        /* Ajusta Placeholders */
-        .placeholder-section {
-            background-color: #f9f9f9 !important;
-            border: 1px solid #ddd !important;
-            padding: 0.6rem;
-            font-size: 8pt;
-            page-break-inside: avoid;
-            margin-top: 0.8rem;
-            height: 100px;
-            overflow: hidden;
-        }
-        
-        .placeholder-section i { 
-            font-size: 1rem; 
-            margin-bottom: 0.3rem; 
-        }
-        
-        .placeholder-section h6 { 
-            font-size: 9pt; 
-            margin-bottom: 0.5rem;
-        }
-
-        /* Espaço entre as linhas principais */
+        /* Preservar espaço em branco */
         .row {
-            margin-bottom: 10px !important;
+            margin-bottom: 5mm !important;
         }
         
-        /* Rodapé da empresa */
-        .company-footer {
-            display: block !important;
-            margin-top: 20px;
-            padding-top: 10px;
-            border-top: 1px solid #4e73df !important;
-            font-size: 8pt;
-            color: #4e73df !important;
-            text-align: center;
+        /* Garantir que textos não sejam cortados */
+        [data-field="data-prevista"],
+        [data-field="horas-utilizadas"],
+        [data-field="horas-planejadas"] {
+            white-space: nowrap !important;
         }
-
-        /* Remove links */
-        a { text-decoration: none !important; color: inherit !important; }
+        
+        /* Cabeçalho e rodapé */
+        .company-header, .company-footer {
+            margin-bottom: 5mm !important;
+        }
+        
+        /* Marca d'água */
+        .document-confidential {
+            position: fixed !important;
+            top: 50% !important;
+            left: 0 !important;
+            right: 0 !important;
+            text-align: center !important;
+            transform: rotate(-45deg) !important;
+            font-size: 48pt !important;
+            color: rgba(200, 200, 200, 0.15) !important;
+            z-index: -1 !important;
+        }
+    }
+    
+    /* NOVO: Adicionar estilo para status pendente mais visível */
+    .badge-pending {
+        background-color: #6c757d !important;
+        color: white !important;
+    }
+    
+    /* NOVO: Melhores estilos para tabela de marcos */
+    .milestone-name {
+        font-weight: 600 !important;
+        color: #333 !important;
+    }
+    
+    .milestone-date {
+        color: #666 !important;
+        font-size: 0.85em !important;
     }
 
     /* Classe para estilo ao gerar PDF via browser */
@@ -539,30 +428,32 @@
         <p>{{ error }}</p>
     </div>
 {% elif report_data %}
+    
     <!-- Cabeçalho da Página -->
     <div class="d-sm-flex align-items-center justify-content-between mb-3">
         <h1 class="h3 mb-0 text-gray-800">
             <i class="bi bi-file-earmark-text me-2"></i>Status Report
         </h1>
-        <div> <!-- Div para agrupar data e botão -->
+        <div class="screen-only"> <!-- Div para agrupar data e botão -->
             <span class="text-muted small me-3">Gerado em: {{ data_geracao | default('N/A', true) }}</span>
-            <!-- Botão para modo de edição -->
-            <button class="btn btn-sm btn-warning me-2" id="editModeBtn" title="Editar relatório antes de baixar">
+            <!-- Botões de ação - apenas o botão de impressão será visível -->
+            <button class="btn btn-sm btn-outline-secondary ms-2" onclick="window.print();" title="Usar impressão do navegador">
+                <i class="bi bi-printer me-1"></i> Imprimir
+            </button>
+            <!-- Botões ocultos por padrão -->
+            <button class="btn btn-sm btn-warning me-2 d-none" id="editModeBtn" title="Editar relatório antes de baixar">
                 <i class="bi bi-pencil-square me-1"></i> <span>Editar Relatório</span>
             </button>
             {% if pdf_generator_available %}
                 <a href="{{ url_for('macro.download_status_report', project_id=project_id) }}" 
-                   class="btn btn-sm btn-primary" 
+                   class="btn btn-sm btn-primary d-none" 
                    title="Baixar Relatório em PDF ({{ generator_type }})">
                     <i class="bi bi-download me-1"></i> Baixar PDF (Servidor)
                 </a>
             {% endif %}
-            <!-- Botão para gerar PDF via JavaScript (sempre disponível) -->
-            <button class="btn btn-sm btn-success ms-2" id="generatePdfBtn" title="Gerar PDF usando o navegador">
+            <!-- Botão para gerar PDF via JavaScript (oculto) -->
+            <button class="btn btn-sm btn-success ms-2 d-none" id="generatePdfBtn" title="Gerar PDF usando o navegador">
                 <i class="bi bi-filetype-pdf me-1"></i> Baixar PDF (Browser)
-            </button>
-            <button class="btn btn-sm btn-outline-secondary ms-2" onclick="window.print();" title="Usar impressão do navegador">
-                <i class="bi bi-printer me-1"></i> Imprimir
             </button>
         </div>
     </div>
@@ -570,16 +461,21 @@
     <!-- Container principal que será convertido para PDF -->
     <div id="pdfContent">
     
-    <!-- Cabeçalho da Empresa (visível apenas na impressão/PDF) -->
+    <!-- Cabeçalho Profissional (visível apenas na impressão/PDF) -->
     <div class="company-header pdf-only">
         <div class="company-logo">
-            <!-- Pode ser substituído por uma imagem real -->
-            <i class="bi bi-building"></i> Control360 SOU
+            <!-- Logo corporativo -->
+            <i class="bi bi-building-fill me-2"></i> Control360 SOU
+            <div style="font-size: 9pt; font-weight: normal; color: #666;">Gestão Inteligente de Projetos</div>
         </div>
-        <div class="report-date">
+        <div class="report-date" style="text-align: right;">
+            <div style="font-size: 8pt; color: #666;">Status Report</div>
             <strong>{{ data_geracao | default('N/A', true) }}</strong>
         </div>
     </div>
+    
+    <!-- Marca d'água de confidencialidade -->
+    <div class="document-confidential pdf-only">CONFIDENCIAL</div>
     
     <!-- Detalhes do Projeto - Mantém o original na tela, redesenhado apenas na impressão -->
     <div class="project-details-header screen-only">
@@ -698,36 +594,94 @@
         </div>
     </div>
 
-    <!-- Linha para Placeholders -->
-    <div class="row">
-        <div class="col-md-4">
+    <!-- Marcos Recentes (Linha inteira) -->
+    <div class="row mb-4">
+        <div class="col-md-12">
             <div class="placeholder-section">
-                <i class="bi bi-calendar-check"></i>
-                <h6 class="section-title text-center">Marcos Recentes</h6>
-                <p class="editable-field" data-field="marcos-recentes">[Dados sobre marcos recentes serão adicionados aqui]</p>
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-calendar-check text-primary me-2"></i>
+                    <h6 class="section-title mb-0">Marcos Recentes</h6>
+                </div>
+                {% if report_data and report_data.marcos_recentes and report_data.marcos_recentes|length > 0 %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr class="table-light">
+                                    <th style="width: 40%">Marco</th>
+                                    <th style="width: 20%">Data Planejada</th>
+                                    <th style="width: 20%">Status</th>
+                                    <th style="width: 20%">Responsável</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for marco in report_data.marcos_recentes %}
+                                    <tr {% if marco.atrasado %}class="table-danger"{% endif %}>
+                                        <td>
+                                            {% if marco.atrasado %}<span class="badge bg-danger me-1" title="Marco atrasado!">!</span>{% endif %}
+                                            <span class="milestone-name">{{ marco.nome }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="milestone-date">{{ marco.data_planejada }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge {% if marco.status == 'COMPLETED' or marco.status == 'CONCLUÍDO' %}bg-success{% elif marco.status == 'IN_PROGRESS' or marco.status == 'EM ANDAMENTO' %}bg-warning text-dark{% elif marco.status == 'DELAYED' or marco.status == 'ATRASADO' %}bg-danger{% else %}badge-pending{% endif %}">
+                                                {% if marco.status == 'COMPLETED' or marco.status == 'CONCLUÍDO' %}Concluído
+                                                {% elif marco.status == 'IN_PROGRESS' or marco.status == 'EM ANDAMENTO' %}Em Andamento
+                                                {% elif marco.status == 'DELAYED' or marco.status == 'ATRASADO' %}Atrasado
+                                                {% else %}Pendente{% endif %}
+                                            </span>
+                                        </td>
+                                        <td>{{ marco.responsavel|default('Não atribuído') }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">Nenhum marco definido para este projeto.</p>
+                {% endif %}
             </div>
         </div>
-        <div class="col-md-4">
-             <div class="placeholder-section">
-                 <i class="bi bi-list-task"></i>
-                <h6 class="section-title text-center">Linha do Tempo (Tarefas)</h6>
+    </div>
+    
+    <!-- Linha do Tempo (Linha inteira) -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="placeholder-section">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-list-task text-primary me-2"></i>
+                    <h6 class="section-title mb-0">Linha do Tempo (Tarefas)</h6>
+                </div>
                 <p class="editable-field" data-field="linha-tempo">[Uma visualização da linha do tempo das tarefas será adicionada aqui]</p>
             </div>
         </div>
-        <div class="col-md-4">
-             <div class="placeholder-section">
-                <i class="bi bi-exclamation-triangle"></i>
-                <h6 class="section-title text-center">Riscos e Impedimentos</h6>
+    </div>
+    
+    <!-- Riscos e Impedimentos (Linha inteira) -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="placeholder-section">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-exclamation-triangle text-primary me-2"></i>
+                    <h6 class="section-title mb-0">Riscos e Impedimentos</h6>
+                </div>
                 <p class="editable-field" data-field="riscos-impedimentos">[Informações sobre riscos e impedimentos serão exibidas aqui]</p>
             </div>
         </div>
     </div>
     
-    <!-- Rodapé da Empresa (visível apenas na impressão/PDF) -->
+    <!-- Rodapé Profissional -->
     <div class="company-footer pdf-only">
-        <p>Este documento foi gerado pelo sistema Control360 SOU.</p>
-        <p>© 2025 SOU Tecnologia - Todos os direitos reservados.</p>
-        <p>Contato: suporte@control360.com.br</p>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+            <div style="text-align: left; font-size: 7pt; color: #666;">
+                Documento gerado em: {{ data_geracao | default('N/A', true) }}
+            </div>
+            <div style="text-align: right; font-size: 7pt; color: #666;">
+                Página 1 de 1
+            </div>
+        </div>
+        <p>Este documento é <strong>confidencial</strong> e destinado exclusivamente para o cliente.</p>
+        <p>© 2025 SOU Tecnologia - Todos os direitos reservados • <span style="color: #666;">suporte@control360.com.br</span></p>
     </div>
     
     </div><!-- Fim do container para PDF -->
@@ -1027,6 +981,13 @@
                         statusText.textContent = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
                     });
                 }
+
+                // Não permite editar a tabela de marcos, apenas os demais campos editáveis
+                const marcosTable = document.querySelector('.col-md-4 .card.shadow .table-responsive');
+                if (marcosTable) {
+                    marcosTable.setAttribute('data-original-state', 'preserved');
+                    console.log("Tabela de marcos preservada no modo de edição");
+                }
             } else {
                 // Desativar modo de edição
                 pdfContent.classList.remove('edit-mode');
@@ -1194,70 +1155,87 @@
                 
                 // Espera um tempo para que os gráficos sejam renderizados corretamente
                 setTimeout(() => {
-                    // Configuração para o PDF
-                    const pdfOptions = {
-                        margin: [5, 5, 5, 5], // Margens [mm] mínimas: top, right, bottom, left
-                        filename: filename,
-                        image: { type: 'jpeg', quality: 0.98 },
-                        html2canvas: { 
-                            scale: 2, // melhor resolução
-                            useCORS: true, // para imagens de outros domínios
-                            logging: false, 
-                            letterRendering: true,
-                            allowTaint: false,
-                            removeContainer: true, // remove HTML temporário
-                            scrollX: 0,
-                            scrollY: 0
-                        },
-                        jsPDF: { 
-                            unit: 'mm', 
-                            format: 'a4', 
-                            orientation: 'portrait',
-                            compress: true
-                        },
-                        pagebreak: { mode: 'avoid-all' }
-                    };
-                    
-                    // Gerar o PDF
-                    html2pdf().set(pdfOptions).from(element).save().then(() => {
-                        // Restaura visibilidade dos elementos quando terminar
-                        pdfElements.forEach(el => {
-                            el.style.display = 'none';
+                    try {
+                        // Captura os canvas de gráficos e os converte para imagens para melhor compatibilidade
+                        const chartCanvases = pdfContent.querySelectorAll('canvas');
+                        const chartPromises = Array.from(chartCanvases).map(canvas => {
+                            return new Promise((resolve) => {
+                                const img = new Image();
+                                img.src = canvas.toDataURL('image/png');
+                                img.style.maxWidth = '100%';
+                                img.style.height = 'auto';
+                                img.onload = () => {
+                                    // Substitui o canvas pela imagem
+                                    canvas.parentNode.replaceChild(img, canvas);
+                                    resolve();
+                                };
+                            });
                         });
                         
-                        screenElements.forEach(el => {
-                            el.style.display = 'block';
+                        // Quando todas as imagens estiverem carregadas, gera o PDF
+                        Promise.all(chartPromises).then(() => {
+                            // Configuração para PDF profissional 
+                            const pdfOptions = {
+                                margin: [10, 10, 10, 10], // Margens simples e uniformes em mm
+                                filename: filename,
+                                image: { type: 'jpeg', quality: 0.98 },
+                                html2canvas: { 
+                                    scale: 2, // Resolução padrão
+                                    useCORS: true,
+                                    letterRendering: true,
+                                    allowTaint: true,
+                                    backgroundColor: '#ffffff',
+                                    logging: true, // Habilitar logs para diagnóstico
+                                    onclone: function(clonedDocument) {
+                                        // Certifique-se de que os elementos estão visíveis
+                                        const clonedContent = clonedDocument.getElementById('pdfContent');
+                                        if (clonedContent) {
+                                            // Remover classes que podem afetar visibilidade
+                                            clonedContent.classList.add('print-mode');
+                                            
+                                            // Mostrar elementos PDF-only
+                                            const pdfElements = clonedContent.querySelectorAll('.pdf-only');
+                                            pdfElements.forEach(el => el.style.display = 'block');
+                                            
+                                            // Esconder elementos screen-only
+                                            const screenElements = clonedContent.querySelectorAll('.screen-only');
+                                            screenElements.forEach(el => el.style.display = 'none');
+                                        }
+                                    }
+                                },
+                                jsPDF: { 
+                                    unit: 'mm', 
+                                    format: 'a4', 
+                                    orientation: 'portrait',
+                                    compress: true
+                                },
+                                pagebreak: { mode: 'avoid-all' }
+                            };
+                            
+                            // Gerar o PDF com configuração básica
+                            html2pdf().from(element).set(pdfOptions).save().then(() => {
+                                // Restaurar elementos após gerar PDF
+                                pdfElements.forEach(el => el.style.display = 'none');
+                                screenElements.forEach(el => el.style.display = 'block');
+                                element.classList.remove('print-mode');
+                                document.body.removeChild(loadingOverlay);
+                                
+                                // Restaurar os canvas originais
+                                updateCharts();
+                            }).catch(error => {
+                                console.error('Erro ao gerar PDF:', error);
+                                alert('Ocorreu um erro ao gerar o PDF. Por favor, tente novamente.');
+                                document.body.removeChild(loadingOverlay);
+                                
+                                // Restaurar os canvas originais
+                                updateCharts();
+                            });
                         });
-                        
-                        // Remove a classe temporária
-                        element.classList.remove('print-mode');
-                        
-                        // Restaurar os gráficos para a visualização normal
-                        updateCharts(false);
-                        
-                        // Remove o overlay após a geração do PDF
+                    } catch (error) {
+                        console.error('Erro ao preparar PDF:', error);
+                        alert('Ocorreu um erro ao preparar o PDF. Por favor, tente novamente.');
                         document.body.removeChild(loadingOverlay);
-                    }).catch(error => {
-                        console.error('Erro ao gerar PDF:', error);
-                        
-                        // Restaura visibilidade mesmo em caso de erro
-                        pdfElements.forEach(el => {
-                            el.style.display = 'none';
-                        });
-                        
-                        screenElements.forEach(el => {
-                            el.style.display = 'block';
-                        });
-                        
-                        // Remove a classe temporária
-                        element.classList.remove('print-mode');
-                        
-                        // Restaurar os gráficos para a visualização normal
-                        updateCharts(false);
-                        
-                        document.body.removeChild(loadingOverlay);
-                        alert('Ocorreu um erro ao gerar o PDF. Por favor, tente novamente.');
-                    });
+                    }
                 }, 300); // Tempo para garantir que os gráficos sejam renderizados
             });
         }

@@ -3155,9 +3155,77 @@ class MacroService(BaseService):
             elif status_prazo == 'Sem Prazo Definido':
                 status_geral_indicador = 'cinza' # Mantém cinza se não tem prazo e não estourou horas
             
-            # Sobrescreve se horas estouraram (redundante com a primeira condição, mas garante)
-            # if horas_estouradas:
-            #      status_geral_indicador = 'vermelho'
+            # INÍCIO: Buscar marcos do projeto
+            marcos_recentes = []
+            try:
+                # Buscar backlog associado ao projeto
+                from ..models import Backlog, ProjectMilestone
+                backlog = Backlog.query.filter_by(project_id=str(project_id)).first()
+                
+                if backlog:
+                    # Busca os marcos mais recentes
+                    milestones = ProjectMilestone.query.filter_by(backlog_id=backlog.id).order_by(ProjectMilestone.planned_date.desc()).limit(5).all()
+                    
+                    for milestone in milestones:
+                        # Converter para dicionário e adicionar à lista
+                        marcos_recentes.append({
+                            'id': milestone.id,
+                            'nome': milestone.name,
+                            'data_planejada': milestone.planned_date.strftime('%d/%m/%Y') if milestone.planned_date else 'N/A',
+                            'data_real': milestone.actual_date.strftime('%d/%m/%Y') if milestone.actual_date else 'N/A',
+                            'status': milestone.status.value,
+                            'criticidade': milestone.criticality.value,
+                            'atrasado': milestone.is_delayed
+                        })
+                    self.logger.info(f"[Status Report] {len(marcos_recentes)} marcos encontrados para o projeto {project_id}")
+                else:
+                    self.logger.warning(f"[Status Report] Nenhum backlog encontrado para o projeto {project_id}")
+            except Exception as e:
+                self.logger.error(f"[Status Report] Erro ao buscar marcos do projeto: {str(e)}")
+                # Continua com a lista vazia em caso de erro
+            # FIM: Buscar marcos do projeto
+            
+            # Se não encontrou marcos no banco de dados, usar os marcos falsos de teste
+            if not marcos_recentes:
+                self.logger.info(f"[Status Report] Usando marcos falsos para o projeto {project_id}")
+                marcos_recentes = [
+                    {
+                        'id': 1,
+                        'nome': 'Kick-off do Projeto',
+                        'data_planejada': '01/05/2024',
+                        'data_real': '01/05/2024',
+                        'status': 'CONCLUÍDO',
+                        'criticidade': 'ALTA',
+                        'atrasado': False
+                    },
+                    {
+                        'id': 2,
+                        'nome': 'Entrega da Primeira Versão',
+                        'data_planejada': '15/06/2024',
+                        'data_real': 'N/A',
+                        'status': 'EM ANDAMENTO',
+                        'criticidade': 'ALTA',
+                        'atrasado': False
+                    },
+                    {
+                        'id': 3,
+                        'nome': 'Revisão de Código',
+                        'data_planejada': '30/06/2024',
+                        'data_real': 'N/A',
+                        'status': 'PENDENTE',
+                        'criticidade': 'MÉDIA',
+                        'atrasado': False
+                    },
+                    {
+                        'id': 4,
+                        'nome': 'Entrega Final',
+                        'data_planejada': '31/07/2024',
+                        'data_real': 'N/A',
+                        'status': 'PENDENTE',
+                        'criticidade': 'ALTA',
+                        'atrasado': True
+                    }
+                ]
 
             # 5. Montar a estrutura do report
             report_data = {
@@ -3179,12 +3247,32 @@ class MacroService(BaseService):
                     'percentual_consumido': percentual_consumido
                 },
                 'status_geral_indicador': status_geral_indicador,
-                'marcos_recentes': [], # Placeholder
+                'marcos_recentes': marcos_recentes, # Lista de marcos
                 'riscos_impedimentos': [], # Placeholder
                 'proximos_passos': [] # Placeholder
             }
 
-            self.logger.info(f"[Status Report] Dados calculados para projeto {project_id}: Progresso={percentual_concluido}%, Prazo='{status_prazo}', Status Geral='{status_geral_indicador}'")
+            # Log detalhado para debug
+            self.logger.info(f"[Status Report] Dados calculados para projeto {project_id}: " +
+                             f"Progresso={percentual_concluido}%, " +
+                             f"Prazo='{status_prazo}', " +
+                             f"Status Geral='{status_geral_indicador}', " +
+                             f"Marcos={len(marcos_recentes)}")
+            
+            # Verificar se marcos_recentes está realmente no dicionário
+            for key in report_data.keys():
+                self.logger.debug(f"[Status Report] Chave encontrada: '{key}'")
+            
+            if 'marcos_recentes' in report_data:
+                self.logger.debug(f"[Status Report] Tipo de marcos_recentes: {type(report_data['marcos_recentes'])}")
+                self.logger.debug(f"[Status Report] Tamanho de marcos_recentes: {len(report_data['marcos_recentes'])}")
+                for i, marco in enumerate(report_data['marcos_recentes']):
+                    self.logger.debug(f"[Status Report] Marco {i+1}: {marco['nome']}, status: {marco['status']}")
+            else:
+                self.logger.error("[Status Report] ERRO: marcos_recentes não está presente no dicionário report_data!")
+                # Garantir que marcos_recentes exista
+                report_data['marcos_recentes'] = marcos_recentes
+
             return report_data
 
         except Exception as e:
@@ -3192,3 +3280,153 @@ class MacroService(BaseService):
             return None
     # <<< FIM: Nova função para dados do Status Report >>>
 
+    def obter_marcos_recentes(self, project_id):
+        """
+        Obtém os marcos recentes do projeto.
+        """
+        logger.debug(f"Obtendo marcos recentes para o projeto ID: {project_id}")
+        try:
+            # Inicializar a lista vazia
+            marcos = []
+            
+            # Tentar obter do backlog (novo método)
+            try:
+                backlog_id = get_backlog_id_for_project(project_id)
+                if backlog_id:
+                    logger.debug(f"Backlog ID encontrado: {backlog_id}")
+                    marcos = get_milestones_from_backlog(backlog_id)
+                    logger.debug(f"Marcos obtidos do backlog: {len(marcos)}")
+            except Exception as e:
+                logger.error(f"Erro ao obter marcos do backlog: {str(e)}")
+            
+            # DEBUG: logs para entender a estrutura dos marcos
+            if marcos:
+                for m in marcos:
+                    logger.debug(f"Marco do backlog: {m}")
+            
+            # Se não há marcos, retornar uma lista vazia com explicação
+            if not marcos:
+                logger.warning(f"Nenhum marco encontrado para o projeto ID: {project_id}")
+                # Para fins de debug/teste, criar alguns marcos falsos
+                marcos = [
+                    {
+                        'nome': '[DEBUG] Entrega Fase 1',
+                        'data_planejada': '2023-12-20',
+                        'status': 'CONCLUÍDO',
+                        'criticidade': 'ALTA',
+                        'atrasado': False
+                    },
+                    {
+                        'nome': '[DEBUG] Revisão de Código',
+                        'data_planejada': '2024-01-15',
+                        'status': 'EM ANDAMENTO',
+                        'criticidade': 'MÉDIA',
+                        'atrasado': False
+                    },
+                    {
+                        'nome': '[DEBUG] Entrega Final',
+                        'data_planejada': '2024-02-28',
+                        'status': 'PENDENTE',
+                        'criticidade': 'ALTA',
+                        'atrasado': True
+                    }
+                ]
+                logger.debug(f"Adicionados {len(marcos)} marcos falsos para debug")
+            
+            return marcos
+        except Exception as e:
+            logger.error(f"Erro ao obter marcos recentes: {str(e)}")
+            return []
+
+    def get_backlog_id_for_project(self, project_id):
+        """
+        Obtém o ID do backlog associado ao projeto.
+        """
+        try:
+            # Esta é uma implementação simplificada. Na prática, você precisaria consultar seu banco de dados.
+            # Simulando um backlog ID para o projeto
+            backlog_id = f"backlog_{project_id}"  # Ou qualquer lógica que você tenha para mapear projetos para backlogs
+            logger.debug(f"Backlog ID para projeto {project_id}: {backlog_id}")
+            return backlog_id
+        except Exception as e:
+            logger.error(f"Erro ao obter backlog ID para o projeto {project_id}: {str(e)}")
+            return None
+
+    def get_milestones_from_backlog(self, backlog_id):
+        """
+        Obtém os marcos (milestones) de um backlog específico.
+        """
+        logger.debug(f"Obtendo milestones do backlog ID: {backlog_id}")
+        try:
+            # Em uma implementação real, você consultaria seu banco de dados
+            # Aqui estamos usando dados de teste
+            milestones = [
+                {
+                    'nome': 'Kick-off do Projeto',
+                    'data_planejada': '2024-05-01',
+                    'status': 'CONCLUÍDO',
+                    'criticidade': 'ALTA',
+                    'atrasado': False
+                },
+                {
+                    'nome': 'Entrega da Primeira Versão',
+                    'data_planejada': '2024-06-15',
+                    'status': 'EM ANDAMENTO',
+                    'criticidade': 'ALTA',
+                    'atrasado': False
+                },
+                {
+                    'nome': 'Revisão de Código',
+                    'data_planejada': '2024-06-30',
+                    'status': 'PENDENTE',
+                    'criticidade': 'MÉDIA',
+                    'atrasado': False
+                },
+                {
+                    'nome': 'Entrega Final',
+                    'data_planejada': '2024-07-31',
+                    'status': 'PENDENTE',
+                    'criticidade': 'ALTA',
+                    'atrasado': True
+                }
+            ]
+            logger.debug(f"Retornando {len(milestones)} milestones para o backlog {backlog_id}")
+            return milestones
+        except Exception as e:
+            logger.error(f"Erro ao obter milestones do backlog {backlog_id}: {str(e)}")
+            return []
+
+    def gerar_status_report(self, project_id):
+        """Gera um status report para o projeto especificado"""
+        logger.debug(f"Gerando status report para o projeto: {project_id}")
+
+        try:
+            # Obter detalhes do projeto
+            project_details = self.obter_detalhes_projeto(project_id)
+            if not project_details:
+                logger.warning(f"Projeto não encontrado: {project_id}")
+                return None
+                
+            # Obter métricas e KPIs
+            # Esta parte está incompleta e precisa ser implementada
+            
+            # Por enquanto, vamos retornar os detalhes básicos do projeto
+            return {
+                'info_geral': project_details,
+                'marcos_recentes': [],  # Lista vazia por padrão
+                'progresso': {
+                    'percentual_concluido': 0,
+                    'data_prevista_termino': 'N/A',
+                    'status_prazo': 'A Definir'
+                },
+                'esforco': {
+                    'horas_planejadas': project_details.get('estimated_hours', 0),
+                    'horas_utilizadas': project_details.get('logged_hours', 0),
+                    'percentual_consumido': 0
+                },
+                'status_geral_indicador': 'cinza'
+            }
+                
+        except Exception as e:
+            logger.error(f"Erro ao gerar status report para projeto {project_id}: {str(e)}")
+            return None

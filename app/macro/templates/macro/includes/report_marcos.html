@@ -1,0 +1,27 @@
+{% if report_data and report_data.marcos_recentes and report_data.marcos_recentes|length > 0 %}
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <tbody>
+                {% for marco in report_data.marcos_recentes %}
+                    <tr>
+                        <td class="text-start">
+                            {% if marco.atrasado %}<span class="badge bg-danger me-1">!</span>{% endif %}
+                            <strong>{{ marco.nome }}</strong>
+                        </td>
+                        <td>{{ marco.data_planejada }}</td>
+                        <td>
+                            <span class="badge {% if marco.status == 'COMPLETED' or marco.status == 'CONCLUÍDO' %}bg-success{% elif marco.status == 'IN_PROGRESS' or marco.status == 'EM ANDAMENTO' %}bg-warning text-dark{% elif marco.status == 'DELAYED' or marco.status == 'ATRASADO' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                {% if marco.status == 'COMPLETED' or marco.status == 'CONCLUÍDO' %}Concluído
+                                {% elif marco.status == 'IN_PROGRESS' or marco.status == 'EM ANDAMENTO' %}Em Andamento
+                                {% elif marco.status == 'DELAYED' or marco.status == 'ATRASADO' %}Atrasado
+                                {% else %}Pendente{% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <p class="text-muted text-center">Nenhum marco definido para este projeto.</p>
+{% endif %} 
