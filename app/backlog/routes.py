@@ -1,7 +1,7 @@
 from flask import render_template, jsonify, request, abort, current_app, redirect, url_for
 from . import backlog_bp # Importa o blueprint
 from .. import db # Importa a instância do banco de dados
-from ..models import Backlog, Task, Column, Sprint, TaskStatus # Importa os modelos
+from ..models import Backlog, Task, Column, Sprint, TaskStatus, ProjectMilestone, ProjectRisk, MilestoneStatus, MilestoneCriticality, RiskImpact, RiskProbability, RiskStatus # Importa os modelos
 from ..macro.services import MacroService # Importa o serviço Macro
 import pandas as pd
 from datetime import datetime # Adicionado datetime
@@ -803,23 +803,6 @@ def assign_task_to_sprint(task_id):
         current_app.logger.error(f"Erro ao reordenar/associar tarefa {task_id} à sprint {new_sprint_id}: {e}", exc_info=True)
         abort(500, description="Erro interno ao atualizar posição/associação da sprint.")
 
-    # --- Código antigo de atualização simples removido ---
-    # task.sprint_id = new_sprint_id 
-    # Poderíamos reajustar a posição da tarefa aqui se necessário, mas 
-    # por ora, a posição dentro da sprint/backlog não está sendo gerenciada neste endpoint.
-    # 
-    # try:
-    #     db.session.commit()
-    #     current_app.logger.info(f"Tarefa {task_id} associada à Sprint ID: {new_sprint_id}")
-    #     # Retorna a tarefa atualizada? Ou apenas sucesso?
-    #     # Retornar a tarefa pode ser útil para o frontend confirmar.
-    #     db.session.refresh(task)
-    #     return jsonify(serialize_task(task))
-    # except Exception as e:
-    #     db.session.rollback()
-    #     current_app.logger.error(f"Erro ao associar tarefa {task_id} à sprint {new_sprint_id}: {e}", exc_info=True)
-    #     abort(500, description="Erro interno ao atualizar associação da sprint.") 
-
 # <<< INÍCIO: Nova API para listar especialistas disponíveis >>>
 @backlog_bp.route('/api/available-specialists')
 def get_available_specialists():
@@ -833,3 +816,179 @@ def get_available_specialists():
         # Retorna lista vazia em caso de erro grave
         return jsonify([]), 500
 # <<< FIM: Nova API para listar especialistas disponíveis >>> 
+
+# --- API para Marcos do Projeto --- 
+@backlog_bp.route('/api/backlogs/<int:backlog_id>/milestones', methods=['GET'])
+def get_milestones(backlog_id):
+    """Retorna os marcos do projeto associado ao backlog."""
+    try:
+        # Verifica se o backlog existe
+        backlog = Backlog.query.get_or_404(backlog_id)
+        milestones = ProjectMilestone.query.filter_by(backlog_id=backlog_id).order_by(ProjectMilestone.planned_date).all()
+        milestones_list = [m.to_dict() for m in milestones]
+        return jsonify(milestones_list)
+    except Exception as e:
+        current_app.logger.error(f"Erro ao buscar marcos para backlog {backlog_id}: {e}", exc_info=True)
+        abort(500, description="Erro interno ao buscar marcos do projeto.")
+
+# Rota modificada para POST (sem backlog_id na URL)
+@backlog_bp.route('/api/milestones', methods=['POST'])
+def create_milestone():
+    """Cria um novo marco para o projeto associado ao backlog (ID do backlog vem no corpo)."""
+    # <<< LOG DE DEBUG >>>
+    current_app.logger.info("!!! ROTA POST /api/milestones ACESSADA !!!") 
+    # <<< FIM LOG DE DEBUG >>>
+    data = request.get_json()
+
+    # <<< NOVO: Obter backlog_id do corpo da requisição >>>
+    backlog_id = data.get('backlog_id')
+    if not backlog_id:
+        current_app.logger.error("Erro em create_milestone: backlog_id não encontrado no corpo JSON.")
+        abort(400, description="ID do Backlog (backlog_id) é obrigatório no corpo da requisição.")
+        
+    # Verifica se o backlog existe
+    try:
+        backlog = Backlog.query.get_or_404(backlog_id)
+    except Exception as e: # Captura erro se backlog_id não for um int válido para get_or_404
+        current_app.logger.error(f"Erro ao buscar backlog ID {backlog_id}: {e}")
+        abort(404, description=f"Backlog com ID {backlog_id} não encontrado.")
+    # <<< FIM NOVO >>>
+
+    if not data or not data.get('name') or not data.get('planned_date'):
+        current_app.logger.error("Erro em create_milestone: Dados obrigatórios (name, planned_date) faltando.")
+        abort(400, description="Nome e data planejada são obrigatórios.")
+
+    try:
+        # Processa dados obrigatórios
+        planned_date = datetime.strptime(data['planned_date'], '%Y-%m-%d')
+        name = data['name'].strip()
+        if not name:
+            abort(400, description="Nome não pode ser vazio.")
+        
+        # Processa dados opcionais
+        description = data.get('description', '')
+        actual_date_str = data.get('actual_date')
+        actual_date = datetime.strptime(actual_date_str, '%Y-%m-%d') if actual_date_str else None
+        
+        status_str = data.get('status', MilestoneStatus.PENDING.value) # Default PENDING
+        try:
+            status = MilestoneStatus(status_str)
+        except ValueError:
+            valid_statuses = [s.value for s in MilestoneStatus]
+            abort(400, description=f"Status inválido. Valores válidos: {valid_statuses}")
+
+        criticality_str = data.get('criticality', MilestoneCriticality.MEDIUM.value) # Default MEDIUM
+        try:
+            criticality = MilestoneCriticality(criticality_str)
+        except ValueError:
+            valid_criticalities = [c.value for c in MilestoneCriticality]
+            abort(400, description=f"Criticidade inválida. Valores válidos: {valid_criticalities}")
+            
+        is_checkpoint = data.get('is_checkpoint', False)
+
+        # Cria o novo marco
+        new_milestone = ProjectMilestone(
+            name=name,
+            description=description,
+            planned_date=planned_date,
+            actual_date=actual_date,
+            status=status,
+            criticality=criticality,
+            is_checkpoint=is_checkpoint,
+            backlog_id=backlog_id # Associa ao backlog (vindo do corpo agora)
+        )
+        
+        db.session.add(new_milestone)
+        db.session.commit()
+        
+        # Retorna o marco criado usando to_dict
+        return jsonify(new_milestone.to_dict()), 201
+
+    except ValueError as ve:
+        # Erro específico de conversão de data ou enum
+        db.session.rollback()
+        abort(400, description=str(ve))
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao criar marco para backlog {backlog_id}: {e}", exc_info=True)
+        abort(500, description="Erro interno ao criar marco do projeto.")
+
+@backlog_bp.route('/api/milestones/<int:milestone_id>', methods=['PUT'])
+def update_milestone(milestone_id):
+    """Atualiza um marco existente."""
+    milestone = ProjectMilestone.query.get_or_404(milestone_id)
+    data = request.get_json()
+
+    if not data:
+        abort(400, description="Nenhum dado fornecido para atualização.")
+
+    try:
+        # Atualiza campos permitidos
+        if 'name' in data:
+            name = data['name'].strip()
+            if not name:
+                 abort(400, description="Nome não pode ser vazio.")
+            milestone.name = name
+            
+        if 'description' in data:
+            milestone.description = data.get('description', '') # Permite limpar a descrição
+            
+        if 'planned_date' in data:
+            milestone.planned_date = datetime.strptime(data['planned_date'], '%Y-%m-%d')
+            
+        if 'actual_date' in data:
+            actual_date_str = data['actual_date']
+            milestone.actual_date = datetime.strptime(actual_date_str, '%Y-%m-%d') if actual_date_str else None
+            
+        if 'status' in data:
+            try:
+                milestone.status = MilestoneStatus(data['status'])
+                # Regra: Se marcar como concluído e não tiver data real, define data real
+                if milestone.status == MilestoneStatus.COMPLETED and not milestone.actual_date:
+                    milestone.actual_date = datetime.utcnow()
+            except ValueError:
+                valid_statuses = [s.value for s in MilestoneStatus]
+                abort(400, description=f"Status inválido. Valores válidos: {valid_statuses}")
+                
+        if 'criticality' in data:
+            try:
+                milestone.criticality = MilestoneCriticality(data['criticality'])
+            except ValueError:
+                valid_criticalities = [c.value for c in MilestoneCriticality]
+                abort(400, description=f"Criticidade inválida. Valores válidos: {valid_criticalities}")
+        
+        if 'is_checkpoint' in data:
+            milestone.is_checkpoint = bool(data['is_checkpoint'])
+        
+        # Atualiza timestamp
+        milestone.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        # Retorna o marco atualizado usando to_dict
+        return jsonify(milestone.to_dict())
+        
+    except ValueError as ve:
+        db.session.rollback()
+        abort(400, description=str(ve))
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao atualizar marco {milestone_id}: {e}", exc_info=True)
+        abort(500, description="Erro interno ao atualizar marco do projeto.")
+
+@backlog_bp.route('/api/milestones/<int:milestone_id>', methods=['DELETE'])
+def delete_milestone(milestone_id):
+    """Exclui um marco."""
+    milestone = ProjectMilestone.query.get_or_404(milestone_id)
+    try:
+        db.session.delete(milestone)
+        db.session.commit()
+        current_app.logger.info(f"Marco ID {milestone_id} excluído com sucesso.")
+        return '', 204 # Retorna 204 No Content para DELETE bem-sucedido
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao excluir marco {milestone_id}: {e}", exc_info=True)
+        abort(500, description="Erro interno ao excluir marco do projeto.")
+
+# --- API para Riscos e Impedimentos --- 
+# (A implementação dos Riscos virá depois) 

@@ -10,6 +10,20 @@ class TaskStatus(enum.Enum):
     DONE = 'Concluído'
     ARCHIVED = 'Arquivado'
 
+# --- NOVOS ENUMS PARA MARCOS ---
+class MilestoneStatus(enum.Enum):
+    PENDING = 'Pendente'
+    IN_PROGRESS = 'Em Andamento'
+    COMPLETED = 'Concluído'
+    DELAYED = 'Atrasado'
+
+class MilestoneCriticality(enum.Enum):
+    LOW = 'Baixa'
+    MEDIUM = 'Média'
+    HIGH = 'Alta'
+    CRITICAL = 'Crítica'
+# --- FIM NOVOS ENUMS ---
+
 # Tabela de Associação para Many-to-Many entre Tarefas e Sprints (se necessário)
 # Se uma tarefa puder pertencer a múltiplas sprints (menos comum), usaríamos isso.
 # Por simplicidade inicial, vamos assumir que uma tarefa pertence a uma sprint (ForeignKey em Task)
@@ -46,6 +60,11 @@ class Backlog(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     tasks = db.relationship('Task', backref='backlog', lazy=True, order_by='Task.position') # Tarefas neste backlog
 
+    # --- NOVO RELACIONAMENTO PARA MARCOS E RISCOS ---
+    milestones = db.relationship('ProjectMilestone', backref='backlog', lazy=True, cascade="all, delete-orphan")
+    risks = db.relationship('ProjectRisk', backref='backlog', lazy=True, cascade="all, delete-orphan")
+    # --- FIM NOVO RELACIONAMENTO ---
+
     def __repr__(self):
         return f'<Backlog {self.name} (Project: {self.project_id})>'
 
@@ -78,4 +97,127 @@ class Task(db.Model):
     def __repr__(self):
         return f'<Task {self.id}: {self.title}>'
 
-# Você pode adicionar mais modelos ou campos conforme necessário (ex: Usuários, Comentários, Labels, etc.) 
+# Você pode adicionar mais modelos ou campos conforme necessário (ex: Usuários, Comentários, Labels, etc.)
+
+# --- NOVO MODELO PARA MARCOS DO PROJETO ---
+class ProjectMilestone(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    planned_date = db.Column(db.DateTime, nullable=False)
+    actual_date = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.Enum(MilestoneStatus), default=MilestoneStatus.PENDING, nullable=False)
+    criticality = db.Column(db.Enum(MilestoneCriticality), default=MilestoneCriticality.MEDIUM, nullable=False)
+    is_checkpoint = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Chave Estrangeira para Backlog
+    backlog_id = db.Column(db.Integer, db.ForeignKey('backlog.id'), nullable=False)
+
+    # Propriedade para verificar se está atrasado
+    @property
+    def is_delayed(self):
+        # Está atrasado se a data planejada passou, não tem data real e não está concluído
+        return (self.planned_date < datetime.utcnow() and 
+                self.actual_date is None and 
+                self.status != MilestoneStatus.COMPLETED)
+
+    def to_dict(self):
+        """Serializa o objeto Milestone para um dicionário."""
+        # Recalcula o status baseado na propriedade is_delayed
+        current_status = self.status.value
+        if self.is_delayed and self.status != MilestoneStatus.DELAYED:
+            current_status = MilestoneStatus.DELAYED.value
+        elif not self.is_delayed and self.status == MilestoneStatus.DELAYED:
+            # Se não está mais atrasado, volta para Pendente ou Em Andamento?
+            # Vamos assumir Pendente se não tiver data real, senão mantém o status original (precisa refinar)
+             current_status = MilestoneStatus.PENDING.value # Ou self.status.value? Discutir regra.
+
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'planned_date': self.planned_date.strftime('%Y-%m-%d') if self.planned_date else None,
+            'actual_date': self.actual_date.strftime('%Y-%m-%d') if self.actual_date else None,
+            'status': current_status, # Usa o status recalculado
+            'criticality': self.criticality.value,
+            'is_checkpoint': self.is_checkpoint,
+            'is_delayed': self.is_delayed,
+            'backlog_id': self.backlog_id
+        }
+
+    def __repr__(self):
+        return f'<ProjectMilestone {self.id}: {self.name}>'
+# --- FIM NOVO MODELO MARCOS ---
+
+# --- NOVO MODELO PARA RISCOS DO PROJETO (Estrutura básica) ---
+# Enums para Riscos (se ainda não existirem)
+class RiskStatus(enum.Enum):
+    ACTIVE = 'Ativo'
+    MITIGATED = 'Mitigado'
+    RESOLVED = 'Resolvido'
+
+class RiskImpact(enum.Enum):
+    LOW = 'Baixo'
+    MEDIUM = 'Médio'
+    HIGH = 'Alto'
+
+class RiskProbability(enum.Enum):
+    LOW = 'Baixa'
+    MEDIUM = 'Média'
+    HIGH = 'Alta'
+
+class ProjectRisk(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    description = db.Column(db.Text, nullable=False)
+    impact = db.Column(db.Enum(RiskImpact), default=RiskImpact.MEDIUM, nullable=False)
+    probability = db.Column(db.Enum(RiskProbability), default=RiskProbability.MEDIUM, nullable=False)
+    status = db.Column(db.Enum(RiskStatus), default=RiskStatus.ACTIVE, nullable=False)
+    identified_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    resolved_date = db.Column(db.DateTime, nullable=True)
+    mitigation_plan = db.Column(db.Text)
+    contingency_plan = db.Column(db.Text)
+    responsible = db.Column(db.String(150))
+    trend = db.Column(db.String(50), default='Estável') # Ex: Aumentando, Diminuindo, Estável
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Chave Estrangeira para Backlog
+    backlog_id = db.Column(db.Integer, db.ForeignKey('backlog.id'), nullable=False)
+
+    # Propriedade para calcular Severidade (exemplo)
+    @property
+    def severity(self):
+        impact_map = {RiskImpact.LOW: 1, RiskImpact.MEDIUM: 2, RiskImpact.HIGH: 3}
+        prob_map = {RiskProbability.LOW: 1, RiskProbability.MEDIUM: 2, RiskProbability.HIGH: 3}
+        score = impact_map.get(self.impact, 0) * prob_map.get(self.probability, 0)
+        if score >= 6:
+            return 'Crítico'
+        elif score >= 4:
+            return 'Alto'
+        elif score >= 2:
+            return 'Médio'
+        else:
+            return 'Baixo'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'description': self.description,
+            'impact': self.impact.value,
+            'probability': self.probability.value,
+            'status': self.status.value,
+            'identified_date': self.identified_date.strftime('%Y-%m-%d') if self.identified_date else None,
+            'resolved_date': self.resolved_date.strftime('%Y-%m-%d') if self.resolved_date else None,
+            'mitigation_plan': self.mitigation_plan,
+            'contingency_plan': self.contingency_plan,
+            'responsible': self.responsible,
+            'trend': self.trend,
+            'severity': self.severity, # Usa a propriedade
+            'backlog_id': self.backlog_id
+        }
+
+    def __repr__(self):
+        return f'<ProjectRisk {self.id}: {self.description[:30]}...>'
+# --- FIM NOVO MODELO RISCOS --- 

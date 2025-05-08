@@ -58,6 +58,7 @@ def register_blueprints(app):
     try:
         from app.backlog import backlog_bp
         app.register_blueprint(backlog_bp)
+        app.logger.info("--- BACKLOG BLUEPRINT REGISTRATION CALL COMPLETE ---")
         app.logger.info("✅ Blueprint 'backlog' registrado")
     except ImportError as e:
         app.logger.error(f"❌ Erro ao importar ou registrar blueprint 'backlog': {e}", exc_info=True)

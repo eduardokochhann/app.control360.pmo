@@ -513,6 +513,127 @@
                 </div>
                 {% endfor %}
             </div>
+            <!-- Novas Seções: Linha do Tempo e Riscos -->
+            <div class="row mt-4">
+                <!-- Seção de Linha do Tempo (Tarefas) -->
+                <div class="col-md-6">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                            <h6 class="m-0 font-weight-bold text-primary">
+                                <i class="bi bi-calendar-range me-1"></i> Linha do Tempo (Tarefas)
+                            </h6>
+                        </div>
+                        <div class="card-body" style="max-height: 350px; overflow-y: auto;">
+                            <div id="timelineContainer">
+                                <div class="timeline-section mb-3">
+                                    <h6 class="text-muted"><i class="bi bi-check-circle-fill text-success me-2"></i>Recentemente Concluídas</h6>
+                                    <ul class="list-group list-group-flush" id="completedTasksList">
+                                        <li class="list-group-item text-center text-muted small">
+                                            <i class="bi bi-hourglass me-1"></i> Carregando...
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="timeline-section mb-3">
+                                    <h6 class="text-muted"><i class="bi bi-alarm-fill text-warning me-2"></i>Próximas Tarefas (7 dias)</h6>
+                                    <ul class="list-group list-group-flush" id="upcomingTasksList">
+                                        <li class="list-group-item text-center text-muted small">
+                                            <i class="bi bi-hourglass me-1"></i> Carregando...
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="timeline-section">
+                                    <h6 class="text-muted"><i class="bi bi-play-circle-fill text-primary me-2"></i>Iniciadas Recentemente</h6>
+                                    <ul class="list-group list-group-flush" id="startedTasksList">
+                                        <li class="list-group-item text-center text-muted small">
+                                            <i class="bi bi-hourglass me-1"></i> Carregando...
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Seção de Riscos e Impedimentos -->
+                <div class="col-md-6">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                            <h6 class="m-0 font-weight-bold text-primary">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i> Riscos e Impedimentos
+                            </h6>
+                            <button class="btn btn-sm btn-outline-primary" id="addRiskBtn">
+                                <i class="bi bi-plus-lg"></i> Novo Risco
+                            </button>
+                        </div>
+                        <div class="card-body" style="max-height: 350px; overflow-y: auto;">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover" id="risksTable">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Descrição</th>
+                                            <th scope="col">Severidade</th>
+                                            <th scope="col">Status</th>
+                                            <th scope="col">Ações</th> {# Coluna Ações #}
+                                        </tr>
+                                    </thead>
+                                    <tbody id="risksTableBody"> {# Adicionado ID para tbody #}
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted">
+                                                <i class="bi bi-hourglass me-1"></i> Carregando riscos...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- *** NOVA SEÇÃO DE MARCOS DO PROJETO *** -->
+            <div class="row mt-2"> {# Menos margem superior talvez? Ou manter mt-4 #}
+                <div class="col-12">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                            <h6 class="m-0 font-weight-bold text-primary">
+                                <i class="bi bi-flag-fill me-1"></i> Marcos do Projeto
+                            </h6>
+                            {# Botão para adicionar novo marco #}
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary" id="addMilestoneBtn">
+                                    <i class="bi bi-plus-lg"></i> Novo Marco
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary ms-2" id="reloadMilestonesBtn" title="Recarregar Marcos">
+                                    <i class="bi bi-arrow-clockwise"></i> Recarregar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body" style="max-height: 350px; overflow-y: auto;">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover" id="milestonesTable">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Marco</th>
+                                            <th scope="col">Data Planejada</th>
+                                            <th scope="col">Data Real</th>
+                                            <th scope="col">Status</th>
+                                            <th scope="col">Criticidade</th>
+                                            <th scope="col">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="milestonesTableBody"> {# Adicionado ID ao tbody #}
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted small">
+                                                <i class="bi bi-hourglass me-1"></i> Carregando marcos...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- *** FIM NOVA SEÇÃO DE MARCOS *** -->
         </div> {# Fim card-body #}
     </div> {# Fim card #}
 </div> {# Fim container-fluid #}
@@ -629,6 +750,142 @@
   </div>
 </div>
 
+<!-- *** NOVO MODAL PARA MARCOS DO PROJETO *** -->
+<div class="modal fade" id="milestoneModal" tabindex="-1" aria-labelledby="milestoneModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg"> {# Modal um pouco maior #}
+        <div class="modal-content">
+            <form id="milestoneForm">
+                <div class="modal-header bg-primary text-white"> {# Header com cor #}
+                    <h5 class="modal-title" id="milestoneModalLabel">
+                        <i class="bi bi-flag-fill me-2"></i> <span id="milestoneModalTitle">Adicionar Marco</span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="milestoneId" name="milestoneId">
+                    
+                    {# Linha 1: Nome #}
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label for="milestoneName" class="form-label">Nome do Marco <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-sm" id="milestoneName" name="name" required>
+                        </div>
+                    </div>
+                    
+                    {# Linha 2: Descrição #}
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label for="milestoneDescription" class="form-label">Descrição</label>
+                            <textarea class="form-control form-control-sm" id="milestoneDescription" name="description" rows="3"></textarea>
+                        </div>
+                    </div>
+                    
+                    {# Linha 3: Datas #}
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="milestonePlannedDate" class="form-label">Data Planejada <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control form-control-sm" id="milestonePlannedDate" name="planned_date" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="milestoneActualDate" class="form-label">Data Real</label>
+                            <input type="date" class="form-control form-control-sm" id="milestoneActualDate" name="actual_date">
+                        </div>
+                    </div>
+                    
+                    {# Linha 4: Status e Criticidade #}
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="milestoneStatus" class="form-label">Status</label>
+                            <select class="form-select form-select-sm" id="milestoneStatus" name="status">
+                                <option value="Pendente" selected>Pendente</option>
+                                <option value="Em Andamento">Em Andamento</option>
+                                <option value="Concluído">Concluído</option>
+                                <option value="Atrasado">Atrasado</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="milestoneCriticality" class="form-label">Criticidade</label>
+                            <select class="form-select form-select-sm" id="milestoneCriticality" name="criticality">
+                                <option value="Baixa">Baixa</option>
+                                <option value="Média" selected>Média</option>
+                                <option value="Alta">Alta</option>
+                                <option value="Crítica">Crítica</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    {# Linha 5: Checkpoint #}
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="milestoneIsCheckpoint" name="is_checkpoint">
+                                <label class="form-check-label" for="milestoneIsCheckpoint">
+                                    É um marco crítico (checkpoint)?
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div> {# Fim modal-body #}
+                <div class="modal-footer justify-content-between">
+                    {# Botão Excluir (visível apenas na edição) #}
+                    <button type="button" class="btn btn-danger btn-sm" id="deleteMilestoneBtn" style="display: none;">
+                        <i class="bi bi-trash me-1"></i> Excluir
+                    </button>
+                    {# Grupo Cancelar/Salvar #}
+                    <div>
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary btn-sm" id="saveMilestoneBtn">
+                            <i class="bi bi-check-lg me-1"></i> Salvar Marco
+                        </button>
+                    </div>
+                </div>
+                {# Loading Feedback #}
+                <div class="loading-overlay" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- *** FIM NOVO MODAL PARA MARCOS *** -->
+
+<!-- Modal para Adicionar/Editar Risco do Projeto -->
+<div class="modal fade" id="riskModal" tabindex="-1" aria-labelledby="riskModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="riskModalLabel">Adicionar Risco</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="riskDescription" class="form-label">Descrição do Risco</label>
+                    <textarea class="form-control" id="riskDescription" rows="3"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="riskSeverity" class="form-label">Severidade</label>
+                    <input type="number" class="form-control" id="riskSeverity" min="1" max="10" placeholder="1-10">
+                </div>
+                <div class="mb-3">
+                    <label for="riskStatus" class="form-label">Status</label>
+                    <select class="form-select" id="riskStatus">
+                        <option value="Pendente" selected>Pendente</option>
+                        <option value="Em Andamento">Em Andamento</option>
+                        <option value="Concluído">Concluído</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar Risco</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {# Script dedicado para armazenar os dados JSON das tarefas iniciais #}
 <script id="initial-tasks-data" type="application/json">
 {{ tasks_json|safe if tasks_json else '[]' }}
@@ -643,6 +900,24 @@
   const initialBacklogId = document.getElementById('currentBacklogId')?.value || '';
   const initialProjectId = document.getElementById('currentProjectId')?.value || '';
   const projectNameForLogs = "{{ current_project.name if current_project else 'Projeto Desconhecido' }}";
+
+  // Elementos do DOM para Marcos (definindo globalmente no topo)
+  const addMilestoneBtn = document.getElementById('addMilestoneBtn');
+  const milestonesTableBody = document.getElementById('milestonesTableBody');
+  const milestoneModalElement = document.getElementById('milestoneModal');
+  const milestoneModal = milestoneModalElement ? new bootstrap.Modal(milestoneModalElement) : null;
+  const milestoneForm = document.getElementById('milestoneForm');
+  const milestoneModalTitle = document.getElementById('milestoneModalTitle');
+  const milestoneIdInput = document.getElementById('milestoneId');
+  const deleteMilestoneBtn = document.getElementById('deleteMilestoneBtn');
+  const saveMilestoneBtn = document.getElementById('saveMilestoneBtn');
+
+  // Verifica se os elementos essenciais existem
+  if (!milestonesTableBody) {
+      console.error("[CRITICAL] Elemento #milestonesTableBody não encontrado no DOM. Marcos não poderão ser exibidos.");
+  } else {
+      console.log("[Init] Elemento #milestonesTableBody encontrado com sucesso.");
+  }
 
   // Lê e parseia as tarefas iniciais do script JSON dedicado
   let initialTasks = []; // Default para array vazio
@@ -736,11 +1011,12 @@
   function escapeHtml(unsafe) {
       if (!unsafe) return '';
       return unsafe
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+          .toString()
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
   }
 
   // Mostra/esconde o overlay de loading no modal
@@ -1474,7 +1750,233 @@
     loadSpecialistOptions();
     // <<< FIM: Chamar carregamento de especialistas >>>
 
+    // *** CARREGAMENTO INICIAL DOS MARCOS ***
+    loadMilestones();
+    
+    // Adicionar botão de teste no console para facilitar depuração
+    console.log("Para testar a renderização de marcos diretamente, execute: testRenderMilestones()");
+    // *** FIM CARREGAMENTO DOS MARCOS ***
+
+    // Adicionar Event Listeners para Marcos
+    if (addMilestoneBtn) {
+        addMilestoneBtn.addEventListener('click', () => openMilestoneModal());
+    }
+    
+    // IMPORTANTE: Registrar listener para o formulário de marcos
+    if (milestoneForm) {
+        milestoneForm.addEventListener('submit', handleMilestoneFormSubmit);
+        console.log("[Milestone Form] Listener de submit registrado");
+    } else {
+        console.error("[Milestone Form] Elemento milestoneForm não encontrado para adicionar listener");
+    }
+    
+    // Adicionar listener para o botão de recarregar marcos
+    const reloadMilestonesBtn = document.getElementById('reloadMilestonesBtn');
+    if (reloadMilestonesBtn) {
+        reloadMilestonesBtn.addEventListener('click', () => {
+            console.log("[Recarregar] Solicitando recarregamento manual de marcos...");
+            loadMilestones(); // Sempre usa o método normal agora que corrigimos
+        });
+    }
+    
+    if (deleteMilestoneBtn) {
+        deleteMilestoneBtn.addEventListener('click', () => {
+            const milestoneId = milestoneIdInput.value;
+            const milestoneName = document.getElementById('milestoneName').value; 
+            if (milestoneId) {
+                confirmDeleteMilestone(milestoneId, milestoneName);
+            }
+        });
+    }
+
   }); // Fecha o DOMContentLoaded
+  
+  // Handle form submit para marcos
+  async function handleMilestoneFormSubmit(event) {
+      event.preventDefault();
+      
+      console.log("[Milestone Form] Processando envio do formulário");
+      
+      if (!milestoneForm) {
+          console.error("[Milestone Form] Formulário não encontrado");
+          return;
+      }
+      
+      // Obter ID do backlog atual
+      const currentBacklogIdFromDOM = document.getElementById('currentBacklogId')?.value;
+      if (!currentBacklogIdFromDOM) {
+          console.error("[Milestone Form] ID do backlog não encontrado");
+          showToast("Erro: ID do backlog não encontrado", "error");
+          return;
+      }
+      
+      // Obter valor do ID (se estiver editando)
+      const milestoneId = milestoneIdInput.value;
+      const isEditing = !!milestoneId;
+      
+      // Mostrar loading
+      showModalLoading(milestoneModalElement, true);
+      
+      try {
+          // Preparar dados do formulário
+          const formData = {
+              name: document.getElementById('milestoneName').value,
+              description: document.getElementById('milestoneDescription').value,
+              planned_date: document.getElementById('milestonePlannedDate').value,
+              actual_date: document.getElementById('milestoneActualDate').value || null,
+              status: document.getElementById('milestoneStatus').value,
+              criticality: document.getElementById('milestoneCriticality').value,
+              is_checkpoint: document.getElementById('milestoneIsCheckpoint').checked,
+              backlog_id: parseInt(currentBacklogIdFromDOM, 10)
+          };
+          
+          console.log(`[Milestone Form] ${isEditing ? 'Editando' : 'Criando'} marco:`, formData);
+          
+          // Determinar URL e método com base em criação/edição
+          const url = isEditing 
+              ? `/backlog/api/milestones/${milestoneId}` 
+              : `/backlog/api/milestones`;  // CORRIGIDO: URL para criação de marcos
+          const method = isEditing ? 'PUT' : 'POST';
+          
+          // Enviar para a API
+          const response = await fetch(url, {
+              method: method,
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify(formData)
+          });
+          
+          // Verificar resposta
+          if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}));
+              throw new Error(errorData.message || `Erro HTTP: ${response.status}`);
+          }
+          
+          // Processar sucesso
+          const savedMilestone = await response.json();
+          console.log(`[Milestone Form] Marco ${isEditing ? 'atualizado' : 'criado'} com sucesso:`, savedMilestone);
+          
+          // Mostrar mensagem de sucesso
+          showToast(`Marco ${isEditing ? 'atualizado' : 'criado'} com sucesso`, "success");
+          
+          // Fechar modal
+          milestoneModal.hide();
+          
+          // Recarregar a lista de marcos
+          loadMilestones();
+          
+      } catch (error) {
+          console.error('[Milestone Form] Erro:', error);
+          showToast(`Erro ao ${isEditing ? 'atualizar' : 'criar'} marco: ${error.message}`, 'error');
+      } finally {
+          // Esconder loading
+          showModalLoading(milestoneModalElement, false);
+      }
+  }
+
+  // Função de teste para renderizar marcos diretamente com dados fixos
+  function testRenderMilestones() {
+      console.log("[Test] Testando renderização direta de marcos...");
+      
+      // PASSO 1: Verificar a estrutura da tabela no DOM
+      const tableElement = document.querySelector('table#milestonesTable');
+      const tbodyElement = document.getElementById('milestonesTableBody');
+      
+      console.log("[DOM Inspection] Tabela encontrada:", tableElement);
+      console.log("[DOM Inspection] TBODY encontrado:", tbodyElement);
+      
+      if (tableElement) {
+          console.log("[DOM Inspection] Classes da tabela:", tableElement.className);
+          console.log("[DOM Inspection] Estrutura da tabela:", tableElement.innerHTML.substring(0, 100) + "...");
+      }
+      
+      if (tbodyElement) {
+          console.log("[DOM Inspection] Classes do tbody:", tbodyElement.className);
+          console.log("[DOM Inspection] Conteúdo atual do tbody:", tbodyElement.innerHTML);
+      }
+      
+      // PASSO 2: Tentar inserir uma linha manualmente para teste
+      if (tbodyElement) {
+          const testRow = document.createElement('tr');
+          testRow.innerHTML = `
+              <td>TESTE MANUAL</td>
+              <td>15/05/2025</td>
+              <td>-</td>
+              <td><span class="badge bg-primary">Pendente</span></td>
+              <td><span class="badge bg-info text-dark">Média</span></td>
+              <td>
+                  <button class="btn btn-outline-primary btn-sm" title="Editar">
+                      <i class="bi bi-pencil-fill"></i>
+                  </button>
+                  <button class="btn btn-outline-danger btn-sm" title="Excluir">
+                      <i class="bi bi-trash-fill"></i>
+                  </button>
+              </td>
+          `;
+          console.log("[Test] Adicionando linha de teste manualmente");
+          tbodyElement.appendChild(testRow);
+          console.log("[Test] Adicionada linha de teste. Novo conteúdo:", tbodyElement.innerHTML);
+      }
+      
+      // PASSO 3: Renderizar os dados de teste normalmente
+      const mockMilestones = [
+          {
+              id: 999,
+              name: "Marco de Teste",
+              planned_date: "2025-05-15",
+              actual_date: null,
+              status: "Pendente",
+              criticality: "Média",
+              is_checkpoint: false,
+              is_delayed: false,
+              backlog_id: 4
+          }
+      ];
+      
+      console.log("[Test] Dados de teste:", mockMilestones);
+      renderMilestones(mockMilestones);
+      
+      // PASSO 4: Verificar o resultado após a renderização normal
+      console.log("[Test] Renderização direta concluída. Conteúdo do tbody:", document.getElementById('milestonesTableBody')?.innerHTML || "Não encontrado");
+  }
+  
+  // Função para forçar o preenchimento direto da tabela (ignorando renderMilestones)
+  function forceFillMilestonesTable() {
+      console.log("[Force Fill] Tentando preencher diretamente a tabela...");
+      
+      // Encontra o tbody
+      const tbody = document.getElementById('milestonesTableBody');
+      if (!tbody) {
+          console.error("[Force Fill] TBODY não encontrado!");
+          return;
+      }
+      
+      // Limpa o conteúdo atual
+      tbody.innerHTML = '';
+      
+      // Cria uma linha de teste 
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+          <td>Marco Teste Direto</td>
+          <td>15/05/2025</td>
+          <td>-</td>
+          <td><span class="badge bg-warning text-dark">Em Andamento</span></td>
+          <td><span class="badge bg-info text-dark">Média</span></td>
+          <td>
+              <button class="btn btn-outline-primary btn-sm" title="Editar Marco">
+                  <i class="bi bi-pencil-fill"></i>
+              </button>
+              <button class="btn btn-outline-danger btn-sm" title="Excluir Marco">
+                  <i class="bi bi-trash-fill"></i>
+              </button>
+          </td>
+      `;
+      
+      // Adiciona a linha ao tbody
+      tbody.appendChild(tr);
+      
+      console.log("[Force Fill] Linha adicionada diretamente:", tr.outerHTML);
+      console.log("[Force Fill] Conteúdo atual do tbody:", tbody.innerHTML);
+  }
 
   // <<< INÍCIO: Função para carregar opções de especialista >>>
   async function loadSpecialistOptions() {
@@ -1509,6 +2011,457 @@
       }
   }
   // <<< FIM: Função para carregar opções de especialista >>>
+
+  // *** INÍCIO: LÓGICA PARA MARCOS (Milestones) ***
+
+  // Função para mostrar indicador de carregamento
+  function showLoadingIndicator(container, isLoading, colspan = 3, message = 'Carregando...') {
+      if (!container) return;
+      if (isLoading) {
+          container.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted small py-3"><div class="spinner-border spinner-border-sm text-primary me-2" role="status"><span class="visually-hidden">Loading...</span></div>${message}</td></tr>`;
+      } else {
+          // Se a mensagem for de erro ou "sem itens", mostra a mensagem
+          if (message && (message.startsWith('Erro') || message.startsWith('Nenhum'))) {
+               container.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted small py-3">${message}</td></tr>`;
+          } else {
+               // Se não for loading e não for mensagem especial, limpa (a renderização cuidará do resto)
+               container.innerHTML = ''; 
+          }
+      }
+  }
+
+  // Função para mostrar toast (mensagem flutuante)
+  function showToast(message, type = 'info') {
+      // Implementação básica por enquanto - apenas alerta
+      console.log(`[Toast] ${type.toUpperCase()}: ${message}`);
+      alert(`${type.toUpperCase()}: ${message}`);
+  }
+
+  // Função para mostrar/esconder overlay de loading em modais
+  function showModalLoading(modalElem, isLoading) {
+      if (!modalElem) return;
+      const overlay = modalElem.querySelector('.loading-overlay');
+      const formElements = modalElem.querySelectorAll('input, textarea, select, button');
+      if (overlay) {
+          overlay.style.display = isLoading ? 'flex' : 'none';
+      }
+      formElements.forEach(el => el.disabled = isLoading);
+  }
+
+  // Função para carregar marcos da API
+  async function loadMilestones() {
+      // Obter valor atualizado do backlog ID diretamente do DOM
+      const currentBacklogIdFromDOM = document.getElementById('currentBacklogId')?.value;
+      
+      // Verifica se milestonesTableBody existe
+      if (!milestonesTableBody) {
+          console.error("[Milestones] Elemento milestonesTableBody não encontrado");
+          return;
+      }
+      
+      if (!currentBacklogIdFromDOM) {
+          console.log("[Milestones] Backlog ID não encontrado, pulando carregamento.");
+          milestonesTableBody.innerHTML = `
+              <tr>
+                  <td colspan="6" class="text-center text-muted small">
+                      <i class="bi bi-info-circle me-1"></i> Nenhum backlog selecionado.
+                  </td>
+              </tr>
+          `;
+          return;
+      }
+      
+      console.log(`[Milestones] Carregando marcos para Backlog ID: ${currentBacklogIdFromDOM}`);
+      
+      // Mostra indicador de carregamento
+      milestonesTableBody.innerHTML = `
+          <tr>
+              <td colspan="6" class="text-center text-muted small py-3">
+                  <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                      <span class="visually-hidden">Loading...</span>
+                  </div>
+                  Carregando marcos...
+              </td>
+          </tr>
+      `;
+      
+      try {
+          const response = await fetch(`/backlog/api/backlogs/${currentBacklogIdFromDOM}/milestones`);
+          if (!response.ok) {
+              throw new Error(`Erro HTTP: ${response.status}`);
+          }
+          
+          const milestones = await response.json();
+          console.log("[Milestones] Marcos recebidos da API:", milestones);
+          
+          // *** NOVA ABORDAGEM: Converter diretamente os dados da API para HTML ***
+          // Limpa a tabela
+          milestonesTableBody.innerHTML = '';
+          
+          // Verifica se há marcos para mostrar
+          if (!milestones || milestones.length === 0) {
+              milestonesTableBody.innerHTML = `
+                  <tr>
+                      <td colspan="6" class="text-center text-muted small">
+                          <i class="bi bi-info-circle me-1"></i> Nenhum marco definido para este projeto.
+                      </td>
+                  </tr>
+              `;
+              console.log("[Milestones] Nenhum marco encontrado para exibir");
+              return;
+          }
+          
+          // Para cada marco, cria uma linha na tabela
+          milestones.forEach(milestone => {
+              try {
+                  console.log("[Milestone Process] Processando marco:", milestone);
+                  
+                  // Define as classes corretas para badges
+                  let statusClass = "bg-secondary"; // Default
+                  if (milestone.status && milestone.status.toLowerCase() === "concluído") statusClass = "bg-success";
+                  else if (milestone.status && milestone.status.toLowerCase() === "em andamento") statusClass = "bg-warning text-dark";
+                  else if (milestone.status && milestone.status.toLowerCase() === "atrasado" || milestone.is_delayed) statusClass = "bg-danger";
+                  
+                  let criticalityClass = "bg-secondary"; // Default
+                  if (milestone.criticality && milestone.criticality.toLowerCase() === "crítica") criticalityClass = "bg-danger";
+                  else if (milestone.criticality && milestone.criticality.toLowerCase() === "alta") criticalityClass = "bg-warning text-dark";
+                  else if (milestone.criticality && milestone.criticality.toLowerCase() === "média") criticalityClass = "bg-info text-dark";
+                  
+                  // Formata datas
+                  const plannedDate = milestone.planned_date ? formatDateString(milestone.planned_date) : "-";
+                  const actualDate = milestone.actual_date ? formatDateString(milestone.actual_date) : "-";
+                  
+                  // Cria uma nova linha
+                  const tr = document.createElement('tr');
+                  tr.dataset.milestoneId = milestone.id;
+                  tr.style.cursor = 'pointer';
+                  tr.innerHTML = `
+                      <td>${escapeHtml(milestone.name || '')} ${milestone.is_checkpoint ? '<i class="bi bi-patch-check-fill text-primary" title="Checkpoint"></i>' : ''}</td>
+                      <td>${plannedDate}</td>
+                      <td>${actualDate}</td>
+                      <td><span class="badge ${statusClass}">${escapeHtml(milestone.status || 'Pendente')}</span></td>
+                      <td><span class="badge ${criticalityClass}">${escapeHtml(milestone.criticality || 'Média')}</span></td>
+                      <td>
+                          <button class="btn btn-outline-primary btn-sm edit-milestone-btn" title="Editar Marco">
+                              <i class="bi bi-pencil-fill"></i>
+                          </button>
+                          <button class="btn btn-outline-danger btn-sm delete-milestone-btn-inline" title="Excluir Marco">
+                              <i class="bi bi-trash-fill"></i>
+                          </button>
+                      </td>
+                  `;
+                  
+                  // Adiciona a linha à tabela
+                  milestonesTableBody.appendChild(tr);
+                  console.log("[Milestone Process] Linha adicionada para marco ID:", milestone.id);
+                  
+                  // Adiciona event listeners para os botões
+                  const editBtn = tr.querySelector('.edit-milestone-btn');
+                  if (editBtn) {
+                      editBtn.addEventListener('click', (e) => {
+                          e.stopPropagation();
+                          openMilestoneModal(milestone.id);
+                      });
+                  }
+                  
+                  const deleteBtn = tr.querySelector('.delete-milestone-btn-inline');
+                  if (deleteBtn) {
+                      deleteBtn.addEventListener('click', (e) => {
+                          e.stopPropagation();
+                          confirmDeleteMilestone(milestone.id, milestone.name);
+                      });
+                  }
+                  
+                  // Evento para clicar na linha
+                  tr.addEventListener('click', (e) => {
+                      if (!e.target.closest('button')) {
+                          openMilestoneModal(milestone.id);
+                      }
+                  });
+                  
+              } catch (error) {
+                  console.error("[Milestone Process] Erro ao processar marco:", milestone, error);
+              }
+          });
+          
+          console.log(`[Milestones] Processamento direto concluído. ${milestones.length} marcos adicionados à tabela.`);
+          
+      } catch (error) {
+          console.error("[Milestones] Erro ao carregar marcos:", error);
+          milestonesTableBody.innerHTML = `
+              <tr>
+                  <td colspan="6" class="text-center text-danger small">
+                      <i class="bi bi-exclamation-triangle me-1"></i> Erro ao carregar marcos: ${error.message}
+                  </td>
+              </tr>
+          `;
+      }
+  }
+
+  // Função para renderizar os marcos na tabela
+  function renderMilestones(milestones) {
+      if (!milestonesTableBody) {
+          console.error("[Milestones] Elemento milestonesTableBody não encontrado no DOM");
+          return;
+      }
+      
+      console.log("[Milestones] Renderizando", milestones.length, "marcos", milestones);
+      
+      // CORREÇÃO: Verificar e converter para array se necessário
+      let milestonesArray = milestones;
+      if (!Array.isArray(milestones)) {
+          try {
+              milestonesArray = JSON.parse(milestones);
+              console.log("[Milestones] Convertido de string JSON para array:", milestonesArray);
+          } catch (e) {
+              console.error("[Milestones] Erro ao converter dados de marcos:", e);
+              milestonesArray = [];
+          }
+      }
+      
+      // Limpa a tabela
+      milestonesTableBody.innerHTML = ''; // Limpa a tabela
+      
+      // CORREÇÃO: Verificação de array vazio revisada
+      if (!milestonesArray || milestonesArray.length === 0) {
+          milestonesTableBody.innerHTML = `
+              <tr>
+                  <td colspan="6" class="text-center text-muted small">
+                      <i class="bi bi-info-circle me-1"></i> Nenhum marco definido para este projeto.
+                  </td>
+              </tr>
+          `;
+          console.log("[Milestones] Nenhum marco encontrado para exibir");
+          return;
+      }
+
+      // CORREÇÃO: Abordagem simplificada para garantir que funcione
+      console.log("[Milestones] Tentando abordagem direta para renderização");
+      
+      // Cria uma string HTML com todas as linhas
+      let rowsHtml = '';
+      
+      milestonesArray.forEach((milestone, index) => {
+          try {
+              // Status e criticidade
+              let statusClass = "bg-secondary"; // Default
+              if (milestone.status && milestone.status.toLowerCase() === "concluído") statusClass = "bg-success";
+              else if (milestone.status && milestone.status.toLowerCase() === "em andamento") statusClass = "bg-primary";
+              else if (milestone.status && milestone.status.toLowerCase() === "atrasado" || milestone.is_delayed) statusClass = "bg-danger";
+              
+              let criticalityClass = "bg-secondary"; // Default
+              if (milestone.criticality && milestone.criticality.toLowerCase() === "crítica") criticalityClass = "bg-danger";
+              else if (milestone.criticality && milestone.criticality.toLowerCase() === "alta") criticalityClass = "bg-warning text-dark";
+              else if (milestone.criticality && milestone.criticality.toLowerCase() === "média") criticalityClass = "bg-info text-dark";
+              
+              // Formata datas
+              const plannedDate = milestone.planned_date ? formatDateString(milestone.planned_date) : "-";
+              const actualDate = milestone.actual_date ? formatDateString(milestone.actual_date) : "-";
+              
+              // Cria linha HTML
+              rowsHtml += `
+                  <tr data-milestone-id="${milestone.id}">
+                      <td>${escapeHtml(milestone.name)} ${milestone.is_checkpoint ? '<i class="bi bi-patch-check-fill text-primary" title="Checkpoint"></i>' : ''}</td>
+                      <td>${plannedDate}</td>
+                      <td>${actualDate}</td>
+                      <td><span class="badge ${statusClass}">${escapeHtml(milestone.status || 'Pendente')}</span></td>
+                      <td><span class="badge ${criticalityClass}">${escapeHtml(milestone.criticality || 'Média')}</span></td>
+                      <td>
+                          <button class="btn btn-outline-primary btn-sm edit-milestone-btn" title="Editar Marco">
+                              <i class="bi bi-pencil-fill"></i>
+                          </button>
+                          <button class="btn btn-outline-danger btn-sm delete-milestone-btn-inline" title="Excluir Marco">
+                              <i class="bi bi-trash-fill"></i>
+                          </button>
+                      </td>
+                  </tr>
+              `;
+          } catch (error) {
+              console.error(`[Milestones] Erro ao processar marco ${index}:`, milestone, error);
+              // Continua para o próximo marco em caso de erro
+          }
+      });
+      
+      // CORREÇÃO: Define o HTML completo de uma vez
+      milestonesTableBody.innerHTML = rowsHtml;
+      
+      // CORREÇÃO: Adiciona eventos depois de inserir o HTML
+      document.querySelectorAll('tr[data-milestone-id]').forEach(tr => {
+          const milestoneId = tr.dataset.milestoneId;
+          
+          // Evento para editar ao clicar na linha (exceto nos botões)
+          tr.addEventListener('click', (e) => {
+              if (!e.target.closest('button')) {
+                  openMilestoneModal(milestoneId);
+              }
+          });
+          
+          // Evento para botão editar
+          const editBtn = tr.querySelector('.edit-milestone-btn');
+          if (editBtn) {
+              editBtn.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  openMilestoneModal(milestoneId);
+              });
+          }
+          
+          // Evento para botão excluir
+          const deleteBtn = tr.querySelector('.delete-milestone-btn-inline');
+          if (deleteBtn) {
+              deleteBtn.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  // Busca o nome do marco no DOM
+                  const milestoneName = tr.querySelector('td:first-child').textContent.trim();
+                  confirmDeleteMilestone(milestoneId, milestoneName);
+              });
+          }
+      });
+      
+      console.log("[Milestones] Renderização concluída com sucesso. Marcos renderizados:", milestonesArray.length);
+  }
+
+  // Função para abrir o modal de marco (criar ou editar)
+  function openMilestoneModal(milestoneId = null) {
+      if (!milestoneModal || !milestoneForm) {
+          console.error("[Modal Open] Elementos do modal não encontrados");
+          return;
+      }
+      
+      console.log("[Modal Open] Abrindo modal de marco para ID:", milestoneId);
+      milestoneForm.reset(); // Limpa o formulário
+      milestoneIdInput.value = milestoneId || ''; // Define ou limpa o ID
+      showModalLoading(milestoneModalElement, false); // Esconde loading
+
+      if (milestoneId) {
+          // --- Modo Edição ---
+          milestoneModalTitle.textContent = 'Editar Marco';
+          deleteMilestoneBtn.style.display = 'block'; // Mostra botão excluir
+          
+          // CORREÇÃO: Busca os dados do marco na lista completa
+          showModalLoading(milestoneModalElement, true);
+          
+          // Obter valor atualizado do backlog ID diretamente do DOM
+          const currentBacklogIdFromDOM = document.getElementById('currentBacklogId')?.value;
+          
+          if (!currentBacklogIdFromDOM) {
+              console.error("[Modal Open] Backlog ID não encontrado, não é possível buscar marcos");
+              showModalLoading(milestoneModalElement, false);
+              showToast('Erro: ID do backlog não encontrado', 'error');
+              milestoneModal.hide();
+              return;
+          }
+          
+          console.log(`[Modal Open] Buscando todos os marcos do backlog ${currentBacklogIdFromDOM} para filtrar ID ${milestoneId}`);
+          
+          // Busca todos os marcos e filtra pelo ID desejado
+          fetch(`/backlog/api/backlogs/${currentBacklogIdFromDOM}/milestones`)
+              .then(response => {
+                  if (!response.ok) {
+                      console.error(`[Modal Open] Erro ${response.status} ao buscar marcos`);
+                      throw new Error(`Erro ao buscar lista de marcos (${response.status})`);
+                  }
+                  return response.json();
+              })
+              .then(allMilestones => {
+                  console.log(`[Modal Open] Recebidos ${allMilestones.length} marcos, buscando ID ${milestoneId}`, allMilestones);
+                  
+                  // Filtra pelo ID específico (garantindo conversão para número)
+                  const milestone = allMilestones.find(m => Number(m.id) === Number(milestoneId));
+                  
+                  if (!milestone) {
+                      console.error(`[Modal Open] Marco ID ${milestoneId} não encontrado na lista de ${allMilestones.length} marcos`);
+                      throw new Error(`Marco ID ${milestoneId} não encontrado na lista`);
+                  }
+                  
+                  console.log("[Modal Open] Marco encontrado para edição:", milestone);
+                  
+                  // Preenche o formulário com os dados do marco
+                  document.getElementById('milestoneName').value = milestone.name || '';
+                  document.getElementById('milestoneDescription').value = milestone.description || '';
+                  document.getElementById('milestonePlannedDate').value = milestone.planned_date ? milestone.planned_date.substring(0, 10) : '';
+                  document.getElementById('milestoneActualDate').value = milestone.actual_date ? milestone.actual_date.substring(0, 10) : '';
+                  document.getElementById('milestoneStatus').value = milestone.status || 'Pendente';
+                  document.getElementById('milestoneCriticality').value = milestone.criticality || 'Média';
+                  document.getElementById('milestoneIsCheckpoint').checked = milestone.is_checkpoint || false;
+                  
+                  showModalLoading(milestoneModalElement, false);
+              })
+              .catch(error => {
+                  console.error('[Modal Open] Erro ao buscar detalhes do marco:', error);
+                  showModalLoading(milestoneModalElement, false);
+                  showToast('Erro ao carregar detalhes do marco: ' + error.message, 'error');
+                  milestoneModal.hide(); // Fecha o modal se não conseguir carregar
+              });
+              
+      } else {
+          // --- Modo Criação ---
+          console.log("[Modal Open] Modo criação - formulário limpo");
+          milestoneModalTitle.textContent = 'Adicionar Marco';
+          deleteMilestoneBtn.style.display = 'none'; // Esconde botão excluir
+          // Valores padrão (já definidos no reset ou no HTML)
+      }
+      
+      milestoneModal.show();
+  }
+
+  // Adicionar a função formatDateString que estava faltando
+  function formatDateString(dateStr) {
+      if (!dateStr) return "-";
+      try {
+          const date = new Date(dateStr);
+          if (isNaN(date.getTime())) return dateStr; // Retorna a string original se a data for inválida
+          return date.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'});
+      } catch (e) {
+          console.error("Erro ao formatar data:", e, dateStr);
+          return dateStr;
+      }
+  }
+
+  // Função para confirmar e excluir um marco
+  function confirmDeleteMilestone(milestoneId, milestoneName) {
+      if (!milestoneId) {
+          console.error("[Delete Milestone] ID do marco não fornecido");
+          return;
+      }
+      
+      const confirmMessage = `Tem certeza que deseja excluir o marco "${milestoneName || milestoneId}"?`;
+      if (confirm(confirmMessage)) {
+          console.log(`[Delete Milestone] Confirmado. Excluindo marco ID: ${milestoneId}`);
+          deleteMilestone(milestoneId);
+      } else {
+          console.log(`[Delete Milestone] Exclusão cancelada pelo usuário para ID: ${milestoneId}`);
+      }
+  }
+
+  // Função para excluir um marco via API
+  async function deleteMilestone(milestoneId) {
+      try {
+          console.log(`[Delete Milestone] Enviando requisição DELETE para marco ID: ${milestoneId}`);
+          const response = await fetch(`/backlog/api/milestones/${milestoneId}`, {
+              method: 'DELETE',
+              headers: {'Content-Type': 'application/json'}
+          });
+          
+          if (!response.ok) {
+              const errorData = await response.json().catch(() => ({}));
+              throw new Error(errorData.message || `Erro HTTP: ${response.status}`);
+          }
+          
+          console.log('[Delete Milestone] Marco excluído com sucesso');
+          showToast('Marco excluído com sucesso!', 'success');
+          
+          // Recarrega a lista de marcos
+          loadMilestones();
+          
+          // Fecha o modal se estiver aberto
+          if (milestoneModal) {
+              milestoneModal.hide();
+          }
+      } catch (error) {
+          console.error('[Delete Milestone] Erro:', error);
+          showToast(`Erro ao excluir marco: ${error.message}`, 'error');
+      }
+  }
 
 </script>
 {% endblock %} 
