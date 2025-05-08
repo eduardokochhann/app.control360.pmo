@@ -1298,11 +1298,9 @@
                       }
                       // ---------------------------------------------
 
-                      // Se foi movida para a coluna de concluídos, atualizar a linha do tempo
-                      if (updatedTask.column_identifier === 'concluido') {
-                          // Atualizar a timeline quando uma tarefa é movida para concluído
-                          setTimeout(updateTimelineTasks, 500);
-                      }
+                      // Atualiza a timeline sempre que uma tarefa for movida
+                      console.log(`[Task Moved] Atualizando timeline após movimentação da tarefa ${taskId}`);
+                      setTimeout(updateTimelineTasks, 500);
 
                       // Recalcula totais
                       updateColumnTotals();
@@ -1626,7 +1624,7 @@
               if (modalInstance) modalInstance.hide();
 
               // Limpar formulário e esconder modal
-              modal.hide();
+              // modal.hide(); // ERRO: modal não está definido, removido
               
               // Atualiza totais e inicializa Sortable
               updateColumnTotals();
@@ -2520,16 +2518,25 @@
         return;
     }
     
-    // Fazer a requisição �  API
+    // Fazer a requisição à API
     fetch(`/backlog/api/backlogs/${backlogId}/timeline-tasks`)
         .then(response => {
             if (!response.ok) {
-                throw new Error(`Status: ${response.status}`);
+                return response.json().then(errorData => {
+                    throw new Error(errorData.error || `Status: ${response.status}`);
+                }).catch(e => {
+                    throw new Error(`Erro HTTP ${response.status}`);
+                });
             }
             return response.json();
         })
         .then(data => {
             console.log("[Timeline] Dados recebidos:", data);
+            
+            // Verificar se há mensagem de erro na resposta
+            if (data.error) {
+                throw new Error(data.error);
+            }
             
             // Renderizar tarefas concluídas recentemente
             renderTasksList(completedTasksList, data.recently_completed, 'check-circle-fill', 'text-success', 'Nenhuma tarefa concluída recentemente');
@@ -2542,10 +2549,43 @@
         })
         .catch(error => {
             console.error("[Timeline] Erro ao carregar tarefas da linha do tempo:", error);
-            const errorMessage = '<li class="list-group-item text-center text-danger small"><i class="bi bi-exclamation-triangle-fill me-2"></i>Erro ao carregar tarefas</li>';
-            completedTasksList.innerHTML = errorMessage;
-            upcomingTasksList.innerHTML = errorMessage;
-            startedTasksList.innerHTML = errorMessage;
+            
+            // Usar o endpoint de diagnóstico em caso de erro
+            fetch(`/backlog/api/debug/timeline-tasks/${backlogId}`)
+                .then(diagResponse => diagResponse.json())
+                .then(diagData => {
+                    console.log("[Timeline] Diagnóstico:", diagData);
+                    // Mostrar erro mais específico com base no diagnóstico
+                    const errorDetail = diagData.error 
+                        ? `<div class="mt-1">${diagData.error}</div>` 
+                        : `<div class="mt-1 small">Diagnóstico concluído, verifique o console.</div>`;
+                        
+                    const errorMessage = `
+                        <li class="list-group-item text-center text-danger">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <strong>Erro ao carregar tarefas</strong>
+                            <div class="small mt-1">${error.message}</div>
+                            ${errorDetail}
+                        </li>`;
+                        
+                    completedTasksList.innerHTML = errorMessage;
+                    upcomingTasksList.innerHTML = errorMessage;
+                    startedTasksList.innerHTML = errorMessage;
+                })
+                .catch(diagError => {
+                    // Caso o diagnóstico também falhe
+                    const errorMessage = `
+                        <li class="list-group-item text-center text-danger">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <strong>Erro ao carregar tarefas</strong>
+                            <div class="mt-1 small">${error.message}</div>
+                            <div class="mt-1 small">Diagnóstico falhou: ${diagError.message}</div>
+                        </li>`;
+                        
+                    completedTasksList.innerHTML = errorMessage;
+                    upcomingTasksList.innerHTML = errorMessage;
+                    startedTasksList.innerHTML = errorMessage;
+                });
         });
   }
 
@@ -2561,10 +2601,18 @@
         // Formatar data relevante (conclusão, prazo ou início)
         let dateStr = '';
         let dateLabel = '';
+        let secondDateStr = '';
         
         if (task.completed_at) {
             dateStr = formatDateString(task.completed_at);
             dateLabel = 'Concluído em';
+        } else if (listElement.id === 'upcomingTasksList') {
+            // Para próximas tarefas, mostrar tanto início quanto prazo
+            let startDateStr = task.start_date ? formatDateString(task.start_date) : '-';
+            let dueDateStr = task.due_date ? formatDateString(task.due_date) : '-';
+            dateStr = `<span class="small me-2" title="Data de início"><i class="bi bi-calendar-event"></i> ${startDateStr}</span>
+                      <span class="small" title="Prazo final"><i class="bi bi-calendar-check"></i> ${dueDateStr}</span>`;
+            dateLabel = ''; // Vazio pois já incluímos ícones explicativos
         } else if (task.due_date) {
             dateStr = formatDateString(task.due_date);
             dateLabel = 'Prazo';
@@ -2592,7 +2640,7 @@
                     <span class="task-title">${escapeHtml(task.title)}</span>
                 </div>
                 <div class="text-muted small">
-                    <span class="date-label">${dateLabel}:</span> ${dateStr}
+                    ${dateLabel ? `<span class="date-label">${dateLabel}:</span> ` : ''}${dateStr}
                 </div>
             </li>
         `;
