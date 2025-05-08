@@ -3,7 +3,14 @@
 {% block title %}{{ titulo_pagina if titulo_pagina else 'Status Report' }}{% endblock %}
 
 {% block extra_css %}
+{{ super() }}
 <style>
+    /* Classes para controlar visibilidade na tela e no PDF */
+    .pdf-only {
+        display: none; /* Oculta elementos que devem aparecer apenas no PDF */
+    }
+    
+    /* Estilos gerais */
     .status-dot {
         height: 25px;
         width: 25px;
@@ -19,51 +26,8 @@
     .status-vermelho { background-color: #e74a3b; } /* Vermelho do template */
     .status-cinza { background-color: #858796; } /* Cinza do template */
     .status-text { font-weight: 600; font-size: 1.1rem; }
-    .kpi-card .card-body {
-        display: flex;
-        align-items: center;
-        height: 85px;
-        padding: 0.5rem 0.8rem;
-    }
-    .kpi-card .kpi-content {
-        width: 100%;
-        margin-left: 0.8rem;
-    }
-    .kpi-card .kpi-icon {
-        font-size: 1.8rem;
-        color: #dddfeb;
-    }
-    .kpi-card .text-xs {
-        font-size: 0.65rem;
-        display: block;
-        margin-bottom: -2px;
-    }
-    .kpi-card .h1, .kpi-card .h5 {
-        font-size: 1.4rem;
-        margin-bottom: 0;
-        line-height: 1.1;
-    }
-    .kpi-card small.text-muted {
-        font-size: 0.65rem;
-        line-height: 1;
-        display: block;
-        margin-top: 1px;
-    }
-    .chart-card .card-body {
-         min-height: 220px;
-         padding: 0.8rem;
-    }
-    .chart-card canvas {
-        max-height: 200px;
-    }
-    .section-title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #5a5c69;
-        margin-bottom: 0.5rem;
-        padding-bottom: 0.4rem;
-        border-bottom: 1px solid #e3e6f0;
-    }
+    
+    /* Layout original do projeto */
     .project-details-header {
         font-size: 0.85rem;
         color: #5a5c69;
@@ -73,23 +37,73 @@
         border-radius: 0.35rem;
         border: 1px solid #e3e6f0;
     }
+    
     .project-details-header strong {
         margin-right: 5px;
     }
+    
     .project-details-header span {
         margin-right: 15px;
     }
-    .list-group-item {
-        background-color: transparent;
-        border-left: none;
-        border-right: none;
-        border-top: 1px solid #e3e6f0;
-        padding: 0.6rem 0;
-        font-size: 0.85rem;
+    
+    /* KPI cards originais */
+    .kpi-card .card-body {
+        display: flex;
+        align-items: center;
+        height: 85px;
+        padding: 0.5rem 0.8rem;
     }
-    .list-group-item:first-child {
-        border-top: none;
+    
+    .kpi-card .kpi-content {
+        width: 100%;
+        margin-left: 0.8rem;
     }
+    
+    .kpi-card .kpi-icon {
+        font-size: 1.8rem;
+        color: #dddfeb;
+    }
+    
+    .kpi-card .text-xs {
+        font-size: 0.65rem;
+        display: block;
+        margin-bottom: -2px;
+    }
+    
+    .kpi-card .h1, .kpi-card .h5 {
+        font-size: 1.4rem;
+        margin-bottom: 0;
+        line-height: 1.1;
+    }
+    
+    .kpi-card small.text-muted {
+        font-size: 0.65rem;
+        line-height: 1;
+        display: block;
+        margin-top: 1px;
+    }
+    
+    /* Charts originais */
+    .chart-card .card-body {
+        min-height: 220px;
+        padding: 0.8rem;
+    }
+    
+    .chart-card canvas {
+        max-height: 200px;
+    }
+    
+    /* Títulos de seções */
+    .section-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #5a5c69;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.4rem;
+        border-bottom: 1px solid #e3e6f0;
+    }
+    
+    /* Placeholders originais */
     .placeholder-section {
         background-color: #f8f9fc;
         border: 1px dashed #d1d3e2;
@@ -100,37 +114,104 @@
         margin-top: 1rem;
         font-size: 0.85rem;
     }
+    
     .placeholder-section i {
         font-size: 1.2rem;
         margin-bottom: 0.4rem;
         display: block;
     }
+    
     .placeholder-section h6 {
-         font-size: 0.9rem;
+        font-size: 0.9rem;
+    }
+    
+    .list-group-item {
+        background-color: transparent;
+        border-left: none;
+        border-right: none;
+        border-top: 1px solid #e3e6f0;
+        padding: 0.6rem 0;
+        font-size: 0.85rem;
+    }
+    
+    .list-group-item:first-child {
+        border-top: none;
+    }
+    
+    /* Estilos para campos editáveis */
+    .editable-field {
+        padding: 2px 5px;
+        border-radius: 3px;
+        transition: background-color 0.2s;
+    }
+    
+    .edit-mode .editable-field {
+        border: 1px dashed #4e73df;
+        background-color: rgba(78, 115, 223, 0.1);
+        cursor: pointer;
+    }
+    
+    .editable-field.editing {
+        background-color: white !important;
+        border: 1px solid #4e73df !important;
+        padding: 1px 4px;
+    }
+    
+    /* Estilo para o botão de modo de edição ativo */
+    #editModeBtn.active {
+        background-color: #e74a3b;
+        border-color: #e74a3b;
+        color: white;
+    }
+    
+    /* Estilo para entrada de edição */
+    .edit-input {
+        width: 100%;
+        border: none;
+        background: transparent;
+        font-size: inherit;
+        font-weight: inherit;
+        color: inherit;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .edit-input:focus {
+        outline: none;
     }
 
     /* --- Estilos para Geração de PDF (WeasyPrint) --- */
     @media print {
         @page {
             size: A4 portrait; /* Define tamanho e orientação */
-            margin: 1.5cm; /* Margens da página */
+            margin: 15mm; /* Margens uniformes */
         }
 
         body {
-            font-size: 10pt; /* Tamanho de fonte base para PDF */
+            font-size: 11pt; /* Tamanho de fonte base maior para PDF */
             background-color: #fff !important; /* Garante fundo branco */
             -webkit-print-color-adjust: exact; /* Força cores de fundo em alguns renderizadores */
             print-color-adjust: exact;
+            line-height: 1.3; /* Espaçamento entre linhas melhorado */
+        }
+
+        /* Controle de visibilidade para impressão */
+        .pdf-only {
+            display: block !important; /* Mostra elementos apenas para PDF */
+        }
+        
+        .screen-only {
+            display: none !important; /* Oculta elementos apenas para tela */
         }
 
         /* Esconde elementos da UI */
-        .navbar, /* Esconde a navbar do base.html (se estendido) */
-        #accordionSidebar, /* Esconde a sidebar */
-        #content > nav, /* Esconde a topbar dentro do content */
-        footer.sticky-footer, /* Esconde o footer */
-        .scroll-to-top, /* Esconde botão de scroll */
-        .btn-outline-secondary, /* Esconde o próprio botão de imprimir/download */
-        .d-sm-flex.align-items-center.justify-content-between.mb-3 > div:last-child /* Esconde div com data e botão */
+        .navbar, 
+        #accordionSidebar,
+        #content > nav,
+        footer.sticky-footer,
+        .scroll-to-top,
+        .btn-outline-secondary,
+        .d-sm-flex.align-items-center.justify-content-between.mb-3 > div:last-child
         {
             display: none !important;
         }
@@ -144,93 +225,309 @@
         .container, .container-fluid {
             padding-left: 0 !important;
             padding-right: 0 !important;
-             max-width: 100% !important; /* Ocupa largura disponível dentro das margens */
+            max-width: 100% !important;
         }
         
         /* Ajusta Título Principal */
-         .d-sm-flex.align-items-center.justify-content-between.mb-3 > h1 {
-             margin-bottom: 0.8rem !important; /* Espaço abaixo do título */
-             font-size: 16pt; /* Tamanho maior para título */
-             width: 100%; /* Ocupa toda a largura */
-             text-align: center; /* Centraliza título */
-             border-bottom: 1px solid #ccc; /* Linha abaixo do título */
-             padding-bottom: 0.5rem;
-         }
-         /* Remove justificar do flex para centralizar título */
-         .d-sm-flex.align-items-center.justify-content-between.mb-3 {
-             justify-content: center !important; 
-         }
+        .d-sm-flex.align-items-center.justify-content-between.mb-3 > h1 {
+            margin-bottom: 1rem !important; /* Mais espaço abaixo do título */
+            font-size: 16pt; /* Tamanho maior para título */
+            width: 100%; /* Ocupa toda a largura */
+            text-align: center; /* Centraliza título */
+            font-weight: bold;
+            color: #4e73df !important;
+        }
+        
+        /* Remove justificar do flex para centralizar título */
+        .d-sm-flex.align-items-center.justify-content-between.mb-3 {
+            justify-content: center !important; 
+        }
 
-        /* Ajusta Detalhes do Projeto */
-        .project-details-header {
+        /* Logo e header da empresa */
+        .company-header {
+            display: flex !important;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #4e73df !important;
+        }
+        
+        .company-logo {
+            font-size: 14pt;
+            font-weight: bold;
+            color: #4e73df !important;
+        }
+        
+        /* Ajustes para a linha de informações do projeto */
+        .project-info-line {
+            display: flex !important;
+            flex-wrap: wrap;
+            align-items: center;
             font-size: 9pt;
+            color: #5a5c69;
             padding: 0.5rem;
             margin-bottom: 1rem;
+            background-color: #f9f9f9 !important;
+            border-radius: 0.35rem;
             border: 1px solid #ccc;
-            box-shadow: none;
-            background-color: #f9f9f9 !important; /* Fundo leve */
         }
-        .project-details-header span {
+        
+        .project-info-item {
             margin-right: 10px;
+            white-space: nowrap;
         }
-
-        /* Ajusta Cards */
+        
+        .project-info-separator {
+            margin: 0 5px;
+            color: #aaa;
+        }
+        
+        /* Cards KPI para impressão */
         .card {
             box-shadow: none !important; /* Remove sombra */
             border: 1px solid #ddd !important; /* Borda simples */
-            margin-bottom: 0.8rem;
+            margin-bottom: 0.8rem !important;
             page-break-inside: avoid; /* Evita quebrar card entre páginas */
         }
+        
+        .kpi-card .card-body {
+            height: auto;
+            min-height: 60px;
+            padding: 0.4rem 0.6rem;
+        }
+        
+        .kpi-card .kpi-icon {
+            font-size: 1.2rem;
+        }
+        
+        .kpi-card .text-xs { font-size: 7pt; }
+        .kpi-card .h1 { 
+            font-size: 14pt; 
+            margin-top: 3px;
+        }
+        .kpi-card .h5 { 
+            font-size: 10pt;
+            margin-top: 3px;
+        }
+        
+        .kpi-card small.text-muted { 
+            font-size: 7pt; 
+            margin-top: 2px;
+        }
+        
+        .status-dot { 
+            height: 12px; 
+            width: 12px; 
+            border-width: 2px; 
+        }
+
+        /* Ajusta Gráficos */
         .card-header {
-            background-color: #f5f5f5 !important; /* Fundo do header mais claro */
+            background-color: #f5f5f5 !important;
             padding: 0.4rem 0.6rem;
             border-bottom: 1px solid #ddd !important;
         }
-         .card-header h6 {
-            font-size: 10pt; 
-         }
-        .border-left-primary, .border-left-info, .border-left-warning, .border-left-success {
-            border-left: 3px solid !important; /* Mantém a cor da borda, mas mais fina */
+        
+        .card-header h6 {
+            font-size: 10pt;
+            font-weight: bold;
         }
-
-        /* Ajusta KPIs */
-        .kpi-card .card-body {
-            height: auto; /* Altura automática */
-            min-height: 65px; /* Altura mínima */
-            padding: 0.4rem 0.6rem;
-        }
-        .kpi-card .kpi-icon {
-            font-size: 1.5rem;
-        }
-        .kpi-card .text-xs { font-size: 7pt; }
-        .kpi-card .h1, .kpi-card .h5 { font-size: 12pt; }
-        .kpi-card small.text-muted { font-size: 7pt; }
-        .status-dot { height: 15px; width: 15px; border-width: 2px; }
-
-        /* Ajusta Gráficos */
+        
         .chart-card .card-body {
-            min-height: 180px; /* Altura mínima */
-            padding: 0.5rem;
+            min-height: 180px;
+            padding: 0.6rem;
         }
-        canvas {
-            max-width: 100% !important; /* Garante que caiba */
+        
+        .chart-card canvas {
+            max-height: 180px;
+        }
+        
+        .border-left-primary, .border-left-info, .border-left-warning, .border-left-success {
+            border-left: 3px solid !important; /* Borda mais fina para impressão */
         }
         
         /* Ajusta Placeholders */
         .placeholder-section {
             background-color: #f9f9f9 !important;
             border: 1px solid #ddd !important;
-            padding: 0.8rem;
+            padding: 0.6rem;
             font-size: 8pt;
             page-break-inside: avoid;
+            margin-top: 0.8rem;
+            height: 100px;
+            overflow: hidden;
         }
-        .placeholder-section i { font-size: 1rem; margin-bottom: 0.2rem; }
-        .placeholder-section h6 { font-size: 9pt; }
+        
+        .placeholder-section i { 
+            font-size: 1rem; 
+            margin-bottom: 0.3rem; 
+        }
+        
+        .placeholder-section h6 { 
+            font-size: 9pt; 
+            margin-bottom: 0.5rem;
+        }
+
+        /* Espaço entre as linhas principais */
+        .row {
+            margin-bottom: 10px !important;
+        }
+        
+        /* Rodapé da empresa */
+        .company-footer {
+            display: block !important;
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 1px solid #4e73df !important;
+            font-size: 8pt;
+            color: #4e73df !important;
+            text-align: center;
+        }
 
         /* Remove links */
         a { text-decoration: none !important; color: inherit !important; }
     }
 
+    /* Classe para estilo ao gerar PDF via browser */
+    .print-mode {
+        font-size: 11pt !important;
+        line-height: 1.3 !important;
+        width: 210mm !important; /* Largura exata do A4 */
+        box-sizing: border-box !important;
+        padding: 0 !important;
+        margin: 0 auto !important;
+    }
+    
+    .print-mode .company-header {
+        margin-bottom: 10px !important;
+        padding-bottom: 5px !important;
+        border-bottom: 1px solid #4e73df !important;
+    }
+    
+    .print-mode .company-logo {
+        font-size: 12pt !important;
+    }
+    
+    .print-mode .project-info-line {
+        font-size: 8pt !important;
+        padding: 4px 6px !important;
+        margin-bottom: 10px !important;
+    }
+    
+    .print-mode .row {
+        margin-left: -5px !important;
+        margin-right: -5px !important;
+        margin-bottom: 8px !important;
+    }
+    
+    .print-mode .col-xl-3,
+    .print-mode .col-md-6,
+    .print-mode .col-lg-6,
+    .print-mode .col-md-4 {
+        padding-left: 5px !important;
+        padding-right: 5px !important;
+    }
+    
+    .print-mode .status-dot {
+        height: 10px !important;
+        width: 10px !important;
+        border-width: 1px !important;
+        margin-right: 3px !important;
+    }
+    
+    .print-mode .kpi-card {
+        margin-bottom: 8px !important;
+    }
+    
+    .print-mode .kpi-card .card-body {
+        height: auto !important;
+        min-height: 50px !important;
+        padding: 4px 6px !important;
+    }
+    
+    .print-mode .kpi-card .kpi-icon {
+        font-size: 1rem !important;
+    }
+    
+    .print-mode .kpi-card .text-xs {
+        font-size: 6pt !important;
+    }
+    
+    .print-mode .kpi-card .h1 {
+        font-size: 12pt !important;
+    }
+    
+    .print-mode .kpi-card .h5 {
+        font-size: 10pt !important;
+    }
+    
+    .print-mode .kpi-card small.text-muted { 
+        font-size: 6pt !important; 
+    }
+    
+    .print-mode .card-header {
+        padding: 3px 6px !important;
+    }
+    
+    .print-mode .card-header h6 {
+        font-size: 10pt !important;
+        margin: 0 !important;
+    }
+    
+    .print-mode .chart-card .card-body {
+        min-height: 150px !important;
+        padding: 5px !important;
+    }
+    
+    .print-mode canvas {
+        max-height: 140px !important;
+        max-width: none !important;
+    }
+    
+    .print-mode .placeholder-section {
+        height: 80px !important;
+        padding: 5px !important;
+        margin-top: 5px !important;
+    }
+    
+    .print-mode .placeholder-section i {
+        font-size: 0.8rem !important;
+        margin-bottom: 2px !important;
+    }
+    
+    .print-mode .placeholder-section h6 {
+        font-size: 8pt !important;
+        margin-bottom: 3px !important;
+    }
+    
+    .print-mode .placeholder-section p {
+        font-size: 7pt !important;
+        margin-bottom: 0 !important;
+    }
+    
+    .print-mode .company-footer {
+        margin-top: 10px !important;
+        padding-top: 5px !important;
+        font-size: 7pt !important;
+    }
+    
+    .print-mode .company-footer p {
+        margin-bottom: 2px !important;
+    }
+
+    .print-mode .chart-card {
+        margin-bottom: 8px !important;
+    }
+
+    .print-mode .chart-card .card-body {
+        min-height: 135px !important;
+        max-height: 150px !important;
+        padding: 5px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
 </style>
 {% endblock %}
 
@@ -249,28 +546,61 @@
         </h1>
         <div> <!-- Div para agrupar data e botão -->
             <span class="text-muted small me-3">Gerado em: {{ data_geracao | default('N/A', true) }}</span>
-            {% if weasyprint_installed %}
+            <!-- Botão para modo de edição -->
+            <button class="btn btn-sm btn-warning me-2" id="editModeBtn" title="Editar relatório antes de baixar">
+                <i class="bi bi-pencil-square me-1"></i> <span>Editar Relatório</span>
+            </button>
+            {% if pdf_generator_available %}
                 <a href="{{ url_for('macro.download_status_report', project_id=project_id) }}" 
                    class="btn btn-sm btn-primary" 
-                   title="Baixar Relatório em PDF">
-                    <i class="bi bi-download me-1"></i> Baixar PDF
+                   title="Baixar Relatório em PDF ({{ generator_type }})">
+                    <i class="bi bi-download me-1"></i> Baixar PDF (Servidor)
                 </a>
-            {% else %}
-                 <button class="btn btn-sm btn-outline-secondary" onclick="window.print();" title="Gerador de PDF não instalado. Usando impressão do navegador.">
-                    <i class="bi bi-printer me-1"></i> Imprimir
-                </button>
-                 <small class="text-danger ms-2" title="Instale WeasyPrint e dependências para download direto.">(PDF direto indisponível)</small>
             {% endif %}
+            <!-- Botão para gerar PDF via JavaScript (sempre disponível) -->
+            <button class="btn btn-sm btn-success ms-2" id="generatePdfBtn" title="Gerar PDF usando o navegador">
+                <i class="bi bi-filetype-pdf me-1"></i> Baixar PDF (Browser)
+            </button>
+            <button class="btn btn-sm btn-outline-secondary ms-2" onclick="window.print();" title="Usar impressão do navegador">
+                <i class="bi bi-printer me-1"></i> Imprimir
+            </button>
         </div>
     </div>
 
-    <!-- Detalhes do Projeto (Movido para o Cabeçalho) -->
-    <div class="project-details-header">
-        <span><strong>Projeto:</strong> {{ report_data.info_geral.nome | default('N/A') }}</span>
-        <span><strong>ID:</strong> {{ report_data.info_geral.id | default('N/A') }}</span>
-        <span><strong>Status Atual:</strong> {{ report_data.info_geral.status_atual | default('N/A') }}</span>
-        <span><strong>Squad:</strong> {{ report_data.info_geral.squad | default('N/A') }}</span>
-        <span><strong>Especialista:</strong> {{ report_data.info_geral.especialista | default('N/A') }}</span>
+    <!-- Container principal que será convertido para PDF -->
+    <div id="pdfContent">
+    
+    <!-- Cabeçalho da Empresa (visível apenas na impressão/PDF) -->
+    <div class="company-header pdf-only">
+        <div class="company-logo">
+            <!-- Pode ser substituído por uma imagem real -->
+            <i class="bi bi-building"></i> Control360 SOU
+        </div>
+        <div class="report-date">
+            <strong>{{ data_geracao | default('N/A', true) }}</strong>
+        </div>
+    </div>
+    
+    <!-- Detalhes do Projeto - Mantém o original na tela, redesenhado apenas na impressão -->
+    <div class="project-details-header screen-only">
+        <span><strong>Projeto:</strong> <span class="editable-field" data-field="project-name">{{ report_data.info_geral.nome | default('N/A') }}</span></span>
+        <span><strong>ID:</strong> <span class="editable-field" data-field="project-id">{{ report_data.info_geral.id | default('N/A') }}</span></span>
+        <span><strong>Status Atual:</strong> <span class="editable-field" data-field="project-status">{{ report_data.info_geral.status_atual | default('N/A') }}</span></span>
+        <span><strong>Squad:</strong> <span class="editable-field" data-field="project-squad">{{ report_data.info_geral.squad | default('N/A') }}</span></span>
+        <span><strong>Especialista:</strong> <span class="editable-field" data-field="project-specialist">{{ report_data.info_geral.especialista | default('N/A') }}</span></span>
+    </div>
+
+    <!-- Versão para impressão (apenas visível no PDF) -->
+    <div class="project-info-line pdf-only">
+        <span class="project-info-item"><strong>Projeto:</strong> <span class="editable-field" data-field="project-name">{{ report_data.info_geral.nome | default('N/A') }}</span></span>
+        <span class="project-info-separator">|</span>
+        <span class="project-info-item"><strong>ID:</strong> <span class="editable-field" data-field="project-id">{{ report_data.info_geral.id | default('N/A') }}</span></span>
+        <span class="project-info-separator">|</span>
+        <span class="project-info-item"><strong>Status:</strong> <span class="editable-field" data-field="project-status">{{ report_data.info_geral.status_atual | default('N/A') }}</span></span>
+        <span class="project-info-separator">|</span>
+        <span class="project-info-item"><strong>Squad:</strong> <span class="editable-field" data-field="project-squad">{{ report_data.info_geral.squad | default('N/A') }}</span></span>
+        <span class="project-info-separator">|</span>
+        <span class="project-info-item"><strong>Especialista:</strong> <span class="editable-field" data-field="project-specialist">{{ report_data.info_geral.especialista | default('N/A') }}</span></span>
     </div>
 
     <!-- Linha de KPIs Resumo -->
@@ -281,11 +611,19 @@
                 <div class="card-body">
                     <i class="bi bi-clipboard-data kpi-icon"></i>
                     <div class="kpi-content">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Status Geral</div>
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">STATUS GERAL</div>
                         {% set status_color_class = report_data.status_geral_indicador | default('cinza') %}
                         <div class="d-flex align-items-center">
-                             <span class="status-dot status-{{ status_color_class }}" style="height:20px; width:20px; margin-right:5px;"></span>
-                             <span class="h5 status-text text-{{ status_color_class }}">{{ status_color_class | capitalize | default('A Definir') }}</span>
+                             <span class="status-dot status-{{ status_color_class }}" data-status-dot></span>
+                             <span class="h5 status-text text-{{ status_color_class }} editable-field" data-field="status-geral" data-status-text>{{ status_color_class | capitalize | default('A Definir') }}</span>
+                             <div class="status-selector ml-2" style="display:none;">
+                                <select class="form-select form-select-sm">
+                                    <option value="verde">Verde</option>
+                                    <option value="amarelo">Amarelo</option>
+                                    <option value="vermelho">Vermelho</option>
+                                    <option value="cinza">Cinza</option>
+                                </select>
+                             </div>
                         </div>
                     </div>
                 </div>
@@ -298,8 +636,8 @@
                 <div class="card-body">
                     <i class="bi bi-check2-circle kpi-icon"></i>
                     <div class="kpi-content">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">% Concluído</div>
-                        <div class="h1 mb-0 font-weight-bold text-gray-800">{{ report_data.progresso.percentual_concluido | round(1) }}%</div>
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">% CONCLUÍDO</div>
+                        <div class="h1 mb-0 font-weight-bold text-gray-800 editable-field" data-field="percentual-concluido">{{ report_data.progresso.percentual_concluido | round(1) }}%</div>
                     </div>
                 </div>
             </div>
@@ -311,9 +649,9 @@
                 <div class="card-body">
                     <i class="bi bi-calendar-week kpi-icon"></i>
                     <div class="kpi-content">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Status do Prazo</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ report_data.progresso.status_prazo | default('A Definir') }}</div>
-                        <small class="text-muted">Prev: {{ report_data.progresso.data_prevista_termino | default('N/A', true) }}</small>
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">STATUS DO PRAZO</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800 editable-field" data-field="status-prazo">{{ report_data.progresso.status_prazo | default('A Definir') }}</div>
+                        <small class="text-muted">Prev: <span class="editable-field" data-field="data-prevista">{{ report_data.progresso.data_prevista_termino | default('N/A', true) }}</span></small>
                     </div>
                 </div>
             </div>
@@ -325,9 +663,9 @@
                 <div class="card-body">
                     <i class="bi bi-hourglass-split kpi-icon"></i>
                     <div class="kpi-content">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">% Esforço Consumido</div>
-                        <div class="h1 mb-0 font-weight-bold text-gray-800">{{ report_data.esforco.percentual_consumido | round(1) }}%</div>
-                        <small class="text-muted">{{ report_data.esforco.horas_utilizadas | round(1) }}h / {{ report_data.esforco.horas_planejadas | round(1) }}h</small>
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">% ESFORÇO CONSUMIDO</div>
+                        <div class="h1 mb-0 font-weight-bold text-gray-800 editable-field" data-field="percentual-esforco">{{ report_data.esforco.percentual_consumido | round(1) }}%</div>
+                        <small class="text-muted"><span class="editable-field" data-field="horas-utilizadas">{{ report_data.esforco.horas_utilizadas | round(1) }}</span>h / <span class="editable-field" data-field="horas-planejadas">{{ report_data.esforco.horas_planejadas | round(1) }}</span>h</small>
                     </div>
                 </div>
             </div>
@@ -366,24 +704,33 @@
             <div class="placeholder-section">
                 <i class="bi bi-calendar-check"></i>
                 <h6 class="section-title text-center">Marcos Recentes</h6>
-                <p>[Dados sobre marcos recentes serão adicionados aqui]</p>
+                <p class="editable-field" data-field="marcos-recentes">[Dados sobre marcos recentes serão adicionados aqui]</p>
             </div>
         </div>
         <div class="col-md-4">
              <div class="placeholder-section">
                  <i class="bi bi-list-task"></i>
                 <h6 class="section-title text-center">Linha do Tempo (Tarefas)</h6>
-                <p>[Uma visualização da linha do tempo das tarefas será adicionada aqui]</p>
+                <p class="editable-field" data-field="linha-tempo">[Uma visualização da linha do tempo das tarefas será adicionada aqui]</p>
             </div>
         </div>
         <div class="col-md-4">
              <div class="placeholder-section">
                 <i class="bi bi-exclamation-triangle"></i>
                 <h6 class="section-title text-center">Riscos e Impedimentos</h6>
-                <p>[Informações sobre riscos e impedimentos serão exibidas aqui]</p>
+                <p class="editable-field" data-field="riscos-impedimentos">[Informações sobre riscos e impedimentos serão exibidas aqui]</p>
             </div>
         </div>
     </div>
+    
+    <!-- Rodapé da Empresa (visível apenas na impressão/PDF) -->
+    <div class="company-footer pdf-only">
+        <p>Este documento foi gerado pelo sistema Control360 SOU.</p>
+        <p>© 2025 SOU Tecnologia - Todos os direitos reservados.</p>
+        <p>Contato: suporte@control360.com.br</p>
+    </div>
+    
+    </div><!-- Fim do container para PDF -->
 
 {% else %}
      <div class="alert alert-warning" role="alert">
@@ -399,8 +746,19 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Importar bibliotecas necessárias para geração de PDF no navegador -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // --- Variáveis para o modo de edição ---
+        const editModeBtn = document.getElementById('editModeBtn');
+        const pdfContent = document.getElementById('pdfContent');
+        const editableFields = document.querySelectorAll('.editable-field');
+        let editMode = false;
+        let charts = {}; // Armazena referências para os gráficos
+        
+        // --- Código para geração de gráficos ---
         const reportDataElement = document.getElementById('report-data-json');
         if (!reportDataElement) {
             console.error('Elemento com dados do report não encontrado!');
@@ -430,28 +788,33 @@
         // Somente continua se reportData for válido
         try {
             // --- Gráfico de Progresso (Gauge/Doughnut) ---
-            const progressoCtx = document.getElementById('progressoChart')?.getContext('2d'); // Adiciona '?' para segurança
+            const progressoCtx = document.getElementById('progressoChart')?.getContext('2d');
             if (progressoCtx) {
                 const percentualConcluido = reportData.progresso.percentual_concluido || 0;
                 const corProgresso = percentualConcluido >= 70 ? '#1cc88a' : (percentualConcluido >= 50 ? '#f6c23e' : '#e74a3b');
 
-                new Chart(progressoCtx, {
+                charts.progresso = new Chart(progressoCtx, {
                     type: 'doughnut',
                     data: {
                         datasets: [{
                             data: [percentualConcluido, 100 - percentualConcluido],
                             backgroundColor: [corProgresso, '#e9ecef'],
-                            borderColor: [corProgresso, '#e9ecef'], // Adiciona borda para clareza
+                            borderColor: [corProgresso, '#e9ecef'],
                             borderWidth: 1,
-                            circumference: 180, // Meia rosca
-                            rotation: 270 // Começa de baixo
+                            circumference: 180,
+                            rotation: 270
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        aspectRatio: 2, // Ajusta proporção para meia rosca
+                        aspectRatio: 2,
                         cutout: '75%',
+                        layout: {
+                            padding: {
+                                bottom: 10
+                            }
+                        },
                         plugins: {
                             legend: { display: false },
                             tooltip: { enabled: false },
@@ -462,16 +825,14 @@
                                         ctx = chartInstance.ctx;
                                     ctx.textAlign = 'center';
                                     ctx.textBaseline = 'bottom';
-                                    ctx.font = "bold 24px Inter"; // Ajuste fonte e tamanho
+                                    ctx.font = "bold 24px Inter";
 
-                                    // Pega o valor do primeiro dataset
                                     var value = chartInstance.data.datasets[0].data[0];
-                                    // Pega a cor do primeiro dataset
                                     var color = chartInstance.data.datasets[0].backgroundColor[0]; 
                                     ctx.fillStyle = color;
 
                                     var x = chartInstance.width / 2;
-                                    var y = chartInstance.height / 1.1; // Ajusta posição Y para meia rosca
+                                    var y = chartInstance.height / 1.1;
                                     
                                     ctx.fillText(value + '%', x, y);
                                 }
@@ -484,17 +845,17 @@
             }
 
             // --- Gráfico de Esforço (Barras) ---
-            const esforcoCtx = document.getElementById('esforcoChart')?.getContext('2d'); // Adiciona '?' para segurança
-             if (esforcoCtx) {
+            const esforcoCtx = document.getElementById('esforcoChart')?.getContext('2d');
+            if (esforcoCtx) {
                 const horasPlanejadas = reportData.esforco.horas_planejadas || 0;
                 const horasUtilizadas = reportData.esforco.horas_utilizadas || 0;
-                const corPlanejado = '#adb5bd'; // Cinza mais claro
-                const corUtilizado = horasUtilizadas > horasPlanejadas ? '#e74a3b' : '#4e73df'; // Vermelho se estourou, Azul senão
+                const corPlanejado = '#adb5bd';
+                const corUtilizado = horasUtilizadas > horasPlanejadas ? '#e74a3b' : '#4e73df';
 
-                new Chart(esforcoCtx, {
+                charts.esforco = new Chart(esforcoCtx, {
                     type: 'bar',
                     data: {
-                        labels: ['Utilizado', 'Planejado'], // Ordem invertida para foco no utilizado
+                        labels: ['Utilizado', 'Planejado'],
                         datasets: [
                             {
                                 label: 'Horas',
@@ -502,8 +863,8 @@
                                 backgroundColor: [corUtilizado, corPlanejado],
                                 borderColor: [corUtilizado, corPlanejado],
                                 borderWidth: 1,
-                                barPercentage: 0.5, 
-                                categoryPercentage: 0.6
+                                barPercentage: 0.6, 
+                                categoryPercentage: 0.7
                             }
                         ]
                     },
@@ -511,9 +872,17 @@
                         indexAxis: 'y', 
                         responsive: true,
                         maintainAspectRatio: false,
-                         aspectRatio: 2.5,
+                        aspectRatio: 2.2,
+                        layout: {
+                            padding: {
+                                left: 5,
+                                right: 10,
+                                top: 5,
+                                bottom: 5
+                            }
+                        },
                         plugins: {
-                            legend: { display: false }, // Remove a legenda, cores já indicam
+                            legend: { display: false },
                             title: { display: false },
                             tooltip: {
                                 callbacks: {
@@ -528,23 +897,370 @@
                                 beginAtZero: true,
                                 title: {
                                     display: true,
-                                    text: 'Horas'
+                                    text: 'Horas',
+                                    font: {
+                                        size: 11
+                                    }
+                                },
+                                grid: {
+                                    display: true,
+                                    drawBorder: true,
+                                    drawOnChartArea: true,
+                                    drawTicks: true,
+                                    color: '#e9ecef'
                                 }
                             },
                             y: {
-                                // display: false 
+                                ticks: {
+                                    padding: 5
+                                },
+                                grid: {
+                                    display: false
+                                }
                             }
                         }
                     }
                 });
             } else {
-                 console.warn("Elemento canvas 'esforcoChart' não encontrado.");
+                console.warn("Elemento canvas 'esforcoChart' não encontrado.");
             }
         } catch (chartError) {
             console.error("Erro ao criar gráficos:", chartError);
-             // Opcional: Mostrar erro no lugar dos gráficos
         }
 
+        // --- Função para atualizar os gráficos com novos valores ---
+        function updateCharts(forPdf = false) {
+            // Atualiza gráfico de progresso
+            if (charts.progresso) {
+                const percentualText = document.querySelector('[data-field="percentual-concluido"]').textContent;
+                const percentual = parseFloat(percentualText.replace('%', ''));
+                const corProgresso = percentual >= 70 ? '#1cc88a' : (percentual >= 50 ? '#f6c23e' : '#e74a3b');
+                
+                charts.progresso.data.datasets[0].data[0] = percentual;
+                charts.progresso.data.datasets[0].data[1] = 100 - percentual;
+                charts.progresso.data.datasets[0].backgroundColor[0] = corProgresso;
+                charts.progresso.data.datasets[0].borderColor[0] = corProgresso;
+                
+                // Ajusta fontes para PDF
+                if (forPdf) {
+                    charts.progresso.options.plugins.animation.onComplete = function(animation) {
+                        var chartInstance = animation.chart,
+                            ctx = chartInstance.ctx;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+                        ctx.font = "bold 18px Inter"; // Fonte menor para PDF
+                        
+                        var value = chartInstance.data.datasets[0].data[0];
+                        var color = chartInstance.data.datasets[0].backgroundColor[0]; 
+                        ctx.fillStyle = color;
+                        
+                        var x = chartInstance.width / 2;
+                        var y = chartInstance.height / 1.1;
+                        
+                        ctx.fillText(value + '%', x, y);
+                    };
+                }
+                
+                charts.progresso.update();
+            }
+            
+            // Atualiza gráfico de esforço
+            if (charts.esforco) {
+                const horasUtilizadasText = document.querySelector('[data-field="horas-utilizadas"]').textContent;
+                const horasPlanejadaText = document.querySelector('[data-field="horas-planejadas"]').textContent;
+                
+                const horasUtilizadas = parseFloat(horasUtilizadasText);
+                const horasPlanejadas = parseFloat(horasPlanejadaText);
+                
+                const corUtilizado = horasUtilizadas > horasPlanejadas ? '#e74a3b' : '#4e73df';
+                
+                charts.esforco.data.datasets[0].data[0] = horasUtilizadas;
+                charts.esforco.data.datasets[0].data[1] = horasPlanejadas;
+                charts.esforco.data.datasets[0].backgroundColor[0] = corUtilizado;
+                charts.esforco.data.datasets[0].borderColor[0] = corUtilizado;
+                
+                // Ajusta para PDF
+                if (forPdf) {
+                    charts.esforco.options.scales.x.title.display = false; // Remove título do eixo X
+                    charts.esforco.options.scales.x.ticks.font = { size: 8 }; // Fonte menor nos ticks
+                    charts.esforco.options.scales.y.ticks.font = { size: 8 }; // Fonte menor nos ticks
+                }
+                
+                charts.esforco.update();
+            }
+        }
+
+        // --- Funções para o modo de edição ---
+        // Alternar modo de edição
+        function toggleEditMode() {
+            editMode = !editMode;
+            
+            if (editMode) {
+                // Ativar modo de edição
+                pdfContent.classList.add('edit-mode');
+                editModeBtn.classList.add('active');
+                editModeBtn.querySelector('span').textContent = 'Salvar Alterações';
+                
+                // Tornar editável o seletor de status
+                const statusSelector = document.querySelector('.status-selector');
+                if (statusSelector) {
+                    statusSelector.style.display = 'inline-block';
+                    const statusText = document.querySelector('[data-status-text]');
+                    if (statusText) {
+                        statusText.style.display = 'none';
+                    }
+                    
+                    // Seleciona o valor atual no dropdown
+                    const statusDot = document.querySelector('[data-status-dot]');
+                    const currentStatus = statusDot.className.includes('verde') ? 'verde' : 
+                                          statusDot.className.includes('amarelo') ? 'amarelo' : 
+                                          statusDot.className.includes('vermelho') ? 'vermelho' : 'cinza';
+                    
+                    const selectElement = statusSelector.querySelector('select');
+                    selectElement.value = currentStatus;
+                    
+                    // Adiciona listener para mudar a cor do status dot quando o select muda
+                    selectElement.addEventListener('change', function() {
+                        const newStatus = selectElement.value;
+                        statusDot.className = 'status-dot status-' + newStatus;
+                        statusText.className = 'h5 status-text text-' + newStatus + ' editable-field';
+                        statusText.textContent = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+                    });
+                }
+            } else {
+                // Desativar modo de edição
+                pdfContent.classList.remove('edit-mode');
+                editModeBtn.classList.remove('active');
+                editModeBtn.querySelector('span').textContent = 'Editar Relatório';
+                
+                // Desativar e esconder o seletor de status
+                const statusSelector = document.querySelector('.status-selector');
+                if (statusSelector) {
+                    statusSelector.style.display = 'none';
+                    const statusText = document.querySelector('[data-status-text]');
+                    if (statusText) {
+                        statusText.style.display = 'inline';
+                    }
+                }
+                
+                // Remover quaisquer inputs ativos
+                document.querySelectorAll('.edit-input').forEach(input => {
+                    const parent = input.parentElement;
+                    parent.textContent = input.value;
+                    parent.classList.remove('editing');
+                });
+                
+                // Atualizar os gráficos
+                updateCharts();
+            }
+        }
+        
+        // Adicionar listeners para os campos editáveis
+        editableFields.forEach(field => {
+            field.addEventListener('click', function() {
+                // Só edita se estiver no modo de edição
+                if (!editMode || field.classList.contains('editing')) return;
+                
+                // Caso especial para status-geral (que tem select)
+                if (field.dataset.field === 'status-geral') return;
+                
+                // Cria um input para editar o valor
+                const originalText = field.textContent;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = originalText;
+                input.className = 'edit-input';
+                
+                // Para percentuais e horas, forçar números
+                if (field.dataset.field === 'percentual-concluido' || 
+                    field.dataset.field === 'percentual-esforco' ||
+                    field.dataset.field === 'horas-utilizadas' ||
+                    field.dataset.field === 'horas-planejadas') {
+                    input.type = 'number';
+                    input.step = '0.1';
+                    input.min = '0';
+                    input.value = originalText.replace('%', '');
+                }
+                
+                // Para datas
+                if (field.dataset.field === 'data-prevista') {
+                    const dateParts = originalText.split('/');
+                    if (dateParts.length === 3) {
+                        input.type = 'date';
+                        // Formato yyyy-mm-dd para input date
+                        input.value = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+                    }
+                }
+                
+                field.textContent = '';
+                field.appendChild(input);
+                field.classList.add('editing');
+                input.focus();
+                
+                // Lidar com perda de foco ou Enter para salvar
+                input.addEventListener('blur', saveChanges);
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        saveChanges();
+                    }
+                });
+                
+                function saveChanges() {
+                    let newValue = input.value;
+                    
+                    // Para percentuais, adicionar % de volta
+                    if (field.dataset.field === 'percentual-concluido' || 
+                        field.dataset.field === 'percentual-esforco') {
+                        newValue += '%';
+                    }
+                    
+                    // Para datas, converter de volta para dd/mm/yyyy
+                    if (field.dataset.field === 'data-prevista' && input.type === 'date') {
+                        const date = new Date(input.value);
+                        if (!isNaN(date.getTime())) {
+                            const day = date.getDate().toString().padStart(2, '0');
+                            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                            const year = date.getFullYear();
+                            newValue = `${day}/${month}/${year}`;
+                        }
+                    }
+                    
+                    field.textContent = newValue;
+                    field.classList.remove('editing');
+                }
+            });
+        });
+        
+        // Adicionar listener ao botão de modo de edição
+        if (editModeBtn) {
+            editModeBtn.addEventListener('click', toggleEditMode);
+        }
+
+        // --- CONFIGURAÇÃO DE GERAÇÃO DE PDF via html2pdf.js ---
+        const generatePDFBtn = document.getElementById('generatePdfBtn');
+        if (generatePDFBtn) {
+            generatePDFBtn.addEventListener('click', function() {
+                // Se estiver no modo de edição, salvar alterações primeiro
+                if (editMode) {
+                    toggleEditMode(); // Sai do modo de edição e salva alterações
+                }
+                
+                // Mostra um indicador de carregamento para processos longos
+                const loadingOverlay = document.createElement('div');
+                loadingOverlay.style.position = 'fixed';
+                loadingOverlay.style.top = '0';
+                loadingOverlay.style.left = '0';
+                loadingOverlay.style.width = '100%';
+                loadingOverlay.style.height = '100%';
+                loadingOverlay.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
+                loadingOverlay.style.display = 'flex';
+                loadingOverlay.style.justifyContent = 'center';
+                loadingOverlay.style.alignItems = 'center';
+                loadingOverlay.style.zIndex = '9999';
+                loadingOverlay.innerHTML = `
+                    <div style="text-align: center;">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2">Gerando PDF, aguarde...</p>
+                    </div>
+                `;
+                document.body.appendChild(loadingOverlay);
+
+                // Obter elemento a ser convertido
+                const element = document.getElementById('pdfContent');
+                
+                // Adiciona uma classe temporária para aplicar estilos de impressão
+                element.classList.add('print-mode');
+                
+                // Mostra elementos que são apenas para PDF
+                const pdfElements = element.querySelectorAll('.pdf-only');
+                pdfElements.forEach(el => {
+                    el.style.display = 'block';
+                });
+                
+                // Esconde elementos que são apenas para tela
+                const screenElements = element.querySelectorAll('.screen-only');
+                screenElements.forEach(el => {
+                    el.style.display = 'none';
+                });
+                
+                // Nome do arquivo a ser gerado
+                const projectName = reportData?.info_geral?.nome || 'status_report';
+                const projectId = reportData?.info_geral?.id || '';
+                const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                const filename = `status_report_${projectName.toLowerCase().replace(/\s+/g, '_')}_${projectId}_${today}.pdf`;
+                
+                // Primeiro, otimiza os gráficos para o PDF
+                updateCharts(true);
+                
+                // Espera um tempo para que os gráficos sejam renderizados corretamente
+                setTimeout(() => {
+                    // Configuração para o PDF
+                    const pdfOptions = {
+                        margin: [5, 5, 5, 5], // Margens [mm] mínimas: top, right, bottom, left
+                        filename: filename,
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { 
+                            scale: 2, // melhor resolução
+                            useCORS: true, // para imagens de outros domínios
+                            logging: false, 
+                            letterRendering: true,
+                            allowTaint: false,
+                            removeContainer: true, // remove HTML temporário
+                            scrollX: 0,
+                            scrollY: 0
+                        },
+                        jsPDF: { 
+                            unit: 'mm', 
+                            format: 'a4', 
+                            orientation: 'portrait',
+                            compress: true
+                        },
+                        pagebreak: { mode: 'avoid-all' }
+                    };
+                    
+                    // Gerar o PDF
+                    html2pdf().set(pdfOptions).from(element).save().then(() => {
+                        // Restaura visibilidade dos elementos quando terminar
+                        pdfElements.forEach(el => {
+                            el.style.display = 'none';
+                        });
+                        
+                        screenElements.forEach(el => {
+                            el.style.display = 'block';
+                        });
+                        
+                        // Remove a classe temporária
+                        element.classList.remove('print-mode');
+                        
+                        // Restaurar os gráficos para a visualização normal
+                        updateCharts(false);
+                        
+                        // Remove o overlay após a geração do PDF
+                        document.body.removeChild(loadingOverlay);
+                    }).catch(error => {
+                        console.error('Erro ao gerar PDF:', error);
+                        
+                        // Restaura visibilidade mesmo em caso de erro
+                        pdfElements.forEach(el => {
+                            el.style.display = 'none';
+                        });
+                        
+                        screenElements.forEach(el => {
+                            el.style.display = 'block';
+                        });
+                        
+                        // Remove a classe temporária
+                        element.classList.remove('print-mode');
+                        
+                        // Restaurar os gráficos para a visualização normal
+                        updateCharts(false);
+                        
+                        document.body.removeChild(loadingOverlay);
+                        alert('Ocorreu um erro ao gerar o PDF. Por favor, tente novamente.');
+                    });
+                }, 300); // Tempo para garantir que os gráficos sejam renderizados
+            });
+        }
     });
 </script>
 {% endblock %} 

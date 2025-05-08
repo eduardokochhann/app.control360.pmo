@@ -12,16 +12,33 @@ try:
     from weasyprint import HTML, CSS
     from weasyprint.fonts import FontConfiguration
     weasyprint_installed = True
-except ImportError:
+    logger = logging.getLogger(__name__)  # Inicializa o logger aqui
+    logger.info("WeasyPrint importado com sucesso e disponível para gerar PDFs.")
+except ImportError as e:
     weasyprint_installed = False
     HTML = None # Define como None se não instalado
     CSS = None
     FontConfiguration = None
+    logger = logging.getLogger(__name__)  # Inicializa o logger aqui
+    logger.warning(f"WeasyPrint não disponível: {str(e)}. Tentando pdfkit como alternativa...")
+
+# Tenta importar pdfkit como alternativa
+try:
+    import pdfkit
+    pdfkit_installed = True
+    logger.info("pdfkit importado com sucesso como alternativa para geração de PDFs.")
+except ImportError as e:
+    pdfkit_installed = False
+    logger.warning(f"pdfkit não disponível: {str(e)}. Funcionalidade de PDF será limitada.")
+    logger.info("Dica: Para usar pdfkit, instale wkhtmltopdf em: https://wkhtmltopdf.org/downloads.html")
+
+# Variável que indica se algum gerador de PDF está disponível
+pdf_generator_available = weasyprint_installed or pdfkit_installed
 
 # Use o logger configurado no app factory (se aplicável)
 # logger = current_app.logger
 # Ou use o logger do módulo se não estiver usando app factory / current_app
-logger = logging.getLogger(__name__)
+# logger já foi definido acima
 
 def get_status_color(status):
     """Define a cor do badge baseado no status do projeto"""
@@ -1320,7 +1337,8 @@ def status_report(project_id):
             'project_id': project_id,
             'titulo_pagina': f"Status Report - {report_data['info_geral'].get('nome', project_id)}",
             'data_geracao': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            'weasyprint_installed': weasyprint_installed # Passa a flag para o template
+            'pdf_generator_available': pdf_generator_available, # Passa a flag atualizada para o template
+            'generator_type': 'weasyprint' if weasyprint_installed else ('pdfkit' if pdfkit_installed else 'none')
         }
         
         return render_template('macro/status_report.html', **context)
@@ -1337,10 +1355,9 @@ def status_report(project_id):
 # <<< INÍCIO: Nova Rota para Download do PDF >>>
 @macro_bp.route('/status-report/<project_id>/download')
 def download_status_report(project_id):
-    """Gera e faz o download do Status Report em PDF usando WeasyPrint."""
-    if not weasyprint_installed:
-        logger.error("Tentativa de download de PDF sem WeasyPrint instalado.")
-        # Poderia redirecionar de volta ou mostrar uma mensagem de erro mais explícita
+    """Gera e faz o download do Status Report em PDF usando WeasyPrint ou pdfkit."""
+    if not pdf_generator_available:
+        logger.error("Tentativa de download de PDF sem gerador instalado.")
         flash("Erro: Funcionalidade de download de PDF não está habilitada no servidor.", "danger")
         return redirect(url_for('macro.status_report', project_id=project_id))
 
@@ -1353,40 +1370,76 @@ def download_status_report(project_id):
             flash(f"Erro ao gerar PDF: Não foi possível obter dados para o projeto {project_id}.", "danger")
             return redirect(url_for('macro.status_report', project_id=project_id))
 
-        # 2. Preparar contexto para renderizar o HTML (sem a flag weasyprint_installed)
+        # 2. Preparar contexto para renderizar o HTML (sem as flags de disponibilidade)
         context = {
             'report_data': report_data,
             'project_id': project_id,
             'titulo_pagina': f"Status Report - {report_data['info_geral'].get('nome', project_id)}",
             'data_geracao': datetime.now().strftime('%d/%m/%Y %H:%M'),
-            # NÃO passamos a flag aqui, pois não precisamos do botão/aviso no PDF
+            'for_pdf': True  # Flag para template saber que está gerando PDF
         }
 
-        # 3. Renderizar o template HTML para uma string
-        #    Usamos render_template_string se o template estender base.html
-        #    ou diretamente render_template se ele for autônomo para PDF
-        #    Vamos assumir que ele pode estender base.html, mas os estilos @print o esconderão.
-        html_string = render_template('macro/status_report.html', **context)
-
-        # 4. Configurar WeasyPrint (opcional, mas bom para fontes)
-        font_config = FontConfiguration()
-        # css = CSS(string=''' /* CSS adicional específico para PDF se necessário */ ''', font_config=font_config)
-        
-        # 5. Gerar o PDF na memória
-        pdf_bytes = HTML(string=html_string, base_url=request.base_url).write_pdf(font_config=font_config)
-        
-        # 6. Criar nome do arquivo
+        # Criar nome do arquivo PDF
         safe_project_name = report_data['info_geral'].get('nome', str(project_id)).replace(' ', '_').lower()
         pdf_filename = f"status_report_{safe_project_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
 
-        logger.info(f"[PDF Download] PDF gerado com sucesso para projeto ID: {project_id}. Nome: {pdf_filename}")
-
-        # 7. Enviar o PDF como resposta para download
-        return Response(
-            pdf_bytes,
-            mimetype="application/pdf",
-            headers={ "Content-Disposition": f"attachment;filename={pdf_filename}" }
-        )
+        # 3. Gerar o PDF usando a biblioteca disponível
+        if weasyprint_installed:
+            # 3a. Usando WeasyPrint
+            logger.info(f"[PDF Download] Usando WeasyPrint para gerar PDF.")
+            
+            # Renderizar o template para HTML
+            html_string = render_template('macro/status_report.html', **context)
+            
+            # Configurar WeasyPrint
+            font_config = FontConfiguration()
+            
+            # Gerar PDF na memória
+            pdf_bytes = HTML(string=html_string, base_url=request.base_url).write_pdf(font_config=font_config)
+            
+            logger.info(f"[PDF Download] PDF gerado com sucesso via WeasyPrint. Nome: {pdf_filename}")
+            
+            # Retornar como resposta para download
+            return Response(
+                pdf_bytes,
+                mimetype="application/pdf",
+                headers={"Content-Disposition": f"attachment;filename={pdf_filename}"}
+            )
+        
+        elif pdfkit_installed:
+            # 3b. Usando pdfkit
+            logger.info(f"[PDF Download] Usando pdfkit para gerar PDF.")
+            
+            # Renderizar o template para HTML
+            html_string = render_template('macro/status_report.html', **context)
+            
+            # Opções para o wkhtmltopdf
+            options = {
+                'page-size': 'A4',
+                'margin-top': '1.5cm',
+                'margin-right': '1.5cm',
+                'margin-bottom': '1.5cm',
+                'margin-left': '1.5cm',
+                'encoding': 'UTF-8',
+                'no-outline': None
+            }
+            
+            try:
+                # Tentar gerar o PDF com pdfkit
+                pdf_bytes = pdfkit.from_string(html_string, False, options=options)
+                
+                logger.info(f"[PDF Download] PDF gerado com sucesso via pdfkit. Nome: {pdf_filename}")
+                
+                # Retornar como resposta para download
+                return Response(
+                    pdf_bytes,
+                    mimetype="application/pdf",
+                    headers={"Content-Disposition": f"attachment;filename={pdf_filename}"}
+                )
+            except Exception as kit_error:
+                logger.error(f"[PDF Download] Erro ao gerar PDF com pdfkit: {kit_error}")
+                flash(f"Falha ao gerar PDF com pdfkit. Verifique se o wkhtmltopdf está instalado. Erro: {str(kit_error)}", "danger")
+                return redirect(url_for('macro.status_report', project_id=project_id))
 
     except Exception as e:
         logger.exception(f"[PDF Download] Erro ao gerar PDF para projeto ID {project_id}: {e}")
