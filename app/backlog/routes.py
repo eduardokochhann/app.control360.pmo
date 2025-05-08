@@ -4,7 +4,7 @@ from .. import db # Importa a instância do banco de dados
 from ..models import Backlog, Task, Column, Sprint, TaskStatus, ProjectMilestone, ProjectRisk, MilestoneStatus, MilestoneCriticality, RiskImpact, RiskProbability, RiskStatus # Importa os modelos
 from ..macro.services import MacroService # Importa o serviço Macro
 import pandas as pd
-from datetime import datetime # Adicionado datetime
+from datetime import datetime, timedelta # Adicionado datetime
 
 # Função auxiliar para serializar uma tarefa
 def serialize_task(task):
@@ -160,35 +160,45 @@ def project_selection():
 @backlog_bp.route('/board/<string:project_id>')
 def board_by_project(project_id):
     try:
-        current_app.logger.info(f"Carregando quadro para project_id: {project_id}")
+        # Log detalhado para depuração
+        current_app.logger.info(f"[DEBUG] Iniciando carregamento do quadro para project_id: {project_id}")
         
         # 1. Busca detalhes do projeto (para cabeçalho)
+        current_app.logger.info(f"[DEBUG] Buscando detalhes do projeto {project_id}")
         macro_service = MacroService()
         project_details = macro_service.obter_detalhes_projeto(project_id)
+        current_app.logger.info(f"[DEBUG] Resultado da busca de detalhes: {project_details}")
+        
         if not project_details:
-            current_app.logger.warning(f"Detalhes não encontrados para projeto {project_id}. Redirecionando para seleção.")
+            current_app.logger.warning(f"[DEBUG] Detalhes não encontrados para projeto {project_id}. Redirecionando para seleção.")
             # TODO: Adicionar flash message informando erro?
             return redirect(url_for('.project_selection'))
             
         # 2. Busca o backlog associado
+        current_app.logger.info(f"[DEBUG] Buscando backlog para o projeto {project_id}")
         current_backlog = Backlog.query.filter_by(project_id=project_id).first()
         backlog_id = current_backlog.id if current_backlog else None
         backlog_name = current_backlog.name if current_backlog else "Backlog não criado"
+        current_app.logger.info(f"[DEBUG] Backlog encontrado: ID={backlog_id}, Nome={backlog_name}")
         
         # 3. Busca as tarefas do backlog (se existir)
         tasks_list = []
         if backlog_id:
+            current_app.logger.info(f"[DEBUG] Buscando tarefas para o backlog {backlog_id}")
             tasks = Task.query.filter_by(backlog_id=backlog_id).order_by(Task.position).all()
             tasks_list = [serialize_task(t) for t in tasks]
-            current_app.logger.info(f"Encontradas {len(tasks_list)} tarefas para o backlog {backlog_id}.")
+            current_app.logger.info(f"[DEBUG] Encontradas {len(tasks_list)} tarefas para o backlog {backlog_id}.")
         else:
-            current_app.logger.info(f"Nenhum backlog encontrado para o projeto {project_id}.")
+            current_app.logger.info(f"[DEBUG] Nenhum backlog encontrado para o projeto {project_id}.")
             # O template board.html precisa lidar com backlog_id=None (ex: mostrar botão criar)
         
         # 4. Busca colunas (necessário para estrutura do quadro)
+        current_app.logger.info(f"[DEBUG] Buscando colunas para o quadro")
         columns = Column.query.order_by(Column.position).all()
+        current_app.logger.info(f"[DEBUG] Encontradas {len(columns)} colunas")
         
         # 5. Renderiza o template do quadro passando os dados específicos
+        current_app.logger.info(f"[DEBUG] Renderizando template board.html")
         return render_template(
             'backlog/board.html', 
             columns=columns, 
@@ -201,7 +211,7 @@ def board_by_project(project_id):
         )
 
     except Exception as e:
-        current_app.logger.error(f"Erro ao carregar quadro para projeto {project_id}: {e}", exc_info=True)
+        current_app.logger.error(f"[DEBUG] Erro ao carregar quadro para projeto {project_id}: {str(e)}", exc_info=True)
         # TODO: Adicionar flash message?
         return redirect(url_for('.project_selection'))
 
@@ -992,3 +1002,70 @@ def delete_milestone(milestone_id):
 
 # --- API para Riscos e Impedimentos --- 
 # (A implementação dos Riscos virá depois) 
+
+# NOVA API - Timeline de tarefas
+@backlog_bp.route('/api/backlogs/<int:backlog_id>/timeline-tasks', methods=['GET'])
+def get_timeline_tasks(backlog_id):
+    """
+    Retorna tarefas para exibição na linha do tempo, organizadas em três categorias:
+    1. Recentemente concluídas (last_days) 
+    2. Próximas no prazo (next_days)
+    3. Recentemente iniciadas (last_days)
+    
+    Query params:
+    - last_days: int (dias para trás, padrão: 7)
+    - next_days: int (dias para frente, padrão: 7)
+    """
+    try:
+        # Verificar se o backlog existe
+        backlog = Backlog.query.get_or_404(backlog_id)
+        
+        # Parâmetros de filtro
+        last_days = request.args.get('last_days', default=7, type=int)
+        next_days = request.args.get('next_days', default=7, type=int)
+        
+        # Data atual como referência
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        # Calcula intervalos
+        past_date = today - timedelta(days=last_days)
+        future_date = today + timedelta(days=next_days)
+        
+        # 1. Tarefas concluídas recentemente (com data de conclusão nos últimos X dias)
+        recently_completed = Task.query.filter(
+            Task.backlog_id == backlog_id,
+            Task.column_id == Column.query.filter_by(identifier='concluido').first().id,
+            Task.completed_at >= past_date,
+            Task.completed_at <= today
+        ).order_by(Task.completed_at.desc()).limit(10).all()
+        
+        # 2. Próximas tarefas com prazo nos próximos X dias (e não concluídas)
+        upcoming_tasks = Task.query.filter(
+            Task.backlog_id == backlog_id,
+            Task.column_id != Column.query.filter_by(identifier='concluido').first().id,  # Não concluídas
+            Task.due_date.isnot(None),  # Com data de prazo definida
+            Task.due_date >= today,
+            Task.due_date <= future_date
+        ).order_by(Task.due_date.asc()).limit(10).all()
+        
+        # 3. Tarefas iniciadas recentemente (com data de início nos últimos X dias)
+        recently_started = Task.query.filter(
+            Task.backlog_id == backlog_id,
+            Task.column_id != Column.query.filter_by(identifier='concluido').first().id,  # Não concluídas
+            Task.start_date.isnot(None),  # Com data de início definida
+            Task.start_date >= past_date,
+            Task.start_date <= today
+        ).order_by(Task.start_date.desc()).limit(10).all()
+        
+        # Serializa e organiza os resultados
+        result = {
+            'recently_completed': [serialize_task(task) for task in recently_completed],
+            'upcoming_tasks': [serialize_task(task) for task in upcoming_tasks],
+            'recently_started': [serialize_task(task) for task in recently_started]
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao buscar tarefas da timeline para backlog {backlog_id}: {e}", exc_info=True)
+        abort(500, description="Erro interno ao buscar tarefas da linha do tempo.") 

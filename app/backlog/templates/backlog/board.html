@@ -1116,7 +1116,7 @@
       }
   }
 
-  // Adiciona um único card de tarefa à coluna correta
+  // Adiciona um único card de tarefa �  coluna correta
   function addTaskToBoard(task) {
       const column = document.querySelector(`.kanban-tasks[data-column-id="${task.column_id}"]`);
       if (column) {
@@ -1298,6 +1298,12 @@
                       }
                       // ---------------------------------------------
 
+                      // Se foi movida para a coluna de concluídos, atualizar a linha do tempo
+                      if (updatedTask.column_identifier === 'concluido') {
+                          // Atualizar a timeline quando uma tarefa é movida para concluído
+                          setTimeout(updateTimelineTasks, 500);
+                      }
+
                       // Recalcula totais
                       updateColumnTotals();
                       
@@ -1329,7 +1335,7 @@
                           noTasksDiv.className = 'no-tasks';
                           noTasksDiv.textContent = 'Nenhuma tarefa nesta coluna.';
                           evt.from.appendChild(noTasksDiv);
-                          console.log(`[Task Moved UI] Adicionada msg 'no-tasks' à coluna origem ID: ${evt.from.dataset.columnId}`);
+                          console.log(`[Task Moved UI] Adicionada msg 'no-tasks' �  coluna origem ID: ${evt.from.dataset.columnId}`);
                       }
                   }
                   // ----------------------------------------------------------
@@ -1619,6 +1625,16 @@
               const modalInstance = bootstrap.Modal.getInstance(addTaskModalElGlobal);
               if (modalInstance) modalInstance.hide();
 
+              // Limpar formulário e esconder modal
+              modal.hide();
+              
+              // Atualiza totais e inicializa Sortable
+              updateColumnTotals();
+              
+              // Atualizar linha do tempo ao criar uma nova tarefa
+              updateTimelineTasks();
+              
+              console.log("[Task Created] Tarefa criada com sucesso");
           } catch (error) {
               console.error('[Form Submit] Erro:', error);
               alert(`Erro ao ${isEditing ? 'salvar' : 'criar'} tarefa: ${error.message}`);
@@ -1678,6 +1694,11 @@
 
                   const modalInstance = bootstrap.Modal.getInstance(addTaskModalElGlobal);
                   if (modalInstance) modalInstance.hide();
+
+                  // Atualizar linha do tempo ao excluir uma tarefa
+                  updateTimelineTasks();
+
+                  console.log("[Task Deleted] Tarefa excluída com sucesso");
 
               } catch (error) {
                   console.error('[Delete Task] Erro:', error);
@@ -1789,6 +1810,8 @@
         });
     }
 
+    // Inicializar a linha do tempo após um breve atraso
+    setTimeout(updateTimelineTasks, 1500);
   }); // Fecha o DOMContentLoaded
   
   // Handle form submit para marcos
@@ -2151,7 +2174,7 @@
                       </td>
                   `;
                   
-                  // Adiciona a linha à tabela
+                  // Adiciona a linha �  tabela
                   milestonesTableBody.appendChild(tr);
                   console.log("[Milestone Process] Linha adicionada para marco ID:", milestone.id);
                   
@@ -2184,7 +2207,7 @@
               }
           });
           
-          console.log(`[Milestones] Processamento direto concluído. ${milestones.length} marcos adicionados à tabela.`);
+          console.log(`[Milestones] Processamento direto concluído. ${milestones.length} marcos adicionados �  tabela.`);
           
       } catch (error) {
           console.error("[Milestones] Erro ao carregar marcos:", error);
@@ -2463,5 +2486,147 @@
       }
   }
 
+  // **************************
+  // *** LINHA DO TEMPO DO PROJETO ***
+  // **************************
+
+  // Função para carregar e atualizar tarefas na linha do tempo
+  function updateTimelineTasks() {
+    console.log("[Timeline] Iniciando carregamento de tarefas da linha do tempo...");
+    
+    // Elementos DOM para as listas
+    const completedTasksList = document.getElementById('completedTasksList');
+    const upcomingTasksList = document.getElementById('upcomingTasksList');
+    const startedTasksList = document.getElementById('startedTasksList');
+    
+    if (!completedTasksList || !upcomingTasksList || !startedTasksList) {
+        console.error("[Timeline] Elementos de lista não encontrados no DOM");
+        return;
+    }
+    
+    // Indicar carregamento
+    completedTasksList.innerHTML = '<li class="list-group-item text-center"><div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div> Carregando...</li>';
+    upcomingTasksList.innerHTML = '<li class="list-group-item text-center"><div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div> Carregando...</li>';
+    startedTasksList.innerHTML = '<li class="list-group-item text-center"><div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div> Carregando...</li>';
+    
+    // Obter ID do backlog atual
+    const backlogId = document.getElementById('currentBacklogId')?.value;
+    if (!backlogId) {
+        console.warn("[Timeline] Nenhum backlog ID encontrado");
+        const emptyMessage = '<li class="list-group-item text-center text-muted small">Nenhum backlog associado a este projeto</li>';
+        completedTasksList.innerHTML = emptyMessage;
+        upcomingTasksList.innerHTML = emptyMessage;
+        startedTasksList.innerHTML = emptyMessage;
+        return;
+    }
+    
+    // Fazer a requisição �  API
+    fetch(`/backlog/api/backlogs/${backlogId}/timeline-tasks`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log("[Timeline] Dados recebidos:", data);
+            
+            // Renderizar tarefas concluídas recentemente
+            renderTasksList(completedTasksList, data.recently_completed, 'check-circle-fill', 'text-success', 'Nenhuma tarefa concluída recentemente');
+            
+            // Renderizar próximas tarefas
+            renderTasksList(upcomingTasksList, data.upcoming_tasks, 'calendar-event-fill', 'text-warning', 'Nenhuma tarefa com prazo próximo');
+            
+            // Renderizar tarefas iniciadas recentemente
+            renderTasksList(startedTasksList, data.recently_started, 'play-circle-fill', 'text-primary', 'Nenhuma tarefa iniciada recentemente');
+        })
+        .catch(error => {
+            console.error("[Timeline] Erro ao carregar tarefas da linha do tempo:", error);
+            const errorMessage = '<li class="list-group-item text-center text-danger small"><i class="bi bi-exclamation-triangle-fill me-2"></i>Erro ao carregar tarefas</li>';
+            completedTasksList.innerHTML = errorMessage;
+            upcomingTasksList.innerHTML = errorMessage;
+            startedTasksList.innerHTML = errorMessage;
+        });
+  }
+
+  // Função auxiliar para renderizar uma lista de tarefas
+  function renderTasksList(listElement, tasks, iconClass, iconColorClass, emptyMessage) {
+    if (!tasks || tasks.length === 0) {
+        listElement.innerHTML = `<li class="list-group-item text-center text-muted small"><i class="bi bi-info-circle me-2"></i>${emptyMessage}</li>`;
+        return;
+    }
+    
+    let html = '';
+    tasks.forEach(task => {
+        // Formatar data relevante (conclusão, prazo ou início)
+        let dateStr = '';
+        let dateLabel = '';
+        
+        if (task.completed_at) {
+            dateStr = formatDateString(task.completed_at);
+            dateLabel = 'Concluído em';
+        } else if (task.due_date) {
+            dateStr = formatDateString(task.due_date);
+            dateLabel = 'Prazo';
+        } else if (task.start_date) {
+            dateStr = formatDateString(task.start_date);
+            dateLabel = 'Iniciado em';
+        }
+        
+        // Determinar ícone de prioridade
+        let priorityBadge = '';
+        if (task.priority) {
+            let priorityClass = 'bg-secondary';
+            if (task.priority === 'Alta') priorityClass = 'bg-warning text-dark';
+            if (task.priority === 'Urgente') priorityClass = 'bg-danger';
+            priorityBadge = `<span class="badge ${priorityClass} me-2">${task.priority}</span>`;
+        }
+        
+        // Criar HTML do item da lista
+        html += `
+            <li class="list-group-item d-flex justify-content-between align-items-center p-2 task-item" 
+                data-task-id="${task.id}" data-bs-toggle="tooltip" title="${escapeHtml(task.description || 'Sem descrição')}">
+                <div>
+                    <i class="bi bi-${iconClass} ${iconColorClass} me-2"></i>
+                    ${priorityBadge}
+                    <span class="task-title">${escapeHtml(task.title)}</span>
+                </div>
+                <div class="text-muted small">
+                    <span class="date-label">${dateLabel}:</span> ${dateStr}
+                </div>
+            </li>
+        `;
+    });
+    
+    listElement.innerHTML = html;
+    
+    // Adicionar evento de clique para editar a tarefa
+    listElement.querySelectorAll('.task-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const taskId = item.dataset.taskId;
+            console.log(`[Timeline] Clique na tarefa ID: ${taskId}`);
+            // Usar handleTaskClick em vez de editTask
+            const taskCard = document.querySelector(`.kanban-task-card[data-task-id="${taskId}"]`);
+            if (taskCard) {
+                handleTaskClick({currentTarget: taskCard});
+            } else {
+                console.warn(`[Timeline] Não encontrou taskCard para ID: ${taskId}`);
+            }
+        });
+    });
+  }
+
+  // --- Set up initial listeners and page state --- 
+  document.addEventListener('DOMContentLoaded', function() {
+      console.log("Board DOM loaded");
+      
+      // Todo o código DOMContentLoaded existente aqui...
+      
+      // Inicializar a linha do tempo após um breve atraso
+      setTimeout(updateTimelineTasks, 1500);
+  });
+
 </script>
-{% endblock %} 
+
+{% endblock %}
+
