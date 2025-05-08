@@ -1326,48 +1326,7 @@ def status_report(project_id):
                                  project_id=project_id,
                                  report_data=None)
 
-        # Adicionar marcos falsos manualmente se não existirem
-        if 'marcos_recentes' not in report_data or not report_data['marcos_recentes']:
-            logger.warning(f"Marcos recentes não encontrados no report_data. Adicionando marcos falsos.")
-            report_data['marcos_recentes'] = [
-                {
-                    'id': 1,
-                    'nome': '[FALLBACK] Kick-off do Projeto',
-                    'data_planejada': '01/05/2024',
-                    'data_real': '01/05/2024',
-                    'status': 'CONCLUÍDO',
-                    'criticidade': 'ALTA',
-                    'atrasado': False
-                },
-                {
-                    'id': 2,
-                    'nome': '[FALLBACK] Entrega da Primeira Versão',
-                    'data_planejada': '15/06/2024',
-                    'data_real': 'N/A',
-                    'status': 'EM ANDAMENTO',
-                    'criticidade': 'ALTA',
-                    'atrasado': False
-                },
-                {
-                    'id': 3,
-                    'nome': '[FALLBACK] Revisão de Código',
-                    'data_planejada': '30/06/2024',
-                    'data_real': 'N/A',
-                    'status': 'PENDENTE',
-                    'criticidade': 'MÉDIA',
-                    'atrasado': False
-                },
-                {
-                    'id': 4,
-                    'nome': '[FALLBACK] Entrega Final',
-                    'data_planejada': '31/07/2024',
-                    'data_real': 'N/A',
-                    'status': 'PENDENTE',
-                    'criticidade': 'ALTA',
-                    'atrasado': True
-                }
-            ]
-        
+        # Não adicione marcos falsos, use os marcos reais do backlog
         # Log das estruturas de dados para debug
         logger.debug(f"Status Report - Chaves no report_data: {list(report_data.keys())}")
         if 'marcos_recentes' in report_data:

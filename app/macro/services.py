@@ -3185,48 +3185,11 @@ class MacroService(BaseService):
                 # Continua com a lista vazia em caso de erro
             # FIM: Buscar marcos do projeto
             
-            # Se não encontrou marcos no banco de dados, usar os marcos falsos de teste
+            # Se não encontrou marcos no banco de dados, usar uma lista vazia em vez dos marcos falsos
             if not marcos_recentes:
-                self.logger.info(f"[Status Report] Usando marcos falsos para o projeto {project_id}")
-                marcos_recentes = [
-                    {
-                        'id': 1,
-                        'nome': 'Kick-off do Projeto',
-                        'data_planejada': '01/05/2024',
-                        'data_real': '01/05/2024',
-                        'status': 'CONCLUÍDO',
-                        'criticidade': 'ALTA',
-                        'atrasado': False
-                    },
-                    {
-                        'id': 2,
-                        'nome': 'Entrega da Primeira Versão',
-                        'data_planejada': '15/06/2024',
-                        'data_real': 'N/A',
-                        'status': 'EM ANDAMENTO',
-                        'criticidade': 'ALTA',
-                        'atrasado': False
-                    },
-                    {
-                        'id': 3,
-                        'nome': 'Revisão de Código',
-                        'data_planejada': '30/06/2024',
-                        'data_real': 'N/A',
-                        'status': 'PENDENTE',
-                        'criticidade': 'MÉDIA',
-                        'atrasado': False
-                    },
-                    {
-                        'id': 4,
-                        'nome': 'Entrega Final',
-                        'data_planejada': '31/07/2024',
-                        'data_real': 'N/A',
-                        'status': 'PENDENTE',
-                        'criticidade': 'ALTA',
-                        'atrasado': True
-                    }
-                ]
-
+                self.logger.info(f"[Status Report] Não foram encontrados marcos para o projeto {project_id}")
+                marcos_recentes = []
+                
             # 5. Montar a estrutura do report
             report_data = {
                 'info_geral': {
@@ -3307,32 +3270,9 @@ class MacroService(BaseService):
             # Se não há marcos, retornar uma lista vazia com explicação
             if not marcos:
                 logger.warning(f"Nenhum marco encontrado para o projeto ID: {project_id}")
-                # Para fins de debug/teste, criar alguns marcos falsos
-                marcos = [
-                    {
-                        'nome': '[DEBUG] Entrega Fase 1',
-                        'data_planejada': '2023-12-20',
-                        'status': 'CONCLUÍDO',
-                        'criticidade': 'ALTA',
-                        'atrasado': False
-                    },
-                    {
-                        'nome': '[DEBUG] Revisão de Código',
-                        'data_planejada': '2024-01-15',
-                        'status': 'EM ANDAMENTO',
-                        'criticidade': 'MÉDIA',
-                        'atrasado': False
-                    },
-                    {
-                        'nome': '[DEBUG] Entrega Final',
-                        'data_planejada': '2024-02-28',
-                        'status': 'PENDENTE',
-                        'criticidade': 'ALTA',
-                        'atrasado': True
-                    }
-                ]
-                logger.debug(f"Adicionados {len(marcos)} marcos falsos para debug")
-            
+                # Retornar lista vazia
+                marcos = []
+                
             return marcos
         except Exception as e:
             logger.error(f"Erro ao obter marcos recentes: {str(e)}")
@@ -3359,37 +3299,8 @@ class MacroService(BaseService):
         logger.debug(f"Obtendo milestones do backlog ID: {backlog_id}")
         try:
             # Em uma implementação real, você consultaria seu banco de dados
-            # Aqui estamos usando dados de teste
-            milestones = [
-                {
-                    'nome': 'Kick-off do Projeto',
-                    'data_planejada': '2024-05-01',
-                    'status': 'CONCLUÍDO',
-                    'criticidade': 'ALTA',
-                    'atrasado': False
-                },
-                {
-                    'nome': 'Entrega da Primeira Versão',
-                    'data_planejada': '2024-06-15',
-                    'status': 'EM ANDAMENTO',
-                    'criticidade': 'ALTA',
-                    'atrasado': False
-                },
-                {
-                    'nome': 'Revisão de Código',
-                    'data_planejada': '2024-06-30',
-                    'status': 'PENDENTE',
-                    'criticidade': 'MÉDIA',
-                    'atrasado': False
-                },
-                {
-                    'nome': 'Entrega Final',
-                    'data_planejada': '2024-07-31',
-                    'status': 'PENDENTE',
-                    'criticidade': 'ALTA',
-                    'atrasado': True
-                }
-            ]
+            # Para evitar marcos de teste, retornamos uma lista vazia
+            milestones = []
             logger.debug(f"Retornando {len(milestones)} milestones para o backlog {backlog_id}")
             return milestones
         except Exception as e:
