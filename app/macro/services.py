@@ -806,6 +806,7 @@ class MacroService(BaseService):
             projetos_nao_concluidos = dados_base[
                 ~dados_base['Status'].isin(self.status_concluidos) &
                 ~dados_base['Status'].isin(['BLOQUEADO']) &
+                (dados_base['Status'] != 'AGUARDANDO') & # <-- NOVA CONDIÇÃO: Status não pode ser AGUARDANDO
                 (dados_base['HorasRestantes'] >= 0)
             ]
             
@@ -841,16 +842,18 @@ class MacroService(BaseService):
                     logger.error(f"Erro ao calcular projetos próximos ao prazo: {str(e)}")
             
             # 3. Horas restantes baixas em relação ao prazo
-            if 'HorasRestantes' in dados_base.columns and 'VencimentoEm' in dados_base.columns:
+            if 'HorasRestantes' in dados_base.columns and 'VencimentoEm' in dados_base.columns and 'Horas' in dados_base.columns: # Adicionado 'Horas' in dados_base.columns
                 try:
                     dias_ate_termino = (projetos_nao_concluidos['VencimentoEm'] - hoje).dt.days
                     horas_por_dia = projetos_nao_concluidos['HorasRestantes'] / dias_ate_termino.clip(lower=1)
                     horas_criticas_prazo = (
+                        (projetos_nao_concluidos['Horas'] >= 30) &  # <-- Mínimo de 30h totais
+                        (projetos_nao_concluidos['Status'] != 'AGUARDANDO') & # <-- NOVA CONDIÇÃO: Status não pode ser AGUARDANDO
                         (dias_ate_termino > 0) &  # Garante que não está vencido
                         (horas_por_dia < 1)  # Menos de 1 hora por dia até o prazo
                     )
                     condicoes.append(horas_criticas_prazo)
-                    logger.debug(f"Projetos com poucas horas por dia até o prazo: {len(projetos_nao_concluidos[horas_criticas_prazo])}")
+                    logger.debug(f"Projetos com poucas horas por dia até o prazo (e >= 30h totais e não AGUARDANDO): {len(projetos_nao_concluidos[horas_criticas_prazo])}")
                 except Exception as e:
                     logger.error(f"Erro ao calcular horas por dia até o prazo: {str(e)}")
             
@@ -880,10 +883,12 @@ class MacroService(BaseService):
                     )
                     projetos_risco.loc[mascara_prazo, 'motivo_risco'] += 'Prazo próximo (15 dias) com conclusão abaixo de 70%; '
                 
-                if 'HorasRestantes' in dados_base.columns and 'VencimentoEm' in dados_base.columns:
+                if 'HorasRestantes' in dados_base.columns and 'VencimentoEm' in dados_base.columns and 'Horas' in dados_base.columns: # Adicionado 'Horas' in dados_base.columns
                     dias_ate_termino = (projetos_risco['VencimentoEm'] - hoje).dt.days
                     horas_por_dia = projetos_risco['HorasRestantes'] / dias_ate_termino.clip(lower=1)
                     mascara_horas_dia = (
+                        (projetos_risco['Horas'] >= 30) & # <-- Mínimo de 30h totais
+                        (projetos_risco['Status'] != 'AGUARDANDO') & # <-- NOVA CONDIÇÃO: Status não pode ser AGUARDANDO
                         (dias_ate_termino > 0) &
                         (horas_por_dia < 1)
                     )
