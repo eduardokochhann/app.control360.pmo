@@ -513,7 +513,54 @@
                 </div>
                 {% endfor %}
             </div>
-            <!-- Novas Seções: Linha do Tempo e Riscos -->
+            
+            <!-- *** SEÇÃO DE MARCOS DO PROJETO (POSIÇÃO CORRETA) *** -->
+            <div class="row mt-4"> {# Mantendo mt-4 para um espaçamento consistente #}
+                <div class="col-12">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                            <h6 class="m-0 font-weight-bold text-primary">
+                                <i class="bi bi-flag-fill me-1"></i> Marcos do Projeto
+                            </h6>
+                            {# Botão para adicionar novo marco #}
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary" id="addMilestoneBtn">
+                                    <i class="bi bi-plus-lg"></i> Novo Marco
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary ms-2" id="reloadMilestonesBtn" title="Recarregar Marcos">
+                                    <i class="bi bi-arrow-clockwise"></i> Recarregar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body" style="max-height: 350px; overflow-y: auto;">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover" id="milestonesTable">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Marco</th>
+                                            <th scope="col">Data Planejada</th>
+                                            <th scope="col">Data Real</th>
+                                            <th scope="col">Status</th>
+                                            <th scope="col">Criticidade</th>
+                                            <th scope="col">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="milestonesTableBody"> {# Adicionado ID ao tbody #}
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted small">
+                                                <i class="bi bi-hourglass me-1"></i> Carregando marcos...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- *** FIM SEÇÃO DE MARCOS DO PROJETO *** -->
+
+            <!-- Seções Linha do Tempo e Riscos (POSIÇÃO CORRETA - APÓS MARCOS) -->
             <div class="row mt-4">
                 <!-- Seção de Linha do Tempo (Tarefas) -->
                 <div class="col-md-6">
@@ -589,51 +636,7 @@
                     </div>
                 </div>
             </div>
-            <!-- *** NOVA SEÇÃO DE MARCOS DO PROJETO *** -->
-            <div class="row mt-2"> {# Menos margem superior talvez? Ou manter mt-4 #}
-                <div class="col-12">
-                    <div class="card shadow-sm mb-4">
-                        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                            <h6 class="m-0 font-weight-bold text-primary">
-                                <i class="bi bi-flag-fill me-1"></i> Marcos do Projeto
-                            </h6>
-                            {# Botão para adicionar novo marco #}
-                            <div>
-                                <button class="btn btn-sm btn-outline-primary" id="addMilestoneBtn">
-                                    <i class="bi bi-plus-lg"></i> Novo Marco
-                                </button>
-                                <button class="btn btn-sm btn-outline-secondary ms-2" id="reloadMilestonesBtn" title="Recarregar Marcos">
-                                    <i class="bi bi-arrow-clockwise"></i> Recarregar
-                                </button>
-                            </div>
-                        </div>
-                        <div class="card-body" style="max-height: 350px; overflow-y: auto;">
-                            <div class="table-responsive">
-                                <table class="table table-sm table-hover" id="milestonesTable">
-                                    <thead>
-                                        <tr>
-                                            <th scope="col">Marco</th>
-                                            <th scope="col">Data Planejada</th>
-                                            <th scope="col">Data Real</th>
-                                            <th scope="col">Status</th>
-                                            <th scope="col">Criticidade</th>
-                                            <th scope="col">Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="milestonesTableBody"> {# Adicionado ID ao tbody #}
-                                        <tr>
-                                            <td colspan="6" class="text-center text-muted small">
-                                                <i class="bi bi-hourglass me-1"></i> Carregando marcos...
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- *** FIM NOVA SEÇÃO DE MARCOS *** -->
+            <!-- *** FIM DAS SEÇÕES LINHA DO TEMPO E RISCOS *** -->
         </div> {# Fim card-body #}
     </div> {# Fim card #}
 </div> {# Fim container-fluid #}
