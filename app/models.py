@@ -125,19 +125,13 @@ class ProjectMilestone(db.Model):
 
     def to_dict(self):
         """Serializa o objeto Milestone para um dicionário."""
-        current_status = self.status.value
-        if self.is_delayed and self.status != MilestoneStatus.DELAYED:
-            current_status = MilestoneStatus.DELAYED.value
-        elif not self.is_delayed and self.status == MilestoneStatus.DELAYED:
-            current_status = MilestoneStatus.PENDING.value
-
         return {
             'id': self.id,
             'name': self.name,
             'description': self.description,
             'planned_date': self.planned_date.strftime('%Y-%m-%d') if self.planned_date else None,
             'actual_date': self.actual_date.strftime('%Y-%m-%d') if self.actual_date else None,
-            'status': current_status,
+            'status': self.status.value,
             'criticality': self.criticality.value,
             'is_checkpoint': self.is_checkpoint,
             'is_delayed': self.is_delayed,

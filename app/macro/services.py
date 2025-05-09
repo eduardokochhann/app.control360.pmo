@@ -16,6 +16,7 @@ from app.utils import (
     COLUNAS_NUMERICAS,
     COLUNAS_TEXTO
 )
+import unicodedata
 
 # Configuração de logging
 logging.basicConfig(level=logging.INFO)
@@ -3221,7 +3222,7 @@ class MacroService(BaseService):
                     'nome': dados_projeto.get('Projeto', 'N/A'),
                     'squad': dados_projeto.get('Squad', 'N/A'),
                     'especialista': dados_projeto.get('Especialista', 'N/A'),
-                    'status_atual': dados_projeto.get('Status', 'N/A')
+                    'status_atual': normalize_status(dados_projeto.get('Status', 'N/A'))
                 },
                 'progresso': {
                     'percentual_concluido': round(percentual_concluido, 1),
@@ -3365,3 +3366,32 @@ class MacroService(BaseService):
         except Exception as e:
             logger.error(f"Erro ao gerar status report para projeto {project_id}: {str(e)}")
             return None
+
+def normalize_status(status):
+    if not status:
+        return ''
+    # Remove acentos e converte para maiúsculas
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', status)
+        if unicodedata.category(c) != 'Mn'
+    ).upper()
+
+def map_status_concluido(status):
+    concluidos = ['FECHADO', 'ENCERRADO', 'RESOLVIDO', 'CANCELADO']
+    if status and status.upper() in concluidos:
+        return 'CONCLUIDO'
+    return normalize_status(status)
+
+def format_status_frontend(status):
+    if not status:
+        return ''
+    status = status.upper()
+    if status in ['CONCLUIDO', 'CONCLUÍDO', 'FECHADO', 'ENCERRADO', 'RESOLVIDO', 'CANCELADO']:
+        return 'Concluído'
+    if status == 'PENDENTE':
+        return 'Pendente'
+    if status == 'ATRASADO':
+        return 'Atrasado'
+    if status == 'EM ANDAMENTO':
+        return 'Em Andamento'
+    return status.capitalize()

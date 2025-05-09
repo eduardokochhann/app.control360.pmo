@@ -97,6 +97,12 @@
 </head>
 <body>
 
+<!-- Seção de Depuração MOVIDA PARA CIMA E FORA DA CONDIÇÃO -->
+<div class="debug-box mb-4 p-3 border border-danger bg-light">\
+    <h4>DEBUG MARCOS RECENTES (MOVIDO)</h4>\
+    <pre class="border bg-white p-2 mt-1">{{ report_data.marcos_recentes|tojson if report_data is defined and report_data.marcos_recentes is defined else "report_data.marcos_recentes NÃO DEFINIDO OU VAZIO" }}</pre>\
+</div>
+
 <div class="container">
     {% if error %}
         <div class="alert alert-danger" role="alert">
@@ -104,27 +110,27 @@
             <p>{{ error }}</p>
         </div>
     {% elif report_data %}
-        <!-- Seção de Depuração -->
-        <div class="debug-box mb-4 p-3 border border-info bg-light">
+        <!-- Seção de Depuração ORIGINAL (Pode ser removida depois se a de cima funcionar) -->
+        <div class="debug-box mb-4 p-3 border border-info bg-light">\
             <h4>Informações de Debug</h4>
-            <div>
-                <strong>Report Data existe?</strong> {{ report_data is defined and report_data is not none }}
+            <div>\
+                <strong>Report Data existe?</strong> {{ report_data is defined and report_data is not none }}\
             </div>
-            <div>
-                <strong>report_data.marcos_recentes existe?</strong> {{ report_data.marcos_recentes is defined if report_data is defined else "N/A" }}
+            <div>\
+                <strong>report_data.marcos_recentes existe?</strong> {{ report_data.marcos_recentes is defined if report_data is defined else "N/A" }}\
             </div>
-            <div>
-                <strong>report_data.marcos_recentes é lista?</strong> {{ report_data.marcos_recentes is sequence if report_data is defined and report_data.marcos_recentes is defined else "N/A" }}
+            <div>\
+                <strong>report_data.marcos_recentes é lista?</strong> {{ report_data.marcos_recentes is sequence if report_data is defined and report_data.marcos_recentes is defined else "N/A" }}\
             </div>
-            <div>
-                <strong>Tamanho de marcos_recentes:</strong> {{ report_data.marcos_recentes|length if report_data is defined and report_data.marcos_recentes is defined else "N/A" }}
+            <div>\
+                <strong>Tamanho de marcos_recentes:</strong> {{ report_data.marcos_recentes|length if report_data is defined and report_data.marcos_recentes is defined else "N/A" }}\
             </div>
-            
-            <!-- Exibição dos marcos em formato JSON -->
-            <div class="mt-2">
-                <strong>Marcos (JSON):</strong>
-                <pre class="border bg-white p-2 mt-1">{{ report_data.marcos_recentes|tojson if report_data is defined and report_data.marcos_recentes is defined else "N/A" }}</pre>
-            </div>
+            \
+            <!-- Exibição dos marcos em formato JSON -->\
+            <div class="mt-2">\
+                <strong>Marcos (JSON):</strong>\
+                <pre class="border bg-white p-2 mt-1">{{ report_data.marcos_recentes|tojson if report_data is defined and report_data.marcos_recentes is defined else "N/A" }}</pre>\
+            </div>\
         </div>
         
         <div class="report-header text-center">
@@ -281,11 +287,8 @@
                                                 </td>
                                                 <td>{{ marco.data_planejada }}</td>
                                                 <td>
-                                                    <span class="badge {% if marco.status == 'COMPLETED' or marco.status == 'CONCLUÍDO' %}bg-success{% elif marco.status == 'IN_PROGRESS' or marco.status == 'EM ANDAMENTO' %}bg-warning text-dark{% elif marco.status == 'DELAYED' or marco.status == 'ATRASADO' %}bg-danger{% else %}bg-secondary{% endif %}">
-                                                        {% if marco.status == 'COMPLETED' or marco.status == 'CONCLUÍDO' %}Concluído
-                                                        {% elif marco.status == 'IN_PROGRESS' or marco.status == 'EM ANDAMENTO' %}Em Andamento
-                                                        {% elif marco.status == 'DELAYED' or marco.status == 'ATRASADO' %}Atrasado
-                                                        {% else %}Pendente{% endif %}
+                                                    <span class="badge {% if marco.status == 'Concluído' %}bg-success{% elif marco.status == 'Em Andamento' %}bg-warning text-dark{% elif marco.status == 'Atrasado' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                                        {{ marco.status }}
                                                     </span>
                                                 </td>
                                             </tr>

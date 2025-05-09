@@ -630,331 +630,215 @@
 
 {% block content %}
 
-{% if error %}
-    <div class="alert alert-danger" role="alert">
-        <h4 class="alert-heading">Erro ao Gerar Status Report</h4>
-        <p>{{ error }}</p>
-    </div>
-{% elif report_data %}
-    
-    <!-- Cabeçalho da Página -->
-    <div class="d-sm-flex align-items-center justify-content-between mb-3">
-        <h1 class="h3 mb-0 text-gray-800">
-            <i class="bi bi-file-earmark-text me-2"></i>Status Report
-        </h1>
-        <div class="screen-only"> <!-- Div para agrupar data e botão -->
-            <span class="text-muted small me-3">Gerado em: {{ data_geracao | default('N/A', true) }}</span>
-            <!-- Botões de ação - apenas o botão de impressão será visível -->
-            <button class="btn btn-sm btn-outline-secondary ms-2" onclick="window.print();" title="Usar impressão do navegador">
-                <i class="bi bi-printer me-1"></i> Imprimir
-            </button>
-            <!-- Botões ocultos por padrão -->
-            <button class="btn btn-sm btn-warning me-2 d-none" id="editModeBtn" title="Editar relatório antes de baixar">
-                <i class="bi bi-pencil-square me-1"></i> <span>Editar Relatório</span>
-            </button>
-            {% if pdf_generator_available %}
-                <a href="{{ url_for('macro.download_status_report', project_id=project_id) }}" 
-                   class="btn btn-sm btn-primary d-none" 
-                   title="Baixar Relatório em PDF ({{ generator_type }})">
-                    <i class="bi bi-download me-1"></i> Baixar PDF (Servidor)
-                </a>
-            {% endif %}
-            <!-- Botão para gerar PDF via JavaScript (oculto) -->
-            <button class="btn btn-sm btn-success ms-2 d-none" id="generatePdfBtn" title="Gerar PDF usando o navegador">
-                <i class="bi bi-filetype-pdf me-1"></i> Baixar PDF (Browser)
-            </button>
+<div class="container-fluid">
+    {% if error %}
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">Erro ao Gerar Status Report</h4>
+            <p>{{ error }}</p>
         </div>
-    </div>
-
-    <!-- Container principal que será convertido para PDF -->
-    <div id="pdfContent">
-    
-    <!-- Cabeçalho Profissional (visível apenas na impressão/PDF) -->
-    <div class="company-header pdf-only">
-        <div class="company-logo">
-            <!-- Logo corporativo -->
-            <i class="bi bi-building-fill me-2"></i> Control360 SOU
-            <div style="font-size: 9pt; font-weight: normal; color: #666;">Gestão Inteligente de Projetos</div>
-        </div>
-        <div class="report-date" style="text-align: right;">
-            <div style="font-size: 8pt; color: #666;">Status Report</div>
-            <strong>{{ data_geracao | default('N/A', true) }}</strong>
-        </div>
-    </div>
-    
-    <!-- Marca d'água de confidencialidade -->
-    <div class="document-confidential pdf-only">CONFIDENCIAL</div>
-    
-    <!-- Detalhes do Projeto - Mantém o original na tela, redesenhado apenas na impressão -->
-    <div class="project-details-header screen-only">
-        <span><strong>Projeto:</strong> <span class="editable-field" data-field="project-name">{{ report_data.info_geral.nome | default('N/A') }}</span></span>
-        <span><strong>ID:</strong> <span class="editable-field" data-field="project-id">{{ report_data.info_geral.id | default('N/A') }}</span></span>
-        <span><strong>Status Atual:</strong> <span class="editable-field" data-field="project-status">{{ report_data.info_geral.status_atual | default('N/A') }}</span></span>
-        <span><strong>Squad:</strong> <span class="editable-field" data-field="project-squad">{{ report_data.info_geral.squad | default('N/A') }}</span></span>
-        <span><strong>Especialista:</strong> <span class="editable-field" data-field="project-specialist">{{ report_data.info_geral.especialista | default('N/A') }}</span></span>
-    </div>
-
-    <!-- Versão para impressão (apenas visível no PDF) -->
-    <div class="project-info-line pdf-only">
-        <span class="project-info-item"><strong>Projeto:</strong> <span class="editable-field" data-field="project-name">{{ report_data.info_geral.nome | default('N/A') }}</span></span>
-        <span class="project-info-separator">|</span>
-        <span class="project-info-item"><strong>ID:</strong> <span class="editable-field" data-field="project-id">{{ report_data.info_geral.id | default('N/A') }}</span></span>
-        <span class="project-info-separator">|</span>
-        <span class="project-info-item"><strong>Status:</strong> <span class="editable-field" data-field="project-status">{{ report_data.info_geral.status_atual | default('N/A') }}</span></span>
-        <span class="project-info-separator">|</span>
-        <span class="project-info-item"><strong>Squad:</strong> <span class="editable-field" data-field="project-squad">{{ report_data.info_geral.squad | default('N/A') }}</span></span>
-        <span class="project-info-separator">|</span>
-        <span class="project-info-item"><strong>Especialista:</strong> <span class="editable-field" data-field="project-specialist">{{ report_data.info_geral.especialista | default('N/A') }}</span></span>
-    </div>
-
-    <!-- Linha de KPIs Resumo -->
-    <div class="row">
-        <!-- Status Geral -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2 kpi-card">
-                <div class="card-body">
-                    <i class="bi bi-clipboard-data kpi-icon"></i>
-                    <div class="kpi-content">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">STATUS GERAL</div>
-                        {% set status_color_class = report_data.status_geral_indicador | default('cinza') %}
-                        <div class="d-flex align-items-center">
-                             <span class="status-dot status-{{ status_color_class }}" data-status-dot></span>
-                             <span class="h5 status-text text-{{ status_color_class }} editable-field" data-field="status-geral" data-status-text>{{ status_color_class | capitalize | default('A Definir') }}</span>
-                             <div class="status-selector ml-2" style="display:none;">
-                                <select class="form-select form-select-sm">
-                                    <option value="verde">Verde</option>
-                                    <option value="amarelo">Amarelo</option>
-                                    <option value="vermelho">Vermelho</option>
-                                    <option value="cinza">Cinza</option>
-                                </select>
-                             </div>
-                        </div>
-                    </div>
+    {% elif report_data %}
+        <div class="report-header text-center">
+            <!-- Cabeçalho da Página -->
+            <div class="d-sm-flex align-items-center justify-content-between mb-3">
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="bi bi-file-earmark-text me-2"></i>Status Report
+                </h1>
+                <div class="screen-only"> <!-- Div para agrupar data e botão -->
+                    <span class="text-muted small me-3">Gerado em: {{ data_geracao | default('N/A', true) }}</span>
+                    <!-- Botões de ação - apenas o botão de impressão será visível -->
+                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="window.print();" title="Usar impressão do navegador">
+                        <i class="bi bi-printer me-1"></i> Imprimir
+                    </button>
+                    <!-- Botões ocultos por padrão -->
+                    <button class="btn btn-sm btn-warning me-2 d-none" id="editModeBtn" title="Editar relatório antes de baixar">
+                        <i class="bi bi-pencil-square me-1"></i> <span>Editar Relatório</span>
+                    </button>
+                    {% if pdf_generator_available %}
+                        <a href="{{ url_for('macro.download_status_report', project_id=project_id) }}" 
+                           class="btn btn-sm btn-primary d-none" 
+                           title="Baixar Relatório em PDF ({{ generator_type }})">
+                            <i class="bi bi-download me-1"></i> Baixar PDF (Servidor)
+                        </a>
+                    {% endif %}
+                    <!-- Botão para gerar PDF via JavaScript (oculto) -->
+                    <button class="btn btn-sm btn-success ms-2 d-none" id="generatePdfBtn" title="Gerar PDF usando o navegador">
+                        <i class="bi bi-filetype-pdf me-1"></i> Baixar PDF (Browser)
+                    </button>
                 </div>
             </div>
-        </div>
 
-        <!-- % Concluído -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-2 kpi-card">
-                <div class="card-body">
-                    <i class="bi bi-check2-circle kpi-icon"></i>
-                    <div class="kpi-content">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">% CONCLUÍDO</div>
-                        <div class="h1 mb-0 font-weight-bold text-gray-800 editable-field" data-field="percentual-concluido">{{ report_data.progresso.percentual_concluido | round(1) }}%</div>
-                    </div>
+            <!-- Container principal que será convertido para PDF -->
+            <div id="pdfContent">
+            
+            <!-- Cabeçalho Profissional (visível apenas na impressão/PDF) -->
+            <div class="company-header pdf-only">
+                <div class="company-logo">
+                    <!-- Logo corporativo -->
+                    <i class="bi bi-building-fill me-2"></i> Control360 SOU
+                    <div style="font-size: 9pt; font-weight: normal; color: #666;">Gestão Inteligente de Projetos</div>
+                </div>
+                <div class="report-date" style="text-align: right;">
+                    <div style="font-size: 8pt; color: #666;">Status Report</div>
+                    <strong>{{ data_geracao | default('N/A', true) }}</strong>
                 </div>
             </div>
-        </div>
+            
+            <!-- Marca d'água de confidencialidade -->
+            <div class="document-confidential pdf-only">CONFIDENCIAL</div>
+            
+            <!-- Detalhes do Projeto - Mantém o original na tela, redesenhado apenas na impressão -->
+            <div class="project-details-header screen-only">
+                <span><strong>Projeto:</strong> <span class="editable-field" data-field="project-name">{{ report_data.info_geral.nome | default('N/A') }}</span></span>
+                <span><strong>ID:</strong> <span class="editable-field" data-field="project-id">{{ report_data.info_geral.id | default('N/A') }}</span></span>
+                <span><strong>Status Atual:</strong> <span class="editable-field" data-field="project-status">{{ report_data.info_geral.status_atual | default('N/A') }}</span></span>
+                <span><strong>Squad:</strong> <span class="editable-field" data-field="project-squad">{{ report_data.info_geral.squad | default('N/A') }}</span></span>
+                <span><strong>Especialista:</strong> <span class="editable-field" data-field="project-specialist">{{ report_data.info_geral.especialista | default('N/A') }}</span></span>
+            </div>
 
-        <!-- Status Prazo -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2 kpi-card">
-                <div class="card-body">
-                    <i class="bi bi-calendar-week kpi-icon"></i>
-                    <div class="kpi-content">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">STATUS DO PRAZO</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800 editable-field" data-field="status-prazo">{{ report_data.progresso.status_prazo | default('A Definir') }}</div>
-                        <small class="text-muted">Prev: <span class="editable-field" data-field="data-prevista">{{ report_data.progresso.data_prevista_termino | default('N/A', true) }}</span></small>
-                    </div>
-                </div>
+            <!-- Versão para impressão (apenas visível no PDF) -->
+            <div class="project-info-line pdf-only">
+                <span class="project-info-item"><strong>Projeto:</strong> <span class="editable-field" data-field="project-name">{{ report_data.info_geral.nome | default('N/A') }}</span></span>
+                <span class="project-info-separator">|</span>
+                <span class="project-info-item"><strong>ID:</strong> <span class="editable-field" data-field="project-id">{{ report_data.info_geral.id | default('N/A') }}</span></span>
+                <span class="project-info-separator">|</span>
+                <span class="project-info-item"><strong>Status:</strong> <span class="editable-field" data-field="project-status">{{ report_data.info_geral.status_atual | default('N/A') }}</span></span>
+                <span class="project-info-separator">|</span>
+                <span class="project-info-item"><strong>Squad:</strong> <span class="editable-field" data-field="project-squad">{{ report_data.info_geral.squad | default('N/A') }}</span></span>
+                <span class="project-info-separator">|</span>
+                <span class="project-info-item"><strong>Especialista:</strong> <span class="editable-field" data-field="project-specialist">{{ report_data.info_geral.especialista | default('N/A') }}</span></span>
             </div>
-        </div>
 
-        <!-- % Esforço Consumido -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2 kpi-card">
-                <div class="card-body">
-                    <i class="bi bi-hourglass-split kpi-icon"></i>
-                    <div class="kpi-content">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">% ESFORÇO CONSUMIDO</div>
-                        <div class="h1 mb-0 font-weight-bold text-gray-800 editable-field" data-field="percentual-esforco">{{ report_data.esforco.percentual_consumido | round(1) }}%</div>
-                        <small class="text-muted"><span class="editable-field" data-field="horas-utilizadas">{{ report_data.esforco.horas_utilizadas | round(1) }}</span>h / <span class="editable-field" data-field="horas-planejadas">{{ report_data.esforco.horas_planejadas | round(1) }}</span>h</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Linha de Gráficos (Lado a Lado) -->
-    <div class="row">
-        <!-- Coluna Esquerda: Gráfico de Progresso -->
-        <div class="col-lg-6 mb-4">
-            <div class="card shadow chart-card h-100">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Progresso (% Concluído)</h6>
-                </div>
-                <div class="card-body d-flex justify-content-center align-items-center">
-                    <canvas id="progressoChart" style="max-height: 200px;"></canvas>
-                </div>
-            </div>
-        </div>
-        <!-- Coluna Direita: Gráfico de Esforço -->
-        <div class="col-lg-6 mb-4">
-             <div class="card shadow chart-card h-100">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Esforço (Horas Planejado vs Utilizado)</h6>
-                </div>
-                <div class="card-body d-flex justify-content-center align-items-center">
-                    <canvas id="esforcoChart" style="max-height: 200px;"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Marcos Recentes (Linha inteira) -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="placeholder-section">
-                <div class="d-flex align-items-center mb-2">
-                    <i class="bi bi-calendar-check text-primary me-2"></i>
-                    <h6 class="section-title mb-0">Marcos Recentes</h6>
-                </div>
-                {% if report_data and report_data.marcos_recentes and report_data.marcos_recentes|length > 0 %}
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover">
-                            <thead>
-                                <tr class="table-light">
-                                    <th style="width: 50%">Marco</th>
-                                    <th style="width: 25%">Status</th>
-                                    <th style="width: 25%">Data Planejada</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for marco in report_data.marcos_recentes %}
-                                    <tr {% if marco.atrasado %}class="table-danger"{% endif %}>
-                                        <td>
-                                            {% if marco.atrasado %}<span class="badge bg-danger me-1" title="Marco atrasado!">!</span>{% endif %}
-                                            <span class="milestone-name">{{ marco.nome }}</span>
-                                        </td>
-                                        <td>
-                                            <span class="badge {% if marco.status == 'COMPLETED' or marco.status == 'CONCLUÍDO' %}bg-success{% elif marco.status == 'IN_PROGRESS' or marco.status == 'EM ANDAMENTO' %}bg-primary{% elif marco.status == 'DELAYED' or marco.status == 'ATRASADO' %}bg-danger{% else %}bg-secondary{% endif %}">
-                                                {% if marco.status == 'COMPLETED' or marco.status == 'CONCLUÍDO' %}Concluído
-                                                {% elif marco.status == 'IN_PROGRESS' or marco.status == 'EM ANDAMENTO' %}Em Andamento
-                                                {% elif marco.status == 'DELAYED' or marco.status == 'ATRASADO' %}Atrasado
-                                                {% else %}Pendente{% endif %}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="milestone-date">{{ marco.data_planejada }}</span>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <p class="text-muted">Nenhum marco definido para este projeto.</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    
-    <!-- Linha do Tempo (Linha inteira) -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="placeholder-section">
-                <div class="d-flex align-items-center mb-2">
-                    <i class="bi bi-list-task text-primary me-2"></i>
-                    <h6 class="section-title mb-0">Linha do Tempo (Tarefas)</h6>
-                </div>
-                <div class="card shadow-sm h-100">
-                    <div id="timeline-loading" class="text-center p-3">
-                        <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
-                        <span class="text-muted small">Carregando tarefas...</span>
-                    </div>
-                    
-                    <div id="timeline-error" class="text-center p-3 text-danger" style="display: none;">
-                        <i class="bi bi-exclamation-circle me-2"></i>
-                        <span id="timeline-error-message" class="small">Erro ao carregar tarefas</span>
-                    </div>
-                    
-                    <div id="timeline-empty" class="text-center p-3 text-muted" style="display: none;">
-                        <i class="bi bi-info-circle me-2"></i>
-                        <span class="small">Nenhuma tarefa encontrada</span>
-                    </div>
-                    
-                    <!-- Lista de tarefas -->
-                    <div id="timeline-content" style="display: none;">
-                        <!-- Próximas tarefas -->
-                        <div class="timeline-section">
-                            <div class="section-header">
-                                <i class="bi bi-calendar-event text-warning"></i>
-                                <span class="fw-bold">Próximas Tarefas</span>
+            <!-- Linha de KPIs Resumo -->
+            <div class="row">
+                <!-- Status Geral -->
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card border-left-primary shadow h-100 py-2 kpi-card">
+                        <div class="card-body">
+                            <i class="bi bi-clipboard-data kpi-icon"></i>
+                            <div class="kpi-content">
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">STATUS GERAL</div>
+                                {% set status_color_class = report_data.status_geral_indicador | default('cinza') %}
+                                <div class="d-flex align-items-center">
+                                     <span class="status-dot status-{{ status_color_class }}" data-status-dot></span>
+                                     <span class="h5 status-text text-{{ status_color_class }} editable-field" data-field="status-geral" data-status-text>{{ status_color_class | capitalize | default('A Definir') }}</span>
+                                     <div class="status-selector ml-2" style="display:none;">
+                                        <select class="form-select form-select-sm">
+                                            <option value="verde">Verde</option>
+                                            <option value="amarelo">Amarelo</option>
+                                            <option value="vermelho">Vermelho</option>
+                                            <option value="cinza">Cinza</option>
+                                        </select>
+                                     </div>
+                                </div>
                             </div>
-                            <ul class="list-group list-group-flush" id="upcoming-tasks-list"></ul>
                         </div>
-                        
-                        <!-- Tarefas em andamento -->
-                        <div class="timeline-section">
-                            <div class="section-header">
-                                <i class="bi bi-play-circle text-primary"></i>
-                                <span class="fw-bold">Em Andamento</span>
+                    </div>
+                </div>
+
+                <!-- % Concluído -->
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card border-left-info shadow h-100 py-2 kpi-card">
+                        <div class="card-body">
+                            <i class="bi bi-check2-circle kpi-icon"></i>
+                            <div class="kpi-content">
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">% CONCLUÍDO</div>
+                                <div class="h1 mb-0 font-weight-bold text-gray-800 editable-field" data-field="percentual-concluido">{{ report_data.progresso.percentual_concluido | round(1) }}%</div>
                             </div>
-                            <ul class="list-group list-group-flush" id="started-tasks-list"></ul>
                         </div>
-                        
-                        <!-- Tarefas concluídas -->
-                        <div class="timeline-section">
-                            <div class="section-header">
-                                <i class="bi bi-check-circle text-success"></i>
-                                <span class="fw-bold">Concluídas</span>
+                    </div>
+                </div>
+
+                <!-- Status Prazo -->
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card border-left-warning shadow h-100 py-2 kpi-card">
+                        <div class="card-body">
+                            <i class="bi bi-calendar-week kpi-icon"></i>
+                            <div class="kpi-content">
+                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">STATUS DO PRAZO</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800 editable-field" data-field="status-prazo">{{ report_data.progresso.status_prazo | default('A Definir') }}</div>
+                                <small class="text-muted">Prev: <span class="editable-field" data-field="data-prevista">{{ report_data.progresso.data_prevista_termino | default('N/A', true) }}</span></small>
                             </div>
-                            <ul class="list-group list-group-flush" id="completed-tasks-list"></ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- % Esforço Consumido -->
+                <div class="col-xl-3 col-md-6 mb-4">
+                    <div class="card border-left-success shadow h-100 py-2 kpi-card">
+                        <div class="card-body">
+                            <i class="bi bi-hourglass-split kpi-icon"></i>
+                            <div class="kpi-content">
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">% ESFORÇO CONSUMIDO</div>
+                                <div class="h1 mb-0 font-weight-bold text-gray-800 editable-field" data-field="percentual-esforco">{{ report_data.esforco.percentual_consumido | round(1) }}%</div>
+                                <small class="text-muted"><span class="editable-field" data-field="horas-utilizadas">{{ report_data.esforco.horas_utilizadas | round(1) }}</span>h / <span class="editable-field" data-field="horas-planejadas">{{ report_data.esforco.horas_planejadas | round(1) }}</span>h</small>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <!-- Riscos e Impedimentos (Linha inteira) -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="placeholder-section"> {# ENVOLVENDO COM placeholder-section #}
-                <div class="d-flex align-items-center mb-2">
-                    <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i> {# Ícone e cor do título #}
-                    <h6 class="section-title mb-0">Riscos e Impedimentos</h6> {# TÍTULO FORA DO CARD #}
+
+            <!-- Linha de Gráficos (Lado a Lado) -->
+            <div class="row">
+                <!-- Coluna Esquerda: Gráfico de Progresso -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card shadow chart-card h-100">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">Progresso (% Concluído)</h6>
+                        </div>
+                        <div class="card-body d-flex justify-content-center align-items-center">
+                            <canvas id="progressoChart" style="max-height: 200px;"></canvas>
+                        </div>
+                    </div>
                 </div>
-                <div class="card shadow-sm h-100"> {# Removido card-header daqui #}
-                    <div class="card-body p-0" style="min-height: 180px;">
-                        {% if report_data.riscos_impedimentos and report_data.riscos_impedimentos|length > 0 %}
+                <!-- Coluna Direita: Gráfico de Esforço -->
+                <div class="col-lg-6 mb-4">
+                     <div class="card shadow chart-card h-100">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">Esforço (Horas Planejado vs Utilizado)</h6>
+                        </div>
+                        <div class="card-body d-flex justify-content-center align-items-center">
+                            <canvas id="esforcoChart" style="max-height: 200px;"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Marcos Recentes (Linha inteira) -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="placeholder-section">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-calendar-check text-primary me-2"></i>
+                            <h6 class="section-title mb-0">Marcos Recentes</h6>
+                        </div>
+                        {% if report_data and report_data.marcos_recentes and report_data.marcos_recentes|length > 0 %}
                             <div class="table-responsive">
-                                <table class="table table-sm table-hover table-striped mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th style="width: 50%; padding-left: 1rem;">Descrição</th>
-                                            <th class="text-center" style="width: 25%;">Severidade</th>
-                                            <th class="text-center" style="width: 25%; padding-right: 1rem;">Status</th>
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr class="table-light">
+                                            <th style="width: 50%">Marco</th>
+                                            <th style="width: 25%">Status</th>
+                                            <th style="width: 25%">Data Planejada</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for risco in report_data.riscos_impedimentos %}
-                                            <tr>
-                                                <td style="white-space: pre-wrap; word-break: break-word; font-size: 0.75rem; padding-left: 1rem;">{{ risco.description }}</td>
-                                                <td class="text-center">
-                                                    {% set severity_class = 'badge bg-secondary' %}
-                                                    {% if risco.severity == 'Crítico' %}
-                                                        {% set severity_class = 'badge bg-danger' %}
-                                                    {% elif risco.severity == 'Alto' %}
-                                                        {% set severity_class = 'badge bg-warning text-dark' %}
-                                                    {% elif risco.severity == 'Médio' %}
-                                                        {% set severity_class = 'badge bg-info text-dark' %}
-                                                    {% elif risco.severity == 'Baixo' %}
-                                                        {% set severity_class = 'badge bg-secondary' %}
-                                                    {% endif %}
-                                                    <span class="{{ severity_class }}" style="font-size: 0.65rem;">{{ risco.severity }}</span>
+                                        {% for marco in report_data.marcos_recentes %}
+                                            <tr {% if marco.atrasado %}class="table-danger"{% endif %}>
+                                                <td>
+                                                    {% if marco.atrasado %}<span class="badge bg-danger me-1" title="Marco atrasado!">!</span>{% endif %}
+                                                    <span class="milestone-name">{{ marco.nome }}</span>
                                                 </td>
-                                                <td class="text-center" style="padding-right: 1rem;">
-                                                    {% set status_class = 'badge bg-secondary' %}
-                                                    {% if risco.status == 'Ativo' %}
-                                                        {% set status_class = 'badge bg-warning text-dark' %}
-                                                    {% elif risco.status == 'Mitigado' %}
-                                                        {% set status_class = 'badge bg-info text-dark' %}
-                                                    {% elif risco.status == 'Resolvido' %}
-                                                        {% set status_class = 'badge bg-success' %}
-                                                    {% endif %}
-                                                    <span class="{{ status_class }}" style="font-size: 0.65rem;">{{ risco.status }}</span>
+                                                <td>
+                                                    <span class="badge 
+                                                        {% if marco.status == 'Concluído' %}bg-success
+                                                        {% elif marco.status == 'Em Andamento' %}bg-primary
+                                                        {% elif marco.status == 'Atrasado' %}bg-danger
+                                                        {% else %}bg-secondary{% endif %}">
+                                                        {{ marco.status }} {# Exibe o status diretamente #}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="milestone-date">{{ marco.data_planejada }}</span>
                                                 </td>
                                             </tr>
                                         {% endfor %}
@@ -962,38 +846,157 @@
                                 </table>
                             </div>
                         {% else %}
-                            <div class="text-center text-muted small py-3 px-3" style="min-height: 180px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-                                <i class="bi bi-shield-check" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
-                                <span>Nenhum risco ou impedimento ativo identificado para este projeto.</span>
-                            </div>
+                            <p class="text-muted">Nenhum marco definido para este projeto.</p>
                         {% endif %}
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <!-- Rodapé Profissional -->
-    <div class="company-footer pdf-only">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-            <div style="text-align: left; font-size: 7pt; color: #666;">
-                Documento gerado em: {{ data_geracao | default('N/A', true) }}
+            
+            <!-- Linha do Tempo (Linha inteira) -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="placeholder-section">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-list-task text-primary me-2"></i>
+                            <h6 class="section-title mb-0">Linha do Tempo (Tarefas)</h6>
+                        </div>
+                        <div class="card shadow-sm h-100">
+                            <div id="timeline-loading" class="text-center p-3">
+                                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                <span class="text-muted small">Carregando tarefas...</span>
+                            </div>
+                            
+                            <div id="timeline-error" class="text-center p-3 text-danger" style="display: none;">
+                                <i class="bi bi-exclamation-circle me-2"></i>
+                                <span id="timeline-error-message" class="small">Erro ao carregar tarefas</span>
+                            </div>
+                            
+                            <div id="timeline-empty" class="text-center p-3 text-muted" style="display: none;">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <span class="small">Nenhuma tarefa encontrada</span>
+                            </div>
+                            
+                            <!-- Lista de tarefas -->
+                            <div id="timeline-content" style="display: none;">
+                                <!-- Próximas tarefas -->
+                                <div class="timeline-section">
+                                    <div class="section-header">
+                                        <i class="bi bi-calendar-event text-warning"></i>
+                                        <span class="fw-bold">Próximas Tarefas</span>
+                                    </div>
+                                    <ul class="list-group list-group-flush" id="upcoming-tasks-list"></ul>
+                                </div>
+                                
+                                <!-- Tarefas em andamento -->
+                                <div class="timeline-section">
+                                    <div class="section-header">
+                                        <i class="bi bi-play-circle text-primary"></i>
+                                        <span class="fw-bold">Em Andamento</span>
+                                    </div>
+                                    <ul class="list-group list-group-flush" id="started-tasks-list"></ul>
+                                </div>
+                                
+                                <!-- Tarefas concluídas -->
+                                <div class="timeline-section">
+                                    <div class="section-header">
+                                        <i class="bi bi-check-circle text-success"></i>
+                                        <span class="fw-bold">Concluídas</span>
+                                    </div>
+                                    <ul class="list-group list-group-flush" id="completed-tasks-list"></ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div style="text-align: right; font-size: 7pt; color: #666;">
-                Página 1 de 1
+            
+            <!-- Riscos e Impedimentos (Linha inteira) -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="placeholder-section"> {# ENVOLVENDO COM placeholder-section #}
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i> {# Ícone e cor do título #}
+                            <h6 class="section-title mb-0">Riscos e Impedimentos</h6> {# TÍTULO FORA DO CARD #}
+                        </div>
+                        <div class="card shadow-sm h-100"> {# Removido card-header daqui #}
+                            <div class="card-body p-0" style="min-height: 180px;">
+                                {% if report_data.riscos_impedimentos and report_data.riscos_impedimentos|length > 0 %}
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-hover table-striped mb-0">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th style="width: 50%; padding-left: 1rem;">Descrição</th>
+                                                    <th class="text-center" style="width: 25%;">Severidade</th>
+                                                    <th class="text-center" style="width: 25%; padding-right: 1rem;">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for risco in report_data.riscos_impedimentos %}
+                                                    <tr>
+                                                        <td style="white-space: pre-wrap; word-break: break-word; font-size: 0.75rem; padding-left: 1rem;">{{ risco.description }}</td>
+                                                        <td class="text-center">
+                                                            {% set severity_class = 'badge bg-secondary' %}
+                                                            {% if risco.severity == 'Crítico' %}
+                                                                {% set severity_class = 'badge bg-danger' %}
+                                                            {% elif risco.severity == 'Alto' %}
+                                                                {% set severity_class = 'badge bg-warning text-dark' %}
+                                                            {% elif risco.severity == 'Médio' %}
+                                                                {% set severity_class = 'badge bg-info text-dark' %}
+                                                            {% elif risco.severity == 'Baixo' %}
+                                                                {% set severity_class = 'badge bg-secondary' %}
+                                                            {% endif %}
+                                                            <span class="{{ severity_class }}" style="font-size: 0.65rem;">{{ risco.severity }}</span>
+                                                        </td>
+                                                        <td class="text-center" style="padding-right: 1rem;">
+                                                            {% set status_class = 'badge bg-secondary' %}
+                                                            {% if risco.status == 'Ativo' %}
+                                                                {% set status_class = 'badge bg-warning text-dark' %}
+                                                            {% elif risco.status == 'Mitigado' %}
+                                                                {% set status_class = 'badge bg-info text-dark' %}
+                                                            {% elif risco.status == 'Resolvido' %}
+                                                                {% set status_class = 'badge bg-success' %}
+                                                            {% endif %}
+                                                            <span class="{{ status_class }}" style="font-size: 0.65rem;">{{ risco.status }}</span>
+                                                        </td>
+                                                    </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                {% else %}
+                                    <div class="text-center text-muted small py-3 px-3" style="min-height: 180px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                                        <i class="bi bi-shield-check" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+                                        <span>Nenhum risco ou impedimento ativo identificado para este projeto.</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
-        <p>Este documento é <strong>confidencial</strong> e destinado exclusivamente para o cliente.</p>
-        <p>© 2025 SOU Tecnologia - Todos os direitos reservados • <span style="color: #666;">suporte@control360.com.br</span></p>
-    </div>
-    
-    </div><!-- Fim do container para PDF -->
+            
+            <!-- Rodapé Profissional -->
+            <div class="company-footer pdf-only">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <div style="text-align: left; font-size: 7pt; color: #666;">
+                        Documento gerado em: {{ data_geracao | default('N/A', true) }}
+                    </div>
+                    <div style="text-align: right; font-size: 7pt; color: #666;">
+                        Página 1 de 1
+                    </div>
+                </div>
+                <p>Este documento é <strong>confidencial</strong> e destinado exclusivamente para o cliente.</p>
+                <p>© 2025 SOU Tecnologia - Todos os direitos reservados • <span style="color: #666;">suporte@control360.com.br</span></p>
+            </div>
+            
+            </div><!-- Fim do container para PDF -->
 
-{% else %}
-     <div class="alert alert-warning" role="alert">
-        Não foi possível carregar os dados para o Status Report do projeto ID {{ project_id }}.
-    </div>
-{% endif %}
+    {% else %}
+         <div class="alert alert-warning" role="alert">
+            Não foi possível carregar os dados para o Status Report do projeto ID {{ project_id }}.
+        </div>
+    {% endif %}
+</div>
 
 <!-- Script para passar dados para JS e inicializar gráficos -->
 <script id="report-data-json" type="application/json">

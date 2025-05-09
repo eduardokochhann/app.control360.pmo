@@ -10,11 +10,8 @@
                         </td>
                         <td>{{ marco.data_planejada }}</td>
                         <td>
-                            <span class="badge {% if marco.status == 'COMPLETED' or marco.status == 'CONCLUÍDO' %}bg-success{% elif marco.status == 'IN_PROGRESS' or marco.status == 'EM ANDAMENTO' %}bg-warning text-dark{% elif marco.status == 'DELAYED' or marco.status == 'ATRASADO' %}bg-danger{% else %}bg-secondary{% endif %}">
-                                {% if marco.status == 'COMPLETED' or marco.status == 'CONCLUÍDO' %}Concluído
-                                {% elif marco.status == 'IN_PROGRESS' or marco.status == 'EM ANDAMENTO' %}Em Andamento
-                                {% elif marco.status == 'DELAYED' or marco.status == 'ATRASADO' %}Atrasado
-                                {% else %}Pendente{% endif %}
+                            <span class="badge {% if marco.status == 'Concluído' %}bg-success{% elif marco.status == 'Em Andamento' %}bg-warning text-dark{% elif marco.status == 'Atrasado' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                {{ marco.status }}
                             </span>
                         </td>
                     </tr>
