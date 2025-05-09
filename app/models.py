@@ -104,8 +104,8 @@ class ProjectMilestone(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
-    planned_date = db.Column(db.DateTime, nullable=False)
-    actual_date = db.Column(db.DateTime, nullable=True)
+    planned_date = db.Column(db.Date, nullable=False)
+    actual_date = db.Column(db.Date, nullable=True)
     status = db.Column(db.Enum(MilestoneStatus), default=MilestoneStatus.PENDING, nullable=False)
     criticality = db.Column(db.Enum(MilestoneCriticality), default=MilestoneCriticality.MEDIUM, nullable=False)
     is_checkpoint = db.Column(db.Boolean, default=False)
@@ -119,20 +119,17 @@ class ProjectMilestone(db.Model):
     @property
     def is_delayed(self):
         # Está atrasado se a data planejada passou, não tem data real e não está concluído
-        return (self.planned_date < datetime.utcnow() and 
+        return (self.planned_date < datetime.utcnow().date() and 
                 self.actual_date is None and 
                 self.status != MilestoneStatus.COMPLETED)
 
     def to_dict(self):
         """Serializa o objeto Milestone para um dicionário."""
-        # Recalcula o status baseado na propriedade is_delayed
         current_status = self.status.value
         if self.is_delayed and self.status != MilestoneStatus.DELAYED:
             current_status = MilestoneStatus.DELAYED.value
         elif not self.is_delayed and self.status == MilestoneStatus.DELAYED:
-            # Se não está mais atrasado, volta para Pendente ou Em Andamento?
-            # Vamos assumir Pendente se não tiver data real, senão mantém o status original (precisa refinar)
-             current_status = MilestoneStatus.PENDING.value # Ou self.status.value? Discutir regra.
+            current_status = MilestoneStatus.PENDING.value
 
         return {
             'id': self.id,
@@ -140,7 +137,7 @@ class ProjectMilestone(db.Model):
             'description': self.description,
             'planned_date': self.planned_date.strftime('%Y-%m-%d') if self.planned_date else None,
             'actual_date': self.actual_date.strftime('%Y-%m-%d') if self.actual_date else None,
-            'status': current_status, # Usa o status recalculado
+            'status': current_status,
             'criticality': self.criticality.value,
             'is_checkpoint': self.is_checkpoint,
             'is_delayed': self.is_delayed,

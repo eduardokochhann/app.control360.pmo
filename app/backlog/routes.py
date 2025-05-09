@@ -4,7 +4,7 @@ from .. import db # Importa a instância do banco de dados
 from ..models import Backlog, Task, Column, Sprint, TaskStatus, ProjectMilestone, ProjectRisk, MilestoneStatus, MilestoneCriticality, RiskImpact, RiskProbability, RiskStatus # Importa os modelos
 from ..macro.services import MacroService # Importa o serviço Macro
 import pandas as pd
-from datetime import datetime, timedelta # Adicionado datetime
+from datetime import datetime, timedelta, date
 
 # Função auxiliar para serializar uma tarefa
 def serialize_task(task):
@@ -899,7 +899,7 @@ def create_milestone():
 
     try:
         # Processa dados obrigatórios
-        planned_date = datetime.strptime(data['planned_date'], '%Y-%m-%d')
+        planned_date = datetime.strptime(data['planned_date'], '%Y-%m-%d').date()
         name = data['name'].strip()
         if not name:
             abort(400, description="Nome não pode ser vazio.")
@@ -907,7 +907,7 @@ def create_milestone():
         # Processa dados opcionais
         description = data.get('description', '')
         actual_date_str = data.get('actual_date')
-        actual_date = datetime.strptime(actual_date_str, '%Y-%m-%d') if actual_date_str else None
+        actual_date = datetime.strptime(actual_date_str, '%Y-%m-%d').date() if actual_date_str else None
         
         status_str = data.get('status', MilestoneStatus.PENDING.value) # Default PENDING
         try:
@@ -973,18 +973,18 @@ def update_milestone(milestone_id):
             milestone.description = data.get('description', '') # Permite limpar a descrição
             
         if 'planned_date' in data:
-            milestone.planned_date = datetime.strptime(data['planned_date'], '%Y-%m-%d')
+            milestone.planned_date = datetime.strptime(data['planned_date'], '%Y-%m-%d').date()
             
         if 'actual_date' in data:
             actual_date_str = data['actual_date']
-            milestone.actual_date = datetime.strptime(actual_date_str, '%Y-%m-%d') if actual_date_str else None
+            milestone.actual_date = datetime.strptime(actual_date_str, '%Y-%m-%d').date() if actual_date_str else None
             
         if 'status' in data:
             try:
                 milestone.status = MilestoneStatus(data['status'])
                 # Regra: Se marcar como concluído e não tiver data real, define data real
                 if milestone.status == MilestoneStatus.COMPLETED and not milestone.actual_date:
-                    milestone.actual_date = datetime.utcnow()
+                    milestone.actual_date = datetime.utcnow().date()
             except ValueError:
                 valid_statuses = [s.value for s in MilestoneStatus]
                 abort(400, description=f"Status inválido. Valores válidos: {valid_statuses}")
