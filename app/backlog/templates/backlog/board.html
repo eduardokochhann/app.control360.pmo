@@ -859,32 +859,34 @@
 <div class="modal fade" id="riskModal" tabindex="-1" aria-labelledby="riskModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="riskModalLabel">Adicionar Risco</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label for="riskDescription" class="form-label">Descrição do Risco</label>
-                    <textarea class="form-control" id="riskDescription" rows="3"></textarea>
+            <form id="riskForm"> <!-- ADICIONADO ID AQUI -->
+                <div class="modal-header">
+                    <h5 class="modal-title" id="riskModalLabel">Adicionar Risco</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="mb-3">
-                    <label for="riskSeverity" class="form-label">Severidade</label>
-                    <input type="number" class="form-control" id="riskSeverity" min="1" max="10" placeholder="1-10">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="riskDescription" class="form-label">Descrição do Risco</label>
+                        <textarea class="form-control" id="riskDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="riskSeverity" class="form-label">Severidade</label>
+                        <input type="number" class="form-control" id="riskSeverity" min="1" max="10" placeholder="1-10">
+                    </div>
+                    <div class="mb-3">
+                        <label for="riskStatus" class="form-label">Status</label>
+                        <select class="form-select" id="riskStatus">
+                            <option value="Ativo" selected>Ativo</option>
+                            <option value="Mitigado">Mitigado</option>
+                            <option value="Resolvido">Resolvido</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label for="riskStatus" class="form-label">Status</label>
-                    <select class="form-select" id="riskStatus">
-                        <option value="Pendente" selected>Pendente</option>
-                        <option value="Em Andamento">Em Andamento</option>
-                        <option value="Concluído">Concluído</option>
-                    </select>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Risco</button>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="submit" class="btn btn-primary">Salvar Risco</button>
-            </div>
+            </form>
         </div>
     </div>
 </div>
@@ -2674,6 +2676,393 @@
       // Todo o código DOMContentLoaded existente aqui...
       
       // Inicializar a linha do tempo após um breve atraso
+      setTimeout(updateTimelineTasks, 1500);
+  });
+
+  // **************************
+  // *** LINHA DO TEMPO DO PROJETO ***
+  // **************************
+
+  // --- Funções Essenciais de Renderização (Definidas fora do DOMContentLoaded) ---
+  // (Inclui renderTasks, clearBoard, escapeHtml, etc.)
+
+  // --- LÓGICA PARA RISCOS DO PROJETO ---
+  let risksTableBody, addRiskBtn, riskModalElement, riskModal, riskForm, riskModalLabel, currentEditingRiskId = null; // Definir aqui, atribuir em DOMContentLoaded
+
+  function formatDateForDisplay(dateStr) {
+      if (!dateStr) return "-";
+      try {
+          const date = new Date(dateStr);
+          // Adiciona verificação se a data é válida, pois new Date(null) ou new Date('') podem não dar erro mas resultar em datas inválidas.
+          if (isNaN(date.getTime())) return dateStr; // Retorna a string original se a data for inválida
+          return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      } catch (e) {
+          console.error("Erro ao formatar data para exibição:", e, dateStr);
+          return dateStr; // Retorna string original em caso de erro
+      }
+  }
+
+  function renderRisks(risks = []) {
+      if (!risksTableBody) {
+          console.error("[Riscos] Elemento risksTableBody não encontrado.");
+          return;
+      }
+      risksTableBody.innerHTML = ''; // Limpa a tabela
+
+      if (!risks || risks.length === 0) {
+          risksTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted small"><i class="bi bi-info-circle me-1"></i>Nenhum risco cadastrado para este backlog.</td></tr>`;
+          return;
+      }
+
+      risks.forEach(risk => {
+          const tr = document.createElement('tr');
+          tr.dataset.riskId = risk.id;
+
+          // Adaptação para severidade e status, pode precisar de badges como em milestones
+          let severityBadge = risk.severity || 'N/A';
+          if (risk.severity === 'Crítico') severityBadge = `<span class="badge bg-danger">${risk.severity}</span>`;
+          else if (risk.severity === 'Alto') severityBadge = `<span class="badge bg-warning text-dark">${risk.severity}</span>`;
+          else if (risk.severity === 'Médio') severityBadge = `<span class="badge bg-info text-dark">${risk.severity}</span>`;
+          else if (risk.severity === 'Baixo') severityBadge = `<span class="badge bg-secondary">${risk.severity}</span>`;
+          
+          let statusBadge = risk.status || 'N/A';
+          if (risk.status === 'Ativo') statusBadge = `<span class="badge bg-warning text-dark">${risk.status}</span>`;
+          else if (risk.status === 'Mitigado') statusBadge = `<span class="badge bg-info text-dark">${risk.status}</span>`;
+          else if (risk.status === 'Resolvido') statusBadge = `<span class="badge bg-success">${risk.status}</span>`;
+
+          tr.innerHTML = `
+              <td style="white-space: pre-wrap; word-break: break-word;">${escapeHtml(risk.description)}</td>
+              <td class="text-center">${severityBadge}</td>
+              <td class="text-center">${statusBadge}</td>
+              <td class="text-center">
+                  <button class="btn btn-outline-primary btn-sm edit-risk-btn" title="Editar Risco" data-risk-id="${risk.id}">
+                      <i class="bi bi-pencil-fill"></i>
+                  </button>
+                  <button class="btn btn-outline-danger btn-sm delete-risk-btn-inline" title="Excluir Risco" data-risk-id="${risk.id}">
+                      <i class="bi bi-trash-fill"></i>
+                  </button>
+              </td>
+          `;
+          risksTableBody.appendChild(tr);
+
+          // Adicionar listeners para botões de editar/excluir (a serem implementados)
+          const editButton = tr.querySelector('.edit-risk-btn');
+          if (editButton) {
+              editButton.addEventListener('click', (e) => {
+                  e.stopPropagation(); // Previne que o clique na linha também dispare algo, se houver
+                  openRiskModal(risk.id);
+              });
+          }
+          // tr.querySelector('.delete-risk-btn-inline').addEventListener('click', () => confirmDeleteRisk(risk.id, risk.description));
+      });
+      console.log(`[Riscos] ${risks.length} riscos renderizados.`);
+  }
+
+  async function loadRisks() {
+      if (!risksTableBody) {
+          console.error("[Riscos] Tentando carregar riscos, mas risksTableBody não foi encontrado.");
+          return;
+      }
+      const currentBacklogId = document.getElementById('currentBacklogId')?.value;
+      if (!currentBacklogId) {
+          console.log("[Riscos] ID do Backlog não encontrado, pulando carregamento de riscos.");
+          risksTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted small"><i class="bi bi-info-circle me-1"></i>Selecione um backlog para ver os riscos.</td></tr>`;
+          return;
+      }
+
+      console.log(`[Riscos] Carregando riscos para Backlog ID: ${currentBacklogId}`);
+      risksTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted small py-3"><div class="spinner-border spinner-border-sm text-primary me-2"></div>Carregando riscos...</td></tr>`;
+
+      try {
+          const response = await fetch(`/backlog/api/backlogs/${currentBacklogId}/risks`); // <-- ADICIONAR /backlog AQUI
+          if (!response.ok) {
+              let errorMsg = `Erro HTTP: ${response.status}`;
+              try {
+                  const errorData = await response.json();
+                  errorMsg = errorData.message || errorData.description || errorMsg;
+              } catch (e) { /* Ignora erro no parse do JSON de erro */ }
+              throw new Error(errorMsg);
+          }
+          const risks = await response.json();
+          console.log("[Riscos] Riscos recebidos da API:", risks);
+          renderRisks(risks);
+      } catch (error) {
+          console.error("[Riscos] Erro ao carregar riscos:", error);
+          risksTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-danger small"><i class="bi bi-exclamation-triangle-fill me-1"></i>Erro ao carregar riscos: ${error.message}</td></tr>`;
+      }
+  }
+
+  // Adicionar listener para o botão "Novo Risco" (a ser implementado)
+  // if (addRiskBtn) {
+  //     addRiskBtn.addEventListener('click', () => openRiskModal()); 
+  // }
+  
+  // Função para abrir modal de risco (a ser implementada)
+  async function openRiskModal(riskId = null) { // <-- ADICIONADO ASYNC AQUI
+    if (!riskModal || !riskForm || !riskModalLabel) {
+        console.error("[Risk Modal] Elementos do modal de risco não encontrados (modal, form ou label).");
+        return;
+    }
+    riskForm.reset(); 
+    // const riskIdInput = riskForm.querySelector('input[name="riskId"]'); // Exemplo se tivesse um input hidden para ID
+    // if(riskIdInput) riskIdInput.value = riskId || '';
+
+    if (riskId) {
+        riskModalLabel.textContent = 'Editar Risco';
+        currentEditingRiskId = riskId; // Guarda o ID do risco que está sendo editado
+        // TODO: Mostrar botão de excluir (se houver um)
+
+        // Busca dados do risco para popular o formulário
+        // Adiciona feedback de loading no modal ANTES de buscar
+        const formFields = riskForm.elements;
+        for (let i = 0; i < formFields.length; i++) {
+            formFields[i].disabled = true;
+        }
+        riskModalLabel.innerHTML = '<i class="spinner-border spinner-border-sm"></i> Carregando Risco...'; 
+
+        try {
+            const response = await fetch(`/backlog/api/risks/${riskId}`);
+            if (!response.ok) {
+                let errorMsg = `Erro ao carregar dados do risco: ${response.status}`;
+                try { const errData = await response.json(); errorMsg = errData.message || errData.description || errorMsg; } catch(e){}
+                throw new Error(errorMsg);
+            }
+            const riskData = await response.json();
+            console.log("[Risk Modal] Dados do risco para edição:", riskData);
+
+            // Popula o formulário
+            if(riskForm.querySelector('#riskDescription')) riskForm.querySelector('#riskDescription').value = riskData.description || '';
+            if(riskForm.querySelector('#riskImpact')) riskForm.querySelector('#riskImpact').value = riskData.impact || 'Médio';
+            if(riskForm.querySelector('#riskProbability')) riskForm.querySelector('#riskProbability').value = riskData.probability || 'Média';
+            if(riskForm.querySelector('#riskStatus')) riskForm.querySelector('#riskStatus').value = riskData.status || 'Ativo';
+            if(riskForm.querySelector('#riskResponsible')) riskForm.querySelector('#riskResponsible').value = riskData.responsible || '';
+            if(riskForm.querySelector('#riskMitigationPlan')) riskForm.querySelector('#riskMitigationPlan').value = riskData.mitigation_plan || '';
+            if(riskForm.querySelector('#riskContingencyPlan')) riskForm.querySelector('#riskContingencyPlan').value = riskData.contingency_plan || '';
+            if(riskForm.querySelector('#riskTrend')) riskForm.querySelector('#riskTrend').value = riskData.trend || 'Estável';
+            
+            riskModalLabel.textContent = 'Editar Risco'; // Restaura o título
+
+        } catch (error) {
+            console.error("[Risk Modal] Erro ao buscar dados do risco para edição:", error);
+            alert(error.message); // Mostra erro
+            riskModal.hide(); // Fecha o modal se não conseguir carregar
+        } finally {
+            // Reabilita os campos do formulário após carregar (ou falhar)
+            for (let i = 0; i < formFields.length; i++) {
+                formFields[i].disabled = false;
+            }
+            // Se o título ainda estiver como loading, restaura para Editar Risco
+            if (riskModalLabel.textContent.includes('Carregando')) {
+                 riskModalLabel.textContent = 'Editar Risco';
+            }
+        }
+    } else { // Modo Criação
+        riskModalLabel.textContent = 'Adicionar Novo Risco';
+        currentEditingRiskId = null;
+        // TODO: Garantir que o botão de excluir esteja escondido
+    }
+    riskModal.show();
+  }
+  
+  if (riskForm) {
+    riskForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        console.log("[Risk Form Submit ENTRY] currentEditingRiskId at start:", currentEditingRiskId); // NOVO LOG AQUI
+
+        const currentBacklogId = document.getElementById('currentBacklogId')?.value;
+        if (!currentBacklogId) {
+            alert("Erro: ID do Backlog não encontrado. Não é possível adicionar o risco.");
+            return;
+        }
+        // const hiddenRiskId = this.querySelector('input[name="riskId"]')?.value; // Para edição futura
+        // const isEditing = !!hiddenRiskId;
+
+        const isEditing = !!currentEditingRiskId; // Usa a variável global para verificar se está editando
+
+        const riskData = {
+            backlog_id: parseInt(currentBacklogId, 10),
+            description: this.querySelector('#riskDescription')?.value,
+            impact: this.querySelector('#riskImpact')?.value || 'Médio', 
+            probability: this.querySelector('#riskProbability')?.value || 'Média',
+            status: this.querySelector('#riskStatus')?.value || 'Ativo', // ID do select no modal de risco
+            responsible: this.querySelector('#riskResponsible')?.value || null, 
+            mitigation_plan: this.querySelector('#riskMitigationPlan')?.value || null,
+            contingency_plan: this.querySelector('#riskContingencyPlan')?.value || null,
+            trend: this.querySelector('#riskTrend')?.value || 'Estável'
+        };
+
+        // Remover backlog_id do payload se estiver editando, pois a API PUT não o espera no corpo.
+        if (isEditing) {
+            delete riskData.backlog_id;
+        }
+
+        console.log("[Risk Form Submit] currentEditingRiskId:", currentEditingRiskId);
+        console.log("[Risk Form Submit] isEditing Flag:", isEditing);
+        console.log("[Risk Form Submit] Dados do risco a enviar (payload):", JSON.parse(JSON.stringify(riskData))); // Log profundo da cópia
+
+        const url = isEditing ? `/backlog/api/risks/${currentEditingRiskId}` : '/backlog/api/risks';
+        const method = isEditing ? 'PUT' : 'POST';
+        
+        console.log(`[Risk Form Submit] URL: ${url}, METHOD: ${method}`);
+
+        // Adiciona feedback de loading no modal
+        const submitButton = riskForm.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton ? submitButton.innerHTML : 'Salvar Risco';
+        if(submitButton) {
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salvando...';
+        }
+
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(riskData)
+            });
+
+            if (!response.ok) {
+                let errorMsg = `Erro ${response.status}`;
+                try {
+                    const errorDetail = await response.json();
+                    errorMsg = errorDetail.message || errorDetail.description || errorMsg;
+                } catch (e) { /* Ignora se não conseguir parsear JSON do erro */ }
+                throw new Error(errorMsg);
+            }
+
+            const savedRisk = await response.json();
+            console.log("[Risk Form Submit] Risco salvo:", savedRisk);
+            riskModal.hide();
+            loadRisks(); // Recarrega a lista de riscos
+            alert(isEditing ? 'Risco atualizado com sucesso!' : 'Risco adicionado com sucesso!'); // Placeholder para toast
+
+        } catch (error) {
+            console.error(`[Risk Form Submit] Erro ao ${isEditing ? 'atualizar' : 'salvar'} risco:`, error);
+            alert(`Erro ao ${isEditing ? 'atualizar' : 'salvar'} risco: ${error.message}`); // Placeholder para erro no modal/toast
+        } finally {
+            if(submitButton) { // Restaura o botão
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
+            }
+        }
+    });
+  }
+  
+  // Função para confirmar e excluir risco (a ser implementada)
+  // function confirmDeleteRisk(riskId, riskDescription) { ... }
+
+  // --- FIM DA LÓGICA PARA RISCOS DO PROJETO ---
+
+  // **************************
+  // *** LINHA DO TEMPO DO PROJETO ***
+  // **************************
+
+  document.addEventListener('DOMContentLoaded', function() {
+      console.log("Board DOM loaded");
+      
+      // Atribuição dos elementos de Risco aqui
+      risksTableBody = document.getElementById('risksTableBody');
+      addRiskBtn = document.getElementById('addRiskBtn');
+      riskModalElement = document.getElementById('riskModal');
+      if (riskModalElement) { // Verifica se o modal existe antes de tentar usá-lo
+          riskModal = new bootstrap.Modal(riskModalElement);
+          riskForm = riskModalElement.querySelector('form#riskForm'); // Busca pelo ID do form
+          riskModalLabel = riskModalElement.querySelector('.modal-title#riskModalLabel');
+
+          if (addRiskBtn) {
+              addRiskBtn.addEventListener('click', () => openRiskModal()); 
+          }
+
+          if (riskForm) {
+            riskForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                console.log("[Risk Form Submit ENTRY] currentEditingRiskId at start:", currentEditingRiskId); // NOVO LOG AQUI
+
+                const currentBacklogId = document.getElementById('currentBacklogId')?.value;
+                if (!currentBacklogId) {
+                    alert("Erro: ID do Backlog não encontrado. Não é possível adicionar o risco.");
+                    return;
+                }
+                // const hiddenRiskId = this.querySelector('input[name="riskId"]')?.value; // Para edição futura
+                // const isEditing = !!hiddenRiskId;
+
+                const isEditing = !!currentEditingRiskId; // Usa a variável global para verificar se está editando
+
+                const riskData = {
+                    backlog_id: parseInt(currentBacklogId, 10),
+                    description: this.querySelector('#riskDescription')?.value,
+                    impact: this.querySelector('#riskImpact')?.value || 'Médio', 
+                    probability: this.querySelector('#riskProbability')?.value || 'Média',
+                    status: this.querySelector('#riskStatus')?.value || 'Ativo', // ID do select no modal de risco
+                    responsible: this.querySelector('#riskResponsible')?.value || null, 
+                    mitigation_plan: this.querySelector('#riskMitigationPlan')?.value || null,
+                    contingency_plan: this.querySelector('#riskContingencyPlan')?.value || null,
+                    trend: this.querySelector('#riskTrend')?.value || 'Estável'
+                };
+
+                // Remover backlog_id do payload se estiver editando, pois a API PUT não o espera no corpo.
+                if (isEditing) {
+                    delete riskData.backlog_id;
+                }
+
+                console.log("[Risk Form Submit] currentEditingRiskId:", currentEditingRiskId);
+                console.log("[Risk Form Submit] isEditing Flag:", isEditing);
+                console.log("[Risk Form Submit] Dados do risco a enviar (payload):", JSON.parse(JSON.stringify(riskData))); // Log profundo da cópia
+
+                const url = isEditing ? `/backlog/api/risks/${currentEditingRiskId}` : '/backlog/api/risks';
+                const method = isEditing ? 'PUT' : 'POST';
+                
+                console.log(`[Risk Form Submit] URL: ${url}, METHOD: ${method}`);
+
+                // Adiciona feedback de loading no modal
+                const submitButton = riskForm.querySelector('button[type="submit"]');
+                const originalButtonText = submitButton ? submitButton.innerHTML : 'Salvar Risco';
+                if(submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salvando...';
+                }
+
+                try {
+                    const response = await fetch(url, {
+                        method: method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(riskData)
+                    });
+
+                    if (!response.ok) {
+                        let errorMsg = `Erro ${response.status}`;
+                        try {
+                            const errorDetail = await response.json();
+                            errorMsg = errorDetail.message || errorDetail.description || errorMsg;
+                        } catch (e) { /* Ignora se não conseguir parsear JSON do erro */ }
+                        throw new Error(errorMsg);
+                    }
+
+                    const savedRisk = await response.json();
+                    console.log("[Risk Form Submit] Risco salvo:", savedRisk);
+                    if (riskModal) riskModal.hide(); // Verifica se riskModal está definido
+                    loadRisks(); 
+                    alert('Risco adicionado com sucesso!');
+
+                } catch (error) {
+                    console.error(`[Risk Form Submit] Erro ao salvar risco:`, error);
+                    alert(`Erro ao salvar risco: ${error.message}`);
+                } finally {
+                    if(submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = originalButtonText;
+                    }
+                }
+            });
+          } else {
+              console.warn("[Riscos] Formulário #riskForm não encontrado no modal de risco.");
+          }
+      } else {
+          console.warn("[Riscos] Modal #riskModal não encontrado no DOM.");
+      }
+      
+      loadMilestones();
+      loadRisks(); 
+      
       setTimeout(updateTimelineTasks, 1500);
   });
 

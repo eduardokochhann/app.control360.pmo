@@ -1032,6 +1032,134 @@ def delete_milestone(milestone_id):
 # --- API para Riscos e Impedimentos --- 
 # (A implementação dos Riscos virá depois) 
 
+# --- API para Riscos e Impedimentos ---
+
+@backlog_bp.route('/api/backlogs/<int:backlog_id>/risks', methods=['GET'])
+def get_backlog_risks(backlog_id):
+    """Retorna todos os riscos associados a um backlog específico."""
+    current_app.logger.info(f"[API GET RISKS] Buscando riscos para o backlog ID: {backlog_id}")
+    backlog = Backlog.query.get_or_404(backlog_id) # Garante que o backlog existe
+    
+    risks = ProjectRisk.query.filter_by(backlog_id=backlog.id).order_by(ProjectRisk.created_at.desc()).all()
+    current_app.logger.info(f"[API GET RISKS] {len(risks)} riscos encontrados para o backlog {backlog_id}")
+    
+    return jsonify([risk.to_dict() for risk in risks])
+
+@backlog_bp.route('/api/risks/<int:risk_id>', methods=['GET'])
+def get_risk_details(risk_id):
+    """Retorna os detalhes de um risco específico."""
+    risk = ProjectRisk.query.get_or_404(risk_id)
+    return jsonify(risk.to_dict())
+
+@backlog_bp.route('/api/risks', methods=['POST'])
+def create_risk():
+    """Cria um novo risco para o projeto (backlog_id vem no corpo)."""
+    data = request.get_json()
+    if not data:
+        abort(400, description="Nenhum dado fornecido.")
+
+    backlog_id = data.get('backlog_id')
+    description = data.get('description')
+    impact_str = data.get('impact', RiskImpact.MEDIUM.value) # Default MEDIUM
+    probability_str = data.get('probability', RiskProbability.MEDIUM.value) # Default MEDIUM
+    status_str = data.get('status', RiskStatus.ACTIVE.value) # Default ACTIVE
+    responsible = data.get('responsible')
+    mitigation_plan = data.get('mitigation_plan')
+    contingency_plan = data.get('contingency_plan')
+    trend = data.get('trend',
+                     'Estável')
+
+    if not backlog_id or not description:
+        abort(400, description="'backlog_id' e 'description' são obrigatórios.")
+
+    backlog = Backlog.query.get_or_404(backlog_id)
+
+    try:
+        impact = RiskImpact(impact_str)
+        probability = RiskProbability(probability_str)
+        status = RiskStatus(status_str)
+    except ValueError:
+        valid_impacts = [r.value for r in RiskImpact]
+        valid_probabilities = [r.value for r in RiskProbability]
+        valid_statuses = [r.value for r in RiskStatus]
+        abort(400, description=f"Valores inválidos para impacto, probabilidade ou status. Válidos: Impacto={valid_impacts}, Probabilidade={valid_probabilities}, Status={valid_statuses}")
+
+    new_risk = ProjectRisk(
+        description=description,
+        impact=impact,
+        probability=probability,
+        status=status,
+        responsible=responsible,
+        mitigation_plan=mitigation_plan,
+        contingency_plan=contingency_plan,
+        trend=trend,
+        backlog_id=backlog.id,
+        identified_date=datetime.utcnow() # Data de identificação é agora
+    )
+
+    try:
+        db.session.add(new_risk)
+        db.session.commit()
+        current_app.logger.info(f"[API CREATE RISK] Risco ID {new_risk.id} criado para backlog {backlog.id}")
+        return jsonify(new_risk.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"[API CREATE RISK] Erro ao salvar risco no DB: {e}", exc_info=True)
+        abort(500, description="Erro interno ao salvar o risco no banco de dados.")
+
+@backlog_bp.route('/api/risks/<int:risk_id>', methods=['PUT'])
+def update_risk(risk_id):
+    """Atualiza um risco existente."""
+    risk = ProjectRisk.query.get_or_404(risk_id)
+    data = request.get_json()
+
+    if not data:
+        abort(400, description="Nenhum dado fornecido para atualização.")
+
+    # Atualiza os campos (com validação para Enums)
+    try:
+        if 'description' in data:
+            risk.description = data['description']
+        if 'impact' in data:
+            risk.impact = RiskImpact(data['impact'])
+        if 'probability' in data:
+            risk.probability = RiskProbability(data['probability'])
+        if 'status' in data:
+            risk.status = RiskStatus(data['status'])
+        if 'responsible' in data:
+            risk.responsible = data.get('responsible')
+        if 'mitigation_plan' in data:
+            risk.mitigation_plan = data.get('mitigation_plan')
+        if 'contingency_plan' in data:
+            risk.contingency_plan = data.get('contingency_plan')
+        if 'trend' in data:
+            risk.trend = data.get('trend')
+        if 'resolved_date' in data:
+            resolved_date_str = data.get('resolved_date')
+            risk.resolved_date = datetime.strptime(resolved_date_str, '%Y-%m-%d') if resolved_date_str else None
+        
+        risk.updated_at = datetime.utcnow() # Atualiza a data de modificação
+
+    except ValueError:
+        # Captura erro se algum valor de Enum for inválido
+        valid_impacts = [r.value for r in RiskImpact]
+        valid_probabilities = [r.value for r in RiskProbability]
+        valid_statuses = [r.value for r in RiskStatus]
+        abort(400, description=f"Valores inválidos para impacto, probabilidade ou status. Válidos: Impacto={valid_impacts}, Probabilidade={valid_probabilities}, Status={valid_statuses}")
+    except Exception as e: # Outros erros de conversão, como data
+        db.session.rollback()
+        current_app.logger.error(f"[API UPDATE RISK] Erro de conversão de dados para risco {risk_id}: {e}", exc_info=True)
+        abort(400, description=f"Erro na conversão de dados: {str(e)}")
+
+    try:
+        db.session.commit()
+        current_app.logger.info(f"[API UPDATE RISK] Risco ID {risk.id} atualizado.")
+        return jsonify(risk.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"[API UPDATE RISK] Erro ao salvar atualizações do risco {risk_id} no DB: {e}", exc_info=True)
+        abort(500, description="Erro interno ao atualizar o risco no banco de dados.")
+
 # NOVA API - Timeline de tarefas
 @backlog_bp.route('/api/backlogs/<int:backlog_id>/timeline-tasks', methods=['GET'])
 def get_timeline_tasks(backlog_id):
