@@ -3190,6 +3190,25 @@ class MacroService(BaseService):
                 # Continua com a lista vazia em caso de erro
             # FIM: Buscar marcos do projeto
             
+            # INÍCIO: Buscar riscos do projeto
+            riscos_do_projeto = []
+            if backlog: # Garante que o backlog foi encontrado
+                try:
+                    from ..models import ProjectRisk # Importar dentro da função ou no topo do arquivo
+                    
+                    project_risks = ProjectRisk.query.filter_by(backlog_id=backlog.id).order_by(ProjectRisk.created_at.desc()).all()
+                    if project_risks:
+                        self.logger.info(f"[Status Report] {len(project_risks)} riscos encontrados para o backlog ID {backlog.id} do projeto {project_id}")
+                        for risk in project_risks:
+                            riscos_do_projeto.append(risk.to_dict())
+                    else:
+                        self.logger.info(f"[Status Report] Nenhum risco encontrado para o backlog ID {backlog.id} do projeto {project_id}")
+                except Exception as e:
+                    self.logger.error(f"[Status Report] Erro ao buscar riscos do projeto {project_id}: {str(e)}")
+            else:
+                self.logger.warning(f"[Status Report] Backlog não encontrado para projeto {project_id}, não é possível buscar riscos.")
+            # FIM: Buscar riscos do projeto
+            
             # Se não encontrou marcos no banco de dados, usar uma lista vazia em vez dos marcos falsos
             if not marcos_recentes:
                 self.logger.info(f"[Status Report] Não foram encontrados marcos para o projeto {project_id}")
@@ -3216,7 +3235,7 @@ class MacroService(BaseService):
                 },
                 'status_geral_indicador': status_geral_indicador,
                 'marcos_recentes': marcos_recentes, # Lista de marcos
-                'riscos_impedimentos': [], # Placeholder
+                'riscos_impedimentos': riscos_do_projeto, # Substituído o placeholder
                 'proximos_passos': [] # Placeholder
             }
 

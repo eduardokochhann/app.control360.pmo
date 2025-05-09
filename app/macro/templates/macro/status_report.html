@@ -187,39 +187,57 @@
             </div>
             <div class="col-md-6">
                 <h4 class="section-title">Marcos Recentes</h4>
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <tbody>
-                            {% for marco in report_data.marcos_recentes %}
-                                <tr>
-                                    <td class="text-start">
-                                        {% if marco.atrasado %}<span class="badge bg-danger me-1">!</span>{% endif %}
-                                        {{ marco.nome }}
-                                    </td>
-                                    <td>{{ marco.data_planejada }}</td>
-                                    <td>
-                                        <span class="badge {% if marco.status == 'COMPLETED' or marco.status == 'CONCLUÍDO' %}bg-success{% elif marco.status == 'IN_PROGRESS' or marco.status == 'EM ANDAMENTO' %}bg-warning text-dark{% elif marco.status == 'DELAYED' or marco.status == 'ATRASADO' %}bg-danger{% else %}bg-secondary{% endif %}">
-                                            {% if marco.status == 'COMPLETED' or marco.status == 'CONCLUÍDO' %}Concluído
-                                            {% elif marco.status == 'IN_PROGRESS' or marco.status == 'EM ANDAMENTO' %}Em Andamento
-                                            {% elif marco.status == 'DELAYED' or marco.status == 'ATRASADO' %}Atrasado
-                                            {% else %}Pendente{% endif %}
-                                        </span>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                {% include 'macro/includes/report_marcos.html' %}
 
                 <h4 class="section-title">Riscos e Impedimentos</h4>
-                 <p class="placeholder">[Placeholder para Riscos e Impedimentos]</p>
-                <!-- <ul class="list-group list-group-flush">
-                    {% for risco in report_data.riscos_impedimentos %}
-                        <li class="list-group-item">{{ risco.descricao }} ({{ risco.status }})</li>
-                    {% else %}
-                        <li class="list-group-item placeholder">Nenhum risco ou impedimento ativo.</li>
-                    {% endfor %}
-                </ul> -->
+                {% if report_data.riscos_impedimentos and report_data.riscos_impedimentos|length > 0 %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover table-striped mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Descrição</th>
+                                    <th class="text-center">Severidade</th>
+                                    <th class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for risco in report_data.riscos_impedimentos %}
+                                    <tr>
+                                        <td style="white-space: pre-wrap; word-break: break-word; font-size: 0.75rem;">{{ risco.description }}</td>
+                                        <td class="text-center">
+                                            {% set severity_class = 'badge bg-secondary' %}
+                                            {% if risco.severity == 'Crítico' %}
+                                                {% set severity_class = 'badge bg-danger' %}
+                                            {% elif risco.severity == 'Alto' %}
+                                                {% set severity_class = 'badge bg-warning text-dark' %}
+                                            {% elif risco.severity == 'Médio' %}
+                                                {% set severity_class = 'badge bg-info text-dark' %}
+                                            {% elif risco.severity == 'Baixo' %}
+                                                {% set severity_class = 'badge bg-secondary' %}
+                                            {% endif %}
+                                            <span class="{{ severity_class }}" style="font-size: 0.65rem;">{{ risco.severity }}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            {% set status_class = 'badge bg-secondary' %}
+                                            {% if risco.status == 'Ativo' %}
+                                                {% set status_class = 'badge bg-warning text-dark' %}
+                                            {% elif risco.status == 'Mitigado' %}
+                                                {% set status_class = 'badge bg-info text-dark' %}
+                                            {% elif risco.status == 'Resolvido' %}
+                                                {% set status_class = 'badge bg-success' %}
+                                            {% endif %}
+                                            <span class="{{ status_class }}" style="font-size: 0.65rem;">{{ risco.status }}</span>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center p-3 text-muted small">
+                        <i class="bi bi-info-circle me-1"></i>Nenhum risco ativo.
+                    </div>
+                {% endif %}
 
                 <h4 class="section-title">Próximos Passos</h4>
                  <p class="placeholder">[Placeholder para Próximos Passos]</p>
@@ -352,10 +370,55 @@
                             Riscos e Impedimentos
                         </h5>
                     </div>
-                    <div class="card-body p-3 text-center">
-                        <p class="text-muted small">
-                            [Informações sobre riscos e impedimentos serão exibidas aqui]
-                        </p>
+                    <div class="card-body p-0">
+                        {% if report_data.riscos_impedimentos and report_data.riscos_impedimentos|length > 0 %}
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover table-striped mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Descrição</th>
+                                            <th class="text-center">Severidade</th>
+                                            <th class="text-center">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for risco in report_data.riscos_impedimentos %}
+                                            <tr>
+                                                <td style="white-space: pre-wrap; word-break: break-word; font-size: 0.75rem;">{{ risco.description }}</td>
+                                                <td class="text-center">
+                                                    {% set severity_class = 'badge bg-secondary' %}
+                                                    {% if risco.severity == 'Crítico' %}
+                                                        {% set severity_class = 'badge bg-danger' %}
+                                                    {% elif risco.severity == 'Alto' %}
+                                                        {% set severity_class = 'badge bg-warning text-dark' %}
+                                                    {% elif risco.severity == 'Médio' %}
+                                                        {% set severity_class = 'badge bg-info text-dark' %}
+                                                    {% elif risco.severity == 'Baixo' %}
+                                                        {% set severity_class = 'badge bg-secondary' %}
+                                                    {% endif %}
+                                                    <span class="{{ severity_class }}" style="font-size: 0.65rem;">{{ risco.severity }}</span>
+                                                </td>
+                                                <td class="text-center">
+                                                    {% set status_class = 'badge bg-secondary' %}
+                                                    {% if risco.status == 'Ativo' %}
+                                                        {% set status_class = 'badge bg-warning text-dark' %}
+                                                    {% elif risco.status == 'Mitigado' %}
+                                                        {% set status_class = 'badge bg-info text-dark' %}
+                                                    {% elif risco.status == 'Resolvido' %}
+                                                        {% set status_class = 'badge bg-success' %}
+                                                    {% endif %}
+                                                    <span class="{{ status_class }}" style="font-size: 0.65rem;">{{ risco.status }}</span>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center p-3 text-muted small">
+                                <i class="bi bi-info-circle me-1"></i>Nenhum risco ativo.
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -376,19 +439,7 @@
 <script>
     // Expõe os dados dos marcos para o script
     window.reportData = {
-        marcos_recentes: [
-        {% if report_data.marcos_recentes %}
-            {% for marco in report_data.marcos_recentes %}
-                {
-                    nome: "{{ marco.nome }}",
-                    data_planejada: "{{ marco.data_planejada }}",
-                    status: "{{ marco.status }}",
-                    criticidade: "{{ marco.criticidade }}",
-                    atrasado: {{ 'true' if marco.atrasado else 'false' }}
-                }{% if not loop.last %},{% endif %}
-            {% endfor %}
-        {% endif %}
-        ]
+        marcos_recentes: {{ report_data.marcos_recentes|tojson if report_data and report_data.marcos_recentes else '[]' }}
     };
 </script>
 <script src="/macro/static/js/status_report.js"></script>

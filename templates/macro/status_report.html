@@ -911,12 +911,64 @@
     <!-- Riscos e Impedimentos (Linha inteira) -->
     <div class="row mb-4">
         <div class="col-md-12">
-            <div class="placeholder-section">
+            <div class="placeholder-section"> {# ENVOLVENDO COM placeholder-section #}
                 <div class="d-flex align-items-center mb-2">
-                    <i class="bi bi-exclamation-triangle text-primary me-2"></i>
-                    <h6 class="section-title mb-0">Riscos e Impedimentos</h6>
+                    <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i> {# Ícone e cor do título #}
+                    <h6 class="section-title mb-0">Riscos e Impedimentos</h6> {# TÍTULO FORA DO CARD #}
                 </div>
-                <p class="editable-field" data-field="riscos-impedimentos">[Informações sobre riscos e impedimentos serão exibidas aqui]</p>
+                <div class="card shadow-sm h-100"> {# Removido card-header daqui #}
+                    <div class="card-body p-0" style="min-height: 180px;">
+                        {% if report_data.riscos_impedimentos and report_data.riscos_impedimentos|length > 0 %}
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover table-striped mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 50%; padding-left: 1rem;">Descrição</th>
+                                            <th class="text-center" style="width: 25%;">Severidade</th>
+                                            <th class="text-center" style="width: 25%; padding-right: 1rem;">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for risco in report_data.riscos_impedimentos %}
+                                            <tr>
+                                                <td style="white-space: pre-wrap; word-break: break-word; font-size: 0.75rem; padding-left: 1rem;">{{ risco.description }}</td>
+                                                <td class="text-center">
+                                                    {% set severity_class = 'badge bg-secondary' %}
+                                                    {% if risco.severity == 'Crítico' %}
+                                                        {% set severity_class = 'badge bg-danger' %}
+                                                    {% elif risco.severity == 'Alto' %}
+                                                        {% set severity_class = 'badge bg-warning text-dark' %}
+                                                    {% elif risco.severity == 'Médio' %}
+                                                        {% set severity_class = 'badge bg-info text-dark' %}
+                                                    {% elif risco.severity == 'Baixo' %}
+                                                        {% set severity_class = 'badge bg-secondary' %}
+                                                    {% endif %}
+                                                    <span class="{{ severity_class }}" style="font-size: 0.65rem;">{{ risco.severity }}</span>
+                                                </td>
+                                                <td class="text-center" style="padding-right: 1rem;">
+                                                    {% set status_class = 'badge bg-secondary' %}
+                                                    {% if risco.status == 'Ativo' %}
+                                                        {% set status_class = 'badge bg-warning text-dark' %}
+                                                    {% elif risco.status == 'Mitigado' %}
+                                                        {% set status_class = 'badge bg-info text-dark' %}
+                                                    {% elif risco.status == 'Resolvido' %}
+                                                        {% set status_class = 'badge bg-success' %}
+                                                    {% endif %}
+                                                    <span class="{{ status_class }}" style="font-size: 0.65rem;">{{ risco.status }}</span>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center text-muted small py-3 px-3" style="min-height: 180px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                                <i class="bi bi-shield-check" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+                                <span>Nenhum risco ou impedimento ativo identificado para este projeto.</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1700,4 +1752,4 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 });
 </script>
-{% endblock %} 
+{% endblock %}
