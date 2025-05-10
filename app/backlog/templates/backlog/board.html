@@ -2192,9 +2192,11 @@
                   
                   const deleteBtn = tr.querySelector('.delete-milestone-btn-inline');
                   if (deleteBtn) {
-                      console.log('[Debug Delete Click] Botão de deletar clicado! Marco ID:', milestone.id, 'Nome:', milestone.name);
-                      e.stopPropagation();
-                      confirmDeleteMilestone(milestone.id, milestone.name);
+                      deleteBtn.addEventListener('click', (e) => { // Adiciona o event listener aqui
+                          console.log('[Debug Delete Click] Botão de deletar clicado! Marco ID:', milestone.id, 'Nome:', milestone.name);
+                          e.stopPropagation(); // Agora 'e' está definido
+                          confirmDeleteMilestone(milestone.id, milestone.name);
+                      });
                   } else {
                       console.warn("[Milestone Process Loop] Botão delete NÃO encontrado para marco ID:", milestone.id, "HTML da linha:", tr.innerHTML); // Log adicional
                   }

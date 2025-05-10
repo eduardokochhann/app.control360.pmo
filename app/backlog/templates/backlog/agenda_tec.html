@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title if title else 'Agenda Técnica' }}{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<!-- Adicionar CSS do FullCalendar e qualquer estilo customizado aqui -->
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css' rel='stylesheet' />
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+
+<style>
+    body {
+        /* font-family: Arial, Helvetica Neue, Helvetica, sans-serif; */
+        /* font-size: 14px; */
+    }
+    #calendar-container {
+        position: relative;
+        z-index: 1;
+        margin-left: auto;
+        margin-right: auto;
+        margin-top: 20px;
+        margin-bottom: 20px;
+    }
+    #calendar {
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+    .fc-event {
+        cursor: pointer;
+    }
+    .loading-spinner {
+        display: none; /* Hidden by default */
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 1000; /* Ensure it's on top */
+    }
+    #filters-container {
+        margin-bottom: 20px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card shadow-sm mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between bg-light">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="bi bi-calendar-week me-1"></i>
+                {{ title if title else 'Agenda Técnica' }}
+                {% if current_project and current_project.name %}
+                    <small class="text-muted">- Projeto: {{ current_project.name }}</small>
+                {% endif %}
+            </h6>
+            <a href="{{ url_for('backlog.board_by_project', project_id=current_project_id_for_link) if current_project_id_for_link else url_for('backlog.project_selection') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-kanban"></i> Voltar ao Quadro
+            </a>
+        </div>
+        <div class="card-body">
+            <div id="filters-container" class="row align-items-end">
+                <div class="col-md-4">
+                    <label for="specialistFilter" class="form-label">Filtrar por Especialista(s):</label>
+                    <select class="form-select form-select-sm" id="specialistFilter" name="specialistFilter[]" multiple="multiple">
+                        <!-- Options loaded by JS -->
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-sm btn-primary w-100" id="applyFilterBtn">
+                        <i class="bi bi-filter"></i> Aplicar Filtro
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-sm btn-outline-secondary w-100" id="clearFilterBtn">
+                        <i class="bi bi-arrow-counterclockwise"></i> Limpar
+                    </button>
+                </div>
+            </div>
+
+            <div id='calendar-container'>
+                <div class="loading-spinner spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Carregando...</span>
+                </div>
+                <div id='calendar'></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Detalhes da Tarefa -->
+<div class="modal fade" id="taskDetailModal" tabindex="-1" aria-labelledby="taskDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="taskDetailModalLabel">Detalhes da Tarefa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>ID:</strong> <span id="modal-task-id"></span></p>
+                <p><strong>Título:</strong> <span id="modal-task-title"></span></p>
+                <p><strong>Início:</strong> <span id="modal-task-start"></span></p>
+                <p><strong>Fim:</strong> <span id="modal-task-end"></span></p>
+                <p><strong>Especialista:</strong> <span id="modal-task-specialist"></span></p>
+                <p><strong>Descrição:</strong> <span id="modal-task-description"></span></p>
+                <hr>
+                <a href="#" id="editTaskLink" class="btn btn-sm btn-primary">Editar Tarefa no Quadro</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<!-- Adicionar JS do FullCalendar e o seu script customizado aqui -->
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/locales/pt-br.js'></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const calendarEl = document.getElementById('calendar');
+        const specialistFilterEl = document.getElementById('specialistFilter');
+        const applyFilterBtn = document.getElementById('applyFilterBtn');
+        const clearFilterBtn = document.getElementById('clearFilterBtn');
+        const loadingSpinner = document.querySelector('#calendar-container .loading-spinner');
+        const currentBacklogId = "{{ current_backlog_id or '' }}";
+        let calendarInstance = null;
+
+        const taskDetailModalEl = document.getElementById('taskDetailModal');
+        const taskDetailModal = new bootstrap.Modal(taskDetailModalEl);
+
+        // Initialize Select2 for specialist filter
+        $(specialistFilterEl).select2({
+            theme: "bootstrap-5",
+            placeholder: "Selecione um ou mais especialistas",
+            allowClear: true,
+            width: '100%',
+            dropdownParent: $('#filters-container') // Attach dropdown to a visible container
+        });
+
+        function showLoading(isLoading) {
+            if (loadingSpinner) {
+                loadingSpinner.style.display = isLoading ? 'block' : 'none';
+            }
+        }
+
+        async function fetchSpecialists() {
+            try {
+                const response = await fetch('/backlog/api/specialists');
+                if (!response.ok) {
+                    throw new Error(`Erro ao buscar especialistas: ${response.status}`);
+                }
+                const specialists = await response.json();
+                specialistFilterEl.innerHTML = ''; // Clear existing options
+                specialists.forEach(spec => {
+                    const option = new Option(spec.nome, spec.id, false, false);
+                    specialistFilterEl.add(option);
+                });
+                $(specialistFilterEl).trigger('change'); // Notify Select2 of new options
+            } catch (error) {
+                console.error("Falha ao carregar especialistas:", error);
+                // Pode adicionar um alerta para o usuário aqui
+            }
+        }
+
+        function fetchAndRenderEvents(selectedSpecialistIds = []) {
+            showLoading(true);
+            let apiUrl = `/backlog/api/agenda/tasks`;
+            const params = new URLSearchParams();
+            if (currentBacklogId) {
+                params.append('backlog_id', currentBacklogId);
+            }
+            if (selectedSpecialistIds && selectedSpecialistIds.length > 0) {
+                params.append('specialist_ids', selectedSpecialistIds.join(','));
+            }
+            if (params.toString()) {
+                apiUrl += `?${params.toString()}`;
+            }
+
+            console.log("Buscando eventos em:", apiUrl);
+
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Erro HTTP ${response.status} ao buscar tarefas.`);
+                    }
+                    return response.json();
+                })
+                .then(tasks => {
+                    console.log("Tarefas recebidas para agenda:", tasks);
+                    if (calendarInstance) {
+                        calendarInstance.removeAllEvents();
+                        calendarInstance.addEventSource(tasks);
+                    }
+                    showLoading(false);
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar tarefas da agenda:', error);
+                    alert('Não foi possível carregar as tarefas da agenda. Verifique o console para mais detalhes.');
+                    showLoading(false);
+                });
+        }
+
+        function initializeCalendar() {
+            if (calendarInstance) {
+                calendarInstance.destroy();
+            }
+            calendarInstance = new FullCalendar.Calendar(calendarEl, {
+                locale: 'pt-br',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+                },
+                initialView: 'timeGridWeek',
+                editable: true,
+                selectable: true,
+                eventClick: function(info) {
+                    console.log('Evento clicado:', info.event);
+                    document.getElementById('modal-task-id').textContent = info.event.id;
+                    document.getElementById('modal-task-title').textContent = info.event.title;
+                    document.getElementById('modal-task-start').textContent = info.event.start ? info.event.start.toLocaleString() : 'N/A';
+                    document.getElementById('modal-task-end').textContent = info.event.end ? info.event.end.toLocaleString() : 'N/A';
+                    document.getElementById('modal-task-specialist').textContent = info.event.extendedProps.specialistName || 'N/A';
+                    document.getElementById('modal-task-description').textContent = info.event.extendedProps.description || 'N/A';
+                    
+                    const editLink = document.getElementById('editTaskLink');
+                    if (currentBacklogId) {
+                        editLink.href = `/backlog/board/${currentBacklogId}#task-${info.event.id}`; // Simple link, not opening modal directly for now
+                        editLink.style.display = 'inline-block';
+                    } else {
+                        editLink.style.display = 'none';
+                    }
+
+                    taskDetailModal.show();
+                },
+                eventDrop: async function(info) {
+                    console.log('Evento movido (eventDrop):', info.event);
+                    // TODO: Chamar API para atualizar data/hora/especialista da tarefa
+                    alert(`Tarefa '${info.event.title}' movida para ${info.event.start.toISOString()}. Atualização no backend pendente.`);
+                    // info.revert(); // Desfaz o movimento se a API falhar
+                },
+                select: function(info) {
+                    // TODO: Permitir criação de nova tarefa ao selecionar um slot de tempo
+                    console.log('Slot de tempo selecionado:', info);
+                    // alert('Criação de tarefa aqui (pendente): ' + info.startStr + ' a ' + info.endStr);
+                },
+                // events: [] // Os eventos serão carregados via fetchAndRenderEvents
+            });
+            calendarInstance.render();
+            fetchAndRenderEvents(); // Carga inicial de eventos
+        }
+
+        applyFilterBtn.addEventListener('click', () => {
+            const selectedIds = $(specialistFilterEl).val();
+            fetchAndRenderEvents(selectedIds);
+        });
+
+        clearFilterBtn.addEventListener('click', () => {
+            $(specialistFilterEl).val(null).trigger('change');
+            fetchAndRenderEvents(); // Recarrega todos os eventos
+        });
+
+        // Carregamento inicial
+        fetchSpecialists();
+        // Adia a inicialização do calendário para dar tempo aos scripts externos carregarem
+        setTimeout(initializeCalendar, 500); // Atraso de 500ms
+
+    });
+</script>
+{% endblock %} 
