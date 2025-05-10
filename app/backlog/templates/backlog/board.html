@@ -2140,8 +2140,8 @@
           // Para cada marco, cria uma linha na tabela
           milestones.forEach(milestone => {
               try {
+                  console.log("[Milestone Process Loop] Processando marco ID:", milestone.id, "Nome:", milestone.name); // Log adicional
                   console.log("[Milestone Process] Processando marco:", milestone);
-                  
                   // Define as classes corretas para badges
                   let statusClass = "bg-secondary"; // Default
                   if (milestone.status && milestone.status.toLowerCase() === "concluído") statusClass = "bg-success";
@@ -2192,10 +2192,11 @@
                   
                   const deleteBtn = tr.querySelector('.delete-milestone-btn-inline');
                   if (deleteBtn) {
-                      deleteBtn.addEventListener('click', (e) => {
-                          e.stopPropagation();
-                          confirmDeleteMilestone(milestone.id, milestone.name);
-                      });
+                      console.log('[Debug Delete Click] Botão de deletar clicado! Marco ID:', milestone.id, 'Nome:', milestone.name);
+                      e.stopPropagation();
+                      confirmDeleteMilestone(milestone.id, milestone.name);
+                  } else {
+                      console.warn("[Milestone Process Loop] Botão delete NÃO encontrado para marco ID:", milestone.id, "HTML da linha:", tr.innerHTML); // Log adicional
                   }
                   
                   // Evento para clicar na linha
@@ -2334,12 +2335,9 @@
           // Evento para botão excluir
           const deleteBtn = tr.querySelector('.delete-milestone-btn-inline');
           if (deleteBtn) {
-              deleteBtn.addEventListener('click', (e) => {
-                  e.stopPropagation();
-                  // Busca o nome do marco no DOM
-                  const milestoneName = tr.querySelector('td:first-child').textContent.trim();
-                  confirmDeleteMilestone(milestoneId, milestoneName);
-              });
+              console.log('[Debug Delete Click] Botão de deletar clicado! Marco ID:', milestone.id, 'Nome:', milestone.name);
+              e.stopPropagation();
+              confirmDeleteMilestone(milestone.id, milestone.name);
           }
       });
       
@@ -2761,6 +2759,14 @@
                   openRiskModal(risk.id);
               });
           }
+          const deleteButtonInline = tr.querySelector('.delete-risk-btn-inline');
+          if (deleteButtonInline) {
+              deleteButtonInline.addEventListener('click', (e) => {
+                  console.log('[Debug Risk Delete Click] Botão Inline DELETAR RISCO clicado! Risco ID:', risk.id, 'Descrição:', risk.description);
+                  e.stopPropagation();
+                  confirmDeleteRisk(risk.id, risk.description); // CHAMADA CORRIGIDA
+              });
+          }
           // tr.querySelector('.delete-risk-btn-inline').addEventListener('click', () => confirmDeleteRisk(risk.id, risk.description));
       });
       console.log(`[Riscos] ${risks.length} riscos renderizados.`);
@@ -3073,6 +3079,81 @@
       
       setTimeout(updateTimelineTasks, 1500);
   });
+
+  // Função para confirmar e excluir um RISCO
+  function confirmDeleteRisk(riskId, riskDescription) {
+      if (!riskId) {
+          console.error("[Confirm Delete Risk] ID do risco não fornecido.");
+          showToast("Erro: ID do risco não informado para exclusão.", "error");
+          return;
+      }
+      const userConfirmed = confirm(`Tem certeza que deseja excluir o risco "${riskDescription || riskId}"? Esta ação não pode ser desfeita.`);
+      if (userConfirmed) {
+          console.log(`[Confirm Delete Risk] Usuário confirmou exclusão do Risco ID: ${riskId}`);
+          deleteRisk(riskId);
+      } else {
+          console.log(`[Confirm Delete Risk] Usuário cancelou exclusão do Risco ID: ${riskId}`);
+      }
+  }
+
+  // Função para excluir um RISCO via API
+  async function deleteRisk(riskId) {
+      if (!riskId) {
+          console.error("[Delete Risk API] ID do risco não fornecido para a API.");
+          showToast("Erro interno: ID do risco ausente para exclusão via API.", "error");
+          return;
+      }
+      console.log(`[Delete Risk API] Enviando requisição DELETE para Risco ID: ${riskId}`);
+      // Adicionar feedback de loading (ex: no modal se aplicável, ou um overlay geral)
+      // showLoadingFeedback(true); // Exemplo, adaptar para o contexto de riscos
+
+      try {
+          const response = await fetch(`/backlog/api/risks/${riskId}`, {
+              method: 'DELETE',
+              headers: {'Content-Type': 'application/json'}
+          });
+
+          if (!response.ok) {
+              let errorMsg = `Erro HTTP ${response.status} ao excluir risco.`;
+              try {
+                  const errorData = await response.json();
+                  errorMsg = errorData.message || errorData.error || errorMsg;
+              } catch (e) { /* Ignora erro no parse do JSON de erro */ }
+              throw new Error(errorMsg);
+          }
+
+          console.log(`[Delete Risk API] Risco ID: ${riskId} excluído com sucesso da API.`);
+          showToast("Risco excluído com sucesso!", "success");
+
+          // Atualizar a UI: Remover a linha da tabela e recarregar a lista de riscos
+          // Ou apenas remover a linha específica:
+          const riskRow = risksTableBody.querySelector(`tr[data-risk-id="${riskId}"]`);
+          if (riskRow) {
+              riskRow.remove();
+              console.log(`[Delete Risk API] Linha do Risco ID: ${riskId} removida da tabela.`);
+              // Verificar se a tabela ficou vazia
+              if (risksTableBody.querySelectorAll('tr').length === 0) {
+                  risksTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted small"><i class="bi bi-info-circle me-1"></i>Nenhum risco cadastrado para este backlog.</td></tr>`;
+              }
+          } else {
+              console.warn(`[Delete Risk API] Não foi possível encontrar a linha do Risco ID: ${riskId} para remover. Recarregando toda a lista.`);
+              loadRisks(); // Fallback para recarregar tudo se a linha não for encontrada
+          }
+          
+          // Se o modal de edição de risco estiver aberto e for o risco excluído, feche-o.
+          if (riskModal && currentEditingRiskId == riskId) {
+             riskModal.hide();
+             currentEditingRiskId = null;
+          }
+
+      } catch (error) {
+          console.error('[Delete Risk API] Erro ao excluir risco:', error);
+          showToast(`Erro ao excluir risco: ${error.message}`, "error");
+      } finally {
+          // Esconder feedback de loading
+          // showLoadingFeedback(false); // Exemplo
+      }
+  }
 
 </script>
 

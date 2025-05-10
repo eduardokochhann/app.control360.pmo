@@ -425,7 +425,7 @@ def delete_task(task_id):
         Task.query.filter(
             Task.column_id == old_column_id,
             Task.position > old_position
-        ).update({Task.position: Task.position - 1}, synchronize_session='fetch') # Importante usar fetch ou avaliar impacto
+        ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
         
         # Exclui a tarefa
         db.session.delete(task)
@@ -1159,6 +1159,22 @@ def update_risk(risk_id):
         db.session.rollback()
         current_app.logger.error(f"[API UPDATE RISK] Erro ao salvar atualizações do risco {risk_id} no DB: {e}", exc_info=True)
         abort(500, description="Erro interno ao atualizar o risco no banco de dados.")
+
+@backlog_bp.route('/api/risks/<int:risk_id>', methods=['DELETE'])
+def delete_risk_from_api(risk_id):
+    """Exclui um risco específico."""
+    current_app.logger.info(f"[API DELETE RISK] Recebida requisição para excluir Risco ID: {risk_id}")
+    risk = ProjectRisk.query.get_or_404(risk_id)
+    try:
+        db.session.delete(risk)
+        db.session.commit()
+        current_app.logger.info(f"[API DELETE RISK] Risco ID: {risk_id} excluído do DB com sucesso.")
+        # Retorna uma resposta vazia com status 204 No Content, que é comum para DELETE bem-sucedido
+        return '', 204
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"[API DELETE RISK] Erro ao excluir Risco ID: {risk_id} do DB: {e}", exc_info=True)
+        abort(500, description="Erro interno ao excluir o risco do banco de dados.")
 
 # NOVA API - Timeline de tarefas
 @backlog_bp.route('/api/backlogs/<int:backlog_id>/timeline-tasks', methods=['GET'])
