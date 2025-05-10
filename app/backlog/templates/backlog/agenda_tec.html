@@ -5,9 +5,18 @@
 {% block extra_css %}
 {{ super() }}
 <!-- Adicionar CSS do FullCalendar e qualquer estilo customizado aqui -->
-<link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css' rel='stylesheet' />
+<!-- <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css' rel='stylesheet' /> -->
+<!-- <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" /> -->
+<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" /> -->
+
+<!-- CSS para Toast UI Calendar e dependências -->
+<link rel="stylesheet" href="https://uicdn.toast.com/tui.date-picker/latest/tui-date-picker.min.css" />
+<link rel="stylesheet" href="https://uicdn.toast.com/tui.time-picker/latest/tui-time-picker.min.css" />
+<link rel="stylesheet" href="https://uicdn.toast.com/tui-calendar/latest/tui-calendar.min.css" />
+
+<!-- CSS para Select2 (se formos usar para filtros) -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+<link href="{{ url_for('static', filename='css/select2-bootstrap-5-theme.min.css') }}" rel="stylesheet">
 
 <style>
     body {
@@ -21,9 +30,11 @@
         margin-right: auto;
         margin-top: 20px;
         margin-bottom: 20px;
+        height: 75vh; /* Aplicar altura aqui se 'calendar' não tiver altura própria */
     }
     #calendar {
-        max-width: 1100px;
+        max-width: 100%; /* Ocupa toda a largura do pai */
+        height: 100%;   /* Ocupa toda a altura do pai (#calendar-container) */
         margin: 0 auto;
     }
     .fc-event {
@@ -42,6 +53,41 @@
         padding: 15px;
         background-color: #f8f9fa;
         border-radius: 0.25rem;
+    }
+    #agendaHeader {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    .calendar-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .calendar-toolbar button {
+        font-size: 0.85rem;
+    }
+    #calendarRange {
+        font-size: 1.2rem;
+        font-weight: 500;
+    }
+    #specialistFilterContainer {
+        min-width: 250px; /* Ajuste conforme necessário */
+    }
+
+    /* Ajuste para garantir que o modal de detalhes apareça sobre o calendário */
+    #taskDetailModal .modal-dialog {
+      z-index: 1051; /* Um a mais que o z-index padrão do backdrop do modal (1050) */
+    }
+    /* Adicionar estilos específicos para o tui-calendar se necessário */
+    /* Exemplo: garantir que os pop-ups do tui-calendar (como criação de evento) apareçam corretamente */
+    .tui-calendar-floating-layer {
+        z-index: 1060 !important; /* Maior que o modal de detalhes */
+    }
+    .tui-calendar-popup-container {
+        z-index: 1060 !important;
     }
 </style>
 {% endblock %}
@@ -62,22 +108,32 @@
             </a>
         </div>
         <div class="card-body">
-            <div id="filters-container" class="row align-items-end">
-                <div class="col-md-4">
-                    <label for="specialistFilter" class="form-label">Filtrar por Especialista(s):</label>
-                    <select class="form-select form-select-sm" id="specialistFilter" name="specialistFilter[]" multiple="multiple">
-                        <!-- Options loaded by JS -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="calendar-toolbar">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="prevBtn"><i class="bi bi-chevron-left"></i></button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="nextBtn"><i class="bi bi-chevron-right"></i></button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="todayBtn">Hoje</button>
+                        <span id="calendarRange" class="ms-3"></span>
+                    </div>
+                </div>
+                <div class="col-md-6 d-flex justify-content-md-end align-items-center">
+                     <div class="calendar-toolbar">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="View type">
+                            <button type="button" class="btn btn-outline-primary" data-view-type="month">Mês</button>
+                            <button type="button" class="btn btn-outline-primary active" data-view-type="week">Semana</button>
+                            <button type="button" class="btn btn-outline-primary" data-view-type="day">Dia</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                 <div class="col-md-4" id="specialistFilterContainer">
+                    <label for="specialistFilter" class="form-label form-label-sm">Filtrar por Especialista:</label>
+                    <select class="form-select form-select-sm" id="specialistFilter" multiple>
+                        <!-- Opções carregadas via JS -->
                     </select>
-                </div>
-                <div class="col-md-2">
-                    <button class="btn btn-sm btn-primary w-100" id="applyFilterBtn">
-                        <i class="bi bi-filter"></i> Aplicar Filtro
-                    </button>
-                </div>
-                <div class="col-md-2">
-                    <button class="btn btn-sm btn-outline-secondary w-100" id="clearFilterBtn">
-                        <i class="bi bi-arrow-counterclockwise"></i> Limpar
-                    </button>
                 </div>
             </div>
 
@@ -85,7 +141,7 @@
                 <div class="loading-spinner spinner-border text-primary" role="status">
                     <span class="visually-hidden">Carregando...</span>
                 </div>
-                <div id='calendar'></div>
+                <div id='calendar'></div> {# Este é o container real para o TUI Calendar #}
             </div>
         </div>
     </div>
@@ -93,21 +149,27 @@
 
 <!-- Modal para Detalhes da Tarefa -->
 <div class="modal fade" id="taskDetailModal" tabindex="-1" aria-labelledby="taskDetailModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="taskDetailModalLabel">Detalhes da Tarefa</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p><strong>ID:</strong> <span id="modal-task-id"></span></p>
-                <p><strong>Título:</strong> <span id="modal-task-title"></span></p>
-                <p><strong>Início:</strong> <span id="modal-task-start"></span></p>
-                <p><strong>Fim:</strong> <span id="modal-task-end"></span></p>
-                <p><strong>Especialista:</strong> <span id="modal-task-specialist"></span></p>
-                <p><strong>Descrição:</strong> <span id="modal-task-description"></span></p>
-                <hr>
-                <a href="#" id="editTaskLink" class="btn btn-sm btn-primary">Editar Tarefa no Quadro</a>
+                <p><strong>Título:</strong> <span id="modalTaskTitle"></span></p>
+                <p><strong>Especialista:</strong> <span id="modalTaskSpecialist"></span></p>
+                <p><strong>Início:</strong> <span id="modalTaskStart"></span></p>
+                <p><strong>Fim:</strong> <span id="modalTaskEnd"></span></p>
+                <p><strong>Descrição:</strong></p>
+                <div id="modalTaskDescription" style="white-space: pre-wrap; max-height: 200px; overflow-y: auto; border: 1px solid #eee; padding: 10px; border-radius: 4px;"></div>
+                <p class="mt-2"><strong>Status:</strong> <span id="modalTaskState"></span></p>
+                <p><strong>Projeto Associado:</strong> <span id="modalTaskProject"></span> (ID: <span id="modalTaskProjectId"></span>)</p>
+                <p><strong>Backlog Associado:</strong> <span id="modalTaskBacklog"></span> (ID: <span id="modalTaskBacklogId"></span>)</p>
+                <!-- Adicionar mais detalhes conforme necessário -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <!-- <button type="button" class="btn btn-primary">Editar Tarefa</button> -->
             </div>
         </div>
     </div>
@@ -118,160 +180,371 @@
 {% block extra_js %}
 {{ super() }}
 <!-- Adicionar JS do FullCalendar e o seu script customizado aqui -->
-<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.js'></script>
-<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/locales/pt-br.js'></script>
+<!-- <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.js'></script> -->
+<!-- <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/locales/pt-br.js'></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script> -->
+
+<!-- JS para Toast UI Calendar e dependências -->
+<script src="https://uicdn.toast.com/tui.code-snippet/latest/tui-code-snippet.min.js"></script>
+<script src="https://uicdn.toast.com/tui.date-picker/latest/tui-date-picker.min.js"></script>
+<script src="https://uicdn.toast.com/tui.time-picker/latest/tui-time-picker.min.js"></script>
+<script src="https://uicdn.toast.com/tui-calendar/latest/tui-calendar.min.js"></script>
+
+<!-- JS para Select2 -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const calendarEl = document.getElementById('calendar');
+        const Calendar = tui.Calendar; // Atalho para o construtor
+        const calendarElement = document.getElementById('calendar'); // CORRIGIDO: Usar o 'calendar' div
+        const calendarRangeEl = document.getElementById('calendarRange');
         const specialistFilterEl = document.getElementById('specialistFilter');
-        const applyFilterBtn = document.getElementById('applyFilterBtn');
-        const clearFilterBtn = document.getElementById('clearFilterBtn');
-        const loadingSpinner = document.querySelector('#calendar-container .loading-spinner');
-        const currentBacklogId = "{{ current_backlog_id or '' }}";
-        let calendarInstance = null;
-
         const taskDetailModalEl = document.getElementById('taskDetailModal');
-        const taskDetailModal = new bootstrap.Modal(taskDetailModalEl);
+        const taskDetailModalInstance = taskDetailModalEl ? new bootstrap.Modal(taskDetailModalEl) : null;
 
-        // Initialize Select2 for specialist filter
-        $(specialistFilterEl).select2({
-            theme: "bootstrap-5",
-            placeholder: "Selecione um ou mais especialistas",
-            allowClear: true,
-            width: '100%',
-            dropdownParent: $('#filters-container') // Attach dropdown to a visible container
-        });
-
-        function showLoading(isLoading) {
-            if (loadingSpinner) {
-                loadingSpinner.style.display = isLoading ? 'block' : 'none';
-            }
+        // Configuração de templates para os eventos (opcional, mas útil para customização)
+        const templates = {
+            monthDayname: function(dayname) {
+                return '<span class="calendar-month-dayname-name">' + dayname.label + '</span>';
+            },
+            // Você pode adicionar mais templates para customizar a aparência dos eventos
+            // title: function(schedule) { // `schedule` é o objeto do evento
+            //    return `<span style="color: white; background-color: ${schedule.bgColor}; padding: 2px 5px; border-radius: 3px;">${schedule.title}</span>`;
+            // },
+            // allday: function(schedule) { // Eventos de dia inteiro
+            //    return `[All day] ${schedule.title}`;
+            // },
+            // time: function(schedule) { // Eventos com hora marcada
+            //    return `${schedule.title} (${tui.util.formatTime(schedule.start)} - ${tui.util.formatTime(schedule.end)})`;
+            // }
+        };
+        
+        if (!calendarElement) {
+            console.error("Elemento #calendar não encontrado. O Toast UI Calendar não pode ser inicializado.");
+            return; // Interrompe a execução se o container do calendário não existir
         }
 
-        async function fetchSpecialists() {
-            try {
-                const response = await fetch('/backlog/api/specialists');
-                if (!response.ok) {
-                    throw new Error(`Erro ao buscar especialistas: ${response.status}`);
+        const calendarInstance = new Calendar(calendarElement, { // CORRIGIDO: Passar calendarElement
+            defaultView: 'week', // ou 'month', 'day'
+            // taskView: true, 
+            // scheduleView: ['time'], 
+            useCreationPopup: true, 
+            useDetailPopup: true,   
+            // template: templates, 
+            calendars: [ // Define os "tipos" de calendário/categoria de eventos
+                // Calendário padrão para todas as tarefas vindas da API
+                {
+                    id: 'tasks',
+                    name: 'Tarefas', // Nome de exibição para este calendário
+                    color: '#ffffff',  // Cor do texto do evento (pode ser sobrescrito pela API por evento)
+                    bgColor: '#00a9ff', // Cor de fundo padrão (pode ser sobrescrito pela API por evento)
+                    borderColor: '#00a9ff' // Cor da borda padrão (pode ser sobrescrito pela API por evento)
                 }
-                const specialists = await response.json();
-                specialistFilterEl.innerHTML = ''; // Clear existing options
-                specialists.forEach(spec => {
-                    const option = new Option(spec.nome, spec.id, false, false);
-                    specialistFilterEl.add(option);
-                });
-                $(specialistFilterEl).trigger('change'); // Notify Select2 of new options
-            } catch (error) {
-                console.error("Falha ao carregar especialistas:", error);
-                // Pode adicionar um alerta para o usuário aqui
+            ],
+            timezone: { 
+                zones: [
+                    {
+                        timezoneName: 'America/Sao_Paulo', // Ajuste para seu fuso horário
+                        displayLabel: 'Horário de Brasília',
+                    },
+                ],
+                // defaultZoneName: 'America/Sao_Paulo' // Define um padrão
+            },
+            week: {
+                showTimezoneCollapseButton: true,
+                timezonesCollapsed: false, // Ou true se quiser começar colapsado
+                daynames: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
+                startDayOfWeek: 0, // 0 para Domingo, 1 para Segunda
+                // narrowWeekend: true, // Deixa o fim de semana mais estreito
+                workweek: false // Destaca apenas dias úteis
+            },
+            month: {
+                daynames: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
+                startDayOfWeek: 0,
+                // narrowWeekend: true
+            },
+            // Adicionar mais configurações conforme necessário
+        });
+
+        // --- Controle de Navegação e Visualização ---
+        function updateCalendarRange() {
+            if (!calendarRangeEl) return;
+
+            console.log("calendarInstance em updateCalendarRange:", calendarInstance);
+            if (!calendarInstance || typeof calendarInstance.getDateRangeStart !== 'function') {
+                console.error("TUI Calendar não está pronto ou não tem getDateRangeStart em updateCalendarRange.");
+                return; // Sai da função se o calendário não estiver pronto
             }
+
+            const rangeStart = calendarInstance.getDateRangeStart();
+            const rangeEnd = calendarInstance.getDateRangeEnd();
+            
+            console.log("rangeStart:", rangeStart, "Tipo:", typeof rangeStart, "É Date?", rangeStart instanceof Date);
+            console.log("rangeEnd:", rangeEnd, "Tipo:", typeof rangeEnd, "É Date?", rangeEnd instanceof Date);
+
+            // Verifica se rangeStart ou rangeEnd não são objetos Date válidos antes de prosseguir
+            if (!(rangeStart instanceof Date) || !(rangeEnd instanceof Date)) {
+                console.error("rangeStart ou rangeEnd não são objetos Date válidos.", {rangeStart, rangeEnd});
+                // Pode definir um texto padrão ou simplesmente não atualizar o range visualmente
+                calendarRangeEl.textContent = "Carregando..."; 
+                return;
+            }
+
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            let text;
+
+            if (calendarInstance.getViewName() === 'month') {
+                text = rangeStart.toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
+            } else if (calendarInstance.getViewName() === 'day') {
+                text = rangeStart.toLocaleDateString('pt-BR', options);
+            } else { // week or custom views
+                text = `${rangeStart.toLocaleDateString('pt-BR', options)} - ${rangeEnd.toLocaleDateString('pt-BR', options)}`;
+            }
+            calendarRangeEl.textContent = text;
         }
 
-        function fetchAndRenderEvents(selectedSpecialistIds = []) {
-            showLoading(true);
-            let apiUrl = `/backlog/api/agenda/tasks`;
-            const params = new URLSearchParams();
-            if (currentBacklogId) {
-                params.append('backlog_id', currentBacklogId);
-            }
-            if (selectedSpecialistIds && selectedSpecialistIds.length > 0) {
-                params.append('specialist_ids', selectedSpecialistIds.join(','));
-            }
-            if (params.toString()) {
-                apiUrl += `?${params.toString()}`;
-            }
+        document.getElementById('prevBtn')?.addEventListener('click', () => {
+            calendarInstance.prev();
+            updateCalendarRange();
+            fetchAndRenderSchedules(); // Recarregar eventos ao mudar o range
+        });
+        document.getElementById('nextBtn')?.addEventListener('click', () => {
+            calendarInstance.next();
+            updateCalendarRange();
+            fetchAndRenderSchedules();
+        });
+        document.getElementById('todayBtn')?.addEventListener('click', () => {
+            calendarInstance.today();
+            updateCalendarRange();
+            fetchAndRenderSchedules();
+        });
 
-            console.log("Buscando eventos em:", apiUrl);
-
-            fetch(apiUrl)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`Erro HTTP ${response.status} ao buscar tarefas.`);
-                    }
-                    return response.json();
-                })
-                .then(tasks => {
-                    console.log("Tarefas recebidas para agenda:", tasks);
-                    if (calendarInstance) {
-                        calendarInstance.removeAllEvents();
-                        calendarInstance.addEventSource(tasks);
-                    }
-                    showLoading(false);
-                })
-                .catch(error => {
-                    console.error('Erro ao carregar tarefas da agenda:', error);
-                    alert('Não foi possível carregar as tarefas da agenda. Verifique o console para mais detalhes.');
-                    showLoading(false);
-                });
-        }
-
-        function initializeCalendar() {
-            if (calendarInstance) {
-                calendarInstance.destroy();
-            }
-            calendarInstance = new FullCalendar.Calendar(calendarEl, {
-                locale: 'pt-br',
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
-                },
-                initialView: 'timeGridWeek',
-                editable: true,
-                selectable: true,
-                eventClick: function(info) {
-                    console.log('Evento clicado:', info.event);
-                    document.getElementById('modal-task-id').textContent = info.event.id;
-                    document.getElementById('modal-task-title').textContent = info.event.title;
-                    document.getElementById('modal-task-start').textContent = info.event.start ? info.event.start.toLocaleString() : 'N/A';
-                    document.getElementById('modal-task-end').textContent = info.event.end ? info.event.end.toLocaleString() : 'N/A';
-                    document.getElementById('modal-task-specialist').textContent = info.event.extendedProps.specialistName || 'N/A';
-                    document.getElementById('modal-task-description').textContent = info.event.extendedProps.description || 'N/A';
-                    
-                    const editLink = document.getElementById('editTaskLink');
-                    if (currentBacklogId) {
-                        editLink.href = `/backlog/board/${currentBacklogId}#task-${info.event.id}`; // Simple link, not opening modal directly for now
-                        editLink.style.display = 'inline-block';
-                    } else {
-                        editLink.style.display = 'none';
-                    }
-
-                    taskDetailModal.show();
-                },
-                eventDrop: async function(info) {
-                    console.log('Evento movido (eventDrop):', info.event);
-                    // TODO: Chamar API para atualizar data/hora/especialista da tarefa
-                    alert(`Tarefa '${info.event.title}' movida para ${info.event.start.toISOString()}. Atualização no backend pendente.`);
-                    // info.revert(); // Desfaz o movimento se a API falhar
-                },
-                select: function(info) {
-                    // TODO: Permitir criação de nova tarefa ao selecionar um slot de tempo
-                    console.log('Slot de tempo selecionado:', info);
-                    // alert('Criação de tarefa aqui (pendente): ' + info.startStr + ' a ' + info.endStr);
-                },
-                // events: [] // Os eventos serão carregados via fetchAndRenderEvents
+        document.querySelectorAll('.btn-group[role="group"] button').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('.btn-group[role="group"] button').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                const viewType = this.dataset.viewType;
+                calendarInstance.changeView(viewType);
+                updateCalendarRange();
+                fetchAndRenderSchedules();
             });
-            calendarInstance.render();
-            fetchAndRenderEvents(); // Carga inicial de eventos
+        });
+        
+        // --- FIM Controle de Navegação e Visualização ---
+
+        // --- Inicialização do Select2 para filtro de especialistas ---
+        if ($(specialistFilterEl).length) { // Verifica se o elemento existe
+            $(specialistFilterEl).select2({
+                theme: "bootstrap-5",
+                placeholder: "Todos os Especialistas",
+                allowClear: true,
+                // ajax: { // Exemplo se fosse carregar via AJAX direto no select2
+                //     url: '/backlog/api/specialists',
+                //     dataType: 'json',
+                //     delay: 250,
+                //     processResults: function (data) {
+                //         return {
+                //             results: data.map(spec => ({ id: spec.id, text: spec.name }))
+                //         };
+                //     },
+                //     cache: true
+                // }
+            });
+             $(specialistFilterEl).on('change', function() {
+                fetchAndRenderSchedules(); // Recarrega os eventos quando o filtro muda
+                console.log("Filtro de especialista alterado:", $(this).val());
+            });
         }
 
-        applyFilterBtn.addEventListener('click', () => {
-            const selectedIds = $(specialistFilterEl).val();
-            fetchAndRenderEvents(selectedIds);
+
+        // --- CARREGAMENTO DE DADOS (ESPECIALISTAS E EVENTOS/TAREFAS) ---
+        let allSpecialists = []; // Armazena os especialistas carregados para usar como 'calendars' no tui-calendar
+
+        async function fetchSpecialistsAndConfigureCalendar() {
+            try {
+                const response = await fetch('/backlog/api/available-specialists');
+                if (!response.ok) throw new Error('Falha ao buscar especialistas');
+                const specialistsData = await response.json();
+                
+                allSpecialists = specialistsData.map((spec, index) => ({
+                    id: String(spec.id), // ID do especialista (ex: "nome_do_especialista")
+                    name: spec.nome,   // Nome para exibição
+                    color: '#ffffff',  // Cor do texto do evento
+                    bgColor: getRandomColor(index), // Cor de fundo do evento
+                    borderColor: getRandomColor(index) // Cor da borda do evento
+                }));
+
+                // Popula o filtro Select2
+                if ($(specialistFilterEl).length) {
+                    $(specialistFilterEl).empty(); // Limpa opções anteriores antes de adicionar novas
+                    specialistsData.forEach(spec => {
+                        const option = new Option(spec.nome, String(spec.id), false, false); // Garante que o ID seja string
+                        $(specialistFilterEl).append(option);
+                    });
+                    $(specialistFilterEl).trigger('change.select2'); // Atualiza o select2
+                }
+                
+                // Configura os 'calendars' no tui-calendar com os especialistas
+                // Temporariamente comentado para focar em exibir todas as tarefas primeiro
+                /*
+                if (allSpecialists.length > 0) {
+                    calendarInstance.setCalendars(allSpecialists);
+                } else {
+                     calendarInstance.setCalendars([{ id: 'default', name: 'Padrão', bgColor: '#00a9ff', borderColor: '#00a9ff', color: '#ffffff' }]);
+                }
+                */
+                console.log("Especialistas carregados. Configuração de calendários no TUI pulada por enquanto:", allSpecialists);
+
+                // Após carregar especialistas, carrega as tarefas
+                fetchAndRenderSchedules();
+
+            } catch (error) {
+                console.error("Erro ao buscar/configurar especialistas:", error);
+                // Tratar erro, talvez mostrar mensagem ao usuário
+            }
+        }
+
+        function getRandomColor(index) {
+            // Gera cores pastéis variadas para os especialistas
+            const colors = ['#a2d2ff', '#bde0fe', '#ffafcc', '#ffc8dd', '#cdb4db', '#ccd5ae', '#e9edc9', '#fefae0', '#faedcd', '#d4a373'];
+            return colors[index % colors.length];
+        }
+
+
+        async function fetchAndRenderSchedules() {
+            calendarInstance.clear(); // Limpa eventos existentes
+            const selectedSpecialistIds = $(specialistFilterEl).val() || []; // Garante que seja um array
+            
+            let apiUrl = `/backlog/api/agenda/tasks`; 
+
+            // Se a API for modificada para aceitar filtro por especialista:
+            // if (selectedSpecialistIds && selectedSpecialistIds.length > 0) {
+            //     apiUrl += `?specialist_ids=${selectedSpecialistIds.join(',')}`;
+            // }
+
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) throw new Error('Falha ao buscar tarefas da agenda');
+                let tasks = await response.json();
+                console.log("Tarefas recebidas da API:", tasks);
+
+                // Filtro NO FRONTEND (se a API não filtrar por especialista) - TEMPORARIAMENTE DESABILITADO
+                /*
+                if (selectedSpecialistIds.length > 0) {
+                    tasks = tasks.filter(task => {
+                        // Garante que task.extendedProps.specialistId seja string para comparação
+                        return selectedSpecialistIds.includes(String(task.extendedProps.specialistId));
+                    });
+                    console.log("Tarefas após filtro frontend:", tasks);
+                }
+                */
+                
+                const schedules = tasks.map(task => {
+                    // Mapeamento direto dos campos da API para o formato do TUI Calendar
+                    return {
+                        id: String(task.id), 
+                        calendarId: 'tasks', // Todas as tarefas vão para o calendário 'tasks' definido na inicialização
+                        title: task.title,
+                        body: task.body, // API envia 'body'
+                        start: task.start, 
+                        end: task.end,     
+                        category: task.category, // API envia 'category' ('time', 'allday', etc.)
+                        isAllDay: task.isAllDay, // API envia 'isAllDay' (boolean)
+                        
+                        // Cores e bordas podem vir da API por tarefa ou usar o padrão do 'tasks' calendar
+                        color: task.color || '#ffffff',
+                        backgroundColor: task.backgroundColor || '#00a9ff',
+                        borderColor: task.borderColor || '#00a9ff',
+                        
+                        raw: { // Guardar dados originais da tarefa se precisar no futuro para popups, etc.
+                            originalTask: task 
+                        },
+                        isReadOnly: true, // Definir como true se não for permitir edição direta no calendário por ora
+                    };
+                });
+
+                calendarInstance.createSchedules(schedules);
+                console.log("Eventos criados no tui-calendar:", schedules.length);
+                updateCalendarRange();
+            } catch (error) {
+                console.error("Erro ao buscar/renderizar tarefas:", error);
+                // Tratar erro
+            }
+        }
+        
+        // --- Manipuladores de Eventos do tui-calendar ---
+        calendarInstance.on('clickSchedule', function(event) {
+            const schedule = event.schedule;
+            console.log('Clique no evento:', schedule);
+
+            if (taskDetailModalInstance && schedule) {
+                document.getElementById('modalTaskTitle').textContent = schedule.title || 'N/A';
+                document.getElementById('modalTaskSpecialist').textContent = schedule.raw?.specialistName || 'N/A';
+                document.getElementById('modalTaskStart').textContent = schedule.start ? new Date(schedule.start).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short'}) : 'N/A';
+                document.getElementById('modalTaskEnd').textContent = schedule.end ? new Date(schedule.end).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short'}) : 'N/A';
+                document.getElementById('modalTaskDescription').textContent = schedule.body || 'Sem descrição.';
+                document.getElementById('modalTaskState').textContent = schedule.raw?.taskStatus || 'N/A'; 
+                document.getElementById('modalTaskProject').textContent = schedule.raw?.projectName || 'N/A';
+                document.getElementById('modalTaskProjectId').textContent = schedule.raw?.projectId || 'N/A';
+                document.getElementById('modalTaskBacklog').textContent = schedule.raw?.backlogName || 'N/A'; 
+                document.getElementById('modalTaskBacklogId').textContent = schedule.raw?.backlogId || 'N/A';
+                
+                taskDetailModalInstance.show();
+            }
         });
 
-        clearFilterBtn.addEventListener('click', () => {
-            $(specialistFilterEl).val(null).trigger('change');
-            fetchAndRenderEvents(); // Recarrega todos os eventos
-        });
+        // Exemplo: Lidar com criação de eventos (se useCreationPopup=true)
+        // calendarInstance.on('beforeCreateSchedule', function(event) {
+        //     console.log('Tentativa de criar evento:', event);
+        //     // Aqui você pode pegar os dados (event.start, event.end, etc.)
+        //     // e abrir seu próprio modal de criação, se preferir, ou enviar para API
+        //
+        //     // Para usar o popup padrão, não precisa fazer nada aqui.
+        //     // Para customizar e salvar via API:
+        //     // const newSchedule = {
+        //     //     id: String(Date.now()), // Gerar ID único
+        //     //     calendarId: event.calendarId || allSpecialists[0]?.id || '0', // Associa a um especialista
+        //     //     title: event.title || 'Nova Tarefa',
+        //     //     category: event.isAllDay ? 'allday' : 'time',
+        //     //     start: event.start,
+        //     //     end: event.end,
+        //     //     // ... outros campos
+        //     // };
+        //     //
+        //     // // Chamar API para salvar `newSchedule`
+        //     // // ...
+        //     //
+        //     // calendarInstance.createSchedules([newSchedule]); // Adiciona ao calendário após salvar
+        //     // calendarInstance.clearGridSelections(); // Limpa a seleção no grid
+        // });
 
-        // Carregamento inicial
-        fetchSpecialists();
-        // Adia a inicialização do calendário para dar tempo aos scripts externos carregarem
-        setTimeout(initializeCalendar, 500); // Atraso de 500ms
+        // Exemplo: Lidar com atualização de eventos (arrastar/redimensionar)
+        // calendarInstance.on('beforeUpdateSchedule', function(event) {
+        //     const {schedule, changes} = event;
+        //     console.log('Tentativa de atualizar evento ID:', schedule.id, 'Mudanças:', changes);
+        //
+        //     // Chamar API para salvar `changes` para o `schedule.id`
+        //     // ...
+        //
+        //     calendarInstance.updateSchedule(schedule.id, schedule.calendarId, changes);
+        // });
 
+        // Exemplo: Lidar com exclusão de eventos (se useDetailPopup=true e tiver botão delete)
+        // calendarInstance.on('beforeDeleteSchedule', function(event) {
+        //     const schedule = event.schedule;
+        //     console.log('Tentativa de excluir evento ID:', schedule.id);
+        //
+        //     // Chamar API para deletar `schedule.id`
+        //     // ...
+        //
+        //     calendarInstance.deleteSchedule(schedule.id, schedule.calendarId);
+        // });
+
+
+        // --- Inicialização ---
+        fetchSpecialistsAndConfigureCalendar(); // Carrega especialistas e depois as tarefas
+        
+        console.log("Instância do Toast UI Calendar criada:", calendarInstance);
     });
 </script>
 {% endblock %} 

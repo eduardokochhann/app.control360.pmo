@@ -1191,186 +1191,65 @@ def get_timeline_tasks(backlog_id):
     """
     try:
         # Log para diagnóstico
-        current_app.logger.info(f"[Timeline DEBUG] Iniciando busca de tarefas para backlog_id: {backlog_id}")
+        current_app.logger.info(f"[Timeline DEBUG] Iniciando diagnóstico para backlog_id: {backlog_id}")
         
         # Verificar se o backlog existe
         backlog = Backlog.query.get_or_404(backlog_id)
         current_app.logger.info(f"[Timeline DEBUG] Backlog encontrado: ID={backlog.id}, Projeto={backlog.project_id}")
         
-        # Parâmetros de filtro
-        last_days = request.args.get('last_days', default=7, type=int)
-        next_days = request.args.get('next_days', default=7, type=int)
-        current_app.logger.info(f"[Timeline DEBUG] Filtros: last_days={last_days}, next_days={next_days}")
+        # Listar colunas
+        columns = Column.query.all()
+        columns_info = []
+        for col in columns:
+            columns_info.append({
+                'id': col.id,
+                'name': col.name,
+                'position': col.position
+            })
         
-        # Data atual como referência
-        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        # Listar tarefas do backlog
+        tasks = Task.query.filter_by(backlog_id=backlog_id).all()
+        current_app.logger.info(f"[Timeline DEBUG] Tarefas encontradas: {len(tasks)}")
         
-        # Calcula intervalos
-        past_date = today - timedelta(days=last_days)
-        future_date = today + timedelta(days=next_days)
-        current_app.logger.info(f"[Timeline DEBUG] Intervalo de datas: passado={past_date}, futuro={future_date}")
+        # Tentar serializar cada tarefa individualmente
+        tasks_info = []
+        for i, task in enumerate(tasks):
+            try:
+                task_data = serialize_task(task)
+                tasks_info.append({
+                    'id': task.id,
+                    'title': task.title,
+                    'serialized_ok': True
+                })
+            except Exception as e:
+                current_app.logger.error(f"[Timeline DEBUG] Erro ao serializar tarefa {task.id}: {str(e)}")
+                tasks_info.append({
+                    'id': task.id,
+                    'title': task.title if hasattr(task, 'title') else "Desconhecido",
+                    'serialized_ok': False,
+                    'error': str(e)
+                })
         
-        # Obter e verificar todas as colunas disponíveis
-        current_app.logger.info("[Timeline DEBUG] Listando todas as colunas disponíveis:")
-        all_columns = Column.query.all()
-        
-        # Ver quais coluna estão ou não disponíveis
-        for col in all_columns:
-            current_app.logger.info(f"\t- Coluna: ID={col.id}, Nome='{col.name}'")
-        
-        # Definir as listas iniciais como vazias
-        recently_completed = []
-        upcoming_tasks = []
-        recently_started = []
-
-        # Procurar as colunas pelo nome
-        for col in all_columns:
-            if col.name.upper() == 'A FAZER':
-                a_fazer_column = col
-                current_app.logger.info(f"[Timeline DEBUG] Coluna 'A Fazer' encontrada: ID={col.id}")
-            elif col.name.upper() == 'EM ANDAMENTO':
-                em_andamento_column = col
-                current_app.logger.info(f"[Timeline DEBUG] Coluna 'Em Andamento' encontrada: ID={col.id}")
-            elif col.name.upper() == 'CONCLUÍDO':
-                concluido_column = col
-                current_app.logger.info(f"[Timeline DEBUG] Coluna 'Concluído' encontrada: ID={col.id}")
-            
-        # 1. Tarefas concluídas recentemente (na coluna Concluído)
-        try:
-            if concluido_column:
-                current_app.logger.info(f"[Timeline DEBUG] Buscando tarefas concluídas na coluna ID={concluido_column.id}")
-                
-                # IMPORTANTE: Buscamos APENAS por coluna, ignorando a data inicialmente
-                recently_completed_query = Task.query.filter(
-                    Task.backlog_id == backlog_id,
-                    Task.column_id == concluido_column.id
-                )
-                
-                # Opcional: Ordenar por completed_at se existir, senão por posição
-                try:
-                    recently_completed_query = recently_completed_query.order_by(Task.completed_at.desc().nullslast())
-                    current_app.logger.info("[Timeline DEBUG] Ordenação por data de conclusão aplicada")
-                except Exception as e:
-                    current_app.logger.warning(f"[Timeline DEBUG] Falha ao ordenar por completed_at: {str(e)}")
-                    recently_completed_query = recently_completed_query.order_by(Task.position)
-                
-                # Aplicar limite
-                recently_completed = recently_completed_query.limit(10).all()
-                current_app.logger.info(f"[Timeline DEBUG] Tarefas concluídas encontradas: {len(recently_completed)}")
-                
-                # Log detalhado de cada tarefa encontrada
-                for task in recently_completed:
-                    current_app.logger.info(f"[Timeline DEBUG] Tarefa concluída: ID={task.id}, Título={task.title}, Concluída em={task.completed_at}")
-            else:
-                current_app.logger.warning("[Timeline DEBUG] Coluna 'concluído' não encontrada, usando lista vazia para tarefas concluídas")
-        except Exception as e:
-            current_app.logger.error(f"[Timeline DEBUG] Erro ao buscar tarefas concluídas: {str(e)}")
-            
-        # 2. Próximas tarefas com prazo nos próximos X dias (e não concluídas)
-        try:
-            current_app.logger.info("[Timeline DEBUG] Buscando próximas tarefas")
-            
-            # IMPORTANTE: Buscar apenas tarefas que ainda vão começar (na coluna "A Fazer")
-            # e que tenham uma data de início ou prazo nos próximos dias
-            upcoming_query = Task.query.filter(
-                Task.backlog_id == backlog_id,
-                # Garantir que estamos pegando apenas tarefas da coluna "A Fazer"
-                Task.column_id == a_fazer_column.id,
-                db.or_(
-                    # Tarefas com prazo (due_date) nos próximos dias
-                    db.and_(
-                        Task.due_date.isnot(None),
-                        Task.due_date >= today,
-                        Task.due_date <= future_date
-                    ),
-                    # OU tarefas com início (start_date) nos próximos dias
-                    db.and_(
-                        Task.start_date.isnot(None),
-                        Task.start_date >= today,
-                        Task.start_date <= future_date
-                    )
-                )
-            )
-            
-            # Não precisamos mais filtrar por coluna concluído, já que estamos filtrando apenas para coluna "A Fazer"
-            # Mas mantemos o código por segurança
-            if concluido_column:
-                try:
-                    upcoming_query = upcoming_query.filter(Task.column_id != concluido_column.id)
-                    current_app.logger.info("[Timeline DEBUG] Filtro 'não concluído' aplicado para próximas tarefas")
-                except Exception as e:
-                    current_app.logger.error(f"[Timeline DEBUG] Erro ao filtrar tarefas não concluídas: {str(e)}")
-            
-            # Aplica ordenação e limite
-            # Ordenando primeiro por start_date (data de início), depois por due_date (prazo)
-            upcoming_tasks = upcoming_query.order_by(
-                Task.start_date.asc().nullslast(),
-                Task.due_date.asc().nullslast()
-            ).limit(10).all()
-            current_app.logger.info(f"[Timeline DEBUG] Próximas tarefas encontradas: {len(upcoming_tasks)}")
-            
-            # Log detalhado das tarefas encontradas
-            for task in upcoming_tasks:
-                current_app.logger.info(f"[Timeline DEBUG] Próxima tarefa: ID={task.id}, Título={task.title}, Prazo={task.due_date}, Início={task.start_date}")
-        except Exception as e:
-            current_app.logger.error(f"[Timeline DEBUG] Erro ao buscar próximas tarefas: {str(e)}")
-            upcoming_tasks = []  # Garante que a lista esteja inicializada em caso de erro
-        
-        # 3. Tarefas iniciadas recentemente (na coluna Em Andamento)
-        try:
-            if em_andamento_column:
-                current_app.logger.info(f"[Timeline DEBUG] Buscando tarefas em andamento na coluna ID={em_andamento_column.id}")
-                
-                # IMPORTANTE: Buscamos APENAS por coluna, ignorando a data inicialmente
-                started_query = Task.query.filter(
-                    Task.backlog_id == backlog_id,
-                    Task.column_id == em_andamento_column.id
-                )
-                
-                # Opcional: Ordenar por start_date se existir, senão por posição
-                try:
-                    started_query = started_query.order_by(Task.start_date.desc().nullslast())
-                    current_app.logger.info("[Timeline DEBUG] Ordenação por data de início aplicada")
-                except Exception as e:
-                    current_app.logger.warning(f"[Timeline DEBUG] Falha ao ordenar por start_date: {str(e)}")
-                    started_query = started_query.order_by(Task.position)
-                
-                # Aplicar limite para evitar retornar muitas tarefas antigas
-                recently_started = started_query.limit(10).all()
-                current_app.logger.info(f"[Timeline DEBUG] Tarefas em andamento encontradas: {len(recently_started)}")
-                
-                # Log detalhado de cada tarefa encontrada
-                for task in recently_started:
-                    current_app.logger.info(f"[Timeline DEBUG] Tarefa em andamento: ID={task.id}, Título={task.title}, Iniciada em={task.start_date}")
-            else:
-                current_app.logger.warning("[Timeline DEBUG] Coluna 'Em Andamento' não encontrada, usando lista vazia para tarefas iniciadas")
-        except Exception as e:
-            current_app.logger.error(f"[Timeline DEBUG] Erro ao buscar tarefas em andamento: {str(e)}")
-        
-        # Serializa e organiza os resultados
-        try:
-            current_app.logger.info("[Timeline DEBUG] Serializando resultados")
-            result = {
-                'recently_completed': [serialize_task(task) for task in recently_completed],
-                'upcoming_tasks': [serialize_task(task) for task in upcoming_tasks],
-                'recently_started': [serialize_task(task) for task in recently_started]
+        # Retornar informações de diagnóstico
+        return jsonify({
+            'backlog': {
+                'id': backlog.id,
+                'name': backlog.name,
+                'project_id': backlog.project_id
+            },
+            'columns': columns_info,
+            'tasks': tasks_info,
+            'stats': {
+                'total_tasks': len(tasks),
+                'serialized_ok': sum(1 for t in tasks_info if t['serialized_ok'])
             }
-            current_app.logger.info(f"[Timeline DEBUG] Serialização concluída: {len(recently_completed)} concluídas, {len(upcoming_tasks)} próximas, {len(recently_started)} iniciadas")
-            return jsonify(result)
-        except Exception as e:
-            current_app.logger.error(f"[Timeline DEBUG] Erro ao serializar resultados: {str(e)}")
-            raise
-        
+        })
+            
     except Exception as e:
-        current_app.logger.error(f"[Timeline DEBUG] Erro global ao buscar tarefas da timeline para backlog {backlog_id}: {str(e)}", exc_info=True)
-        # Em vez de abortar com 500, retorne uma resposta de erro com as listas vazias
-        result = {
-            'recently_completed': [],
-            'upcoming_tasks': [],
-            'recently_started': [],
-            'error': f"Erro ao processar a linha do tempo: {str(e)}"
-        }
-        return jsonify(result), 500 
+        current_app.logger.error(f"[Timeline DEBUG] Erro ao realizar diagnóstico: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': f"Erro durante diagnóstico: {str(e)}",
+        }), 500 
 
 @backlog_bp.route('/api/debug/timeline-tasks/<int:backlog_id>', methods=['GET'])
 def debug_timeline_tasks(backlog_id):
@@ -1438,3 +1317,75 @@ def debug_timeline_tasks(backlog_id):
         return jsonify({
             'error': f"Erro durante diagnóstico: {str(e)}",
         }), 500 
+
+# ROTA PARA A AGENDA TÉCNICA
+@backlog_bp.route('/agenda')
+def technical_agenda():
+    try:
+        # Inicialmente, não estamos ligando a agenda a um projeto específico,
+        # então current_project e current_project_id_for_link podem ser None ou ter valores padrão.
+        # Se você decidir filtrar por projeto no futuro, precisará buscar esses dados.
+        # Ex: project_id = request.args.get('project_id')
+        # current_project = MacroService().obter_detalhes_projeto(project_id) if project_id else None
+        # current_project_id_for_link = project_id
+        
+        current_app.logger.info("Acessando a Agenda Técnica.")
+        return render_template(
+            'backlog/agenda_tec.html',
+            title="Agenda Técnica Consolidada", 
+            current_project=None, # Ou detalhes de um projeto padrão/geral se aplicável
+            current_project_id_for_link=None # ID para o link "Voltar ao Quadro"
+        )
+    except Exception as e:
+        current_app.logger.error(f"Erro ao carregar a Agenda Técnica: {e}", exc_info=True)
+        # Você pode redirecionar para uma página de erro ou retornar um erro 500
+        abort(500) # Ou render_template('error.html', error=str(e))
+
+# NOVA API PARA TAREFAS DA AGENDA TÉCNICA
+@backlog_bp.route('/api/agenda/tasks', methods=['GET'])
+def get_agenda_tasks():
+    try:
+        tasks_with_dates = Task.query.filter(Task.start_date.isnot(None)).all()
+        events = []
+        for task in tasks_with_dates:
+            start_datetime_str = None
+            if task.start_date: # task.start_date é um objeto datetime
+                start_datetime_str = task.start_date.strftime('%Y-%m-%dT%H:%M:%S')
+
+            end_datetime_str = None
+            if task.due_date: # task.due_date é um objeto datetime
+                end_datetime_str = task.due_date.strftime('%Y-%m-%dT%H:%M:%S')
+            # Se não houver due_date, end_datetime_str permanece None.
+
+            # Mapeamento para o formato do TUI Calendar
+            event = {
+                'id': str(task.id),
+                'calendarId': 'tasks', 
+                'title': task.title,
+                'body': task.description if task.description else '',
+                'start': start_datetime_str,
+                'end': end_datetime_str,
+                'category': 'time', 
+                'isAllDay': False, # Assumindo que não são 'all day' a menos que explicitamente definido
+                'color': '#ffffff', 
+                'backgroundColor': '#00a9ff', 
+                'borderColor': '#00a9ff',
+                # 'raw': { Adicionar dados brutos se necessário depois
+                # 'project_id': task.backlog.project_id if task.backlog else None,
+                # 'specialist_name': task.specialist_name
+                # }
+            }
+            
+            if start_datetime_str: # Adicionar apenas se start_datetime_str for válido
+                events.append(event)
+            else:
+                current_app.logger.warning(f"Tarefa {task.id} ('{task.title}') não tem start_date e foi ignorada para a agenda.")
+
+        current_app.logger.info(f"API /api/agenda/tasks: Retornando {len(events)} eventos.")
+        return jsonify(events)
+
+    except Exception as e:
+        current_app.logger.error(f"Erro ao buscar tarefas para a agenda: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+# --- FIM ROTAS AGENDA ---
