@@ -731,6 +731,19 @@
                 </div>
            </div>
            {# <<< FIM: Campo Especialista >>> #}
+
+          {# --- INÍCIO: Nova Seção para Resumo dos Segmentos --- #}
+          <hr> 
+          <div class="row mb-3">
+            <div class="col-12">
+              <h6 class="mb-2 text-muted"><i class="fas fa-calendar-alt me-1"></i> Segmentos da Tarefa</h6>
+              <div id="taskSegmentsSummaryDisplay" class="list-group list-group-flush small" style="max-height: 150px; overflow-y: auto; border: 1px solid #eee; border-radius: .25rem; padding: 0.5rem;">
+                <p class="text-muted m-0">Carregando informações dos segmentos...</p>
+              </div>
+            </div>
+          </div>
+          {# --- FIM: Nova Seção para Resumo dos Segmentos --- #}
+
         </div>
         <div class="modal-footer justify-content-between">
             {# Botão Excluir (visível apenas na edição) #}
@@ -1061,13 +1074,18 @@
       const addTaskModalLabel = document.getElementById('addTaskModalLabel');
       const deleteTaskBtn = document.getElementById('deleteTaskBtn');
       const remainingHoursGroup = document.getElementById('remainingHoursGroup'); // Seleciona o grupo
-      if (!addTaskForm || !addTaskModalLabel || !deleteTaskBtn || !remainingHoursGroup) {
-           console.error("Elementos do modal (form, label, deleteBtn, remainingHoursGroup) não encontrados!");
+      const segmentsSummaryDisplay = document.getElementById('taskSegmentsSummaryDisplay'); // <<< MOVIDO PARA CÁ
+
+      if (!addTaskForm || !addTaskModalLabel || !deleteTaskBtn || !remainingHoursGroup || !segmentsSummaryDisplay) { // <<< ADICIONADO segmentsSummaryDisplay À VERIFICAÇÃO
+           console.error("Elementos do modal (form, label, deleteBtn, remainingHoursGroup, segmentsSummaryDisplay) não encontrados!");
            return;
       }
       
       // Reset e mostra loading ANTES da chamada API
       addTaskForm.reset(); 
+      if (segmentsSummaryDisplay) { // <<< ADICIONADO: Limpa e mostra carregando ANTES do try
+        segmentsSummaryDisplay.innerHTML = '<p class="text-muted m-0">Carregando informações dos segmentos...</p>';
+      }
       // Define título e ícone para EDIÇÃO
       addTaskModalLabel.innerHTML = '<i class="bi bi-pencil-square me-2"></i>Editar Tarefa';
       deleteTaskBtn.style.display = 'none'; // Esconde botão excluir enquanto carrega
@@ -1110,6 +1128,44 @@
           }
           // <<< FIM: Popular campo Especialista (agora um select) >>>
           
+          // --- INÍCIO: Popular resumo dos segmentos ---
+          // const segmentsSummaryDisplay = document.getElementById('taskSegmentsSummaryDisplay'); // <<< REMOVIDO DAQUI
+          if (segmentsSummaryDisplay) { // A verificação continua útil aqui
+            try {
+                console.log("[Task Click] Iniciando renderização do resumo dos segmentos. Dados:", taskData.task_segments_summary);
+                // segmentsSummaryDisplay.innerHTML = '<p class="text-muted m-0">Carregando informações dos segmentos...</p>'; // <<< REMOVIDO DAQUI
+
+                if (taskData.task_segments_summary && taskData.task_segments_summary.length > 0) {
+                    let segmentsHtml = `<p class="mb-1"><strong>Total de Segmentos: ${taskData.task_segments_summary.length}</strong></p><ul class="list-unstyled mb-0">`;
+                    taskData.task_segments_summary.forEach((segment, index) => {
+                        console.log(`[Task Click] Processando segmento ${index}:`, segment);
+                        const startDisplay = segment.start ? formatDisplayDateTime(segment.start.substring(0,10), segment.start.substring(11,16)) : 'N/A';
+                        const endDisplay = segment.end ? formatDisplayDateTime(segment.end.substring(0,10), segment.end.substring(11,16)) : 'N/A';
+                        const descriptionSnippet = segment.description || 'Sem descrição adicional';
+                        console.log(`[Task Click] Segmento ${index} - Start: ${startDisplay}, End: ${endDisplay}, Desc: ${descriptionSnippet}`);
+                        segmentsHtml += `
+                            <li class="mb-1 p-1 border-bottom">
+                                <i class="bi bi-calendar-check text-success me-1"></i> ${startDisplay} - ${endDisplay}<br>
+                                <small class="text-muted ms-3"><i class="bi bi-info-circle me-1"></i> ${escapeHtml(descriptionSnippet)}</small>
+                            </li>`;
+                    });
+                    segmentsHtml += `</ul>`;
+                    segmentsSummaryDisplay.innerHTML = segmentsHtml;
+                    console.log("[Task Click] Resumo dos segmentos renderizado com HTML:", segmentsHtml);
+                } else {
+                    segmentsSummaryDisplay.innerHTML = '<p class="text-muted m-0"><i class="bi bi-info-circle me-1"></i>Nenhum segmento cadastrado para esta tarefa.</p>';
+                    console.log("[Task Click] Nenhum segmento para exibir.");
+                }
+            } catch (segRenderError) {
+                console.error("[Task Click] Erro ao renderizar resumo dos segmentos:", segRenderError);
+                if (segmentsSummaryDisplay) { // Verifica novamente para segurança
+                    segmentsSummaryDisplay.innerHTML = '<p class="text-danger m-0"><i class="bi bi-exclamation-triangle-fill me-1"></i>Erro ao carregar informações dos segmentos.</p>';
+                }
+            }
+          } else {
+              console.warn("[Task Click] Elemento #taskSegmentsSummaryDisplay não encontrado para exibir segmentos.");
+          }
+          // --- FIM: Popular resumo dos segmentos ---
       } catch (error) {
           console.error('[Task Click] Erro ao carregar dados da tarefa:', error);
           addTaskModalLabel.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>Erro ao Carregar'; // Indica erro no título com ícone
@@ -1215,7 +1271,6 @@
                       {# Span da data de conclusão é adicionado/removido dinamicamente pelo JS agora #}
                       <span class="task-completion-date" title="Concluído em" style="display: none;"></span> {# Removido ms-auto daqui #}
                   </div>
-                  // NOVO BOTÃO ADICIONADO AQUI
                   <div class="task-actions mt-2 text-end">
                       <button type="button" 
                               class="btn btn-outline-secondary btn-sm manage-segments-btn" 
@@ -1229,6 +1284,18 @@
               </div>
           `;
           column.appendChild(taskCard);
+
+          // ADICIONAR NOVO BLOCO DE CÓDIGO AQUI ABAIXO
+          const manageSegmentsBtn = taskCard.querySelector('.manage-segments-btn');
+          if (manageSegmentsBtn) {
+              manageSegmentsBtn.addEventListener('click', function(event) {
+                  event.stopPropagation(); 
+                  const taskName = task.name || 'Tarefa Desconhecida'; 
+                  openManageSegmentsModal(task.id, taskName);
+              });
+          }
+          // FIM DO NOVO BLOCO DE CÓDIGO
+
       } else {
           console.warn(`[Add Task To Board] Coluna ID ${task.column_id} não encontrada para a tarefa ID ${task.id}`);
       }
@@ -1518,11 +1585,16 @@
           const label = document.getElementById('addTaskModalLabel');
           const deleteBtn = document.getElementById('deleteTaskBtn');
           const remainingHoursGroup = document.getElementById('remainingHoursGroup'); // Seleciona o grupo
+          const segmentsSummaryDisplay = document.getElementById('taskSegmentsSummaryDisplay'); // Novo
+
           if (form) form.reset();
           editingTaskId = null;
-          if (label) label.textContent = 'Adicionar Nova Tarefa';
+          if (label) label.innerHTML = '<i class="bi bi-plus-square-dotted me-2"></i>Adicionar Nova Tarefa'; // Reset para Adicionar com ícone
           if (deleteBtn) deleteBtn.style.display = 'none';
-          if (remainingHoursGroup) remainingHoursGroup.style.display = 'none'; // *** ESCONDE HORAS RESTANTES NA CRIAÇÃO ***
+          if (remainingHoursGroup) remainingHoursGroup.style.display = 'none';
+          if (segmentsSummaryDisplay) { // Novo: Limpar resumo dos segmentos
+              segmentsSummaryDisplay.innerHTML = '<p class="text-muted m-0">Carregando informações dos segmentos...</p>';
+          }
           showLoadingFeedback(false); // Garante que o loading overlay seja escondido
       });
   } else {
@@ -3590,14 +3662,11 @@
 
       const boardContainer = document.querySelector('.kanban-board-wrapper') || document.body; 
       boardContainer.addEventListener('click', function(event) {
-          const targetButton = event.target.closest('.manage-segments-btn');
-          if (targetButton) {
-              const taskId = targetButton.dataset.taskId;
-              const taskCard = targetButton.closest('.kanban-task-card');
-              const taskTitleEl = taskCard ? taskCard.querySelector('.task-title') : null;
-              const taskName = taskTitleEl ? taskTitleEl.textContent : 'Tarefa Desconhecida';
-              openManageSegmentsModal(taskId, taskName);
-          }
+          // Exemplo: se houvesse outra lógica, ela permaneceria:
+          // const anotherButton = event.target.closest('.some-other-button');
+          // if (anotherButton) {
+          //    handleAnotherAction();
+          // }
       });
       
       if (addSegmentForm) {

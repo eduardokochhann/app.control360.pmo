@@ -44,9 +44,10 @@ def serialize_task(task):
         due_date = task.due_date.isoformat() if hasattr(task, 'due_date') and task.due_date else None
         completed_at = task.completed_at.isoformat() if hasattr(task, 'completed_at') and task.completed_at else None
 
-        return {
+        # Coleta dos dados principais da tarefa
+        task_data = {
             'id': task.id,
-            'name': task.title,
+            'name': task.title, # Mantendo 'name' para consistência com o que o frontend pode esperar às vezes
             'title': task.title if hasattr(task, 'title') else "Sem título",
             'description': task.description if hasattr(task, 'description') else "",
             'status': task.status.value if hasattr(task, 'status') and task.status else None,
@@ -69,8 +70,32 @@ def serialize_task(task):
             'sprint_name': sprint.name if sprint else None,
             'specialist_name': task.specialist_name if hasattr(task, 'specialist_name') else None
         }
+
+        # --- INÍCIO: Adicionar resumo dos segmentos da tarefa ---
+        task_segments_summary = []
+        if hasattr(task, 'segments'):
+            try:
+                # Ordenar segmentos por data de início, se desejado (opcional)
+                # segments = task.segments.order_by(TaskSegment.segment_start_datetime).all()
+                segments = task.segments.all() # Pega todos os segmentos
+                for segment in segments:
+                    segment_summary = {
+                        'id': segment.id,
+                        'start': segment.segment_start_datetime.isoformat() if segment.segment_start_datetime else None,
+                        'end': segment.segment_end_datetime.isoformat() if segment.segment_end_datetime else None,
+                        'description': (segment.description[:75] + '...') if segment.description and len(segment.description) > 75 else segment.description
+                    }
+                    task_segments_summary.append(segment_summary)
+            except Exception as seg_ex:
+                current_app.logger.error(f"Erro ao serializar segmentos para tarefa {task.id}: {str(seg_ex)}")
+                # Não impede a serialização da tarefa principal se os segmentos falharem
+        
+        task_data['task_segments_summary'] = task_segments_summary
+        # --- FIM: Adicionar resumo dos segmentos da tarefa ---
+
+        return task_data
     except Exception as e:
-        current_app.logger.error(f"[Erro ao serializar tarefa {task.id}]: {str(e)}")
+        current_app.logger.error(f"[Erro ao serializar tarefa {getattr(task, 'id', 'ID_DESCONHECIDO')}]: {str(e)}", exc_info=True)
         # Retorna um objeto mínimo em caso de erro
         return {
             'id': task.id,
