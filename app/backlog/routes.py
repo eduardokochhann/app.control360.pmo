@@ -1,7 +1,7 @@
 from flask import render_template, jsonify, request, abort, current_app, redirect, url_for
 from . import backlog_bp # Importa o blueprint
 from .. import db # Importa a instância do banco de dados
-from ..models import Backlog, Task, Column, Sprint, TaskStatus, ProjectMilestone, ProjectRisk, MilestoneStatus, MilestoneCriticality, RiskImpact, RiskProbability, RiskStatus # Importa os modelos
+from ..models import Backlog, Task, Column, Sprint, TaskStatus, ProjectMilestone, ProjectRisk, MilestoneStatus, MilestoneCriticality, RiskImpact, RiskProbability, RiskStatus, TaskSegment # Importa os modelos
 from ..macro.services import MacroService # Importa o serviço Macro
 import pandas as pd
 from datetime import datetime, timedelta, date
@@ -234,6 +234,82 @@ def board_by_project(project_id):
         return redirect(url_for('.project_selection'))
 
 # --- API Endpoints --- 
+
+# --- Task Segment API Endpoints ---
+
+@backlog_bp.route('/api/tasks/<int:task_id>/segments', methods=['GET'])
+def get_task_segments(task_id):
+    task = Task.query.get_or_404(task_id)
+    segments = task.segments.order_by(TaskSegment.segment_start_datetime).all() # Ordena por data de início
+    return jsonify([segment.to_dict() for segment in segments])
+
+@backlog_bp.route('/api/tasks/<int:task_id>/segments', methods=['POST'])
+def manage_task_segments(task_id):
+    task = Task.query.get_or_404(task_id)
+    data = request.json
+    segments_data = data.get('segments', [])
+
+    current_app.logger.info(f"Recebido para gerenciar segmentos da tarefa {task_id}: {segments_data}")
+
+    # Estratégia: Remover todos os segmentos existentes e recriá-los
+    # Isso simplifica a lógica de identificar novos, atualizados ou removidos.
+    # Se performance for um problema para muitas atualizações, pode ser otimizado depois.
+    TaskSegment.query.filter_by(task_id=task_id).delete()
+    
+    new_segments_list = []
+    for segment_item in segments_data:
+        try:
+            start_date_str = segment_item.get('start_date')
+            start_time_str = segment_item.get('start_time')
+            due_date_str = segment_item.get('due_date')
+            due_time_str = segment_item.get('due_time')
+            description = segment_item.get('description')
+
+            if not all([start_date_str, start_time_str, due_date_str, due_time_str]):
+                current_app.logger.warning(f"Item de segmento inválido (datas/horas faltando): {segment_item}")
+                continue # Pula este item
+
+            # Combina data e hora e converte para datetime
+            # Assume que as strings de data estão no formato YYYY-MM-DD e hora HH:MM
+            segment_start_datetime = datetime.strptime(f"{start_date_str} {start_time_str}", "%Y-%m-%d %H:%M")
+            segment_end_datetime = datetime.strptime(f"{due_date_str} {due_time_str}", "%Y-%m-%d %H:%M")
+            
+            if segment_end_datetime <= segment_start_datetime:
+                current_app.logger.warning(f"Item de segmento inválido (fim antes ou igual ao início): {segment_item}")
+                continue # Pula este item
+
+            new_segment = TaskSegment(
+                task_id=task_id,
+                segment_start_datetime=segment_start_datetime,
+                segment_end_datetime=segment_end_datetime,
+                description=description
+            )
+            db.session.add(new_segment)
+            new_segments_list.append(new_segment) # Adiciona à lista para retorno posterior (antes do commit)
+
+        except ValueError as ve:
+            current_app.logger.error(f"Erro de valor ao processar segmento {segment_item}: {ve}")
+            # Pode-se optar por abortar ou continuar com os próximos segmentos
+            continue 
+        except Exception as e:
+            current_app.logger.error(f"Erro inesperado ao processar segmento {segment_item}: {e}")
+            db.session.rollback() # Desfaz a transação parcial se um erro geral ocorrer
+            return jsonify({'message': 'Erro interno ao processar segmentos'}), 500
+
+    try:
+        db.session.commit()
+        current_app.logger.info(f"Segmentos para tarefa {task_id} atualizados com sucesso. {len(new_segments_list)} segmentos processados.")
+        
+        # Busca os segmentos recém-criados/atualizados do banco para garantir que temos IDs e dados consistentes
+        # É importante fazer isso APÓS o commit.
+        updated_segments = TaskSegment.query.filter_by(task_id=task_id).order_by(TaskSegment.segment_start_datetime).all()
+        return jsonify([s.to_dict() for s in updated_segments]), 200 # 200 OK pois substituímos
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao commitar segmentos para tarefa {task_id}: {e}")
+        return jsonify({'message': 'Erro ao salvar segmentos no banco de dados'}), 500
+
+# --- Fim Task Segment API Endpoints ---
 
 # API para obter a lista de projetos ativos (usada pela página de seleção agora)
 @backlog_bp.route('/api/projects')
@@ -1345,47 +1421,62 @@ def technical_agenda():
 @backlog_bp.route('/api/agenda/tasks', methods=['GET'])
 def get_agenda_tasks():
     try:
-        tasks_with_dates = Task.query.filter(Task.start_date.isnot(None)).all()
+        # Modificado para buscar TaskSegments e fazer join com Task para acessar os campos da tarefa pai
+        # Filtra segmentos que têm uma data de início definida.
+        task_segments = TaskSegment.query.join(Task, TaskSegment.task_id == Task.id)\
+                                       .filter(TaskSegment.segment_start_datetime.isnot(None))\
+                                       .all()
+        
+        current_app.logger.info(f"API /api/agenda/tasks: Encontrados {len(task_segments)} segmentos de tarefas com data de início.")
+        
         events = []
-        for task in tasks_with_dates:
+        for segment in task_segments:
+            task_pai = segment.task # Acessa a tarefa pai através do relacionamento
+
             start_datetime_str = None
-            if task.start_date: # task.start_date é um objeto datetime
-                start_datetime_str = task.start_date.strftime('%Y-%m-%dT%H:%M:%S')
+            if segment.segment_start_datetime:
+                start_datetime_str = segment.segment_start_datetime.strftime('%Y-%m-%dT%H:%M:%S')
 
             end_datetime_str = None
-            if task.due_date: # task.due_date é um objeto datetime
-                end_datetime_str = task.due_date.strftime('%Y-%m-%dT%H:%M:%S')
-            # Se não houver due_date, end_datetime_str permanece None.
+            if segment.segment_end_datetime:
+                end_datetime_str = segment.segment_end_datetime.strftime('%Y-%m-%dT%H:%M:%S')
+            
+            specialist_name_cleaned = None
+            if task_pai.specialist_name and task_pai.specialist_name.strip():
+                specialist_name_cleaned = task_pai.specialist_name.strip()
 
-            # Mapeamento para o formato do TUI Calendar
+            # Monta o título do evento. Se o segmento tiver descrição, concatena.
+            event_title = task_pai.title
+            if segment.description and segment.description.strip():
+                event_title = f"{task_pai.title} - {segment.description.strip()}"
+
             event = {
-                'id': str(task.id),
-                'calendarId': 'tasks', 
-                'title': task.title,
-                'body': task.description if task.description else '',
+                'id': str(segment.id), # ID do segmento é o ID do evento
+                'title': event_title,
+                'body': task_pai.description or '', # Descrição da tarefa pai como corpo principal
                 'start': start_datetime_str,
                 'end': end_datetime_str,
                 'category': 'time', 
-                'isAllDay': False, # Assumindo que não são 'all day' a menos que explicitamente definido
-                'color': '#ffffff', 
-                'backgroundColor': '#00a9ff', 
-                'borderColor': '#00a9ff',
-                # 'raw': { Adicionar dados brutos se necessário depois
-                # 'project_id': task.backlog.project_id if task.backlog else None,
-                # 'specialist_name': task.specialist_name
-                # }
+                'isAllDay': False, # Assumindo que segmentos sempre têm hora
+                'calendarId': specialist_name_cleaned,
+                'raw': { 
+                    'taskId': task_pai.id,
+                    'segmentId': segment.id,
+                    'taskStatus': task_pai.status.value if task_pai.status else None,
+                    'specialistName': task_pai.specialist_name,
+                    'projectName': task_pai.backlog.project_id if task_pai.backlog else "N/A",
+                    'projectId': task_pai.backlog.project_id if task_pai.backlog else None, 
+                    'backlogName': task_pai.backlog.name if task_pai.backlog else None,
+                    'backlogId': task_pai.backlog_id,
+                    'segmentDescription': segment.description # Adiciona a descrição do segmento também no raw data
+                }
             }
-            
-            if start_datetime_str: # Adicionar apenas se start_datetime_str for válido
-                events.append(event)
-            else:
-                current_app.logger.warning(f"Tarefa {task.id} ('{task.title}') não tem start_date e foi ignorada para a agenda.")
-
-        current_app.logger.info(f"API /api/agenda/tasks: Retornando {len(events)} eventos.")
+            events.append(event)
+        
+        current_app.logger.info(f"API /api/agenda/tasks: Retornando {len(events)} eventos de segmentos.")
         return jsonify(events)
-
     except Exception as e:
-        current_app.logger.error(f"Erro ao buscar tarefas para a agenda: {str(e)}", exc_info=True)
+        current_app.logger.error(f"Erro em /api/agenda/tasks: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 # --- FIM ROTAS AGENDA ---

@@ -97,6 +97,34 @@ class Task(db.Model):
     def __repr__(self):
         return f'<Task {self.id}: {self.title}>'
 
+# <<< INÍCIO: NOVO MODELO TASKSEGMENT >>>
+class TaskSegment(db.Model):
+    __tablename__ = 'task_segment'
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False, index=True)
+    segment_start_datetime = db.Column(db.DateTime, nullable=False)
+    segment_end_datetime = db.Column(db.DateTime, nullable=False)
+    description = db.Column(db.String(255), nullable=True)
+    # order = db.Column(db.Integer, nullable=True) # Campo 'order' opcional, podemos adicionar depois se necessário
+
+    # Relacionamento para que TaskSegment.task aponte para a Task pai
+    # O backref 'segments' em Task permitirá Task.segments para acessar todos os segmentos
+    task = db.relationship('Task', backref=db.backref('segments', lazy='dynamic', cascade="all, delete-orphan"))
+
+    def __repr__(self):
+        return f'<TaskSegment {self.id} for Task {self.task_id} from {self.segment_start_datetime} to {self.segment_end_datetime}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'task_id': self.task_id,
+            'segment_start_datetime': self.segment_start_datetime.isoformat() if self.segment_start_datetime else None,
+            'segment_end_datetime': self.segment_end_datetime.isoformat() if self.segment_end_datetime else None,
+            'description': self.description
+            # Adicionar 'order' se o campo for incluído
+        }
+# <<< FIM: NOVO MODELO TASKSEGMENT >>>
+
 # Você pode adicionar mais modelos ou campos conforme necessário (ex: Usuários, Comentários, Labels, etc.)
 
 # --- NOVO MODELO PARA MARCOS DO PROJETO ---

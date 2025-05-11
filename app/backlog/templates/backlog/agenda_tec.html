@@ -10,9 +10,14 @@
 <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" /> -->
 
 <!-- CSS para Toast UI Calendar e dependências -->
-<link rel="stylesheet" href="https://uicdn.toast.com/tui.date-picker/latest/tui-date-picker.min.css" />
-<link rel="stylesheet" href="https://uicdn.toast.com/tui.time-picker/latest/tui-time-picker.min.css" />
-<link rel="stylesheet" href="https://uicdn.toast.com/tui-calendar/latest/tui-calendar.min.css" />
+<!-- <link rel="stylesheet" href="https://uicdn.toast.com/tui.date-picker/latest/tui-date-picker.min.css" /> -->
+<!-- <link rel="stylesheet" href="https://uicdn.toast.com/tui.time-picker/latest/tui-time-picker.min.css" /> -->
+<!-- <link rel="stylesheet" href="https://uicdn.toast.com/tui-calendar/latest/tui-calendar.min.css" /> -->
+
+<!-- TUI Calendar v1.15.3 e dependências específicas -->
+<link rel="stylesheet" type="text/css" href="https://uicdn.toast.com/tui.date-picker/latest/tui-date-picker.min.css" />
+<link rel="stylesheet" type="text/css" href="https://uicdn.toast.com/tui.time-picker/latest/tui-time-picker.min.css" />
+<link rel="stylesheet" type="text/css" href="https://uicdn.toast.com/tui-calendar/v1.15.3/tui-calendar.css" />
 
 <!-- CSS para Select2 (se formos usar para filtros) -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -158,11 +163,18 @@
             <div class="modal-body">
                 <p><strong>Título:</strong> <span id="modalTaskTitle"></span></p>
                 <p><strong>Especialista:</strong> <span id="modalTaskSpecialist"></span></p>
-                <p><strong>Início:</strong> <span id="modalTaskStart"></span></p>
-                <p><strong>Fim:</strong> <span id="modalTaskEnd"></span></p>
-                <p><strong>Descrição:</strong></p>
-                <div id="modalTaskDescription" style="white-space: pre-wrap; max-height: 200px; overflow-y: auto; border: 1px solid #eee; padding: 10px; border-radius: 4px;"></div>
-                <p class="mt-2"><strong>Status:</strong> <span id="modalTaskState"></span></p>
+                <p><strong>Início da Etapa:</strong> <span id="modalTaskStart"></span></p>
+                <p><strong>Fim da Etapa:</strong> <span id="modalTaskEnd"></span></p>
+                
+                <p class="mt-2"><strong>Descrição da Tarefa Principal:</strong></p>
+                <div id="modalTaskDescription" style="white-space: pre-wrap; max-height: 120px; overflow-y: auto; border: 1px solid #eee; padding: 10px; border-radius: 4px;"></div>
+
+                <!-- NOVO CAMPO PARA DESCRIÇÃO DO SEGMENTO -->
+                <p class="mt-2"><strong>Detalhes desta Etapa (Segmento):</strong></p>
+                <div id="modalSegmentDescription" style="white-space: pre-wrap; max-height: 100px; overflow-y: auto; border: 1px solid #eee; padding: 10px; border-radius: 4px; background-color: #f9f9f9;"></div>
+                <!-- FIM NOVO CAMPO -->
+
+                <p class="mt-2"><strong>Status da Tarefa:</strong> <span id="modalTaskState"></span></p>
                 <p><strong>Projeto Associado:</strong> <span id="modalTaskProject"></span> (ID: <span id="modalTaskProjectId"></span>)</p>
                 <p><strong>Backlog Associado:</strong> <span id="modalTaskBacklog"></span> (ID: <span id="modalTaskBacklogId"></span>)</p>
                 <!-- Adicionar mais detalhes conforme necessário -->
@@ -185,10 +197,17 @@
 <!-- <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script> -->
 
 <!-- JS para Toast UI Calendar e dependências -->
-<script src="https://uicdn.toast.com/tui.code-snippet/latest/tui-code-snippet.min.js"></script>
-<script src="https://uicdn.toast.com/tui.date-picker/latest/tui-date-picker.min.js"></script>
-<script src="https://uicdn.toast.com/tui.time-picker/latest/tui-time-picker.min.js"></script>
-<script src="https://uicdn.toast.com/tui-calendar/latest/tui-calendar.min.js"></script>
+<!-- <script src="https://uicdn.toast.com/tui.code-snippet/latest/tui-code-snippet.min.js"></script> -->
+<!-- <script src="https://uicdn.toast.com/tui.date-picker/latest/tui-date-picker.min.js"></script> -->
+<!-- <script src="https://uicdn.toast.com/tui.time-picker/latest/tui-time-picker.min.js"></script> -->
+<!-- <script src="https://uicdn.toast.com/tui-calendar/latest/tui-calendar.min.js"></script> -->
+
+<!-- TUI Calendar v1.15.3 e dependências específicas -->
+<script type="text/javascript" src="https://uicdn.toast.com/tui.code-snippet/latest/tui-code-snippet.min.js"></script>
+<script type="text/javascript" src="https://uicdn.toast.com/tui.dom/latest/tui-dom.min.js"></script>
+<script type="text/javascript" src="https://uicdn.toast.com/tui.date-picker/latest/tui-date-picker.min.js"></script>
+<script type="text/javascript" src="https://uicdn.toast.com/tui.time-picker/latest/tui-time-picker.min.js"></script>
+<script type="text/javascript" src="https://uicdn.toast.com/tui-calendar/v1.15.3/tui-calendar.min.js"></script>
 
 <!-- JS para Select2 -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -248,7 +267,7 @@
                         displayLabel: 'Horário de Brasília',
                     },
                 ],
-                // defaultZoneName: 'America/Sao_Paulo' // Define um padrão
+                defaultZoneName: 'America/Sao_Paulo' // Define um padrão
             },
             week: {
                 showTimezoneCollapseButton: true,
@@ -273,19 +292,28 @@
             console.log("calendarInstance em updateCalendarRange:", calendarInstance);
             if (!calendarInstance || typeof calendarInstance.getDateRangeStart !== 'function') {
                 console.error("TUI Calendar não está pronto ou não tem getDateRangeStart em updateCalendarRange.");
-                return; // Sai da função se o calendário não estiver pronto
+                return; 
             }
 
-            const rangeStart = calendarInstance.getDateRangeStart();
-            const rangeEnd = calendarInstance.getDateRangeEnd();
+            const tzRangeStart = calendarInstance.getDateRangeStart();
+            const tzRangeEnd = calendarInstance.getDateRangeEnd();
             
-            console.log("rangeStart:", rangeStart, "Tipo:", typeof rangeStart, "É Date?", rangeStart instanceof Date);
-            console.log("rangeEnd:", rangeEnd, "Tipo:", typeof rangeEnd, "É Date?", rangeEnd instanceof Date);
+            console.log("tzRangeStart (objeto original):", tzRangeStart, "Tipo:", typeof tzRangeStart, "É Date?", tzRangeStart instanceof Date);
+            console.log("tzRangeEnd (objeto original):", tzRangeEnd, "Tipo:", typeof tzRangeEnd, "É Date?", tzRangeEnd instanceof Date);
 
-            // Verifica se rangeStart ou rangeEnd não são objetos Date válidos antes de prosseguir
-            if (!(rangeStart instanceof Date) || !(rangeEnd instanceof Date)) {
-                console.error("rangeStart ou rangeEnd não são objetos Date válidos.", {rangeStart, rangeEnd});
-                // Pode definir um texto padrão ou simplesmente não atualizar o range visualmente
+            // Converter TZDate para Date usando o método .toDate()
+            const rangeStart = tzRangeStart && typeof tzRangeStart.toDate === 'function' ? tzRangeStart.toDate() : null;
+            const rangeEnd = tzRangeEnd && typeof tzRangeEnd.toDate === 'function' ? tzRangeEnd.toDate() : null;
+
+            // Agora verificar se rangeStart e rangeEnd são objetos Date válidos
+            if (!rangeStart || !rangeEnd || !(rangeStart instanceof Date) || !(rangeEnd instanceof Date)) {
+                console.error("rangeStart ou rangeEnd não são objetos Date válidos (após tentar .toDate()).", {
+                    originalStart: tzRangeStart,
+                    originalEnd: tzRangeEnd,
+                    convertedStart: rangeStart,
+                    convertedEnd: rangeEnd
+                });
+                console.trace(); 
                 calendarRangeEl.textContent = "Carregando..."; 
                 return;
             }
@@ -305,17 +333,17 @@
 
         document.getElementById('prevBtn')?.addEventListener('click', () => {
             calendarInstance.prev();
-            updateCalendarRange();
+            setTimeout(updateCalendarRange, 0);
             fetchAndRenderSchedules(); // Recarregar eventos ao mudar o range
         });
         document.getElementById('nextBtn')?.addEventListener('click', () => {
             calendarInstance.next();
-            updateCalendarRange();
+            setTimeout(updateCalendarRange, 0);
             fetchAndRenderSchedules();
         });
         document.getElementById('todayBtn')?.addEventListener('click', () => {
             calendarInstance.today();
-            updateCalendarRange();
+            setTimeout(updateCalendarRange, 0);
             fetchAndRenderSchedules();
         });
 
@@ -325,7 +353,7 @@
                 this.classList.add('active');
                 const viewType = this.dataset.viewType;
                 calendarInstance.changeView(viewType);
-                updateCalendarRange();
+                setTimeout(updateCalendarRange, 0);
                 fetchAndRenderSchedules();
             });
         });
@@ -361,46 +389,78 @@
         let allSpecialists = []; // Armazena os especialistas carregados para usar como 'calendars' no tui-calendar
 
         async function fetchSpecialistsAndConfigureCalendar() {
+            console.log("Iniciando fetchSpecialistsAndConfigureCalendar..."); // LOG 1
             try {
                 const response = await fetch('/backlog/api/available-specialists');
-                if (!response.ok) throw new Error('Falha ao buscar especialistas');
+                console.log("Resposta da API /available-specialists:", response); // LOG 2
+                if (!response.ok) {
+                    console.error("Falha ao buscar especialistas - Status:", response.status, response.statusText);
+                    throw new Error('Falha ao buscar especialistas');
+                }
                 const specialistsData = await response.json();
-                
-                allSpecialists = specialistsData.map((spec, index) => ({
-                    id: String(spec.id), // ID do especialista (ex: "nome_do_especialista")
-                    name: spec.nome,   // Nome para exibição
-                    color: '#ffffff',  // Cor do texto do evento
-                    bgColor: getRandomColor(index), // Cor de fundo do evento
-                    borderColor: getRandomColor(index) // Cor da borda do evento
-                }));
+                console.log("Dados JSON dos especialistas (specialistsData):", specialistsData); // LOG 3
+                console.log("Tipo de specialistsData:", typeof specialistsData, "É Array?", Array.isArray(specialistsData)); // LOG 3.1
 
-                // Popula o filtro Select2
-                if ($(specialistFilterEl).length) {
-                    $(specialistFilterEl).empty(); // Limpa opções anteriores antes de adicionar novas
-                    specialistsData.forEach(spec => {
-                        const option = new Option(spec.nome, String(spec.id), false, false); // Garante que o ID seja string
-                        $(specialistFilterEl).append(option);
+                allSpecialists = []; // Limpar antes de popular
+                if (Array.isArray(specialistsData)) {
+                    // specialistsData AGORA É ESPERADO SER UM ARRAY DE STRINGS (NOMES DOS ESPECIALISTAS)
+                    if (specialistsData.length > 0) {
+                        console.log("Primeiro item de specialistsData (esperado ser string):", specialistsData[0], "Tipo:", typeof specialistsData[0]); // LOG 3.2
+                    }
+
+                    allSpecialists = specialistsData.map((specNameString, index) => {
+                        const cleanSpecName = typeof specNameString === 'string' ? specNameString.trim() : 'Especialista Desconhecido';
+                        if (!(typeof specNameString === 'string' && specNameString.trim())) {
+                            console.warn("Mapeando especialista com nome inválido/faltando (era string?):", specNameString, "Usando fallback:", cleanSpecName);
+                        }
+                        return {
+                            id: cleanSpecName, 
+                            name: cleanSpecName,   
+                            color: '#ffffff',  
+                            bgColor: getRandomColor(index), 
+                            borderColor: getRandomColor(index)
+                        };
                     });
-                    $(specialistFilterEl).trigger('change.select2'); // Atualiza o select2
+                }
+                console.log("Array allSpecialists (para TUI) APÓS MAP:", allSpecialists); // LOG 4
+
+                if ($(specialistFilterEl).length) {
+                    $(specialistFilterEl).empty(); 
+                    const allOption = new Option("Todos os Especialistas", "", true, true);
+                    $(specialistFilterEl).append(allOption);
+                    console.log("Opção 'Todos os Especialistas' adicionada."); // LOG 5
+
+                    if (Array.isArray(specialistsData)) { 
+                        specialistsData.forEach(specNameString => {
+                            const cleanSpecName = typeof specNameString === 'string' ? specNameString.trim() : null;
+
+                            if (cleanSpecName) { 
+                                const option = new Option(cleanSpecName, cleanSpecName, false, false); 
+                                $(specialistFilterEl).append(option);
+                            } else {
+                                console.warn("Item especialista string inválido ou não string (não adicionado ao dropdown):", specNameString);
+                            }
+                        });
+                        console.log("Opções de especialistas potencialmente adicionadas ao dropdown."); // LOG 6
+                    } else {
+                        console.error("specialistsData não é um array (não tentou popular dropdown):", specialistsData);
+                    }
+                    $(specialistFilterEl).trigger('change.select2'); 
+                    console.log("Select2 atualizado ('change.select2' disparado)."); // LOG 7
                 }
                 
-                // Configura os 'calendars' no tui-calendar com os especialistas
-                // Temporariamente comentado para focar em exibir todas as tarefas primeiro
-                /*
                 if (allSpecialists.length > 0) {
                     calendarInstance.setCalendars(allSpecialists);
                 } else {
-                     calendarInstance.setCalendars([{ id: 'default', name: 'Padrão', bgColor: '#00a9ff', borderColor: '#00a9ff', color: '#ffffff' }]);
+                     calendarInstance.setCalendars([{ id: 'tasks', name: 'Tarefas', bgColor: '#00a9ff', borderColor: '#00a9ff', color: '#ffffff' }]);
+                     console.log("Nenhum especialista retornado, usando calendário 'tasks' padrão para TUI."); // LOG 8
                 }
-                */
-                console.log("Especialistas carregados. Configuração de calendários no TUI pulada por enquanto:", allSpecialists);
+                // console.log("Especialistas configurados como calendários no TUI:", calendarInstance.getCalendars()); // Ainda comentado
 
-                // Após carregar especialistas, carrega as tarefas
                 fetchAndRenderSchedules();
 
             } catch (error) {
-                console.error("Erro ao buscar/configurar especialistas:", error);
-                // Tratar erro, talvez mostrar mensagem ao usuário
+                console.error("Erro detalhado em fetchSpecialistsAndConfigureCalendar:", error); // LOG 9
             }
         }
 
@@ -412,60 +472,54 @@
 
 
         async function fetchAndRenderSchedules() {
-            calendarInstance.clear(); // Limpa eventos existentes
-            const selectedSpecialistIds = $(specialistFilterEl).val() || []; // Garante que seja um array
+            calendarInstance.clear(); 
+            const selectedSpecialistNames = $(specialistFilterEl).val() || []; 
             
             let apiUrl = `/backlog/api/agenda/tasks`; 
-
-            // Se a API for modificada para aceitar filtro por especialista:
-            // if (selectedSpecialistIds && selectedSpecialistIds.length > 0) {
-            //     apiUrl += `?specialist_ids=${selectedSpecialistIds.join(',')}`;
-            // }
 
             try {
                 const response = await fetch(apiUrl);
                 if (!response.ok) throw new Error('Falha ao buscar tarefas da agenda');
-                let tasks = await response.json();
-                console.log("Tarefas recebidas da API:", tasks);
+                let tasksFromApi = await response.json();
+                console.log("Tarefas recebidas da API:", tasksFromApi);
 
-                // Filtro NO FRONTEND (se a API não filtrar por especialista) - TEMPORARIAMENTE DESABILITADO
-                /*
-                if (selectedSpecialistIds.length > 0) {
-                    tasks = tasks.filter(task => {
-                        // Garante que task.extendedProps.specialistId seja string para comparação
-                        return selectedSpecialistIds.includes(String(task.extendedProps.specialistId));
+                // Filtro NO FRONTEND 
+                let filteredTasks = tasksFromApi;
+                if (selectedSpecialistNames.length > 0 && !selectedSpecialistNames.includes("")) { // Não filtra se "Todos" estiver selecionado
+                    filteredTasks = tasksFromApi.filter(task => {
+                        // task.calendarId já é o specialist_name vindo da API
+                        return selectedSpecialistNames.includes(task.calendarId);
                     });
-                    console.log("Tarefas após filtro frontend:", tasks);
+                    console.log("Tarefas após filtro frontend por especialista:", filteredTasks);
                 }
-                */
                 
-                const schedules = tasks.map(task => {
-                    // Mapeamento direto dos campos da API para o formato do TUI Calendar
+                const schedules = filteredTasks.map(task => {
                     return {
                         id: String(task.id), 
-                        calendarId: 'tasks', // Todas as tarefas vão para o calendário 'tasks' definido na inicialização
+                        calendarId: task.calendarId, // <<< USA o calendarId (specialist_name) vindo da API
                         title: task.title,
-                        body: task.body, // API envia 'body'
-                        start: task.start, 
-                        end: task.end,     
-                        category: task.category, // API envia 'category' ('time', 'allday', etc.)
-                        isAllDay: task.isAllDay, // API envia 'isAllDay' (boolean)
+                        body: task.body, 
+                        start: task.start,
+                        end: task.end,
+                        category: task.category, 
+                        isAllDay: task.isAllDay, 
                         
-                        // Cores e bordas podem vir da API por tarefa ou usar o padrão do 'tasks' calendar
-                        color: task.color || '#ffffff',
-                        backgroundColor: task.backgroundColor || '#00a9ff',
-                        borderColor: task.borderColor || '#00a9ff',
-                        
-                        raw: { // Guardar dados originais da tarefa se precisar no futuro para popups, etc.
-                            originalTask: task 
-                        },
-                        isReadOnly: true, // Definir como true se não for permitir edição direta no calendário por ora
+                        // As cores virão da configuração do 'calendarId' (especialista)
+                        // Não é mais necessário definir backgroundColor, borderColor, color aqui por tarefa,
+                        // A MENOS QUE a API envie cores específicas para sobrescrever o padrão do especialista.
+                        // Se a API enviar backgroundColor, ele será usado. Caso contrário, o do especialista.
+                        backgroundColor: task.backgroundColor, // Mantém se a API enviar, senão TUI usa a do calendarId
+                        borderColor: task.borderColor,       // Mantém se a API enviar
+                        color: task.color,                   // Mantém se a API enviar
+
+                        raw: task.raw, // Mantém os dados brutos que a API já envia
+                        isReadOnly: true, 
                     };
                 });
 
                 calendarInstance.createSchedules(schedules);
                 console.log("Eventos criados no tui-calendar:", schedules.length);
-                updateCalendarRange();
+                setTimeout(updateCalendarRange, 0); // Chamar com um pequeno atraso
             } catch (error) {
                 console.error("Erro ao buscar/renderizar tarefas:", error);
                 // Tratar erro
@@ -475,14 +529,25 @@
         // --- Manipuladores de Eventos do tui-calendar ---
         calendarInstance.on('clickSchedule', function(event) {
             const schedule = event.schedule;
-            console.log('Clique no evento:', schedule);
+            console.log('Clique no evento (segmento):', schedule);
 
             if (taskDetailModalInstance && schedule) {
-                document.getElementById('modalTaskTitle').textContent = schedule.title || 'N/A';
+                document.getElementById('modalTaskTitle').textContent = schedule.title || 'N/A'; // title já pode conter desc do segmento
                 document.getElementById('modalTaskSpecialist').textContent = schedule.raw?.specialistName || 'N/A';
-                document.getElementById('modalTaskStart').textContent = schedule.start ? new Date(schedule.start).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short'}) : 'N/A';
-                document.getElementById('modalTaskEnd').textContent = schedule.end ? new Date(schedule.end).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short'}) : 'N/A';
-                document.getElementById('modalTaskDescription').textContent = schedule.body || 'Sem descrição.';
+                document.getElementById('modalTaskStart').textContent = schedule.start ? new Date(schedule.start.toDate ? schedule.start.toDate() : schedule.start).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short'}) : 'N/A';
+                document.getElementById('modalTaskEnd').textContent = schedule.end ? new Date(schedule.end.toDate ? schedule.end.toDate() : schedule.end).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short'}) : 'N/A';
+                
+                // Descrição da Tarefa Principal (do campo 'body' do evento, que mapeamos para task_pai.description)
+                document.getElementById('modalTaskDescription').textContent = schedule.body || 'Sem descrição.'; 
+                
+                // Descrição Específica do Segmento (do campo raw.segmentDescription)
+                const segmentDescEl = document.getElementById('modalSegmentDescription');
+                if (segmentDescEl) {
+                    segmentDescEl.textContent = schedule.raw?.segmentDescription || 'Sem detalhes específicos para esta etapa.';
+                    // Oculta ou mostra o bloco de descrição do segmento se houver ou não descrição
+                    segmentDescEl.parentElement.style.display = schedule.raw?.segmentDescription ? 'block' : 'none';
+                }
+
                 document.getElementById('modalTaskState').textContent = schedule.raw?.taskStatus || 'N/A'; 
                 document.getElementById('modalTaskProject').textContent = schedule.raw?.projectName || 'N/A';
                 document.getElementById('modalTaskProjectId').textContent = schedule.raw?.projectId || 'N/A';
@@ -545,6 +610,32 @@
         fetchSpecialistsAndConfigureCalendar(); // Carrega especialistas e depois as tarefas
         
         console.log("Instância do Toast UI Calendar criada:", calendarInstance);
+
+        // TESTE ISOLADO DO DATEPICKER:
+        try {
+            console.log("Tentando instanciar tui.DatePicker isoladamente...");
+            console.log("Verificando tui.TimePicker antes do teste:", tui && tui.TimePicker); // NOVO LOG
+
+            const testDatePickerContainer = document.createElement('div');
+            document.body.appendChild(testDatePickerContainer); 
+            
+            if (tui && tui.DatePicker && tui.TimePicker) { // Adicionada verificação do TimePicker
+                const dpInstance = new tui.DatePicker(testDatePickerContainer, {
+                    language: 'pt',
+                    timePicker: true // Tentar habilitar explicitamente
+                });
+                console.log("Instância de tui.DatePicker criada com SUCESSO isoladamente:", dpInstance);
+                // testDatePickerContainer.remove(); // Remover após o teste se desejar
+            } else {
+                console.error("tui.DatePicker ou tui.TimePicker não está definido globalmente para o teste isolado.", {
+                    isDatePickerDefined: tui && !!tui.DatePicker,
+                    isTimePickerDefined: tui && !!tui.TimePicker
+                });
+            }
+        } catch (e) {
+            console.error("ERRO ao instanciar tui.DatePicker isoladamente:", e);
+        }
+
     });
 </script>
 {% endblock %} 

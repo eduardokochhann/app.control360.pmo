@@ -755,7 +755,7 @@
 
 <!-- *** NOVO MODAL PARA MARCOS DO PROJETO *** -->
 <div class="modal fade" id="milestoneModal" tabindex="-1" aria-labelledby="milestoneModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg"> {# Modal um pouco maior #}
+    <div class="modal-dialog modal-lg modal-dialog-centered"> {# Modal um pouco maior #}
         <div class="modal-content">
             <form id="milestoneForm">
                 <div class="modal-header bg-primary text-white"> {# Header com cor #}
@@ -1214,6 +1214,17 @@
                       {# <<< FIM: Exibir Especialista no Card >>> #}
                       {# Span da data de conclusão é adicionado/removido dinamicamente pelo JS agora #}
                       <span class="task-completion-date" title="Concluído em" style="display: none;"></span> {# Removido ms-auto daqui #}
+                  </div>
+                  // NOVO BOTÃO ADICIONADO AQUI
+                  <div class="task-actions mt-2 text-end">
+                      <button type="button" 
+                              class="btn btn-outline-secondary btn-sm manage-segments-btn" 
+                              data-task-id="${task.id}" 
+                              data-bs-toggle="tooltip" 
+                              data-bs-placement="top"
+                              title="Gerenciar Segmentos da Tarefa">
+                          <i class="fas fa-calendar-alt me-1"></i>Segmentos
+                      </button>
                   </div>
               </div>
           `;
@@ -3157,7 +3168,591 @@
       }
   }
 
+  // --- INÍCIO: Lógica para Modal de Segmentos de Tarefa ---
+  let manageSegmentsModalInstance = null;
+  let currentEditingSegmentTaskId = null;
+  
+  let segmentTaskNameEl = null; 
+  let segmentManageTaskIdInput = null;
+  let addSegmentForm = null;
+  let currentSegmentsListEl = null;
+  let noSegmentsMessageEl = null;
+  let saveTaskSegmentsBtn = null;
+
+  let isEditingSegment = false;
+  let currentEditingSegmentId = null;
+
+  function escapeHtml(unsafe) {
+      if (unsafe === null || typeof unsafe === 'undefined') {
+        return '';
+      }
+      return unsafe
+          .toString()
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+  }
+
+  function formatDisplayDateTime(dateStr, timeStr) {
+      if (!dateStr || !timeStr) return 'Data/Hora inválida';
+      try {
+          const dateObj = new Date(`${dateStr}T${timeStr}:00`);
+          if (isNaN(dateObj)) return `${dateStr} ${timeStr} (Inválida)`;
+          
+          const day = String(dateObj.getDate()).padStart(2, '0');
+          const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+          const year = dateObj.getFullYear();
+          const hours = String(dateObj.getHours()).padStart(2, '0');
+          const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+          return `${day}/${month}/${year} ${hours}:${minutes}`;
+      } catch (e) {
+          console.error("Erro formatando data/hora: ", dateStr, timeStr, e);
+          return `${dateStr} ${timeStr}`;
+      }
+  }
+
+  function updateNoSegmentsMessageVisibility() {
+      if (currentSegmentsListEl && noSegmentsMessageEl) {
+          const hasSegments = currentSegmentsListEl.querySelector('.list-group-item');
+          console.log('[DEBUG UpdateNoSegments] hasSegments:', hasSegments ? 'true' : 'false');
+          
+          if (hasSegments) {
+              if (noSegmentsMessageEl.style.display !== 'none') {
+                  console.log('[DEBUG UpdateNoSegments] Has segments, hiding noSegmentsMessageEl.');
+                  noSegmentsMessageEl.style.display = 'none';
+              }
+              if (currentSegmentsListEl.contains(noSegmentsMessageEl)) {
+                  console.log('[DEBUG UpdateNoSegments] Has segments, removing noSegmentsMessageEl from DOM.');
+                  currentSegmentsListEl.removeChild(noSegmentsMessageEl);
+              }
+          } else {
+              if (noSegmentsMessageEl.style.display !== 'block') {
+                  console.log('[DEBUG UpdateNoSegments] No segments, showing noSegmentsMessageEl.');
+                  noSegmentsMessageEl.style.display = 'block';
+              }
+              if (!currentSegmentsListEl.contains(noSegmentsMessageEl)) {
+                 console.log('[DEBUG UpdateNoSegments] No segments, appending noSegmentsMessageEl to DOM.');
+                 currentSegmentsListEl.appendChild(noSegmentsMessageEl);
+              }
+          }
+      } else {
+          console.log('[DEBUG UpdateNoSegments] currentSegmentsListEl or noSegmentsMessageEl is null.');
+      }
+  }
+
+  async function openManageSegmentsModal(taskId, taskName) {
+      console.log(`[DEBUG] openManageSegmentsModal CALLED for taskId: ${taskId}, taskName: ${taskName}`);
+      currentEditingSegmentTaskId = taskId;
+      if (segmentTaskNameEl) segmentTaskNameEl.textContent = escapeHtml(taskName);
+      if (segmentManageTaskIdInput) segmentManageTaskIdInput.value = taskId;
+
+      console.log(`Abrindo modal de segmentos para Tarefa ID: ${taskId}, Nome: ${taskName}`);
+
+      if (addSegmentForm) {
+        addSegmentForm.reset();
+        const descriptionTextarea = document.getElementById('segmentDescription');
+        if(descriptionTextarea) descriptionTextarea.value = '';
+        
+        const submitButton = addSegmentForm.querySelector('button[type="submit"]');
+        if (submitButton) {
+            submitButton.innerHTML = 'Adicionar';
+            submitButton.classList.remove('btn-info');
+            submitButton.classList.add('btn-success');
+        }
+        isEditingSegment = false;
+        currentEditingSegmentId = null;
+      }
+      if (currentSegmentsListEl) currentSegmentsListEl.innerHTML = '<div class="text-center p-3"><span class="spinner-border spinner-border-sm"></span> Carregando segmentos...</div>'; 
+      
+      try {
+          console.log(`[DEBUG] Fetching segments from: /backlog/api/tasks/${taskId}/segments`);
+          const response = await fetch(`/backlog/api/tasks/${taskId}/segments`);
+          console.log(`[DEBUG] Fetch response status: ${response.status}`);
+          
+          if (!response.ok) {
+              const errorData = await response.json().catch(() => ({ message: `Erro HTTP ${response.status}` }));
+              console.error(`[DEBUG] Fetch error data:`, errorData);
+              throw new Error(errorData.message || `Erro ao buscar segmentos: ${response.status}`);
+          }
+          const fetchedSegments = await response.json();
+          console.log(`[DEBUG] Fetched segments:`, fetchedSegments);
+          
+          if (currentSegmentsListEl) currentSegmentsListEl.innerHTML = '';
+
+          if (fetchedSegments && fetchedSegments.length > 0) {
+             fetchedSegments.forEach(segment => {
+                  const [startDate, startTime] = segment.segment_start_datetime ? segment.segment_start_datetime.split('T') : [null, null];
+                  const [dueDate, dueTime] = segment.segment_end_datetime ? segment.segment_end_datetime.split('T') : [null, null];
+                  
+                  const displaySegmentData = {
+                      id: segment.id,
+                      start_date: startDate,
+                      start_time: startTime ? startTime.substring(0,5) : null,
+                      due_date: dueDate,
+                      due_time: dueTime ? dueTime.substring(0,5) : null,
+                      description: segment.description,
+                      is_new: false 
+                  };
+                  renderSegmentItem(displaySegmentData);
+             });
+          } 
+          updateNoSegmentsMessageVisibility();
+
+      } catch (error) {
+          console.error("[DEBUG] Erro CATCH ao carregar segmentos:", error);
+          if (currentSegmentsListEl) currentSegmentsListEl.innerHTML = `<div class="list-group-item text-danger">Erro ao carregar segmentos: ${error.message}</div>`;
+          if (noSegmentsMessageEl) noSegmentsMessageEl.style.display = 'none'; 
+      }
+
+      if (manageSegmentsModalInstance) {
+          manageSegmentsModalInstance.show();
+      }
+  }
+
+  function handleAddSegmentFormSubmit(event) {
+      event.preventDefault();
+      const startDate = document.getElementById('segmentStartDate').value;
+      const startTime = document.getElementById('segmentStartTime').value;
+      const dueDate = document.getElementById('segmentDueDate').value;
+      const dueTime = document.getElementById('segmentDueTime').value;
+      const description = document.getElementById('segmentDescription').value;
+
+      if (!startDate || !startTime || !dueDate || !dueTime) {
+          showToast('Por favor, preencha todas as datas e horas do segmento.', 'error', 5000);
+          return;
+      }
+      
+      const startDateTime = new Date(`${startDate}T${startTime}`);
+      const dueDateTime = new Date(`${dueDate}T${dueTime}`);
+      if (dueDateTime <= startDateTime) {
+          showToast('A data/hora de fim deve ser posterior à data/hora de início.', 'error', 6000);
+          return;
+      }
+
+      const segmentData = {
+          id: isEditingSegment && currentEditingSegmentId ? currentEditingSegmentId : `temp_${Date.now()}`, 
+          start_date: startDate,
+          start_time: startTime,
+          due_date: dueDate,
+          due_time: dueTime,
+          description: description,
+          is_new: !isEditingSegment 
+      };
+
+      if (isEditingSegment) {
+          const segmentItemToUpdate = currentSegmentsListEl.querySelector(`.list-group-item[data-segment-id="${currentEditingSegmentId}"]`);
+          if (segmentItemToUpdate) {
+              segmentItemToUpdate.dataset.segmentData = JSON.stringify(segmentData);
+              const displayStart = formatDisplayDateTime(segmentData.start_date, segmentData.start_time);
+              const displayDue = formatDisplayDateTime(segmentData.due_date, segmentData.due_time);
+              segmentItemToUpdate.querySelector('.segment-info h6').textContent = `Segmento: ${displayStart} - ${displayDue}`;
+              const descEl = segmentItemToUpdate.querySelector('.segment-info p.small');
+              if (segmentData.description) {
+                  if (descEl) descEl.textContent = escapeHtml(segmentData.description);
+                  else {
+                      const p = document.createElement('p');
+                      p.className = 'mb-0 small text-muted';
+                      p.textContent = escapeHtml(segmentData.description);
+                      segmentItemToUpdate.querySelector('.segment-info').appendChild(p);
+                  }
+              } else {
+                  if (descEl) descEl.remove();
+              }
+          }
+          isEditingSegment = false; 
+          currentEditingSegmentId = null;
+          const submitButton = addSegmentForm.querySelector('button[type="submit"]');
+          if(submitButton) {
+            submitButton.innerHTML = 'Adicionar';
+            submitButton.classList.remove('btn-info');
+            submitButton.classList.add('btn-success');
+          }
+      } else {
+          renderSegmentItem(segmentData);
+      }
+
+      addSegmentForm.reset(); 
+      const descriptionTextarea = document.getElementById('segmentDescription');
+      if(descriptionTextarea) descriptionTextarea.value = '';
+      updateNoSegmentsMessageVisibility();
+  }
+
+  function renderSegmentItem(segment) {
+      console.log('[DEBUG RenderSegmentItem] Called with segment:', segment);
+      if (!currentSegmentsListEl) {
+          console.error('[DEBUG RenderSegmentItem] currentSegmentsListEl is null');
+          return;
+      }
+
+      if (noSegmentsMessageEl && noSegmentsMessageEl.parentNode === currentSegmentsListEl) {
+          console.log('[DEBUG RenderSegmentItem] Removing noSegmentsMessageEl from currentSegmentsListEl');
+          currentSegmentsListEl.removeChild(noSegmentsMessageEl);
+      } else if (noSegmentsMessageEl) {
+           if (noSegmentsMessageEl.style.display !== 'none') {
+               console.log('[DEBUG RenderSegmentItem] Setting noSegmentsMessageEl.style.display to "none"');
+               noSegmentsMessageEl.style.display = 'none';
+           }
+      }
+
+      const item = document.createElement('div');
+      item.className = 'list-group-item list-group-item-action';
+      item.dataset.segmentData = JSON.stringify(segment); 
+      item.dataset.segmentId = segment.id; 
+
+      const displayStart = formatDisplayDateTime(segment.start_date, segment.start_time);
+      const displayDue = formatDisplayDateTime(segment.due_date, segment.due_time);
+
+      item.innerHTML = `
+          <div class="d-flex w-100 justify-content-between align-items-center">
+              <div class="segment-info">
+                  <h6 class="mb-1">Segmento: ${displayStart} - ${displayDue}</h6>
+                  ${segment.description ? `<p class="mb-0 small text-muted">${escapeHtml(segment.description)}</p>` : ''}
+              </div>
+              <div class="segment-actions flex-shrink-0 ms-2">
+                  <button type="button" class="btn btn-sm btn-outline-primary me-1 edit-segment-btn" title="Editar Segmento" data-segment-id="${segment.id}">
+                      <i class="fas fa-edit"></i>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-danger remove-segment-btn" title="Remover Segmento" data-segment-id="${segment.id}">
+                      <i class="fas fa-trash"></i>
+                  </button>
+              </div>
+          </div>
+      `;
+      currentSegmentsListEl.appendChild(item);
+      console.log('[DEBUG RenderSegmentItem] Appended item:', item, 'Current list children count:', currentSegmentsListEl.children.length);
+  }
+  
+  function populateSegmentFormForEdit(segmentData) {
+    console.log('[DEBUG populateSegmentForm] Called with data:', JSON.parse(JSON.stringify(segmentData)));
+    if (!addSegmentForm) {
+        console.error('[DEBUG populateSegmentForm] addSegmentForm is null. Cannot populate.');
+        return;
+    }
+    console.log('[DEBUG populateSegmentForm] addSegmentForm found:', addSegmentForm);
+
+    try {
+        const startDateInput = document.getElementById('segmentStartDate');
+        const startTimeInput = document.getElementById('segmentStartTime');
+        const dueDateInput = document.getElementById('segmentDueDate');
+        const dueTimeInput = document.getElementById('segmentDueTime');
+        const descriptionInput = document.getElementById('segmentDescription');
+
+        console.log('[DEBUG populateSegmentForm] Form elements found:', {
+            startDateInput, startTimeInput, dueDateInput, dueTimeInput, descriptionInput
+        });
+
+        if(startDateInput) startDateInput.value = segmentData.start_date || '';
+        if(startTimeInput) startTimeInput.value = segmentData.start_time || '';
+        if(dueDateInput) dueDateInput.value = segmentData.due_date || '';
+        if(dueTimeInput) dueTimeInput.value = segmentData.due_time || '';
+        if(descriptionInput) descriptionInput.value = segmentData.description || '';
+        
+        console.log('[DEBUG populateSegmentForm] Form values set (or attempted).');
+
+    } catch (e) {
+        console.error('[DEBUG populateSegmentForm] Error during field assignment:', e);
+    }
+
+    isEditingSegment = true;
+    currentEditingSegmentId = segmentData.id;
+    
+    const submitButton = addSegmentForm.querySelector('button[type="submit"]');
+    if (submitButton) {
+        submitButton.innerHTML = 'Atualizar Segmento';
+        submitButton.classList.remove('btn-success');
+        submitButton.classList.add('btn-info');
+    }
+    const startDateField = document.getElementById('segmentStartDate');
+    if (startDateField) startDateField.focus();
+  }
+
+  async function handleSaveTaskSegments() {
+      console.log('[DEBUG SaveSegments] handleSaveTaskSegments CALLED.');
+      if (!currentEditingSegmentTaskId) {
+          showToast("Erro: ID da tarefa não encontrado para salvar segmentos.", "error");
+          console.error('[DEBUG SaveSegments] currentEditingSegmentTaskId is null or invalid:', currentEditingSegmentTaskId);
+          return;
+      }
+
+      const segmentsToSave = [];
+      const segmentItems = currentSegmentsListEl.querySelectorAll('.list-group-item');
+      let dataError = false;
+      segmentItems.forEach(item => {
+          if (item.dataset.segmentData) {
+              try {
+                const segmentData = JSON.parse(item.dataset.segmentData);
+                segmentsToSave.push({
+                    id: segmentData.id.toString().startsWith('temp_') ? null : segmentData.id,
+                    start_date: segmentData.start_date,
+                    start_time: segmentData.start_time,
+                    due_date: segmentData.due_date,
+                    due_time: segmentData.due_time,
+                    description: segmentData.description
+                });
+              } catch (e) {
+                  console.error("Erro ao parsear segmentData para salvar: ", item.dataset.segmentData, e);
+                  dataError = true;
+              }
+          } else {
+              console.warn("Item de segmento sem dataset.segmentData", item);
+              dataError = true;
+          }
+      });
+
+      if (dataError) {
+          showToast("Erro nos dados de um ou mais segmentos. Verifique o console.", "error");
+          return;
+      }
+
+      console.log(`Salvando ${segmentsToSave.length} segmentos para Tarefa ID: ${currentEditingSegmentTaskId}`, segmentsToSave);
+      
+      if (!saveTaskSegmentsBtn) {
+          console.error('[DEBUG SaveSegments] saveTaskSegmentsBtn is null!');
+          showToast("Erro: Botão de salvar não encontrado.", "error");
+          return;
+      }
+      const originalButtonText = saveTaskSegmentsBtn.innerHTML;
+      saveTaskSegmentsBtn.disabled = true;
+      saveTaskSegmentsBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salvando...';
+
+      try {
+          const response = await fetch(`/backlog/api/tasks/${currentEditingSegmentTaskId}/segments`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ segments: segmentsToSave })
+          });
+          
+          if (!response.ok) {
+              const errorData = await response.json().catch(() => ({ message: `Erro HTTP ${response.status}` }));
+              throw new Error(errorData.message || 'Erro ao salvar segmentos.');
+          }
+          
+          const savedSegmentsData = await response.json(); // Alterado para savedSegmentsData para clareza
+          console.log('Segmentos salvos via API:', savedSegmentsData);
+          
+          if (currentSegmentsListEl) currentSegmentsListEl.innerHTML = ''; // Limpa a lista atual
+          if (savedSegmentsData && savedSegmentsData.segments && savedSegmentsData.segments.length > 0) { // Verifica a estrutura retornada pela API
+              savedSegmentsData.segments.forEach(segment => { // Itera sobre savedSegmentsData.segments
+                const [startDate, startTime] = segment.segment_start_datetime ? segment.segment_start_datetime.split('T') : [null, null];
+                const [dueDate, dueTime] = segment.segment_end_datetime ? segment.segment_end_datetime.split('T') : [null, null];
+                
+                renderSegmentItem({
+                    id: segment.id, 
+                    start_date: startDate,
+                    start_time: startTime ? startTime.substring(0,5) : null,
+                    due_date: dueDate,
+                    due_time: dueTime ? dueTime.substring(0,5) : null,
+                    description: segment.description,
+                    is_new: false
+                });
+              });
+          }
+          updateNoSegmentsMessageVisibility();
+          
+          showToast('Segmentos salvos com sucesso!', 'success');
+          if (manageSegmentsModalInstance) manageSegmentsModalInstance.hide();
+          
+          if (typeof tuiCal !== 'undefined' && tuiCal && typeof fetchAndRenderSchedules === 'function') {
+              console.log("Modal de segmentos salvo, recarregando a agenda TUI...");
+              fetchAndRenderSchedules(); 
+          }
+
+      } catch (error) {
+          console.error('Erro ao salvar segmentos:', error);
+          showToast(`Erro ao salvar segmentos: ${error.message}`, 'error');
+      } finally {
+          saveTaskSegmentsBtn.disabled = false;
+          saveTaskSegmentsBtn.innerHTML = originalButtonText;
+      }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+      segmentTaskNameEl = document.getElementById('segmentTaskName');
+      segmentManageTaskIdInput = document.getElementById('segmentManageTaskId');
+      addSegmentForm = document.getElementById('addSegmentForm');
+      currentSegmentsListEl = document.getElementById('currentSegmentsList');
+      noSegmentsMessageEl = document.getElementById('noSegmentsMessage');
+      saveTaskSegmentsBtn = document.getElementById('saveTaskSegmentsBtn');
+
+      console.log('[DEBUG DOMContentLoaded] Elementos do Modal de Segmentos:', {
+        segmentTaskNameEl, segmentManageTaskIdInput, addSegmentForm,
+        currentSegmentsListEl, noSegmentsMessageEl, saveTaskSegmentsBtn
+      });
+
+      const manageSegmentsModalEl = document.getElementById('manageTaskSegmentsModal');
+      if (manageSegmentsModalEl) {
+          manageSegmentsModalInstance = new bootstrap.Modal(manageSegmentsModalEl);
+      } else {
+          console.error('[DEBUG DOMContentLoaded] Elemento #manageTaskSegmentsModal não encontrado.');
+      }
+
+      const boardContainer = document.querySelector('.kanban-board-wrapper') || document.body; 
+      boardContainer.addEventListener('click', function(event) {
+          const targetButton = event.target.closest('.manage-segments-btn');
+          if (targetButton) {
+              const taskId = targetButton.dataset.taskId;
+              const taskCard = targetButton.closest('.kanban-task-card');
+              const taskTitleEl = taskCard ? taskCard.querySelector('.task-title') : null;
+              const taskName = taskTitleEl ? taskTitleEl.textContent : 'Tarefa Desconhecida';
+              openManageSegmentsModal(taskId, taskName);
+          }
+      });
+      
+      if (addSegmentForm) {
+          addSegmentForm.addEventListener('submit', handleAddSegmentFormSubmit);
+          console.log('[DEBUG DOMContentLoaded] Event listener para addSegmentForm ADICIONADO.');
+      } else {
+          console.error('[DEBUG DOMContentLoaded] addSegmentForm NÃO encontrado para adicionar listener.');
+      }
+
+      if (saveTaskSegmentsBtn) {
+          saveTaskSegmentsBtn.addEventListener('click', handleSaveTaskSegments);
+          console.log('[DEBUG DOMContentLoaded] Event listener para saveTaskSegmentsBtn ADICIONADO.');
+      } else {
+          console.error('[DEBUG DOMContentLoaded] saveTaskSegmentsBtn NÃO encontrado para adicionar listener.');
+      }
+      
+      if (currentSegmentsListEl) {
+        currentSegmentsListEl.addEventListener('click', function(event) {
+            const editButton = event.target.closest('.edit-segment-btn');
+            const removeButton = event.target.closest('.remove-segment-btn');
+
+            if (editButton) {
+                const segmentId = editButton.dataset.segmentId;
+                console.log("[DEBUG EventListener] Botão Editar clicado para segmentId:", segmentId);
+                const segmentItem = editButton.closest('.list-group-item');
+                if (segmentItem && segmentItem.dataset.segmentData) {
+                    try {
+                        const realData = JSON.parse(segmentItem.dataset.segmentData);
+                        console.log("[DEBUG EventListener] Dados REAIS do segmento (realData):", realData);
+                        populateSegmentFormForEdit(realData);
+                    } catch (e) {
+                        console.error("[DEBUG EventListener] ERRO ao parsear realData ou chamar populateSegmentFormForEdit:", e);
+                        showToast("Erro ao tentar editar o segmento. Verifique o console.", "error");
+                    }
+                } else {
+                    console.error("[DEBUG EventListener] Não foi possível obter realData do dataset para editar.");
+                    showToast("Não foi possível carregar os dados do segmento para edição.", "error");
+                }
+            } else if (removeButton) {
+                const segmentItem = removeButton.closest('.list-group-item');
+                if (segmentItem) {
+                    const segmentDataString = segmentItem.dataset.segmentData;
+                    let segmentDisplayInfo = "este segmento";
+                    let segmentIdToRemove = null;
+                    if (segmentDataString) {
+                        try {
+                            const segmentData = JSON.parse(segmentDataString);
+                            segmentIdToRemove = segmentData.id;
+                            segmentDisplayInfo = `segmento: ${formatDisplayDateTime(segmentData.start_date, segmentData.start_time)} - ${formatDisplayDateTime(segmentData.due_date, segmentData.due_time)}`;
+                        } catch(e){ /* Usa o default */ }
+                    }
+
+                    if (confirm(`Tem certeza que deseja remover ${segmentDisplayInfo}?`)) {
+                        segmentItem.remove();
+                        updateNoSegmentsMessageVisibility();
+                        if (isEditingSegment && currentEditingSegmentId === segmentIdToRemove ) {
+                            addSegmentForm.reset();
+                            const descriptionTextarea = document.getElementById('segmentDescription');
+                            if(descriptionTextarea) descriptionTextarea.value = '';
+                            const submitButton = addSegmentForm.querySelector('button[type="submit"]');
+                            if (submitButton) {
+                                submitButton.innerHTML = 'Adicionar';
+                                submitButton.classList.remove('btn-info');
+                                submitButton.classList.add('btn-success');
+                            }
+                            isEditingSegment = false;
+                            currentEditingSegmentId = null;
+                        }
+                    }
+                }
+            }
+        });
+      } else {
+          console.error('[DEBUG DOMContentLoaded] currentSegmentsListEl NÃO encontrado para adicionar listener de editar/remover.');
+      }
+      
+      if(noSegmentsMessageEl && currentSegmentsListEl) {
+          updateNoSegmentsMessageVisibility();
+      }
+  });
+  // --- FIM: Lógica para Modal de Segmentos de Tarefa ---
+
+  // ...MANTENHA QUALQUER CÓDIGO JAVASCRIPT EXISTENTE DEPOIS DA LÓGICA DOS SEGMENTOS...
 </script>
+
+<!-- Modal Gerenciar Segmentos de Tarefa -->
+<div class="modal fade" id="manageTaskSegmentsModal" tabindex="-1" aria-labelledby="manageTaskSegmentsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="manageTaskSegmentsModalLabel">Gerenciar Segmentos para: <span id="segmentTaskName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="segmentManageTaskId">
+
+                <!-- Formulário para Adicionar Novo Segmento -->
+                <h6>Adicionar Novo Segmento</h6>
+                <form id="addSegmentForm" class="row g-3 mb-4 align-items-end">
+                    <div class="col-md-3">
+                        <label for="segmentStartDate" class="form-label">Data Início</label>
+                        <input type="date" class="form-control form-control-sm" id="segmentStartDate" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="segmentStartTime" class="form-label">Hora Início</label>
+                        <input type="time" class="form-control form-control-sm" id="segmentStartTime" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="segmentDueDate" class="form-label">Data Fim</label>
+                        <input type="date" class="form-control form-control-sm" id="segmentDueDate" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="segmentDueTime" class="form-label">Hora Fim</label>
+                        <input type="time" class="form-control form-control-sm" id="segmentDueTime" required>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-success btn-sm w-100">Adicionar</button>
+                    </div>
+                    <div class="col-12">
+                        <label for="segmentDescription" class="form-label">Descrição do Segmento (Opcional)</label>
+                        <textarea class="form-control form-control-sm" id="segmentDescription" rows="2"></textarea>
+                    </div>
+                </form>
+
+                <!-- Lista de Segmentos Existentes -->
+                <h6>Segmentos Atuais</h6>
+                <div id="currentSegmentsList" class="list-group">
+                    <!-- Segmentos serão populados aqui por JavaScript -->
+                    <!-- Exemplo de item (a ser gerado dinamicamente):
+                    <div class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Segmento: 20/07/2024 09:00 - 20/07/2024 11:00</h6>
+                            <small>
+                                <button class="btn btn-sm btn-outline-primary me-1 edit-segment-btn" data-segment-id="temp_id_123">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger remove-segment-btn" data-segment-id="temp_id_123">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </small>
+                        </div>
+                        <p class="mb-1">Descrição do segmento aqui...</p>
+                    </div>
+                    -->
+                    <p class="text-muted" id="noSegmentsMessage">Nenhum segmento definido para esta tarefa.</p>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="saveTaskSegmentsBtn">Salvar Alterações nos Segmentos</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
 
