@@ -1291,65 +1291,77 @@ def get_timeline_tasks(backlog_id):
     - next_days: int (dias para frente, padrão: 7)
     """
     try:
-        # Log para diagnóstico
-        current_app.logger.info(f"[Timeline DEBUG] Iniciando diagnóstico para backlog_id: {backlog_id}")
-        
-        # Verificar se o backlog existe
+        last_days_param = request.args.get('last_days', 7, type=int)
+        next_days_param = request.args.get('next_days', 7, type=int)
+
+        current_app.logger.info(f"[Timeline API] Buscando tarefas para backlog {backlog_id} com last_days={last_days_param}, next_days={next_days_param}")
+
         backlog = Backlog.query.get_or_404(backlog_id)
-        current_app.logger.info(f"[Timeline DEBUG] Backlog encontrado: ID={backlog.id}, Projeto={backlog.project_id}")
         
-        # Listar colunas
-        columns = Column.query.all()
-        columns_info = []
-        for col in columns:
-            columns_info.append({
-                'id': col.id,
-                'name': col.name,
-                'position': col.position
-            })
+        today = date.today()
+        start_of_today = datetime.combine(today, datetime.min.time()) # Para comparações com campos DateTime
+        end_of_today = datetime.combine(today, datetime.max.time())
+
+        # Data limite para "recentemente" (X dias atrás)
+        # Considera o início do dia X dias atrás
+        recent_past_limit_date = today - timedelta(days=last_days_param)
+        recent_past_limit_datetime_start = datetime.combine(recent_past_limit_date, datetime.min.time())
+
+        # Data limite para "próximas" (Y dias à frente)
+        # Considera o fim do dia Y dias à frente
+        upcoming_future_limit_date = today + timedelta(days=next_days_param)
+        upcoming_future_limit_datetime_end = datetime.combine(upcoming_future_limit_date, datetime.max.time())
+
+        # 1. Tarefas Recentemente Concluídas
+        # completed_at é um DateTime, então comparamos com recent_past_limit_datetime_start e o fim de hoje
+        recently_completed_tasks_q = Task.query.filter(
+            Task.backlog_id == backlog_id,
+            Task.completed_at != None, # Garante que completed_at existe
+            Task.completed_at >= recent_past_limit_datetime_start,
+            Task.completed_at <= end_of_today # Concluídas até o final do dia de hoje
+        ).order_by(Task.completed_at.desc()).all()
+        recently_completed_tasks = [serialize_task(t) for t in recently_completed_tasks_q]
+        current_app.logger.info(f"[Timeline API] Encontradas {len(recently_completed_tasks)} tarefas recentemente concluídas.")
+
+        # 2. Próximas Tarefas (com prazo nos próximos Y dias, não concluídas)
+        # due_date é um Date, comparamos com today e upcoming_future_limit_date
+        upcoming_tasks_q = Task.query.filter(
+            Task.backlog_id == backlog_id,
+            Task.due_date != None, # Garante que due_date existe
+            Task.due_date >= today, # Prazo de hoje em diante
+            Task.due_date <= upcoming_future_limit_date, # Prazo até Y dias no futuro
+            Task.status != TaskStatus.DONE # Não deve estar concluída
+        ).order_by(Task.due_date.asc()).all()
+        upcoming_tasks = [serialize_task(t) for t in upcoming_tasks_q]
+        current_app.logger.info(f"[Timeline API] Encontradas {len(upcoming_tasks)} próximas tarefas.")
+
+        # 3. Tarefas Iniciadas Recentemente (iniciadas nos últimos X dias, não concluídas)
+        # start_date é um Date, comparamos com recent_past_limit_date e today
+        recently_started_tasks_q = Task.query.filter(
+            Task.backlog_id == backlog_id,
+            Task.start_date != None, # Garante que start_date existe
+            Task.start_date >= recent_past_limit_date, # Iniciadas de X dias atrás em diante
+            Task.start_date <= today, # Iniciadas até hoje
+            Task.status != TaskStatus.DONE # Não deve estar concluída
+            # Adicionar condição para status "Em Andamento" se quiser ser mais específico?
+            # Ex: Task.status == TaskStatus.IN_PROGRESS 
+        ).order_by(Task.start_date.desc()).all()
+        recently_started_tasks = [serialize_task(t) for t in recently_started_tasks_q]
+        current_app.logger.info(f"[Timeline API] Encontradas {len(recently_started_tasks)} tarefas iniciadas recentemente.")
         
-        # Listar tarefas do backlog
-        tasks = Task.query.filter_by(backlog_id=backlog_id).all()
-        current_app.logger.info(f"[Timeline DEBUG] Tarefas encontradas: {len(tasks)}")
-        
-        # Tentar serializar cada tarefa individualmente
-        tasks_info = []
-        for i, task in enumerate(tasks):
-            try:
-                task_data = serialize_task(task)
-                tasks_info.append({
-                    'id': task.id,
-                    'title': task.title,
-                    'serialized_ok': True
-                })
-            except Exception as e:
-                current_app.logger.error(f"[Timeline DEBUG] Erro ao serializar tarefa {task.id}: {str(e)}")
-                tasks_info.append({
-                    'id': task.id,
-                    'title': task.title if hasattr(task, 'title') else "Desconhecido",
-                    'serialized_ok': False,
-                    'error': str(e)
-                })
-        
-        # Retornar informações de diagnóstico
         return jsonify({
-            'backlog': {
-                'id': backlog.id,
-                'name': backlog.name,
-                'project_id': backlog.project_id
-            },
-            'columns': columns_info,
-            'tasks': tasks_info,
-            'stats': {
-                'total_tasks': len(tasks),
-                'serialized_ok': sum(1 for t in tasks_info if t['serialized_ok'])
-            }
+            'recently_completed': recently_completed_tasks,
+            'upcoming_tasks': upcoming_tasks,
+            'recently_started': recently_started_tasks
         })
             
     except Exception as e:
-        current_app.logger.error(f"[Timeline DEBUG] Erro ao realizar diagnóstico: {str(e)}", exc_info=True)
+        current_app.logger.error(f"[Timeline API] Erro ao buscar tarefas da timeline para backlog {backlog_id}: {str(e)}", exc_info=True)
         return jsonify({
-            'error': f"Erro durante diagnóstico: {str(e)}",
+            'error': f"Erro ao buscar tarefas da timeline: {str(e)}",
+            'recently_completed': [], # Retorna arrays vazios em caso de erro
+            'upcoming_tasks': [],
+            'recently_started': []
         }), 500 
 
 @backlog_bp.route('/api/debug/timeline-tasks/<int:backlog_id>', methods=['GET'])

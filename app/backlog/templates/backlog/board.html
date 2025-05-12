@@ -156,15 +156,10 @@
       margin-top: 0.1rem; /* Alinha um pouco melhor com o título */
   }
 
-  .kanban-task-card .task-body {
-      /* Agrupa prioridade e detalhes */
-      margin-top: 0.5rem; /* Aumentado levemente o espaço antes do corpo */
-      /* display: flex; */ /* <<< REMOVIDO: Não mais flex lado a lado */
-      /* justify-content: space-between; */ /* <<< REMOVIDO */
-      /* align-items: center; */ /* <<< REMOVIDO */
-      /* flex-wrap: wrap; */ /* <<< REMOVIDO */
-      /* gap: 0.5rem; */ /* <<< REMOVIDO */
-      display: block; /* <<< ALTERADO: Elementos filhos em bloco */
+  /* NOVO: Garantir que o corpo do CARD DE TAREFA seja branco */
+  .kanban-task-card .card-body { /* Seletor corrigido para o card-body DENTRO de um kanban-task-card */
+      background-color: #ffffff !important; /* Força fundo branco */
+      /* O padding .p-2 definido no HTML do card-body da tarefa ainda será aplicado */
   }
 
   /* Grupo Esquerdo: Badge de Prioridade e Ícone Descrição */
@@ -1181,120 +1176,123 @@
   function addTaskToBoard(task) {
       const column = document.querySelector(`.kanban-tasks[data-column-id="${task.column_id}"]`);
       if (column) {
-          const noTasksMsg = column.querySelector('.no-tasks');
-          if (noTasksMsg) noTasksMsg.remove();
-          const taskCard = document.createElement('div');
-          
-          // Determina a classe da coluna para a cor da borda superior
-          const columnIdentifier = task.column_identifier || 'default'; 
-          const colorClass = `task-col-${columnIdentifier}`;
-          // console.log(`[Task Board] ID: ${task.id}, Identifier: ${columnIdentifier}, Classe CSS Cor: ${colorClass}`); 
+          // Remove 'no-tasks' message if it exists and we're adding a task
+          const noTasksDiv = column.querySelector('.no-tasks');
+          if (noTasksDiv) {
+              noTasksDiv.remove();
+          }
 
-          taskCard.className = `kanban-task-card ${colorClass}`; // Adiciona a classe de cor
-          taskCard.dataset.taskId = task.id;
-          taskCard.addEventListener('click', handleTaskClick); 
-          
-          // Monta o ID completo (como antes)
-          const projectPart = initialProjectId || 'PROJ'; 
-          const columnPartForId = (task.column_name || columnIdentifier).substring(0, 3).toUpperCase();
-          const fullTaskId = `${projectPart}-${columnPartForId}-${task.id}`;
-
-          // --- Determina Classe CSS para Badge de Prioridade e ÍCONE ---
-          let priorityBadgeClass = 'text-bg-primary'; // Default: Média
-          let priorityIconClass = 'bi-dash-lg';      // Default: Média
+          // --- INÍCIO: Definições para o Card da Tarefa (Restaurado/Verificado) ---
+          let priorityBadgeClass = 'bg-secondary'; // Default para prioridade Média/não definida
+          let priorityIcon = 'bi-dash-circle'; // Ícone para Média/não definida
           const priorityLower = (task.priority || '').toLowerCase();
+
           if (priorityLower === 'urgente') {
-              priorityBadgeClass = 'text-bg-danger';
-              priorityIconClass = 'bi-exclamation-octagon-fill';
-          }
-          // Ajuste para Amarelo do Warning ter texto escuro
-          else if (priorityLower === 'alta') {
-               priorityBadgeClass = 'text-bg-warning'; 
-               priorityIconClass = 'bi-chevron-double-up';
-          }
-          else if (priorityLower === 'baixa') {
-              priorityBadgeClass = 'text-bg-secondary';
-              priorityIconClass = 'bi-chevron-double-down';
+              priorityBadgeClass = 'bg-danger';
+              priorityIcon = 'bi-exclamation-octagon-fill';
+          } else if (priorityLower === 'alta') {
+              priorityBadgeClass = 'bg-warning text-dark'; // Amarelo com texto escuro
+              priorityIcon = 'bi-chevron-double-up';
+          } else if (priorityLower === 'baixa') {
+              priorityBadgeClass = 'bg-info text-dark'; // Azul claro com texto escuro para Baixa
+              priorityIcon = 'bi-chevron-double-down';
           }
           const priorityText = task.priority || 'Média';
-          // -----------------------------------------------------------
+          const priorityBadge = `<span class="badge ${priorityBadgeClass} me-2" title="Prioridade: ${escapeHtml(priorityText)}"><i class="bi ${priorityIcon} me-1"></i>${escapeHtml(priorityText)}</span>`;
 
-          // --- Formata Data de Conclusão (se aplicável) ---
-          let completionDateHtml = '';
-          if (task.column_identifier === 'concluido' && task.completed_at) {
-              try {
-                  const completedDate = new Date(task.completed_at);
-                  const formattedDate = completedDate.toLocaleDateString('pt-BR', {
-                      day: '2-digit', month: '2-digit', year: 'numeric'
-                  });
-                  completionDateHtml = `
-                      <span class="task-completion-date ms-auto" title="Concluído em">
-                          <i class="bi bi-calendar-check-fill"></i>
-                          ${formattedDate}
-                      </span>
-                  `;
-              } catch (e) {
-                  console.error("Erro ao formatar data de conclusão:", e, task.completed_at);
-                  completionDateHtml = '<span class="task-completion-date text-danger ms-auto" title="Erro na data"><i class="bi bi-exclamation-triangle"></i> Data Inválida</span>';
-              }
+          const descriptionHTML = task.description 
+              ? `<p class="card-text small text-muted mt-1 mb-1" style="white-space: pre-wrap; word-break: break-word; max-height: 60px; overflow-y: auto;" title="${escapeHtml(task.description)}">${escapeHtml(task.description.substring(0, 100))}${task.description.length > 100 ? '...' : ''}</p>` 
+              : '';
+
+          const specialistHTML = task.specialist_name 
+              ? `<div class="small text-muted mt-1"><i class="bi bi-person-circle me-1"></i>${escapeHtml(task.specialist_name)}</div>` 
+              : '';
+          // --- FIM: Definições para o Card da Tarefa ---
+
+          // Resumo dos Segmentos (se houver)
+          let segmentsSummaryHTML = '';
+          if (task.task_segments_summary && task.task_segments_summary.length > 0) {
+              segmentsSummaryHTML = `<div class="task-segments-summary-inline small text-muted mt-1"><i class="bi bi-diagram-3"></i> ${task.task_segments_summary.length} segmento(s)</div>`;
           }
-          // -----------------------------------------------------
 
-          taskCard.innerHTML = `
-              <div class="task-header">
-                  <strong class="task-title">${escapeHtml(task.name)}</strong>
-                  <code class="task-full-id" title="ID Completo da Tarefa">${fullTaskId}</code>
-              </div>
-              <div class="task-body">
-                  <div class="task-meta-left"> {# Badge e Ícone Desc #}
-                      <span class="badge ${priorityBadgeClass} task-priority-badge" title="Prioridade: ${priorityText}">
-                          <i class="bi ${priorityIconClass}"></i> {# Ícone de Prioridade #}
-                          <span>${priorityText}</span>
-                      </span>
-                      ${task.description ? `<i class="bi bi-text-paragraph task-desc-icon" title="Descrição: ${escapeHtml(task.description)}"></i>` : ''}
+          // --- INÍCIO: Lógica para o rodapé do card (datas) ---
+          let footerHTML = '';
+          if (task.completed_at && task.column_identifier === 'concluido') {
+              footerHTML = `<small class="text-muted" title="Data de Conclusão"><i class="bi bi-check-circle-fill text-success me-1"></i>Concluído em: ${formatDateString(task.completed_at)}</small>`;
+          } else if (task.due_date) {
+              const dueDate = new Date(task.due_date);
+              const today = new Date();
+              today.setHours(0, 0, 0, 0); 
+              dueDate.setHours(0, 0, 0, 0); 
+              
+              let dateClass = 'text-muted';
+              let dateIcon = 'bi-calendar-check';
+
+              if (dueDate < today && task.column_identifier !== 'concluido') {
+                  dateClass = 'text-danger fw-bold'; 
+                  dateIcon = 'bi-calendar-x';
+              } else if (dueDate.getTime() === today.getTime() && task.column_identifier !== 'concluido') {
+                  dateClass = 'text-warning fw-bold';
+                  dateIcon = 'bi-calendar-day';
+              }
+              footerHTML = `<small class="${dateClass}" title="Prazo Final"><i class="bi ${dateIcon} me-1"></i>${formatDateString(task.due_date)}</small>`;
+          } else if (task.start_date) {
+              footerHTML = `<small class="text-muted" title="Data de Início"><i class="bi bi-calendar-event me-1"></i>${formatDateString(task.start_date)}</small>`;
+          } else {
+              footerHTML = '<small class="text-muted">Sem data definida</small>';
+          }
+          // --- FIM: Lógica para o rodapé do card (datas) ---
+
+          // Botão de Gerenciar Segmentos (se houver segmentos ou como ação padrão)
+          // Adicionaremos o botão independentemente de haver segmentos, a lógica de abrir o modal lidará com o resto.
+          const manageSegmentsButtonHTML = `
+            <div class="mt-2 text-end">
+                <button type="button" 
+                        class="btn btn-outline-secondary btn-sm manage-segments-btn" 
+                        data-task-id="${task.id}" 
+                        title="Gerenciar Segmentos da Tarefa">
+                    <i class="fas fa-calendar-alt me-1"></i>Segmentos
+                </button>
+            </div>`;
+
+          const taskCardHTML = `
+              <div class="kanban-task-card card mb-2 shadow-sm ${task.column_identifier === 'concluido' ? 'task-completed-card' : ''} task-col-${task.column_identifier || 'default'}" data-task-id="${task.id}" data-task-title="${escapeHtml(task.title)}" draggable="true">
+                  <div class="card-body p-2">
+                      <div class="d-flex justify-content-between align-items-start mb-1">
+                          <h6 class="card-title mb-0 small flex-grow-1" style="word-break: break-word;">${escapeHtml(task.title)}</h6>
+                          ${priorityBadge}
+                      </div>
+                      ${descriptionHTML}
+                      ${specialistHTML}
+                      ${segmentsSummaryHTML}
+                      ${manageSegmentsButtonHTML} {# <<< BOTÃO ADICIONADO AQUI #}
                   </div>
-                  <div class="task-details"> {# Detalhes de Tempo #}
-                      <span title="Estimado"><i class="bi bi-clock-history"></i>${task.estimated_hours != null ? task.estimated_hours.toFixed(1) + 'h' : '-'}</span>
-                      <span title="Restante"><i class="bi bi-hourglass-split"></i>${task.remaining_hours != null ? task.remaining_hours.toFixed(1) + 'h' : '-'}</span>
-                      ${task.sprint_name ? 
-                        `<span class="task-sprint-info" title="Sprint Alocada"><i class="bi bi-calendar3-week"></i> ${escapeHtml(task.sprint_name)}</span>` 
-                        : ''
-                      }
-                      {# <<< INÍCIO: Exibir Especialista no Card >>> #}
-                      ${task.specialist_name ? 
-                        `<span class="task-specialist-info text-muted" title="Especialista">
-                           <i class="bi bi-person"></i> ${escapeHtml(task.specialist_name)}
-                         </span>` 
-                        : ''
-                      }
-                      {# <<< FIM: Exibir Especialista no Card >>> #}
-                      {# Span da data de conclusão é adicionado/removido dinamicamente pelo JS agora #}
-                      <span class="task-completion-date" title="Concluído em" style="display: none;"></span> {# Removido ms-auto daqui #}
-                  </div>
-                  <div class="task-actions mt-2 text-end">
-                      <button type="button" 
-                              class="btn btn-outline-secondary btn-sm manage-segments-btn" 
-                              data-task-id="${task.id}" 
-                              data-bs-toggle="tooltip" 
-                              data-bs-placement="top"
-                              title="Gerenciar Segmentos da Tarefa">
-                          <i class="fas fa-calendar-alt me-1"></i>Segmentos
-                      </button>
+                  <div class="card-footer bg-transparent border-top-0 px-2 py-1 text-end">
+                      ${footerHTML}
                   </div>
               </div>
           `;
-          column.appendChild(taskCard);
+          
+          const taskCardWrapper = document.createElement('div');
+          taskCardWrapper.innerHTML = taskCardHTML;
+          const actualCardElement = taskCardWrapper.firstElementChild; // <<< ALTERADO DE firstChild para firstElementChild
 
-          // ADICIONAR NOVO BLOCO DE CÓDIGO AQUI ABAIXO
-          const manageSegmentsBtn = taskCard.querySelector('.manage-segments-btn');
-          if (manageSegmentsBtn) {
-              manageSegmentsBtn.addEventListener('click', function(event) {
-                  event.stopPropagation(); 
-                  const taskName = task.name || 'Tarefa Desconhecida'; 
-                  openManageSegmentsModal(task.id, taskName);
-              });
+          if (actualCardElement) {
+              column.appendChild(actualCardElement); 
+
+              actualCardElement.addEventListener('click', handleTaskClick);
+              
+              const manageSegmentsBtn = actualCardElement.querySelector('.manage-segments-btn');
+              if (manageSegmentsBtn) {
+                  manageSegmentsBtn.addEventListener('click', function(event) {
+                      event.stopPropagation(); 
+                      const taskName = task.title || 'Tarefa Desconhecida'; 
+                      openManageSegmentsModal(task.id, taskName);
+                  });
+              }
+          } else {
+              console.error("[AddTaskToBoard] taskCardElement.firstChild é nulo após definir innerHTML. HTML:", taskCardHTML);
           }
-          // FIM DO NOVO BLOCO DE CÓDIGO
 
       } else {
           console.warn(`[Add Task To Board] Coluna ID ${task.column_id} não encontrada para a tarefa ID ${task.id}`);
