@@ -787,6 +787,11 @@
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
+                            <!-- Campo de Busca -->
+                            <div class="mb-3">
+                                <input type="text" class="form-control form-control-sm" id="buscaProjetosAtivosInput" placeholder="Buscar por número, projeto, status ou squad...">
+                            </div>
+                            <!-- Fim Campo de Busca -->
                             <div class="table-responsive">
                                 <table class="table table-hover" style="min-width: 800px;">
                                     <thead>
@@ -1764,6 +1769,41 @@
                     });
                 });
             }
+
+            // <<< INÍCIO: Lógica de Busca para Modal Projetos Ativos >>>
+            const buscaInput = document.getElementById('buscaProjetosAtivosInput');
+            const tabelaBody = document.getElementById('tabelaProjetosAtivos');
+
+            if (buscaInput && tabelaBody) {
+                buscaInput.addEventListener('keyup', function() {
+                    const termoBusca = this.value.toLowerCase().trim();
+                    const linhas = tabelaBody.getElementsByTagName('tr');
+
+                    for (let i = 0; i < linhas.length; i++) {
+                        const linha = linhas[i];
+                        const celulas = linha.getElementsByTagName('td');
+                        let encontrou = false;
+
+                        // Verifica colunas relevantes (Número[0], Projeto[1], Status[2], Squad[3])
+                        if (celulas.length > 3) { 
+                            const textoLinha = (
+                                (celulas[0]?.textContent || '') + ' ' + 
+                                (celulas[1]?.textContent || '') + ' ' + 
+                                (celulas[2]?.textContent || '') + ' ' + 
+                                (celulas[3]?.textContent || '')
+                            ).toLowerCase();
+
+                            if (textoLinha.includes(termoBusca)) {
+                                encontrou = true;
+                            }
+                        }
+                        
+                        // Mostra ou esconde a linha
+                        linha.style.display = encontrou ? '' : 'none';
+                    }
+                });
+            }
+            // <<< FIM: Lógica de Busca >>>
         });
     </script>
 </body>
