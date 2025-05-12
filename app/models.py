@@ -82,6 +82,7 @@ class Task(db.Model):
     due_date = db.Column(db.DateTime, nullable=True) # Prazo (já existia)
     completed_at = db.Column(db.DateTime, nullable=True) # Data de conclusão real
     logged_time = db.Column(db.Float, nullable=True, default=0.0) # Tempo trabalhado registrado
+    actually_started_at = db.Column(db.DateTime, nullable=True) # Data/hora em que a tarefa foi efetivamente iniciada
 
     # <<< INÍCIO: Adicionar campo para especialista >>>
     specialist_name = db.Column(db.String(150), nullable=True, index=True) # Nome do especialista responsável

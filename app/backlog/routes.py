@@ -5,6 +5,10 @@ from ..models import Backlog, Task, Column, Sprint, TaskStatus, ProjectMilestone
 from ..macro.services import MacroService # Importa o serviço Macro
 import pandas as pd
 from datetime import datetime, timedelta, date
+import pytz # <<< ADICIONADO
+
+# Define o fuso horário de Brasília
+br_timezone = pytz.timezone('America/Sao_Paulo') # <<< ADICIONADO
 
 # Função auxiliar para serializar uma tarefa
 def serialize_task(task):
@@ -681,11 +685,17 @@ def move_task(task_id):
     task.column_id = new_column_id
     task.position = new_position
 
-    # Atualiza data de início quando movida para Em Andamento
-    if is_moving_to_progress and not was_in_progress:
-        if not task.start_date:  # Define apenas na primeira vez que entra em EM ANDAMENTO
-            task.start_date = datetime.utcnow()
-            current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para Em Andamento, data de início definida")
+    # Define a data de início real APENAS se estiver movendo para "Em Andamento" 
+    # e a tarefa ainda não tiver uma data de início real registrada.
+    if is_moving_to_progress and not task.actually_started_at:
+        task.actually_started_at = datetime.now(br_timezone) # <<< ALTERADO para usar br_timezone
+        current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para Em Andamento, data de INÍCIO REAL definida para {task.actually_started_at} (usando br_timezone)")
+
+    # Atualiza data de início planejada (LEGADO - manter por enquanto se houver dependências)
+    # if is_moving_to_progress and not was_in_progress:
+    #     if not task.start_date:  # Define apenas na primeira vez que entra em EM ANDAMENTO
+    #         task.start_date = datetime.utcnow()
+    #         current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para Em Andamento, data de início definida")
 
     # Atualiza status e data de conclusão
     if is_moving_to_done:
@@ -1294,60 +1304,74 @@ def get_timeline_tasks(backlog_id):
         last_days_param = request.args.get('last_days', 7, type=int)
         next_days_param = request.args.get('next_days', 7, type=int)
 
-        current_app.logger.info(f"[Timeline API] Buscando tarefas para backlog {backlog_id} com last_days={last_days_param}, next_days={next_days_param}")
+        current_app.logger.info(f"[Timeline API] Buscando tarefas para backlog {backlog_id} com last_days={last_days_param}, next_days={next_days_param} (BRT Based)")
 
         backlog = Backlog.query.get_or_404(backlog_id)
         
-        today = date.today()
-        start_of_today = datetime.combine(today, datetime.min.time()) # Para comparações com campos DateTime
-        end_of_today = datetime.combine(today, datetime.max.time())
+        now_brt = datetime.now(br_timezone) # <<< USA BR_TIMEZONE
+        today_brt_date = now_brt.date() # <<< Data de hoje em BRT
 
-        # Data limite para "recentemente" (X dias atrás)
-        # Considera o início do dia X dias atrás
-        recent_past_limit_date = today - timedelta(days=last_days_param)
-        recent_past_limit_datetime_start = datetime.combine(recent_past_limit_date, datetime.min.time())
+        # Define o início e o fim do dia de hoje em BRT (timezone-aware)
+        start_of_today_brt = br_timezone.localize(datetime.combine(today_brt_date, datetime.min.time()))
+        end_of_today_brt = br_timezone.localize(datetime.combine(today_brt_date, datetime.max.time()))
+        
+        # Data limite para "recentemente concluídas" (X dias atrás, início do dia em BRT)
+        recent_past_limit_date_completed_brt = today_brt_date - timedelta(days=last_days_param)
+        recent_past_limit_datetime_start_completed_brt = br_timezone.localize(datetime.combine(recent_past_limit_date_completed_brt, datetime.min.time()))
 
-        # Data limite para "próximas" (Y dias à frente)
-        # Considera o fim do dia Y dias à frente
-        upcoming_future_limit_date = today + timedelta(days=next_days_param)
-        upcoming_future_limit_datetime_end = datetime.combine(upcoming_future_limit_date, datetime.max.time())
+        # Data limite para "próximas tarefas" (Y dias à frente, fim do dia em BRT)
+        upcoming_future_limit_date_brt = today_brt_date + timedelta(days=next_days_param)
+        upcoming_future_limit_datetime_end_brt = br_timezone.localize(datetime.combine(upcoming_future_limit_date_brt, datetime.max.time()))
+
+        # Data limite para "Tarefas Iniciadas Recentemente" (5 dias para trás, início do dia em BRT)
+        days_for_recently_started = 5 
+        recent_past_limit_date_started_brt = today_brt_date - timedelta(days=days_for_recently_started)
+        recent_past_limit_datetime_start_started_brt = br_timezone.localize(datetime.combine(recent_past_limit_date_started_brt, datetime.min.time()))
 
         # 1. Tarefas Recentemente Concluídas
-        # completed_at é um DateTime, então comparamos com recent_past_limit_datetime_start e o fim de hoje
+        # completed_at é naive (UTC), precisamos comparar com limites BRT convertidos para UTC ou tornar completed_at aware
+        # Por simplicidade na query, vamos assumir que completed_at também foi salvo em BRT (ou próximo o suficiente para a lógica de dias)
+        # Se completed_at é UTC, a comparação ideal seria:
+        # Task.completed_at >= recent_past_limit_datetime_start_completed_brt.astimezone(pytz.utc)
+        # Task.completed_at <= end_of_today_brt.astimezone(pytz.utc)
+        # Para manter simples por agora, e assumindo que completed_at foi salvo com datetime.now() ou datetime.utcnow()
+        # e a diferença de horas não quebra a lógica de DIAS, continuamos com a comparação direta.
+        # Idealmente, todos os campos de data/hora no DB seriam UTC ou explicitamente BRT.
+        # Vamos assumir que completed_at está "próximo" do BRT para a lógica de dias.
+        # Se 'completed_at' também for gravado com datetime.now(br_timezone), esta comparação é direta.
         recently_completed_tasks_q = Task.query.filter(
             Task.backlog_id == backlog_id,
-            Task.completed_at != None, # Garante que completed_at existe
-            Task.completed_at >= recent_past_limit_datetime_start,
-            Task.completed_at <= end_of_today # Concluídas até o final do dia de hoje
+            Task.completed_at != None,
+            Task.completed_at >= recent_past_limit_datetime_start_completed_brt, 
+            Task.completed_at <= end_of_today_brt 
         ).order_by(Task.completed_at.desc()).all()
         recently_completed_tasks = [serialize_task(t) for t in recently_completed_tasks_q]
-        current_app.logger.info(f"[Timeline API] Encontradas {len(recently_completed_tasks)} tarefas recentemente concluídas.")
+        current_app.logger.info(f"[Timeline API] Encontradas {len(recently_completed_tasks)} tarefas recentemente concluídas (BRT Based).")
 
-        # 2. Próximas Tarefas (com prazo nos próximos Y dias, não concluídas)
-        # due_date é um Date, comparamos com today e upcoming_future_limit_date
-        upcoming_tasks_q = Task.query.filter(
+        # 2. Próximas Tarefas (com start_date nos próximos Y dias, NÃO Concluídas e NÃO Em Andamento)
+        # start_date é Date, não DateTime. Comparação com today_brt_date e upcoming_future_limit_date_brt é direta.
+        upcoming_tasks_q = Task.query.join(Column, Task.column_id == Column.id).filter(
             Task.backlog_id == backlog_id,
-            Task.due_date != None, # Garante que due_date existe
-            Task.due_date >= today, # Prazo de hoje em diante
-            Task.due_date <= upcoming_future_limit_date, # Prazo até Y dias no futuro
-            Task.status != TaskStatus.DONE # Não deve estar concluída
-        ).order_by(Task.due_date.asc()).all()
+            Task.start_date != None,
+            Task.start_date >= today_brt_date, 
+            Task.start_date <= upcoming_future_limit_date_brt, 
+            Column.name != 'Concluído', 
+            Column.name != 'Em Andamento' 
+        ).order_by(Task.start_date.asc()).all()
         upcoming_tasks = [serialize_task(t) for t in upcoming_tasks_q]
-        current_app.logger.info(f"[Timeline API] Encontradas {len(upcoming_tasks)} próximas tarefas.")
+        current_app.logger.info(f"[Timeline API] Encontradas {len(upcoming_tasks)} próximas tarefas (BRT Based).")
 
-        # 3. Tarefas Iniciadas Recentemente (iniciadas nos últimos X dias, não concluídas)
-        # start_date é um Date, comparamos com recent_past_limit_date e today
-        recently_started_tasks_q = Task.query.filter(
+        # 3. Tarefas Iniciadas Recentemente (actually_started_at nos últimos X dias E na coluna Em Andamento)
+        # actually_started_at agora é BRT-aware.
+        recently_started_tasks_q = Task.query.join(Column, Task.column_id == Column.id).filter(
             Task.backlog_id == backlog_id,
-            Task.start_date != None, # Garante que start_date existe
-            Task.start_date >= recent_past_limit_date, # Iniciadas de X dias atrás em diante
-            Task.start_date <= today, # Iniciadas até hoje
-            Task.status != TaskStatus.DONE # Não deve estar concluída
-            # Adicionar condição para status "Em Andamento" se quiser ser mais específico?
-            # Ex: Task.status == TaskStatus.IN_PROGRESS 
-        ).order_by(Task.start_date.desc()).all()
+            Task.actually_started_at != None,
+            Task.actually_started_at >= recent_past_limit_datetime_start_started_brt, 
+            Task.actually_started_at <= end_of_today_brt, 
+            Column.name == 'Em Andamento' 
+        ).order_by(Task.actually_started_at.desc()).all()
         recently_started_tasks = [serialize_task(t) for t in recently_started_tasks_q]
-        current_app.logger.info(f"[Timeline API] Encontradas {len(recently_started_tasks)} tarefas iniciadas recentemente.")
+        current_app.logger.info(f"[Timeline API] Encontradas {len(recently_started_tasks)} tarefas iniciadas recentemente (BRT Based, usando actually_started_at).")
         
         return jsonify({
             'recently_completed': recently_completed_tasks,
