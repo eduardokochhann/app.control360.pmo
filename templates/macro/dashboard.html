@@ -798,6 +798,8 @@
                                             <th class="text-end">Conclusão</th>
                                             <th class="text-end">Horas Rest.</th>
                                             <th>Encerramento Previsto</th>
+                                            <th>Ações</th>
+                                            <th>Backlog</th> <!-- Nova Coluna -->
                                         </tr>
                                     </thead>
                                     <tbody id="tabelaProjetosAtivos">
@@ -1222,6 +1224,7 @@
                     const conclusaoRaw = p.conclusao;
                     const horasRestantesRaw = p.horasRestantes;
                     const esforcoRaw = p.Horas;
+                    const backlog_exists = p.backlog_exists; // Assumindo que este campo virá da API
                     
                     // Validação e conversão numérica mais robusta
                     const conclusao = !isNaN(parseFloat(conclusaoRaw)) ? parseFloat(conclusaoRaw) : 0;
@@ -1319,11 +1322,19 @@
                                     <i class="bi bi-file-earmark-text"></i>
                                 </a>
                             </td>
+                            <td>
+                                ${backlog_exists && numero ? 
+                                    `<a href="/backlog/board/${numero}" target="_blank" class="btn btn-sm btn-info" title="Abrir Quadro de Backlog">
+                                        <i class="bi bi-kanban"></i>
+                                    </a>` : 
+                                    '<span class="text-muted small"><i class="bi bi-ban"></i></span>'
+                                }
+                            </td>
                         </tr>
                     `;
                 } catch (error) {
                     console.error('Erro ao formatar linha no Macro:', error, p);
-                    return '<tr><td colspan="7" class="text-center text-danger">Erro ao processar dados</td></tr>';
+                    return '<tr><td colspan="8" class="text-center text-danger">Erro ao processar dados</td></tr>'; // Colspan atualizado para 8
                 }
             }
 
@@ -1333,7 +1344,7 @@
                 try {
                     if (!p) {
                         console.error('Projeto indefinido ou nulo no Account Modal');
-                        return '<tr><td colspan="8" class="text-center">Dados inválidos</td></tr>'; // Colspan 8
+                        return '<tr><td colspan="9" class="text-center">Dados inválidos</td></tr>'; // Colspan atualizado para 9
                     }
 
                     const numero = p.numero || '';
@@ -1344,6 +1355,7 @@
                     const conclusaoRaw = p.conclusao;
                     const horasRestantesRaw = p.horasRestantes;
                     const esforcoRaw = p.Horas;
+                    const backlog_exists = p.backlog_exists; // Assumindo que este campo virá da API
                     
                     const conclusao = !isNaN(parseFloat(conclusaoRaw)) ? parseFloat(conclusaoRaw) : 0;
                     const horasRestantes = !isNaN(parseFloat(horasRestantesRaw)) ? parseFloat(horasRestantesRaw) : 0;
@@ -1400,11 +1412,12 @@
                                     <i class="bi bi-file-earmark-text"></i>
                                 </a>
                             </td>
+                            <td></td> <!-- Célula vazia para a coluna Backlog -->
                         </tr>
                     `;
                 } catch (error) {
                     console.error('Erro ao formatar linha no Account Modal:', error, p);
-                    return '<tr><td colspan="8" class="text-center text-danger">Erro ao processar dados</td></tr>'; // Colspan 8
+                    return '<tr><td colspan="9" class="text-center text-danger">Erro ao processar dados</td></tr>'; // Colspan atualizado para 9
                 }
             }
 

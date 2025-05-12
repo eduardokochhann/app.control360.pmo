@@ -17,6 +17,8 @@ from app.utils import (
     COLUNAS_TEXTO
 )
 import unicodedata
+from ..models import Backlog # Adicionar import
+from .. import db # Adicionar import
 
 # Configuração de logging
 logging.basicConfig(level=logging.INFO)
@@ -527,7 +529,7 @@ class MacroService(BaseService):
         Calcula especificamente os projetos ativos e suas métricas.
         Retorna um dicionário com:
         - total: número total de projetos ativos
-        - dados: DataFrame com os projetos ativos
+        - dados: DataFrame com os projetos ativos (incluindo backlog_exists)
         - metricas: métricas específicas dos projetos ativos
         """
         try:
@@ -537,57 +539,115 @@ class MacroService(BaseService):
             dados_base = self.preparar_dados_base(dados)
             
             # Filtra apenas projetos ativos (não concluídos) e exclui CDB DATA SOLUTIONS
-            projetos_ativos = dados_base[
+            projetos_ativos_df = dados_base[
                 (~dados_base['Status'].isin(self.status_concluidos)) &
                 (dados_base['Squad'] != 'CDB DATA SOLUTIONS')
             ].copy()
             
-            # Calcula métricas específicas
+            # Calcula métricas específicas (antes de adicionar backlog_exists)
             metricas = {
-                'total': len(projetos_ativos),
-                'por_squad': projetos_ativos.groupby('Squad').size().to_dict(),
-                'media_conclusao': round(projetos_ativos['Conclusao'].mean(), 1),
-                'media_horas_restantes': round(projetos_ativos['HorasRestantes'].mean(), 1)
+                'total': len(projetos_ativos_df),
+                'por_squad': projetos_ativos_df.groupby('Squad').size().to_dict(),
+                'media_conclusao': round(projetos_ativos_df['Conclusao'].mean(), 1),
+                'media_horas_restantes': round(projetos_ativos_df['HorasRestantes'].mean(), 1)
             }
             
-            # Prepara dados para o modal
+            # Prepara dados para o modal (colunas base)
             colunas_modal = ['Numero', 'Projeto', 'Status', 'Squad', 'Conclusao', 'HorasRestantes', 'VencimentoEm', 'Horas']
             
             # Certifica-se de que a coluna Numero existe
-            if 'Numero' not in projetos_ativos.columns and 'Número' in projetos_ativos.columns:
-                projetos_ativos['Numero'] = projetos_ativos['Número']
-            elif 'Numero' not in projetos_ativos.columns:
-                logger.warning("Coluna 'Numero' não encontrada. Criando coluna vazia.")
-                projetos_ativos['Numero'] = ''
+            if 'Numero' not in projetos_ativos_df.columns and 'Número' in projetos_ativos_df.columns:
+                projetos_ativos_df['Numero'] = projetos_ativos_df['Número']
+            elif 'Numero' not in projetos_ativos_df.columns:
+                logger.warning("Coluna 'Numero' não encontrada nos projetos ativos. Criando coluna vazia.")
+                projetos_ativos_df['Numero'] = ''
+            else:
+                 # Garante que 'Numero' seja string para a consulta do backlog
+                 projetos_ativos_df['Numero'] = projetos_ativos_df['Numero'].astype(str)
+
+            # <<< INÍCIO: Adicionar verificação de backlog >>>
+            if not projetos_ativos_df.empty and 'Numero' in projetos_ativos_df.columns:
+                # Pega todos os IDs de projeto (números) únicos e não vazios
+                project_ids = projetos_ativos_df['Numero'].dropna().unique().tolist()
+                project_ids = [pid for pid in project_ids if pid] # Remove vazios
+
+                if project_ids:
+                     # Consulta o banco para ver quais IDs têm backlog
+                    try:
+                        backlogs_existentes = db.session.query(Backlog.project_id)\
+                                                        .filter(Backlog.project_id.in_(project_ids))\
+                                                        .all()
+                        # Cria um set com os IDs que têm backlog para busca rápida
+                        ids_com_backlog = {result[0] for result in backlogs_existentes}
+                        logger.info(f"Encontrados {len(ids_com_backlog)} backlogs para {len(project_ids)} projetos ativos verificados.")
+                        
+                        # Adiciona a coluna 'backlog_exists' ao DataFrame
+                        projetos_ativos_df['backlog_exists'] = projetos_ativos_df['Numero'].apply(lambda pid: pid in ids_com_backlog if pd.notna(pid) else False)
+
+                    except Exception as db_error:
+                        logger.error(f"Erro ao consultar backlogs existentes: {db_error}", exc_info=True)
+                        # Se der erro no DB, assume que nenhum backlog existe para não quebrar
+                        projetos_ativos_df['backlog_exists'] = False
+                else:
+                    logger.info("Nenhum ID de projeto válido encontrado para verificar backlog.")
+                    projetos_ativos_df['backlog_exists'] = False
+            else:
+                 logger.info("DataFrame de projetos ativos vazio ou sem coluna 'Numero'. Pulando verificação de backlog.")
+                 # Garante que a coluna exista mesmo vazia
+                 if 'Numero' in projetos_ativos_df.columns:
+                      projetos_ativos_df['backlog_exists'] = False
+
+            # <<< FIM: Adicionar verificação de backlog >>>
+
+            # Seleciona apenas as colunas que existem no DataFrame final
+            colunas_finais = colunas_modal + ['backlog_exists'] # Adiciona a nova coluna
+            colunas_existentes = [col for col in colunas_finais if col in projetos_ativos_df.columns]
             
-            # Seleciona apenas as colunas que existem
-            colunas_existentes = [col for col in colunas_modal if col in projetos_ativos.columns]
-            dados_modal = projetos_ativos[colunas_existentes].copy()
-            
+            dados_para_retorno = projetos_ativos_df[colunas_existentes].copy() # Usar .copy() para evitar SettingWithCopyWarning
+
+            # <<< INÍCIO: Restaurar Renomeação e Formatação >>>
             # Renomeia colunas para o formato esperado pelo frontend
-            dados_modal = dados_modal.rename(columns={
+            rename_map_final = {
                 'Numero': 'numero',
                 'Projeto': 'projeto',
                 'Status': 'status',
                 'Squad': 'squad',
                 'Conclusao': 'conclusao',
                 'HorasRestantes': 'horasRestantes',
-                'VencimentoEm': 'dataPrevEnc'
-            })
+                'VencimentoEm': 'dataPrevEnc',
+                'Horas': 'Horas', # Manter Horas para cálculo no JS se necessário
+                'backlog_exists': 'backlog_exists' # Manter a coluna de backlog
+            }
+            # Filtra o mapa de renomeação para incluir apenas colunas que existem em dados_para_retorno
+            colunas_para_renomear_final = {k: v for k, v in rename_map_final.items() if k in dados_para_retorno.columns}
+            dados_para_retorno = dados_para_retorno.rename(columns=colunas_para_renomear_final)
             
-            # Formata a data de vencimento
-            dados_modal['dataPrevEnc'] = dados_modal['dataPrevEnc'].dt.strftime('%d/%m/%Y')
-            dados_modal['dataPrevEnc'].fillna('N/A', inplace=True)
+            # Formata a data de vencimento (se a coluna existir após renomeação)
+            if 'dataPrevEnc' in dados_para_retorno.columns:
+                 # Primeiro converte para datetime (caso ainda não seja)
+                 dados_para_retorno['dataPrevEnc'] = pd.to_datetime(dados_para_retorno['dataPrevEnc'], errors='coerce')
+                 # Depois formata e preenche NaT
+                 dados_para_retorno['dataPrevEnc'] = dados_para_retorno['dataPrevEnc'].dt.strftime('%d/%m/%Y')
+                 dados_para_retorno['dataPrevEnc'].fillna('N/A', inplace=True)
+            # <<< FIM: Restaurar Renomeação e Formatação >>>
+
+            logger.info(f"Calculados {metricas['total']} projetos ativos. Colunas retornadas após renomeação: {dados_para_retorno.columns.tolist()}")
             
             return {
-                'total': metricas['total'],
-                'dados': dados_modal.replace({np.nan: None}),
-                'metricas': metricas
+                "total": metricas['total'],
+                # Retorna o DataFrame formatado e substitui NaN por None na conversão para dict
+                "dados": dados_para_retorno.replace({np.nan: None}), 
+                "metricas": metricas
             }
-            
+
+        except KeyError as ke:
+             logger.error(f"Erro de chave ao calcular projetos ativos: {ke}. Colunas disponíveis: {dados.columns.tolist()}", exc_info=True)
+             # Retorna estrutura vazia em caso de erro grave de coluna
+             return {"total": 0, "dados": pd.DataFrame(), "metricas": {}}
         except Exception as e:
-            logger.error(f"Erro ao calcular projetos ativos: {str(e)}", exc_info=True)
-            return {'total': 0, 'dados': pd.DataFrame(), 'metricas': {}}
+            logger.exception(f"Erro inesperado ao calcular projetos ativos: {e}")
+            # Retorna estrutura vazia em caso de erro inesperado
+            return {"total": 0, "dados": pd.DataFrame(), "metricas": {}}
 
     def calcular_projetos_criticos(self, dados):
         """
