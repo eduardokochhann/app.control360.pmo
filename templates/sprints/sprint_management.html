@@ -410,13 +410,26 @@
     <div class="card-body">
       {# Área do Quadro de Sprints #}
       <div class="sprint-board-container" id="sprintBoardContainer"> {# Novo container geral #}
-          {# Coluna Fixa de Backlog #}
+          {# Coluna do Backlog #}
           <div id="backlogColumn" class="backlog-column">
               <div class="backlog-column-header">
-                  <h6><i class="bi bi-list-task me-2"></i>Backlog Geral</h6>
+                  <h6 class="mb-0">Backlog</h6>
               </div>
               <div class="backlog-column-body">
-                  <div class="text-center text-muted p-3">Carregando backlog...</div>
+                  {# Conteúdo do backlog será carregado via JavaScript #}
+              </div>
+          </div>
+
+          {# Nova Coluna de Tarefas Genéricas #}
+          <div id="genericTasksColumn" class="backlog-column">
+              <div class="backlog-column-header">
+                  <h6 class="mb-0">Tarefas Genéricas</h6>
+                  <button class="btn btn-sm btn-outline-primary" id="addGenericTaskBtn">
+                      <i class="bi bi-plus"></i>
+                  </button>
+              </div>
+              <div class="backlog-column-body">
+                  {# Conteúdo das tarefas genéricas será carregado via JavaScript #}
               </div>
           </div>
 
@@ -487,6 +500,59 @@
       </form>
     </div>
   </div>
+</div>
+
+{# Modal para Adicionar/Editar Tarefa Genérica #}
+<div class="modal fade" id="genericTaskModal" tabindex="-1" aria-labelledby="genericTaskModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="genericTaskForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="genericTaskModalLabel">Nova Tarefa Genérica</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="genericTaskId" name="taskId">
+                    
+                    <div class="mb-3">
+                        <label for="genericTaskTitle" class="form-label">Título <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="genericTaskTitle" name="title" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="genericTaskDescription" class="form-label">Descrição</label>
+                        <textarea class="form-control" id="genericTaskDescription" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="genericTaskPriority" class="form-label">Prioridade</label>
+                            <select class="form-select" id="genericTaskPriority" name="priority">
+                                <option value="Baixa">Baixa</option>
+                                <option value="Média" selected>Média</option>
+                                <option value="Alta">Alta</option>
+                                <option value="Urgente">Urgente</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="genericTaskEffort" class="form-label">Esforço (horas)</label>
+                            <input type="number" class="form-control" id="genericTaskEffort" name="estimated_effort" step="0.5" min="0">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="genericTaskSpecialist" class="form-label">Especialista</label>
+                        <input type="text" class="form-control" id="genericTaskSpecialist" name="specialist_name">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger me-auto" id="genericTaskDeleteBtn" style="display: none;">Excluir</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 {% endblock %}
@@ -786,8 +852,8 @@
 
         console.log("[Sprint Mgmt] Inicializando SortableJS...");
 
-        // Seleciona TODAS as listas de tarefas (backlog e sprints)
-        const taskLists = document.querySelectorAll('.backlog-task-list, .sprint-tasks');
+        // Seleciona TODAS as listas de tarefas (backlog, sprints e tarefas genéricas)
+        const taskLists = document.querySelectorAll('.backlog-task-list, .sprint-tasks, .backlog-column-body');
         
         taskLists.forEach(list => {
             const instance = new Sortable(list, {
@@ -804,83 +870,41 @@
                     const toList = evt.to;     // Lista de destino
                     const newIndex = evt.newIndex; // Nova posição na lista de destino
 
-                    // <<< INÍCIO: Atualizar Horas Estimadas na UI >>>
+                    // Atualiza horas estimadas na UI
                     const taskHours = parseFloat(item.dataset.estimatedHours) || 0;
-                    const taskSpecialist = item.dataset.specialistName || 'Não Atribuído'; // <<< Pega o especialista do atributo data >>>
+                    const taskSpecialist = item.dataset.specialistName || 'Não Atribuído';
 
                     // Função auxiliar para atualizar o display de horas de uma sprint
                     function updateSprintHoursDisplay(sprintListElement, hoursDelta) {
                         const sprintCard = sprintListElement.closest('.sprint-card');
-                        if (!sprintCard) return; // Sai se não achar o card da sprint
+                        if (!sprintCard) return;
                         const hoursSpan = sprintCard.querySelector('.sprint-total-hours');
-                        if (!hoursSpan) return; // Sai se não achar o span das horas
+                        if (!hoursSpan) return;
 
                         try {
-                            // Extrai o número atual do texto (ex: "12.5h")
                             const currentHoursText = hoursSpan.textContent.match(/([\d\.]+)/);
                             let currentHours = currentHoursText ? parseFloat(currentHoursText[1]) : 0;
                             if (isNaN(currentHours)) currentHours = 0;
                             
                             const newTotalHours = currentHours + hoursDelta;
                             
-                            // Atualiza o texto do span
                             hoursSpan.innerHTML = `<i class="bi bi-stopwatch me-1"></i>${newTotalHours.toFixed(1)}h`;
                         } catch (e) {
                             console.error("Erro ao atualizar display de horas da sprint:", e);
                         }
                     }
 
-                    // <<< INÍCIO: Função auxiliar para RECALCULAR e ATUALIZAR Popover de Horas por Especialista >>>
-                    function updateSpecialistPopover(sprintListElement) {
-                        const sprintCard = sprintListElement.closest('.sprint-card');
-                        if (!sprintCard) return;
-                        const popoverButton = sprintCard.querySelector('.specialist-hours-popover');
-                        if (!popoverButton) return;
-
-                        // Recalcula as horas por especialista a partir dos cards de tarefa PRESENTES na lista
-                        const tasksInSprint = sprintListElement.querySelectorAll('.backlog-task-card');
-                        let hoursBySpecialist = {};
-                        tasksInSprint.forEach(taskCard => {
-                            const specialist = taskCard.dataset.specialistName || 'Não Atribuído';
-                            const hours = parseFloat(taskCard.dataset.estimatedHours);
-                            if (!isNaN(hours)) {
-                                hoursBySpecialist[specialist] = (hoursBySpecialist[specialist] || 0) + hours;
-                            }
-                        });
-
-                        // Formata o novo conteúdo
-                        let newPopoverContent = Object.entries(hoursBySpecialist)
-                            .map(([name, hours]) => `<div>${escapeHtml(name)}: <strong>${hours.toFixed(1)}h</strong></div>`)
-                            .join('');
-                        if (!newPopoverContent) {
-                            newPopoverContent = '<div class="text-muted small">Nenhuma tarefa com horas ou especialista.</div>';
-                        }
-
-                        // Atualiza o atributo data-bs-content do botão
-                        popoverButton.setAttribute('data-bs-content', newPopoverContent);
-
-                        // Atualiza a instância do Popover (se já existir)
-                        const popoverInstance = bootstrap.Popover.getInstance(popoverButton);
-                        if (popoverInstance) {
-                            popoverInstance.setContent({ '.popover-body': newPopoverContent });
-                            // Necessário se o popover estiver visível durante a atualização
-                            // popoverInstance.update(); 
-                        }
-                    }
-                    // <<< FIM: Função auxiliar para RECALCULAR e ATUALIZAR Popover >>>
-
                     // Atualiza horas da sprint de ORIGEM (se for uma sprint)
                     if (fromList.classList.contains('sprint-tasks')) {
-                        updateSprintHoursDisplay(fromList, -taskHours); // Subtrai
-                        updateSpecialistPopover(fromList); // <<< Recalcula popover da origem >>>
+                        updateSprintHoursDisplay(fromList, -taskHours);
+                        updateSpecialistPopover(fromList);
                     }
 
                     // Atualiza horas da sprint de DESTINO (se for uma sprint)
                     if (toList.classList.contains('sprint-tasks')) {
-                        updateSprintHoursDisplay(toList, taskHours); // Adiciona
-                        updateSpecialistPopover(toList); // <<< Recalcula popover do destino >>>
+                        updateSprintHoursDisplay(toList, taskHours);
+                        updateSpecialistPopover(toList);
                     }
-                    // <<< FIM: Atualizar Horas Estimadas na UI >>>
 
                     // Identifica o destino (para a API)
                     let targetSprintId = null;
@@ -888,34 +912,18 @@
                         targetSprintId = toList.dataset.sprintId;
                     }
 
-                    console.log(`[SortableJS onEnd] Tarefa ID: ${taskId} movida.`);
-                    console.log(`  - Da lista:`, fromList);
-                    console.log(`  - Para lista:`, toList);
-                    console.log(`  - Novo índice: ${newIndex}`);
-                    console.log(`  - Target Sprint ID: ${targetSprintId === undefined ? '(Backlog)' : targetSprintId}`); // Cuidado: pode ser string ou undefined
-
-                    // *** CHAMA A FUNÇÃO PARA ATUALIZAR NO BACKEND ***
-                    updateTaskSprintAssignment(taskId, targetSprintId, newIndex);
-
-                    // Atualizar UI se a API falhar? Ou reverter?
+                    // Se a tarefa foi movida para uma sprint, atualiza o sprint_id
+                    if (targetSprintId) {
+                        updateTaskSprintAssignment(taskId, targetSprintId, newIndex);
+                    } else {
+                        // Se a tarefa foi movida de volta para a coluna de tarefas genéricas
+                        // ou para o backlog, remove a associação com a sprint
+                        updateTaskSprintAssignment(taskId, null, newIndex);
+                    }
                 }
             });
             sortableInstances.push(instance);
         });
-        // Adiciona classes CSS para o efeito visual do drag-and-drop
-        const style = document.createElement('style');
-        style.textContent = `
-            .sortable-ghost-task {
-                opacity: 0.4;
-                background-color: #cce5ff; /* Azul claro */
-            }
-            .sortable-chosen-task {
-                cursor: grabbing;
-                background-color: #e2e6ea;
-            }
-        `;
-        document.head.appendChild(style);
-        console.log(`[Sprint Mgmt] ${sortableInstances.length} instâncias SortableJS criadas.`);
     }
 
     // <<< INÍCIO: Função para inicializar todos os popovers >>>
@@ -1259,6 +1267,211 @@
         console.error('[Sprint Mgmt] Botão #toggleBacklogBtn ou Coluna #backlogColumn não encontrados.');
     }
     // <<< FIM: Lógica para Recolher/Expandir Backlog >>>
+
+    // Função para carregar tarefas genéricas
+    async function loadGenericTasks() {
+        const genericTasksBody = document.querySelector('#genericTasksColumn .backlog-column-body');
+        genericTasksBody.innerHTML = '<div class="text-center text-muted p-3"><div class="spinner-border spinner-border-sm" role="status"></div> Carregando tarefas genéricas...</div>';
+        
+        try {
+            const response = await fetch('/sprints/api/generic-tasks');
+            if (!response.ok) {
+                throw new Error(`Erro ${response.status}: Falha ao buscar tarefas genéricas`);
+            }
+            const tasks = await response.json();
+            
+            genericTasksBody.innerHTML = '';
+            if (tasks.length === 0) {
+                genericTasksBody.innerHTML = '<div class="text-center text-muted p-3">Nenhuma tarefa genérica encontrada.</div>';
+                return;
+            }
+            
+            tasks.forEach(task => {
+                const taskCard = document.createElement('div');
+                taskCard.className = `backlog-task-card ${task.status === 'Concluído' ? 'task-completed' : ''}`;
+                taskCard.dataset.taskId = task.id;
+                taskCard.draggable = true;
+                
+                taskCard.innerHTML = `
+                    <div class="fw-bold small mb-1">${escapeHtml(task.title)}</div>
+                    <div class="task-meta">
+                        <div class="task-meta-left">
+                            <span class="badge rounded-pill task-priority-badge">${escapeHtml(task.priority)}</span>
+                        </div>
+                        <div class="task-meta-right text-muted task-hours">
+                            <span title="Estimado"><i class="bi bi-clock-history"></i>${task.estimated_hours != null ? task.estimated_hours.toFixed(1) : '-'}h</span>
+                        </div>
+                    </div>
+                `;
+                
+                // Adiciona evento de clique para edição
+                taskCard.addEventListener('click', () => openGenericTaskModal(task));
+                
+                genericTasksBody.appendChild(taskCard);
+                
+                // Aplica classe de cor ao badge de prioridade
+                const badgeElement = taskCard.querySelector('.task-priority-badge');
+                if (badgeElement) {
+                    const priorityLower = (task.priority || '').toLowerCase();
+                    let badgeClass = 'text-bg-primary'; // Default: Média
+                    if (priorityLower === 'urgente') badgeClass = 'text-bg-danger';
+                    else if (priorityLower === 'alta') badgeClass = 'text-bg-warning';
+                    else if (priorityLower === 'baixa') badgeClass = 'text-bg-secondary';
+                    badgeElement.classList.add(...badgeClass.split(' '));
+                }
+            });
+        } catch (error) {
+            console.error("Erro ao carregar tarefas genéricas:", error);
+            genericTasksBody.innerHTML = `<div class="alert alert-danger">Erro ao carregar tarefas genéricas: ${error.message}</div>`;
+        }
+    }
+
+    // Modal de Tarefa Genérica
+    const genericTaskModal = new bootstrap.Modal(document.getElementById('genericTaskModal'));
+    const genericTaskForm = document.getElementById('genericTaskForm');
+    const genericTaskDeleteBtn = document.getElementById('genericTaskDeleteBtn');
+    let editingGenericTaskId = null;
+
+    // Função para abrir o modal de tarefa genérica
+    function openGenericTaskModal(task = null) {
+        const modalTitle = document.getElementById('genericTaskModalLabel');
+        const deleteBtn = document.getElementById('genericTaskDeleteBtn');
+        
+        genericTaskForm.reset();
+        
+        if (task) {
+            modalTitle.textContent = 'Editar Tarefa Genérica';
+            document.getElementById('genericTaskId').value = task.id;
+            document.getElementById('genericTaskTitle').value = task.title;
+            document.getElementById('genericTaskDescription').value = task.description || '';
+            document.getElementById('genericTaskPriority').value = task.priority || 'Média';
+            document.getElementById('genericTaskEffort').value = task.estimated_hours || '';
+            document.getElementById('genericTaskSpecialist').value = task.specialist_name || '';
+            deleteBtn.style.display = 'block';
+            editingGenericTaskId = task.id;
+        } else {
+            modalTitle.textContent = 'Nova Tarefa Genérica';
+            deleteBtn.style.display = 'none';
+            editingGenericTaskId = null;
+        }
+        
+        genericTaskModal.show();
+    }
+
+    // Handler para submissão do formulário de tarefa genérica
+    genericTaskForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        
+        const formData = new FormData(genericTaskForm);
+        const data = {
+            title: formData.get('title'),
+            description: formData.get('description'),
+            priority: formData.get('priority'),
+            estimated_hours: formData.get('estimated_effort') ? parseFloat(formData.get('estimated_effort')) : null,
+            specialist_name: formData.get('specialist_name') || null
+        };
+        
+        try {
+            const url = editingGenericTaskId 
+                ? `/sprints/api/generic-tasks/${editingGenericTaskId}`
+                : '/sprints/api/generic-tasks';
+            
+            const response = await fetch(url, {
+                method: editingGenericTaskId ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Erro ${response.status}`);
+            }
+            
+            genericTaskModal.hide();
+            loadGenericTasks();
+            
+        } catch (error) {
+            console.error("Erro ao salvar tarefa genérica:", error);
+            alert(`Erro ao salvar tarefa genérica: ${error.message}`);
+        }
+    });
+
+    // Handler para exclusão de tarefa genérica
+    genericTaskDeleteBtn.addEventListener('click', async function() {
+        if (!editingGenericTaskId || !confirm('Tem certeza que deseja excluir esta tarefa genérica?')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/sprints/api/generic-tasks/${editingGenericTaskId}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Erro ${response.status}`);
+            }
+            
+            genericTaskModal.hide();
+            loadGenericTasks(); // Recarrega as tarefas genéricas
+            loadSprints(); // Recarrega as sprints para atualizar caso a tarefa estivesse em alguma sprint
+            
+        } catch (error) {
+            console.error("Erro ao excluir tarefa genérica:", error);
+            alert(`Erro ao excluir tarefa genérica: ${error.message}`);
+        }
+    });
+
+    // Carrega as tarefas genéricas junto com o resto dos dados
+    loadGenericTasks();
+
+    // Adiciona listener para o botão de adicionar tarefa genérica
+    const addGenericTaskBtn = document.getElementById('addGenericTaskBtn');
+    if (addGenericTaskBtn) {
+        addGenericTaskBtn.addEventListener('click', () => openGenericTaskModal());
+    }
+
+    // Função para atualizar o popover de horas por especialista de uma sprint
+    function updateSpecialistPopover(sprintListElement) {
+        const sprintCard = sprintListElement.closest('.sprint-card');
+        if (!sprintCard) return;
+
+        // Encontra todas as tarefas na sprint
+        const tasks = sprintListElement.querySelectorAll('.backlog-task-card');
+        let hoursBySpecialist = {};
+
+        // Calcula horas por especialista
+        tasks.forEach(task => {
+            const specialist = task.dataset.specialistName || 'Não Atribuído';
+            const hours = parseFloat(task.dataset.estimatedHours) || 0;
+            hoursBySpecialist[specialist] = (hoursBySpecialist[specialist] || 0) + hours;
+        });
+
+        // Formata o conteúdo do popover
+        let popoverContent = Object.entries(hoursBySpecialist)
+            .map(([name, hours]) => `<div>${escapeHtml(name)}: <strong>${hours.toFixed(1)}h</strong></div>`)
+            .join('');
+
+        if (!popoverContent) {
+            popoverContent = '<div class="text-muted small">Nenhuma tarefa com horas ou especialista.</div>';
+        }
+
+        // Atualiza o popover
+        const popoverButton = sprintCard.querySelector('.specialist-hours-popover');
+        if (popoverButton) {
+            // Destrói o popover existente
+            const popoverInstance = bootstrap.Popover.getInstance(popoverButton);
+            if (popoverInstance) {
+                popoverInstance.dispose();
+            }
+
+            // Cria um novo popover com o conteúdo atualizado
+            new bootstrap.Popover(popoverButton, {
+                content: popoverContent,
+                html: true,
+                placement: 'bottom',
+                trigger: 'hover focus'
+            });
+        }
+    }
 
   }); // Fim DOMContentLoaded
 </script>

@@ -3,8 +3,8 @@ from datetime import datetime
 
 from . import sprints_bp
 from .. import db
-from ..models import Sprint, Task # Importar Sprint e Task
-from ..backlog.routes import serialize_task # Importar função de serialização
+from ..models import Sprint, Task, Column
+from ..backlog.routes import serialize_task
 
 # --- Rotas de Frontend --- 
 
@@ -157,3 +157,87 @@ def delete_sprint(sprint_id):
 # GET /api/sprints/<int:sprint_id>/tasks
 # DELETE /api/sprints/<int:sprint_id>/tasks/<int:task_id>
 # TODO: Implementar estas rotas na próxima fase. 
+
+# --- Rotas API ---
+
+# GET /sprints/api/generic-tasks - Lista todas as tarefas genéricas
+@sprints_bp.route('/api/generic-tasks', methods=['GET'])
+def list_generic_tasks():
+    # Busca apenas tarefas genéricas que não estão em nenhuma sprint
+    tasks = Task.query.filter_by(
+        is_generic=True,
+        sprint_id=None
+    ).order_by(Task.position).all()
+    return jsonify([serialize_task(task) for task in tasks])
+
+# POST /sprints/api/generic-tasks - Cria uma nova tarefa genérica
+@sprints_bp.route('/api/generic-tasks', methods=['POST'])
+def create_generic_task():
+    data = request.get_json()
+    
+    # Validação básica
+    if not data or 'title' not in data:
+        abort(400, description="Título da tarefa é obrigatório")
+        
+    # Encontra a primeira coluna (TODO) para posicionar a tarefa
+    first_column = Column.query.order_by(Column.position).first()
+    if not first_column:
+        abort(500, description="Nenhuma coluna encontrada no sistema")
+    
+    # Cria a tarefa genérica
+    task = Task(
+        title=data['title'],
+        description=data.get('description', ''),
+        priority=data.get('priority', 'Média'),
+        estimated_effort=data.get('estimated_hours'),  # Usa estimated_hours do frontend
+        specialist_name=data.get('specialist_name'),
+        is_generic=True,
+        column_id=first_column.id,
+        backlog_id=1  # Assumindo que existe um backlog padrão com ID 1 para tarefas genéricas
+    )
+    
+    db.session.add(task)
+    db.session.commit()
+    
+    return jsonify(serialize_task(task)), 201
+
+# PUT /sprints/api/generic-tasks/<task_id> - Atualiza uma tarefa genérica
+@sprints_bp.route('/api/generic-tasks/<int:task_id>', methods=['PUT'])
+def update_generic_task(task_id):
+    task = Task.query.get_or_404(task_id)
+    
+    # Verifica se é uma tarefa genérica
+    if not task.is_generic:
+        abort(400, description="Esta não é uma tarefa genérica")
+    
+    data = request.get_json()
+    
+    # Atualiza os campos permitidos
+    if 'title' in data:
+        task.title = data['title']
+    if 'description' in data:
+        task.description = data['description']
+    if 'priority' in data:
+        task.priority = data['priority']
+    if 'estimated_hours' in data:  # Usa estimated_hours do frontend
+        task.estimated_effort = data['estimated_hours']
+    if 'specialist_name' in data:
+        task.specialist_name = data['specialist_name']
+    if 'status' in data:
+        task.status = data['status']
+    
+    db.session.commit()
+    return jsonify(serialize_task(task))
+
+# DELETE /sprints/api/generic-tasks/<task_id> - Remove uma tarefa genérica
+@sprints_bp.route('/api/generic-tasks/<int:task_id>', methods=['DELETE'])
+def delete_generic_task(task_id):
+    task = Task.query.get_or_404(task_id)
+    
+    # Verifica se é uma tarefa genérica
+    if not task.is_generic:
+        abort(400, description="Esta não é uma tarefa genérica")
+    
+    db.session.delete(task)
+    db.session.commit()
+    return '', 204 

@@ -840,22 +840,17 @@ def assign_task_to_sprint(task_id):
     task = Task.query.get_or_404(task_id)
     data = request.get_json()
 
-    if data is None: # Verifica se o corpo da requisição é null ou vazio
+    if data is None:
         abort(400, description="Corpo da requisição ausente ou inválido.")
 
-    # Espera um campo 'sprint_id' no corpo.
-    # Pode ser um número (ID da sprint) ou null/None para desassociar.
     new_sprint_id = data.get('sprint_id')
-
-    # Espera um campo 'position' no corpo.
     new_position = data.get('position')
+    
     if new_position is None or not isinstance(new_position, int) or new_position < 0:
         abort(400, description="Campo 'position' ausente ou inválido. Deve ser um inteiro não negativo.")
 
-    # Validação: Se for um ID, verifica se a Sprint existe
     if new_sprint_id is not None:
         try:
-            # Converte para int se não for None
             new_sprint_id = int(new_sprint_id)
             target_sprint = Sprint.query.get(new_sprint_id)
             if not target_sprint:
@@ -863,88 +858,107 @@ def assign_task_to_sprint(task_id):
         except (ValueError, TypeError):
              abort(400, description="Valor inválido para 'sprint_id'. Deve ser um número ou null.")
 
-    # Guarda os valores antigos para lógica de reordenação
     old_sprint_id = task.sprint_id
     old_position = task.position
 
     current_app.logger.info(f"[AssignTask] Iniciando. TaskID: {task_id}, OldSprint: {old_sprint_id}, OldPos: {old_position}, NewSprint: {new_sprint_id}, NewPos: {new_position}")
 
-    # --- Lógica de Reordenação --- 
     try:
         # 1. Ajusta posições na lista de ORIGEM (se diferente da destino)
         if old_sprint_id != new_sprint_id:
-            if old_sprint_id is None: # Origem era o Backlog
-                # Decrementa backlog tasks que estavam depois
-                current_app.logger.debug(f"[AssignTask] Decrementando posições no Backlog ID {task.backlog_id} após pos {old_position}")
+            if old_sprint_id is None:
+                if task.is_generic:
+                    # Para tarefas genéricas, ajusta posições apenas entre tarefas genéricas
+                    Task.query.filter(
+                        Task.is_generic == True,
+                        Task.sprint_id == None,
+                        Task.position > old_position
+                    ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
+                else:
+                    # Para tarefas do backlog, mantém o comportamento original
+                    Task.query.filter(
+                        Task.backlog_id == task.backlog_id,
+                        Task.sprint_id == None,
+                        Task.position > old_position
+                    ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
+            else:
                 Task.query.filter(
-                    Task.backlog_id == task.backlog_id, 
-                    Task.sprint_id == None, 
-                    Task.position > old_position
-                ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
-            else: # Origem era outra Sprint
-                 # Decrementa sprint tasks que estavam depois
-                current_app.logger.debug(f"[AssignTask] Decrementando posições na Sprint ID {old_sprint_id} após pos {old_position}")
-                Task.query.filter(
-                    Task.sprint_id == old_sprint_id, 
+                    Task.sprint_id == old_sprint_id,
                     Task.position > old_position
                 ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
         
         # 2. Ajusta posições na lista de DESTINO
-        if old_sprint_id != new_sprint_id: # Se moveu entre listas diferentes
-             if new_sprint_id is None: # Destino é o Backlog
-                # Incrementa backlog tasks a partir da nova posição
-                current_app.logger.debug(f"[AssignTask] Incrementando posições no Backlog ID {task.backlog_id} a partir da pos {new_position}")
+        if old_sprint_id != new_sprint_id:
+            if new_sprint_id is None:
+                if task.is_generic:
+                    # Para tarefas genéricas, ajusta posições apenas entre tarefas genéricas
+                    Task.query.filter(
+                        Task.is_generic == True,
+                        Task.sprint_id == None,
+                        Task.position >= new_position
+                    ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
+                else:
+                    # Para tarefas do backlog, mantém o comportamento original
+                    Task.query.filter(
+                        Task.backlog_id == task.backlog_id,
+                        Task.sprint_id == None,
+                        Task.position >= new_position
+                    ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
+            else:
                 Task.query.filter(
-                    Task.backlog_id == task.backlog_id, 
-                    Task.sprint_id == None, 
+                    Task.sprint_id == new_sprint_id,
                     Task.position >= new_position
                 ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
-             else: # Destino é uma Sprint
-                # Incrementa sprint tasks a partir da nova posição
-                current_app.logger.debug(f"[AssignTask] Incrementando posições na Sprint ID {new_sprint_id} a partir da pos {new_position}")
-                Task.query.filter(
-                    Task.sprint_id == new_sprint_id, 
-                    Task.position >= new_position
-                ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
-        else: # Movimento dentro da mesma lista (mesma sprint ou mesmo backlog)
-            if new_position > old_position: # Moveu para baixo
-                if new_sprint_id is not None: # Dentro da Sprint
+        else:
+            if new_position > old_position:
+                if new_sprint_id is not None:
                     Task.query.filter(
                         Task.sprint_id == new_sprint_id,
                         Task.position > old_position,
                         Task.position <= new_position
                     ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
-                else: # Dentro do Backlog
-                     Task.query.filter(
-                        Task.backlog_id == task.backlog_id,
-                        Task.sprint_id == None,
-                        Task.position > old_position,
-                        Task.position <= new_position
-                    ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
-            elif new_position < old_position: # Moveu para cima
-                if new_sprint_id is not None: # Dentro da Sprint
+                else:
+                    if task.is_generic:
+                        Task.query.filter(
+                            Task.is_generic == True,
+                            Task.sprint_id == None,
+                            Task.position > old_position,
+                            Task.position <= new_position
+                        ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
+                    else:
+                        Task.query.filter(
+                            Task.backlog_id == task.backlog_id,
+                            Task.sprint_id == None,
+                            Task.position > old_position,
+                            Task.position <= new_position
+                        ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
+            elif new_position < old_position:
+                if new_sprint_id is not None:
                     Task.query.filter(
                         Task.sprint_id == new_sprint_id,
                         Task.position >= new_position,
                         Task.position < old_position
                     ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
-                else: # Dentro do Backlog
-                    Task.query.filter(
-                        Task.backlog_id == task.backlog_id,
-                        Task.sprint_id == None,
-                        Task.position >= new_position,
-                        Task.position < old_position
-                    ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
+                else:
+                    if task.is_generic:
+                        Task.query.filter(
+                            Task.is_generic == True,
+                            Task.sprint_id == None,
+                            Task.position >= new_position,
+                            Task.position < old_position
+                        ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
+                    else:
+                        Task.query.filter(
+                            Task.backlog_id == task.backlog_id,
+                            Task.sprint_id == None,
+                            Task.position >= new_position,
+                            Task.position < old_position
+                        ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
 
-        # 3. Atualiza a tarefa movida
-        current_app.logger.debug(f"[AssignTask] Atualizando Task ID {task.id}: sprint_id={new_sprint_id}, position={new_position}")
         task.sprint_id = new_sprint_id
         task.position = new_position
 
-        # 4. Commit das alterações
-        current_app.logger.info(f"[AssignTask] Prestes a commitar alterações para Task ID {task.id}")
         db.session.commit()
-        current_app.logger.info(f"[AssignTask] Commit bem-sucedido para Task ID {task.id}")
         db.session.refresh(task)
         return jsonify(serialize_task(task))
 

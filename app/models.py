@@ -73,25 +73,23 @@ class Task(db.Model):
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     status = db.Column(db.Enum(TaskStatus), default=TaskStatus.TODO, nullable=False)
-    priority = db.Column(db.String(50), nullable=True, default='Média') # <<< NOVO CAMPO PRIORIDADE
-    estimated_effort = db.Column(db.Float, nullable=True) # Esforço em horas, por exemplo
-    position = db.Column(db.Integer, nullable=False, default=0) # Ordem da tarefa dentro da coluna/backlog
+    priority = db.Column(db.String(50), nullable=True, default='Média')
+    estimated_effort = db.Column(db.Float, nullable=True)
+    position = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    start_date = db.Column(db.DateTime, nullable=True) # Data de início planejada/real
-    due_date = db.Column(db.DateTime, nullable=True) # Prazo (já existia)
-    completed_at = db.Column(db.DateTime, nullable=True) # Data de conclusão real
-    logged_time = db.Column(db.Float, nullable=True, default=0.0) # Tempo trabalhado registrado
-    actually_started_at = db.Column(db.DateTime, nullable=True) # Data/hora em que a tarefa foi efetivamente iniciada
-
-    # <<< INÍCIO: Adicionar campo para especialista >>>
-    specialist_name = db.Column(db.String(150), nullable=True, index=True) # Nome do especialista responsável
-    # <<< FIM: Adicionar campo para especialista >>>
+    start_date = db.Column(db.DateTime, nullable=True)
+    due_date = db.Column(db.DateTime, nullable=True)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    logged_time = db.Column(db.Float, nullable=True, default=0.0)
+    actually_started_at = db.Column(db.DateTime, nullable=True)
+    specialist_name = db.Column(db.String(150), nullable=True, index=True)
+    is_generic = db.Column(db.Boolean, default=False, nullable=False, server_default='0')  # Campo para identificar tarefas genéricas
 
     # Chaves Estrangeiras
     backlog_id = db.Column(db.Integer, db.ForeignKey('backlog.id'), nullable=False)
     column_id = db.Column(db.Integer, db.ForeignKey('column.id'), nullable=False)
-    sprint_id = db.Column(db.Integer, db.ForeignKey('sprint.id'), nullable=True) # Tarefa pode não estar em uma sprint
+    sprint_id = db.Column(db.Integer, db.ForeignKey('sprint.id'), nullable=True)
 
     # Relacionamentos já definidos via backref em Column, Sprint, Backlog
 
