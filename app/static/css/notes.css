@@ -1,0 +1,184 @@
+/* Estilos para o sistema de notas */
+
+.notes-list {
+    padding-right: 0.5rem;
+}
+
+.notes-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.notes-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.notes-list::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+.notes-list::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.note-card {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background-color: #fff;
+    transition: all 0.2s ease-in-out;
+}
+
+.note-card:hover {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border-color: #adb5bd;
+}
+
+.note-card .note-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.note-card .note-title {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #495057;
+}
+
+.note-card .note-meta {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+.note-card .note-content {
+    font-size: 0.85rem;
+    color: #212529;
+    margin-bottom: 0.5rem;
+    white-space: pre-wrap;
+}
+
+.note-card .note-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+.note-card .note-tags {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.note-card .note-tag {
+    background-color: #e9ecef;
+    color: #495057;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.7rem;
+}
+
+.note-card .note-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.note-card .note-actions button {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+/* Estilos para o preview do relatório */
+.report-section {
+    margin-bottom: 2rem;
+}
+
+.report-section h6 {
+    color: #495057;
+    font-weight: 600;
+}
+
+.report-items {
+    font-size: 0.9rem;
+}
+
+.report-item {
+    padding: 0.75rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    margin-bottom: 0.75rem;
+    background-color: #fff;
+}
+
+.report-item:last-child {
+    margin-bottom: 0;
+}
+
+.report-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.report-item-content {
+    color: #212529;
+    white-space: pre-wrap;
+}
+
+/* Indicadores de prioridade */
+.priority-high {
+    border-left: 3px solid var(--bs-danger);
+}
+
+.priority-medium {
+    border-left: 3px solid var(--bs-warning);
+}
+
+.priority-low {
+    border-left: 3px solid var(--bs-info);
+}
+
+/* Animações */
+.note-card {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .note-card .note-header {
+        flex-direction: column;
+    }
+    
+    .note-card .note-meta {
+        margin-top: 0.5rem;
+    }
+    
+    .note-card .note-footer {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .note-card .note-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+} 

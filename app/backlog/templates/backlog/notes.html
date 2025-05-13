@@ -1,0 +1,203 @@
+<!-- Seção de Notas -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-journal-text me-1"></i> Notas e Observações
+                </h6>
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-primary" id="addProjectNoteBtn">
+                        <i class="bi bi-plus-lg"></i> Nota do Projeto
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary ms-2" id="addTaskNoteBtn">
+                        <i class="bi bi-plus-lg"></i> Nota de Tarefa
+                    </button>
+                    <button class="btn btn-sm btn-outline-info ms-2" id="previewReportBtn" title="Preview do Status Report">
+                        <i class="bi bi-file-text"></i> Preview Report
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Filtros -->
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" id="noteTypeFilter">
+                            <option value="">Todos os Tipos</option>
+                            <option value="project">Notas do Projeto</option>
+                            <option value="task">Notas de Tarefas</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" id="noteCategoryFilter">
+                            <option value="">Todas as Categorias</option>
+                            <option value="decision">Decisões</option>
+                            <option value="risk">Riscos</option>
+                            <option value="impediment">Impedimentos</option>
+                            <option value="status_update">Atualizações de Status</option>
+                            <option value="general">Geral</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" id="notePriorityFilter">
+                            <option value="">Todas as Prioridades</option>
+                            <option value="high">Alta</option>
+                            <option value="medium">Média</option>
+                            <option value="low">Baixa</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" id="noteSearchInput" placeholder="Buscar notas...">
+                            <button class="btn btn-outline-secondary" type="button" id="noteSearchBtn">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista de Notas -->
+                <div class="row">
+                    <!-- Notas do Projeto -->
+                    <div class="col-md-6">
+                        <h6 class="border-bottom pb-2 mb-3">Notas do Projeto</h6>
+                        <div id="projectNotesList" class="notes-list">
+                            <div class="text-center text-muted py-3">
+                                <i class="bi bi-hourglass me-1"></i> Carregando notas...
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Notas das Tarefas -->
+                    <div class="col-md-6">
+                        <h6 class="border-bottom pb-2 mb-3">Notas das Tarefas</h6>
+                        <div id="taskNotesList" class="notes-list">
+                            <div class="text-center text-muted py-3">
+                                <i class="bi bi-hourglass me-1"></i> Carregando notas...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Nota -->
+<div class="modal fade" id="noteModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="noteModalLabel">Nova Nota</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="noteForm">
+                    <input type="hidden" id="noteId">
+                    <input type="hidden" id="noteType">
+                    
+                    <!-- Campos principais -->
+                    <div class="mb-3">
+                        <label class="form-label">Conteúdo <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="noteContent" rows="4" required></textarea>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <!-- Categoria -->
+                        <div class="col-md-4">
+                            <label class="form-label">Categoria</label>
+                            <select class="form-select" id="noteCategory">
+                                <option value="general">Geral</option>
+                                <option value="decision">Decisão</option>
+                                <option value="risk">Risco</option>
+                                <option value="impediment">Impedimento</option>
+                                <option value="status_update">Atualização de Status</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Prioridade -->
+                        <div class="col-md-4">
+                            <label class="form-label">Prioridade</label>
+                            <select class="form-select" id="notePriority">
+                                <option value="medium">Média</option>
+                                <option value="high">Alta</option>
+                                <option value="low">Baixa</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Tarefa (se for nota de tarefa) -->
+                        <div class="col-md-4" id="taskSelectGroup">
+                            <label class="form-label">Tarefa</label>
+                            <select class="form-select" id="noteTaskId"></select>
+                        </div>
+                    </div>
+                    
+                    <!-- Tags -->
+                    <div class="mb-3">
+                        <label class="form-label">Tags</label>
+                        <input type="text" class="form-control" id="noteTags" placeholder="Separe as tags por vírgula">
+                    </div>
+                    
+                    <!-- Status Report -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="noteReadyForReport">
+                            <label class="form-check-label" for="noteReadyForReport">
+                                Pronto para Status Report
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" id="deleteNoteBtn">
+                    <i class="bi bi-trash"></i> Excluir
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="saveNoteBtn">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Preview do Report -->
+<div class="modal fade" id="reportPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Preview do Status Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="reportPreviewContent">
+                    <!-- Seções do relatório -->
+                    <div class="report-section mb-4">
+                        <h6 class="border-bottom pb-2">Decisões</h6>
+                        <div id="reportDecisions" class="report-items"></div>
+                    </div>
+                    <div class="report-section mb-4">
+                        <h6 class="border-bottom pb-2">Riscos</h6>
+                        <div id="reportRisks" class="report-items"></div>
+                    </div>
+                    <div class="report-section mb-4">
+                        <h6 class="border-bottom pb-2">Impedimentos</h6>
+                        <div id="reportImpediments" class="report-items"></div>
+                    </div>
+                    <div class="report-section mb-4">
+                        <h6 class="border-bottom pb-2">Atualizações de Status</h6>
+                        <div id="reportStatusUpdates" class="report-items"></div>
+                    </div>
+                    <div class="report-section">
+                        <h6 class="border-bottom pb-2">Observações Gerais</h6>
+                        <div id="reportGeneral" class="report-items"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-primary" id="generateReportBtn">
+                    <i class="bi bi-file-earmark-text"></i> Gerar Relatório
+                </button>
+            </div>
+        </div>
+    </div>
+</div> 

@@ -240,4 +240,102 @@ class ProjectRisk(db.Model):
 
     def __repr__(self):
         return f'<ProjectRisk {self.id}: {self.description[:30]}...>'
-# --- FIM NOVO MODELO RISCOS --- 
+# --- FIM NOVO MODELO RISCOS ---
+
+# Enums para o sistema de notas
+class NoteType(enum.Enum):
+    PROJECT = 'project'
+    TASK = 'task'
+
+class NoteCategory(enum.Enum):
+    DECISION = 'decision'
+    RISK = 'risk'
+    IMPEDIMENT = 'impediment'
+    STATUS_UPDATE = 'status_update'
+    GENERAL = 'general'
+
+class NotePriority(enum.Enum):
+    LOW = 'low'
+    MEDIUM = 'medium'
+    HIGH = 'high'
+
+class NoteReportStatus(enum.Enum):
+    DRAFT = 'draft'
+    READY_FOR_REPORT = 'ready_for_report'
+    REPORTED = 'reported'
+
+# Tabela de associação para tags
+note_tags = db.Table('note_tags',
+    db.Column('note_id', db.Integer, db.ForeignKey('notes.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('tag_id', db.Integer, db.ForeignKey('tags.id', ondelete='CASCADE'), primary_key=True)
+)
+
+class Tag(db.Model):
+    __tablename__ = 'tags'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<Tag {self.name}>'
+
+class Note(db.Model):
+    __tablename__ = 'notes'
+    id = db.Column(db.Integer, primary_key=True)
+    content = db.Column(db.Text, nullable=False)
+    note_type = db.Column(db.String(20), nullable=False)  # 'project' ou 'task'
+    category = db.Column(db.String(20), nullable=False, server_default='general')  # 'decision', 'risk', etc.
+    priority = db.Column(db.String(20), nullable=False, server_default='medium')  # 'low', 'medium', 'high'
+    report_status = db.Column(db.String(20), nullable=False, server_default='draft')  # 'draft', 'ready_for_report', 'reported'
+    
+    # Relacionamentos
+    project_id = db.Column(db.String(50), nullable=False)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id', ondelete='CASCADE'), nullable=True)
+    
+    # Campos de controle
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    report_date = db.Column(db.DateTime, nullable=True)
+    
+    # Relacionamentos
+    tags = db.relationship('Tag', secondary=note_tags, lazy='subquery',
+                         backref=db.backref('notes', lazy=True))
+    task = db.relationship('Task', backref=db.backref('notes', lazy=True, cascade="all, delete-orphan"))
+
+    # Validações via CheckConstraint
+    __table_args__ = (
+        db.CheckConstraint("note_type IN ('project', 'task')", name='ck_note_type'),
+        db.CheckConstraint(
+            "category IN ('decision', 'risk', 'impediment', 'status_update', 'general')", 
+            name='ck_note_category'
+        ),
+        db.CheckConstraint(
+            "priority IN ('low', 'medium', 'high')", 
+            name='ck_note_priority'
+        ),
+        db.CheckConstraint(
+            "report_status IN ('draft', 'ready_for_report', 'reported')", 
+            name='ck_note_report_status'
+        )
+    )
+
+    def __repr__(self):
+        return f'<Note {self.id}: {self.note_type}>'
+
+    def to_dict(self):
+        """Converte a nota para um dicionário."""
+        return {
+            'id': self.id,
+            'content': self.content,
+            'note_type': self.note_type,
+            'category': self.category,
+            'priority': self.priority,
+            'report_status': self.report_status,
+            'project_id': self.project_id,
+            'task_id': self.task_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'report_date': self.report_date.isoformat() if self.report_date else None,
+            'tags': [tag.name for tag in self.tags],
+            'task_title': self.task.title if self.task else None
+        } 

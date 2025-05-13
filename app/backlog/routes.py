@@ -1,7 +1,7 @@
 from flask import render_template, jsonify, request, abort, current_app, redirect, url_for
 from . import backlog_bp # Importa o blueprint
 from .. import db # Importa a instância do banco de dados
-from ..models import Backlog, Task, Column, Sprint, TaskStatus, ProjectMilestone, ProjectRisk, MilestoneStatus, MilestoneCriticality, RiskImpact, RiskProbability, RiskStatus, TaskSegment # Importa os modelos
+from ..models import Backlog, Task, Column, Sprint, TaskStatus, ProjectMilestone, ProjectRisk, MilestoneStatus, MilestoneCriticality, RiskImpact, RiskProbability, RiskStatus, TaskSegment, Note, Tag # Importa os modelos
 from ..macro.services import MacroService # Importa o serviço Macro
 import pandas as pd
 from datetime import datetime, timedelta, date
@@ -1541,3 +1541,108 @@ def get_agenda_tasks():
         return jsonify({'error': str(e)}), 500
 
 # --- FIM ROTAS AGENDA ---
+
+# API para Notas
+@backlog_bp.route('/api/notes', methods=['GET'])
+def get_notes():
+    """Retorna todas as notas de um projeto ou tarefa específica."""
+    project_id = request.args.get('project_id')
+    task_id = request.args.get('task_id', type=int)
+    
+    query = Note.query
+    
+    if project_id:
+        query = query.filter_by(project_id=project_id)
+    if task_id:
+        query = query.filter_by(task_id=task_id)
+        
+    notes = query.order_by(Note.created_at.desc()).all()
+    return jsonify([note.to_dict() for note in notes])
+
+@backlog_bp.route('/api/notes/<int:note_id>', methods=['GET'])
+def get_note(note_id):
+    """Retorna uma nota específica."""
+    note = Note.query.get_or_404(note_id)
+    return jsonify(note.to_dict())
+
+@backlog_bp.route('/api/notes', methods=['POST'])
+def create_note():
+    """Cria uma nova nota."""
+    data = request.get_json()
+    
+    if not data.get('content'):
+        return jsonify({'error': 'Conteúdo da nota é obrigatório'}), 400
+    if not data.get('project_id'):
+        return jsonify({'error': 'ID do projeto é obrigatório'}), 400
+    
+    # Processa as tags
+    tags = []
+    if data.get('tags'):
+        for tag_name in data['tags']:
+            tag = Tag.query.filter_by(name=tag_name).first()
+            if not tag:
+                tag = Tag(name=tag_name)
+                db.session.add(tag)
+            tags.append(tag)
+    
+    # Garante que note_type seja 'project' ou 'task'
+    note_type = data.get('note_type', 'project')
+    if note_type not in ['project', 'task']:
+        note_type = 'project' if not data.get('task_id') else 'task'
+    
+    note = Note(
+        content=data['content'],
+        project_id=data['project_id'],
+        task_id=data.get('task_id'),
+        category=data.get('category', 'general'),
+        priority=data.get('priority', 'medium'),
+        note_type=note_type,
+        tags=tags
+    )
+    
+    db.session.add(note)
+    db.session.commit()
+    
+    return jsonify(note.to_dict()), 201
+
+@backlog_bp.route('/api/notes/<int:note_id>', methods=['PUT'])
+def update_note(note_id):
+    """Atualiza uma nota existente."""
+    note = Note.query.get_or_404(note_id)
+    data = request.get_json()
+    
+    if 'content' in data:
+        note.content = data['content']
+    if 'category' in data:
+        note.category = data['category']
+    if 'priority' in data:
+        note.priority = data['priority']
+    if 'task_id' in data:
+        note.task_id = data['task_id']
+    
+    # Atualiza tags
+    if 'tags' in data:
+        note.tags.clear()
+        for tag_name in data['tags']:
+            tag = Tag.query.filter_by(name=tag_name).first()
+            if not tag:
+                tag = Tag(name=tag_name)
+                db.session.add(tag)
+            note.tags.append(tag)
+    
+    db.session.commit()
+    return jsonify(note.to_dict())
+
+@backlog_bp.route('/api/notes/<int:note_id>', methods=['DELETE'])
+def delete_note(note_id):
+    """Exclui uma nota."""
+    note = Note.query.get_or_404(note_id)
+    db.session.delete(note)
+    db.session.commit()
+    return '', 204
+
+@backlog_bp.route('/api/tags', methods=['GET'])
+def get_tags():
+    """Retorna todas as tags disponíveis."""
+    tags = Tag.query.all()
+    return jsonify([{'id': tag.id, 'name': tag.name} for tag in tags])

@@ -14,9 +14,6 @@ config = context.config
 fileConfig(config.config_file_name)
 logger = logging.getLogger('alembic.env')
 
-# <<< INÍCIO: Importar db diretamente >>>
-from app import db as application_db # Importa a instância db de app/__init__.py
-# <<< FIM: Importar db diretamente >>>
 
 def get_engine():
     try:
@@ -35,26 +32,24 @@ def get_engine_url():
         return str(get_engine().url).replace('%', '%%')
 
 
-# <<< INÍCIO: Definir target_metadata diretamente >>>
-target_metadata = application_db.metadata
-# <<< FIM: Definir target_metadata diretamente >>>
-
+# add your model's MetaData object here
+# for 'autogenerate' support
+# from myapp import mymodel
+# target_metadata = mymodel.Base.metadata
 config.set_main_option('sqlalchemy.url', get_engine_url())
-# <<< Comentado: Não precisamos mais disso se usamos target_metadata diretamente >>>
-# target_db = current_app.extensions['migrate'].db 
-# <<< FIM Comentado >>>
+target_db = current_app.extensions['migrate'].db
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
-# <<< Comentado: Função não mais necessária >>>
-# def get_metadata():
-#     if hasattr(target_db, 'metadatas'):
-#         return target_db.metadatas[None]
-#     return target_db.metadata
-# <<< FIM Comentado >>>
+
+def get_metadata():
+    if hasattr(target_db, 'metadatas'):
+        return target_db.metadatas[None]
+    return target_db.metadata
+
 
 def run_migrations_offline():
     """Run migrations in 'offline' mode.
@@ -70,7 +65,7 @@ def run_migrations_offline():
     """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url, target_metadata=target_metadata, literal_binds=True
+        url=url, target_metadata=get_metadata(), literal_binds=True
     )
 
     with context.begin_transaction():
@@ -104,7 +99,7 @@ def run_migrations_online():
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
-            target_metadata=target_metadata,
+            target_metadata=get_metadata(),
             **conf_args
         )
 

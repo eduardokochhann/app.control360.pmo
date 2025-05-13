@@ -400,6 +400,97 @@
       color: #343a40;
   }
 
+  /* Estilos para Notas */
+  .notes-list {
+      max-height: 500px;
+      overflow-y: auto;
+  }
+
+  .note-card {
+      background-color: #fff;
+      border: 1px solid #e3e6f0;
+      border-radius: 0.25rem;
+      margin-bottom: 0.5rem; /* Reduzido de 1rem para 0.5rem */
+      padding: 0.5rem; /* Reduzido de 1rem para 0.5rem */
+      transition: all 0.2s ease;
+  }
+
+  .note-card:hover {
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      transform: translateY(-1px);
+  }
+
+  .note-card.priority-high {
+      border-left: 3px solid var(--bs-danger);
+  }
+
+  .note-card.priority-medium {
+      border-left: 3px solid var(--bs-warning);
+  }
+
+  .note-card.priority-low {
+      border-left: 3px solid var(--bs-success);
+  }
+
+  .note-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.3rem; /* Reduzido de 0.5rem para 0.3rem */
+      font-size: 0.85rem; /* Texto um pouco menor */
+  }
+
+  .note-content {
+      white-space: pre-line;
+      margin-bottom: 0.3rem; /* Reduzido de 0.5rem para 0.3rem */
+      font-size: 0.9rem; /* Texto um pouco menor */
+  }
+
+  .note-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem; /* Reduzido de 0.875rem para 0.8rem */
+  }
+
+  .note-tags .badge {
+      font-size: 0.7rem; /* Reduzido de 0.75rem para 0.7rem */
+      margin-right: 0.2rem; /* Reduzido de 0.25rem para 0.2rem */
+  }
+
+  .note-actions {
+      opacity: 0.5;
+      transition: opacity 0.2s ease;
+  }
+
+  .note-card:hover .note-actions {
+      opacity: 1;
+  }
+
+  /* Ajuste nos badges */
+  .note-card .badge {
+      padding: 0.2em 0.5em;
+      font-size: 0.7rem;
+  }
+
+  /* Estilos para o Modal */
+  #noteModal .modal-body {
+      max-height: calc(100vh - 200px);
+      overflow-y: auto;
+  }
+
+  #noteContent {
+      resize: vertical;
+      min-height: 100px;
+  }
+
+  /* Estilos para os Filtros */
+  .note-filters {
+      background-color: #f8f9fa;
+      padding: 1rem;
+      border-radius: 0.375rem;
+      margin-bottom: 1rem;
+  }
 </style>
 {% endblock %}
 
@@ -3765,6 +3856,305 @@
               return identifier.substring(0, 2).toUpperCase();
       }
   }
+
+  // Sistema de Notas
+  const NotesManager = {
+      noteModal: null,
+      currentEditingNoteId: null,
+
+      init: function() {
+          this.noteModal = new bootstrap.Modal(document.getElementById('noteModal'));
+          this.setupEventListeners();
+          this.loadNotes();
+          this.loadTasksForSelect();
+      },
+
+      setupEventListeners: function() {
+          // Botões principais
+          document.getElementById('addNoteBtn').addEventListener('click', () => this.showNoteModal());
+          document.getElementById('saveNoteBtn').addEventListener('click', () => this.saveNote());
+          document.getElementById('deleteNoteBtn').addEventListener('click', () => this.deleteNote());
+          document.getElementById('filterNotesBtn').addEventListener('click', () => this.toggleFilters());
+
+          // Filtros
+          document.getElementById('noteTypeFilter').addEventListener('change', () => this.applyFilters());
+          document.getElementById('noteCategoryFilter').addEventListener('change', () => this.applyFilters());
+          document.getElementById('notePriorityFilter').addEventListener('change', () => this.applyFilters());
+          document.getElementById('noteSearchBtn').addEventListener('click', () => this.applyFilters());
+          document.getElementById('noteSearchInput').addEventListener('keypress', (e) => {
+              if (e.key === 'Enter') this.applyFilters();
+          });
+      },
+
+      updateNoteType: function(taskId) {
+          const noteTypeInput = document.getElementById('noteType');
+          if (noteTypeInput) {
+              noteTypeInput.value = taskId ? 'task' : 'project';
+          }
+      },
+
+      saveNote: function() {
+          const form = document.getElementById('noteForm');
+          const projectId = document.getElementById('currentBacklogId')?.value;
+          
+          if (!projectId) {
+              this.showError('ID do projeto não encontrado');
+              return;
+          }
+
+          const data = {
+              content: document.getElementById('noteContent').value,
+              category: document.getElementById('noteCategory').value,
+              priority: document.getElementById('notePriority').value,
+              project_id: projectId,
+              task_id: document.getElementById('noteTaskId').value || null,
+              note_type: document.getElementById('noteType').value,
+              tags: document.getElementById('noteTags').value
+                  .split(',')
+                  .map(tag => tag.trim())
+                  .filter(tag => tag)
+          };
+
+          const url = this.currentEditingNoteId 
+              ? `/backlog/api/notes/${this.currentEditingNoteId}`
+              : '/backlog/api/notes';
+          
+          const method = this.currentEditingNoteId ? 'PUT' : 'POST';
+
+          fetch(url, {
+              method: method,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data)
+          })
+          .then(response => response.json())
+          .then(result => {
+              this.noteModal.hide();
+              this.loadNotes();
+              this.showSuccess('Nota salva com sucesso');
+          })
+          .catch(error => {
+              console.error('Erro ao salvar nota:', error);
+              this.showError('Erro ao salvar nota');
+          });
+      },
+
+      loadNotes: function() {
+          const projectId = document.getElementById('currentBacklogId')?.value;
+          if (!projectId) {
+              console.warn('ID do projeto não encontrado');
+              return;
+          }
+
+          fetch(`/backlog/api/notes?project_id=${projectId}`)
+              .then(response => response.json())
+              .then(notes => {
+                  this.renderNotes(notes);
+              })
+              .catch(error => {
+                  console.error('Erro ao carregar notas:', error);
+                  this.showError('Erro ao carregar notas');
+              });
+      },
+
+      loadTasksForSelect: function() {
+          const select = document.getElementById('noteTaskId');
+          select.innerHTML = '<option value="">Selecione uma tarefa...</option>';
+
+          // Usa as tarefas já carregadas no quadro
+          if (currentTasksData && currentTasksData.length > 0) {
+              currentTasksData.forEach(task => {
+                  select.innerHTML += `<option value="${task.id}">${task.title}</option>`;
+              });
+          }
+      },
+
+      renderNotes: function(notes) {
+          const notesList = document.getElementById('notesList');
+          if (!notes || notes.length === 0) {
+              notesList.innerHTML = '<div class="text-center text-muted py-3">Nenhuma nota encontrada</div>';
+              return;
+          }
+
+          notesList.innerHTML = notes.map(note => `
+              <div class="note-card priority-${note.priority}" data-note-id="${note.id}">
+                  <div class="note-header">
+                      <div>
+                          ${note.task_id ? `<span class="badge bg-info me-2">Tarefa: ${this.getTaskTitle(note.task_id)}</span>` : ''}
+                          <span class="badge bg-${this.getCategoryBadgeColor(note.category)}">${this.getCategoryText(note.category)}</span>
+                          <span class="badge bg-${this.getPriorityBadgeColor(note.priority)}">${this.getPriorityText(note.priority)}</span>
+                      </div>
+                      <div class="text-muted small">${this.formatDate(note.created_at)}</div>
+                  </div>
+                  <div class="note-content">${note.content}</div>
+                  <div class="note-footer">
+                      <div class="note-tags">
+                          ${note.tags.map(tag => `
+                              <span class="badge bg-secondary">${tag}</span>
+                          `).join('')}
+                      </div>
+                      <div class="note-actions">
+                          <button class="btn btn-sm btn-outline-primary btn-xs" onclick="NotesManager.editNote(${note.id})" title="Editar Nota">
+                              <i class="bi bi-pencil"></i>
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          `).join('');
+      },
+
+      getTaskTitle: function(taskId) {
+          const task = currentTasksData.find(t => t.id === taskId);
+          return task ? task.title : 'Tarefa não encontrada';
+      },
+
+      getCategoryBadgeColor: function(category) {
+          const colors = {
+              'decision': 'primary',
+              'risk': 'danger',
+              'impediment': 'warning',
+              'status_update': 'info',
+              'general': 'secondary'
+          };
+          return colors[category] || 'secondary';
+      },
+
+      getPriorityBadgeColor: function(priority) {
+          const colors = {
+              'high': 'danger',
+              'medium': 'warning',
+              'low': 'success'
+          };
+          return colors[priority] || 'secondary';
+      },
+
+      formatDate: function(dateString) {
+          if (!dateString) return '';
+          
+          // Cria um objeto Date a partir da string
+          const date = new Date(dateString);
+          
+          // Ajusta para o fuso horário do Brasil (UTC-3)
+          const brasilDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
+          
+          // Formata a data no padrão brasileiro
+          return brasilDate.toLocaleString('pt-BR', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false // Usa formato 24h
+          });
+      },
+
+      showNoteModal: function(noteId = null) {
+          this.currentEditingNoteId = noteId;
+          const form = document.getElementById('noteForm');
+          form.reset();
+
+          const deleteBtn = document.getElementById('deleteNoteBtn');
+          deleteBtn.style.display = noteId ? 'block' : 'none';
+
+          if (noteId) {
+              fetch(`/backlog/api/notes/${noteId}`)
+                  .then(response => response.json())
+                  .then(note => {
+                      document.getElementById('noteContent').value = note.content;
+                      document.getElementById('noteCategory').value = note.category;
+                      document.getElementById('notePriority').value = note.priority;
+                      document.getElementById('noteTaskId').value = note.task_id || '';
+                      document.getElementById('noteTags').value = note.tags.join(', ');
+                  })
+                  .catch(error => {
+                      console.error('Erro ao carregar nota:', error);
+                      this.showError('Erro ao carregar nota');
+                  });
+          }
+
+          this.noteModal.show();
+      },
+
+      deleteNote: function() {
+          if (!this.currentEditingNoteId) return;
+
+          if (!confirm('Tem certeza que deseja excluir esta nota?')) return;
+
+          fetch(`/backlog/api/notes/${this.currentEditingNoteId}`, {
+              method: 'DELETE'
+          })
+          .then(response => {
+              if (response.ok) {
+                  this.noteModal.hide();
+                  this.loadNotes();
+                  this.showSuccess('Nota excluída com sucesso');
+              } else {
+                  throw new Error('Erro ao excluir nota');
+              }
+          })
+          .catch(error => {
+              console.error('Erro ao excluir nota:', error);
+              this.showError('Erro ao excluir nota');
+          });
+      },
+
+      editNote: function(noteId) {
+          this.showNoteModal(noteId);
+      },
+
+      applyFilters: function() {
+          const type = document.getElementById('noteTypeFilter').value;
+          const category = document.getElementById('noteCategoryFilter').value;
+          const priority = document.getElementById('notePriorityFilter').value;
+          const search = document.getElementById('noteSearchInput').value.toLowerCase();
+
+          const notes = document.querySelectorAll('.note-card');
+          notes.forEach(note => {
+              let show = true;
+
+              if (type && !note.querySelector(`.badge:contains('${type}')`)) show = false;
+              if (category && !note.querySelector(`.badge:contains('${category}')`)) show = false;
+              if (priority && !note.querySelector(`.badge:contains('${priority}')`)) show = false;
+              if (search && !note.textContent.toLowerCase().includes(search)) show = false;
+
+              note.style.display = show ? 'block' : 'none';
+          });
+      },
+
+      showError: function(message) {
+          // Implementar conforme seu sistema de notificações
+          alert(message);
+      },
+
+      showSuccess: function(message) {
+          // Implementar conforme seu sistema de notificações
+          alert(message);
+      },
+
+      getPriorityText: function(priority) {
+          const texts = {
+              'high': 'Alta',
+              'medium': 'Média',
+              'low': 'Baixa'
+          };
+          return texts[priority] || priority;
+      },
+
+      getCategoryText: function(category) {
+          const texts = {
+              'decision': 'Decisão',
+              'risk': 'Risco',
+              'impediment': 'Impedimento',
+              'status_update': 'Atualização',
+              'general': 'Geral'
+          };
+          return texts[category] || category;
+      },
+  };
+
+  // Inicializa o gerenciador de notas quando o documento estiver pronto
+  document.addEventListener('DOMContentLoaded', function() {
+      NotesManager.init();
+  });
 </script>
 
 <!-- Modal Gerenciar Segmentos de Tarefa -->
@@ -3837,6 +4227,283 @@
         </div>
     </div>
 </div>
+
+<!-- Seção de Notas -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-journal-text me-1"></i> Notas e Observações
+                </h6>
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-primary" id="addNoteBtn">
+                        <i class="bi bi-plus-lg me-1"></i>Nova Nota
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary ms-2" id="filterNotesBtn">
+                        <i class="bi bi-funnel me-1"></i>Filtros
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Filtros (inicialmente ocultos) -->
+                <div id="notesFilters" class="row mb-3" style="display: none;">
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" id="noteTypeFilter">
+                            <option value="">Todos os Tipos</option>
+                            <option value="project">Notas do Projeto</option>
+                            <option value="task">Notas de Tarefas</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" id="noteCategoryFilter">
+                            <option value="">Todas as Categorias</option>
+                            <option value="decision">Decisões</option>
+                            <option value="risk">Riscos</option>
+                            <option value="impediment">Impedimentos</option>
+                            <option value="status_update">Atualizações de Status</option>
+                            <option value="general">Geral</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select form-select-sm" id="notePriorityFilter">
+                            <option value="">Todas as Prioridades</option>
+                            <option value="high">Alta</option>
+                            <option value="medium">Média</option>
+                            <option value="low">Baixa</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" id="noteSearchInput" placeholder="Buscar notas...">
+                            <button class="btn btn-outline-secondary" type="button" id="noteSearchBtn">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lista de Notas -->
+                <div id="notesList" class="notes-list">
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-hourglass me-1"></i> Carregando notas...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Nota -->
+<div class="modal fade" id="noteModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nova Nota</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="noteForm">
+                    <input type="hidden" id="noteId">
+                    <input type="hidden" id="noteType" value="project">
+                    
+                    <!-- Conteúdo -->
+                    <div class="mb-3">
+                        <label class="form-label">Conteúdo <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="noteContent" rows="4" required></textarea>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <!-- Categoria -->
+                        <div class="col-md-4">
+                            <label class="form-label">Categoria</label>
+                            <select class="form-select" id="noteCategory">
+                                <option value="general">Geral</option>
+                                <option value="decision">Decisão</option>
+                                <option value="risk">Risco</option>
+                                <option value="impediment">Impedimento</option>
+                                <option value="status_update">Atualização de Status</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Prioridade -->
+                        <div class="col-md-4">
+                            <label class="form-label">Prioridade</label>
+                            <select class="form-select" id="notePriority">
+                                <option value="medium">Média</option>
+                                <option value="high">Alta</option>
+                                <option value="low">Baixa</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Tarefa (opcional) -->
+                        <div class="col-md-4">
+                            <label class="form-label">Vincular à Tarefa (Opcional)</label>
+                            <select class="form-select" id="noteTaskId" onchange="NotesManager.updateNoteType(this.value)">
+                                <option value="">Selecione uma tarefa...</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Tags -->
+                    <div class="mb-3">
+                        <label class="form-label">Tags</label>
+                        <input type="text" class="form-control" id="noteTags" placeholder="Separe as tags por vírgula">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger me-2" id="deleteNoteBtn" style="display: none;">
+                    <i class="bi bi-trash me-1"></i>Excluir
+                </button>
+                <button type="button" class="btn btn-primary" id="saveNoteBtn">
+                    <i class="bi bi-save me-1"></i>Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Estilos para Notas -->
+<style>
+.notes-list {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.note-card {
+    background-color: #fff;
+    border: 1px solid #e3e6f0;
+    border-radius: 0.25rem;
+    margin-bottom: 0.5rem; /* Reduzido de 1rem para 0.5rem */
+    padding: 0.5rem; /* Reduzido de 1rem para 0.5rem */
+    transition: all 0.2s ease;
+}
+
+.note-card:hover {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+}
+
+.note-card.priority-high {
+    border-left: 3px solid var(--bs-danger);
+}
+
+.note-card.priority-medium {
+    border-left: 3px solid var(--bs-warning);
+}
+
+.note-card.priority-low {
+    border-left: 3px solid var(--bs-success);
+}
+
+.note-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.3rem; /* Reduzido de 0.5rem para 0.3rem */
+    font-size: 0.85rem; /* Texto um pouco menor */
+}
+
+.note-content {
+    white-space: pre-line;
+    margin-bottom: 0.3rem; /* Reduzido de 0.5rem para 0.3rem */
+    font-size: 0.9rem; /* Texto um pouco menor */
+}
+
+.note-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem; /* Reduzido de 0.875rem para 0.8rem */
+}
+
+.note-tags .badge {
+    font-size: 0.7rem; /* Reduzido de 0.75rem para 0.7rem */
+    margin-right: 0.2rem; /* Reduzido de 0.25rem para 0.2rem */
+}
+
+.note-actions {
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+}
+
+.note-card:hover .note-actions {
+    opacity: 1;
+}
+
+/* Ajuste nos badges */
+.note-card .badge {
+    padding: 0.2em 0.5em;
+    font-size: 0.7rem;
+}
+</style>
+
+<script>
+// Sistema de Notas
+const NotesManager = {
+    // ... outros métodos ...
+
+    getPriorityText: function(priority) {
+        const texts = {
+            'high': 'Alta',
+            'medium': 'Média',
+            'low': 'Baixa'
+        };
+        return texts[priority] || priority;
+    },
+
+    getCategoryText: function(category) {
+        const texts = {
+            'decision': 'Decisão',
+            'risk': 'Risco',
+            'impediment': 'Impedimento',
+            'status_update': 'Atualização',
+            'general': 'Geral'
+        };
+        return texts[category] || category;
+    },
+
+    renderNotes: function(notes) {
+        const notesList = document.getElementById('notesList');
+        if (!notes || notes.length === 0) {
+            notesList.innerHTML = '<div class="text-center text-muted py-3">Nenhuma nota encontrada</div>';
+            return;
+        }
+
+        notesList.innerHTML = notes.map(note => `
+            <div class="note-card priority-${note.priority}" data-note-id="${note.id}">
+                <div class="note-header">
+                    <div>
+                        ${note.task_id ? `<span class="badge bg-info me-2">Tarefa: ${this.getTaskTitle(note.task_id)}</span>` : ''}
+                        <span class="badge bg-${this.getCategoryBadgeColor(note.category)}">${this.getCategoryText(note.category)}</span>
+                        <span class="badge bg-${this.getPriorityBadgeColor(note.priority)}">${this.getPriorityText(note.priority)}</span>
+                    </div>
+                    <div class="text-muted small">${this.formatDate(note.created_at)}</div>
+                </div>
+                <div class="note-content">${note.content}</div>
+                <div class="note-footer">
+                    <div class="note-tags">
+                        ${note.tags.map(tag => `
+                            <span class="badge bg-secondary">${tag}</span>
+                        `).join('')}
+                    </div>
+                    <div class="note-actions">
+                        <button class="btn btn-sm btn-outline-primary btn-xs" onclick="NotesManager.editNote(${note.id})" title="Editar Nota">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    },
+
+    // ... outros métodos ...
+};
+
+// ... resto do código ...
+</script>
 
 {% endblock %}
 
