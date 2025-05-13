@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="bi bi-file-earmark-text me-2"></i>{{ title }}
+            </h6>
+            <a href="{{ url_for('sprints.sprint_management_page') }}" class="btn btn-sm btn-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Voltar
+            </a>
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('sprints.generate_consolidated_report') }}" method="POST">
+                <div class="mb-4">
+                    <label class="form-label">Selecione as Sprints para o Relatório</label>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="selectAllSprints">
+                                        </div>
+                                    </th>
+                                    <th>Nome</th>
+                                    <th>Período</th>
+                                    <th>Criticidade</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sprint in sprints %}
+                                <tr>
+                                    <td>
+                                        <div class="form-check">
+                                            <input class="form-check-input sprint-checkbox" type="checkbox" name="sprint_ids[]" value="{{ sprint.id }}">
+                                        </div>
+                                    </td>
+                                    <td>{{ sprint.name }}</td>
+                                    <td>{{ sprint.start_date.strftime('%d/%m/%Y') }} - {{ sprint.end_date.strftime('%d/%m/%Y') }}</td>
+                                    <td>
+                                        <span class="badge {% if sprint.criticality == 'Alta' %}bg-warning{% elif sprint.criticality == 'Crítica' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                            {{ sprint.criticality }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <button type="submit" class="btn btn-primary" id="generateReportBtn" disabled>
+                        <i class="bi bi-file-earmark-text me-1"></i>Gerar Relatório
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAllSprints');
+    const sprintCheckboxes = document.querySelectorAll('.sprint-checkbox');
+    const generateReportBtn = document.getElementById('generateReportBtn');
+
+    // Função para atualizar estado do botão
+    function updateGenerateButton() {
+        const anyChecked = Array.from(sprintCheckboxes).some(cb => cb.checked);
+        generateReportBtn.disabled = !anyChecked;
+    }
+
+    // Listener para o checkbox "Selecionar Todos"
+    selectAllCheckbox.addEventListener('change', function() {
+        sprintCheckboxes.forEach(cb => {
+            cb.checked = this.checked;
+        });
+        updateGenerateButton();
+    });
+
+    // Listeners para os checkboxes individuais
+    sprintCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            const allChecked = Array.from(sprintCheckboxes).every(cb => cb.checked);
+            selectAllCheckbox.checked = allChecked;
+            updateGenerateButton();
+        });
+    });
+});
+</script>
+{% endblock %} 

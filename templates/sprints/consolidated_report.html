@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+
+{% block title %}Relatório Consolidado de Sprints{% endblock %}
+
+{% block extra_css %}
+<style>
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        .card {
+            border: none !important;
+            box-shadow: none !important;
+        }
+        .table {
+            font-size: 12px;
+        }
+    }
+    .sprint-section {
+        page-break-inside: avoid;
+    }
+    .specialist-summary {
+        page-break-inside: avoid;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="bi bi-file-earmark-text me-2"></i>Relatório Consolidado de Sprints
+            </h6>
+            <div class="no-print">
+                <button class="btn btn-sm btn-outline-secondary me-2" onclick="window.print()">
+                    <i class="bi bi-printer me-1"></i>Imprimir
+                </button>
+                <a href="{{ url_for('sprints.consolidated_report_page') }}" class="btn btn-sm btn-secondary">
+                    <i class="bi bi-arrow-left me-1"></i>Voltar
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            {# Resumo Geral #}
+            <div class="mb-5">
+                <h5 class="mb-3">Resumo Geral</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <th style="width: 200px;">Total de Sprints:</th>
+                                    <td>{{ sprints|length }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Período Total:</th>
+                                    <td>{{ start_date.strftime('%d/%m/%Y') }} - {{ end_date.strftime('%d/%m/%Y') }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Total de Tarefas:</th>
+                                    <td>{{ total_tasks }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {# Resumo por Especialista #}
+            <div class="specialist-summary mb-5">
+                <h5 class="mb-3">Capacidade por Especialista</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Especialista</th>
+                                <th class="text-end">Total de Tarefas</th>
+                                <th class="text-end">Horas Estimadas</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for specialist in specialist_summary %}
+                            <tr>
+                                <td>{{ specialist.name or 'Não Atribuído' }}</td>
+                                <td class="text-end">{{ specialist.total_tasks }}</td>
+                                <td class="text-end">{{ "%.1f"|format(specialist.total_hours) }}h</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {# Detalhes por Sprint #}
+            <div class="sprint-details">
+                <h5 class="mb-3">Detalhes por Sprint</h5>
+                {% for sprint in sprints %}
+                <div class="sprint-section mb-4">
+                    <div class="card">
+                        <div class="card-header py-2">
+                            <h6 class="m-0 font-weight-bold">
+                                {{ sprint.name }}
+                                <small class="text-muted ms-2">
+                                    ({{ sprint.start_date.strftime('%d/%m/%Y') }} - {{ sprint.end_date.strftime('%d/%m/%Y') }})
+                                </small>
+                            </h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Tarefa</th>
+                                            <th>Especialista</th>
+                                            <th class="text-end">Horas Est.</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for task in sprint.tasks %}
+                                        <tr>
+                                            <td>{{ task.name }}</td>
+                                            <td>{{ task.specialist_name or 'Não Atribuído' }}</td>
+                                            <td class="text-end">{{ "%.1f"|format(task.estimated_hours) if task.estimated_hours else '-' }}h</td>
+                                            <td>
+                                                <span class="badge {% if task.status == 'Concluído' %}bg-success{% else %}bg-secondary{% endif %}">
+                                                    {{ task.status }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="table-light">
+                                            <th colspan="2">Total da Sprint:</th>
+                                            <th class="text-end">{{ "%.1f"|format(sprint.total_hours) }}h</th>
+                                            <th></th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

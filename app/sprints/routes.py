@@ -1,5 +1,6 @@
 from flask import request, jsonify, abort, render_template
 from datetime import datetime
+from collections import defaultdict
 
 from . import sprints_bp
 from .. import db
@@ -240,4 +241,149 @@ def delete_generic_task(task_id):
     
     db.session.delete(task)
     db.session.commit()
-    return '', 204 
+    return '', 204
+
+# GET /sprints/report/<int:sprint_id> - Página de Relatório da Sprint
+@sprints_bp.route('/report/<int:sprint_id>', methods=['GET'])
+def sprint_report_page(sprint_id):
+    sprint = Sprint.query.get_or_404(sprint_id)
+    
+    # Agrupa tarefas por especialista
+    specialist_tasks = defaultdict(list)
+    specialist_effort = defaultdict(float)
+    
+    for task in sprint.tasks:
+        if task.specialist_name:
+            specialist_tasks[task.specialist_name].append(task)
+            specialist_effort[task.specialist_name] += task.estimated_effort or 0
+    
+    return render_template(
+        'sprints/sprint_report.html',
+        sprint=sprint,
+        specialist_tasks=dict(specialist_tasks),
+        specialist_effort=dict(specialist_effort),
+        title=f"Relatório - {sprint.name}"
+    )
+
+# GET /api/sprints/<int:sprint_id>/report - Obter dados do relatório da Sprint
+@sprints_bp.route('/api/sprints/<int:sprint_id>/report', methods=['GET'])
+def get_sprint_report(sprint_id):
+    sprint = Sprint.query.get_or_404(sprint_id)
+    
+    # Agrupa tarefas por especialista
+    specialist_tasks = defaultdict(list)
+    specialist_effort = defaultdict(float)
+    
+    for task in sprint.tasks:
+        if task.specialist_name:
+            specialist_tasks[task.specialist_name].append(serialize_task(task))
+            specialist_effort[task.specialist_name] += task.estimated_effort or 0
+    
+    return jsonify({
+        'sprint': {
+            'id': sprint.id,
+            'name': sprint.name,
+            'start_date': sprint.start_date.isoformat() if sprint.start_date else None,
+            'end_date': sprint.end_date.isoformat() if sprint.end_date else None,
+            'goal': sprint.goal,
+            'criticality': sprint.criticality
+        },
+        'specialist_tasks': dict(specialist_tasks),
+        'specialist_effort': dict(specialist_effort)
+    })
+
+# GET /sprints/consolidated-report - Página de seleção de Sprints para relatório
+@sprints_bp.route('/consolidated-report', methods=['GET'])
+def consolidated_report_page():
+    sprints = Sprint.query.order_by(Sprint.start_date.desc()).all()
+    return render_template(
+        'sprints/consolidated_report_select.html',
+        title="Relatório Consolidado de Sprints",
+        sprints=sprints
+    )
+
+# POST /sprints/consolidated-report - Gerar relatório consolidado
+@sprints_bp.route('/consolidated-report', methods=['POST'])
+def generate_consolidated_report():
+    sprint_ids = request.form.getlist('sprint_ids[]')
+    if not sprint_ids:
+        abort(400, description="Nenhuma sprint selecionada")
+
+    sprints = Sprint.query.filter(Sprint.id.in_(sprint_ids)).order_by(Sprint.start_date).all()
+    if not sprints:
+        abort(404, description="Nenhuma sprint encontrada")
+
+    # Cálculo de datas do período total
+    start_date = min(sprint.start_date for sprint in sprints)
+    end_date = max(sprint.end_date for sprint in sprints)
+
+    # Contadores e acumuladores
+    total_tasks = 0
+    specialist_summary = defaultdict(lambda: {"name": "", "total_tasks": 0, "total_hours": 0})
+    processed_sprints = []  # Lista para armazenar os dados processados das sprints
+
+    # Processa cada sprint
+    for sprint in sprints:
+        sprint_total_hours = 0
+        processed_tasks = []  # Lista temporária para armazenar tarefas processadas
+
+        # Busca todas as tarefas da sprint
+        tasks = Task.query.filter_by(sprint_id=sprint.id).all()
+        
+        for task in tasks:
+            # Determina o status da tarefa baseado no nome da coluna
+            status = "Em Andamento"
+            if task.column_id:
+                column = Column.query.get(task.column_id)
+                if column:
+                    column_name_lower = column.name.lower()
+                    if 'concluído' in column_name_lower or 'concluido' in column_name_lower:
+                        status = "Concluído"
+            
+            # Processa a tarefa
+            task_dict = {
+                "id": task.id,
+                "name": task.title,  # Usando title em vez de name
+                "specialist_name": task.specialist_name,
+                "estimated_hours": task.estimated_effort or 0,  # Usando estimated_effort em vez de estimated_hours
+                "status": status
+            }
+            processed_tasks.append(task_dict)
+
+            # Atualiza contadores
+            total_tasks += 1
+            sprint_total_hours += task.estimated_effort or 0  # Usando estimated_effort aqui também
+
+            # Atualiza resumo do especialista
+            specialist = task.specialist_name or "Não Atribuído"
+            specialist_summary[specialist]["name"] = specialist
+            specialist_summary[specialist]["total_tasks"] += 1
+            specialist_summary[specialist]["total_hours"] += task.estimated_effort or 0  # E aqui
+
+        # Cria um dicionário com os dados processados da sprint
+        sprint_dict = {
+            "id": sprint.id,
+            "name": sprint.name,
+            "start_date": sprint.start_date,
+            "end_date": sprint.end_date,
+            "goal": sprint.goal,
+            "criticality": sprint.criticality,
+            "tasks": processed_tasks,
+            "total_hours": sprint_total_hours
+        }
+        processed_sprints.append(sprint_dict)
+
+    # Converte o resumo de especialistas para lista ordenada
+    specialist_summary = sorted(
+        specialist_summary.values(),
+        key=lambda x: (-x["total_hours"], x["name"])
+    )
+
+    return render_template(
+        'sprints/consolidated_report.html',
+        sprints=processed_sprints,  # Passa a lista de sprints processadas
+        start_date=start_date,
+        end_date=end_date,
+        total_tasks=total_tasks,
+        specialist_summary=specialist_summary
+    ) 

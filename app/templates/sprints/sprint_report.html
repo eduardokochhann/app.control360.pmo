@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="bi bi-file-text me-2"></i>{{ title }}
+            </h6>
+            <div>
+                <button class="btn btn-sm btn-outline-secondary me-2" onclick="window.print()">
+                    <i class="bi bi-printer me-1"></i>Imprimir
+                </button>
+                <a href="{{ url_for('sprints_bp.sprint_management_page') }}" class="btn btn-sm btn-secondary">
+                    <i class="bi bi-arrow-left me-1"></i>Voltar
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <!-- Informações da Sprint -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h5 class="mb-3">Informações da Sprint</h5>
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <th style="width: 150px">Nome:</th>
+                                <td>{{ sprint.name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Período:</th>
+                                <td>
+                                    {% if sprint.start_date and sprint.end_date %}
+                                        {{ sprint.start_date.strftime('%d/%m/%Y') }} - {{ sprint.end_date.strftime('%d/%m/%Y') }}
+                                    {% else %}
+                                        Não definido
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Objetivo:</th>
+                                <td>{{ sprint.goal or 'Não definido' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Criticidade:</th>
+                                <td>{{ sprint.criticality }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h5 class="mb-3">Capacidade por Especialista</h5>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Especialista</th>
+                                <th class="text-end">Horas Alocadas</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for specialist, effort in specialist_effort.items() %}
+                            <tr>
+                                <td>{{ specialist }}</td>
+                                <td class="text-end">{{ "%.1f"|format(effort) }}h</td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="table-secondary">
+                                <th>Total</th>
+                                <th class="text-end">{{ "%.1f"|format(specialist_effort.values()|sum) }}h</th>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Lista de Tarefas -->
+            <h5 class="mb-3">Tarefas da Sprint</h5>
+            {% for specialist, tasks in specialist_tasks.items() %}
+            <div class="mb-4">
+                <h6 class="border-bottom pb-2">{{ specialist }}</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Prioridade</th>
+                                <th class="text-end">Esforço (h)</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for task in tasks %}
+                            <tr>
+                                <td>{{ task.title }}</td>
+                                <td>{{ task.priority or 'Média' }}</td>
+                                <td class="text-end">{{ "%.1f"|format(task.estimated_effort or 0) }}</td>
+                                <td>{{ task.status.value }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Estilos específicos para impressão -->
+<style>
+@media print {
+    .btn { display: none !important; }
+    .card { border: none !important; box-shadow: none !important; }
+    .card-header { background-color: transparent !important; }
+    .table { border-color: #dee2e6 !important; }
+    .table td, .table th { border-color: #dee2e6 !important; }
+    .table-hover tbody tr:hover { background-color: transparent !important; }
+}
+</style>
+{% endblock %} 

@@ -403,9 +403,14 @@
         <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-calendar3-week me-2"></i>{{ title }}</h6>
       </div>
       {# <<< FIM: Agrupamento Título + Botão Collapse >>> #}
-      <button class="btn btn-sm btn-primary" id="addSprintBtn" data-bs-toggle="modal" data-bs-target="#sprintModal">
-        <i class="bi bi-plus-lg me-1"></i>Nova Sprint
-      </button>
+      <div>
+        <a href="{{ url_for('sprints.consolidated_report_page') }}" class="btn btn-sm btn-outline-primary me-2">
+            <i class="bi bi-file-earmark-text me-1"></i>Relatório Consolidado
+        </a>
+        <button class="btn btn-sm btn-primary" id="addSprintBtn" data-bs-toggle="modal" data-bs-target="#sprintModal">
+            <i class="bi bi-plus-lg me-1"></i>Nova Sprint
+        </button>
+      </div>
     </div>
     <div class="card-body">
       {# Área do Quadro de Sprints #}
