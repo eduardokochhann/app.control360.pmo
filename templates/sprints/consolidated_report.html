@@ -22,6 +22,51 @@
     .specialist-summary {
         page-break-inside: avoid;
     }
+    /* Estilos para alinhamento e larguras fixas */
+    .w-50px {
+        width: 50px !important;
+    }
+    .w-100px {
+        width: 100px !important;
+    }
+    .w-150px {
+        width: 150px !important;
+    }
+    .w-200px {
+        width: 200px !important;
+    }
+    .w-250px {
+        width: 250px !important;
+    }
+    .w-300px {
+        width: 300px !important;
+    }
+    .task-name {
+        min-width: 500px;
+        max-width: 500px;
+        white-space: normal;
+        word-wrap: break-word;
+    }
+    .specialist-name {
+        min-width: 200px;
+        max-width: 200px;
+        white-space: normal;
+    }
+    .hours-column {
+        width: 100px !important;
+        text-align: right !important;
+    }
+    .status-column {
+        width: 120px !important;
+        text-align: center !important;
+    }
+    /* Ajuste para tabelas responsivas */
+    .table-fixed {
+        table-layout: fixed;
+    }
+    .table td {
+        vertical-align: middle;
+    }
 </style>
 {% endblock %}
 
@@ -47,18 +92,18 @@
                 <h5 class="mb-3">Resumo Geral</h5>
                 <div class="row">
                     <div class="col-md-6">
-                        <table class="table table-sm">
+                        <table class="table table-sm table-fixed">
                             <tbody>
                                 <tr>
-                                    <th style="width: 200px;">Total de Sprints:</th>
+                                    <th class="w-200px">Total de Sprints:</th>
                                     <td>{{ sprints|length }}</td>
                                 </tr>
                                 <tr>
-                                    <th>Período Total:</th>
+                                    <th class="w-200px">Período Total:</th>
                                     <td>{{ start_date.strftime('%d/%m/%Y') }} - {{ end_date.strftime('%d/%m/%Y') }}</td>
                                 </tr>
                                 <tr>
-                                    <th>Total de Tarefas:</th>
+                                    <th class="w-200px">Total de Tarefas:</th>
                                     <td>{{ total_tasks }}</td>
                                 </tr>
                             </tbody>
@@ -71,20 +116,20 @@
             <div class="specialist-summary mb-5">
                 <h5 class="mb-3">Capacidade por Especialista</h5>
                 <div class="table-responsive">
-                    <table class="table table-sm table-hover">
+                    <table class="table table-sm table-hover table-fixed">
                         <thead>
                             <tr>
-                                <th>Especialista</th>
-                                <th class="text-end">Total de Tarefas</th>
-                                <th class="text-end">Horas Estimadas</th>
+                                <th class="specialist-name">Especialista</th>
+                                <th class="hours-column">Total de Tarefas</th>
+                                <th class="hours-column">Horas Estimadas</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for specialist in specialist_summary %}
                             <tr>
-                                <td>{{ specialist.name or 'Não Atribuído' }}</td>
-                                <td class="text-end">{{ specialist.total_tasks }}</td>
-                                <td class="text-end">{{ "%.1f"|format(specialist.total_hours) }}h</td>
+                                <td class="specialist-name">{{ specialist.name or 'Não Atribuído' }}</td>
+                                <td class="hours-column">{{ specialist.total_tasks }}</td>
+                                <td class="hours-column">{{ "%.1f"|format(specialist.total_hours) }}h</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -108,22 +153,22 @@
                         </div>
                         <div class="card-body p-0">
                             <div class="table-responsive">
-                                <table class="table table-sm table-hover mb-0">
+                                <table class="table table-sm table-hover mb-0 table-fixed">
                                     <thead>
                                         <tr>
-                                            <th>Tarefa</th>
-                                            <th>Especialista</th>
-                                            <th class="text-end">Horas Est.</th>
-                                            <th>Status</th>
+                                            <th class="task-name">Tarefa</th>
+                                            <th class="specialist-name">Especialista</th>
+                                            <th class="hours-column">Horas Est.</th>
+                                            <th class="status-column">Status</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for task in sprint.tasks %}
                                         <tr>
-                                            <td>{{ task.name }}</td>
-                                            <td>{{ task.specialist_name or 'Não Atribuído' }}</td>
-                                            <td class="text-end">{{ "%.1f"|format(task.estimated_hours) if task.estimated_hours else '-' }}h</td>
-                                            <td>
+                                            <td class="task-name">{{ task.name }}</td>
+                                            <td class="specialist-name">{{ task.specialist_name or 'Não Atribuído' }}</td>
+                                            <td class="hours-column">{{ "%.1f"|format(task.estimated_hours) if task.estimated_hours else '-' }}h</td>
+                                            <td class="status-column">
                                                 <span class="badge {% if task.status == 'Concluído' %}bg-success{% else %}bg-secondary{% endif %}">
                                                     {{ task.status }}
                                                 </span>
@@ -134,7 +179,7 @@
                                     <tfoot>
                                         <tr class="table-light">
                                             <th colspan="2">Total da Sprint:</th>
-                                            <th class="text-end">{{ "%.1f"|format(sprint.total_hours) }}h</th>
+                                            <th class="hours-column">{{ "%.1f"|format(sprint.total_hours) }}h</th>
                                             <th></th>
                                         </tr>
                                     </tfoot>
