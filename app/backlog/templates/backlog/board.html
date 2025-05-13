@@ -565,7 +565,7 @@
 {% block content %}
 <div class="container-fluid mt-4">
     {# Card Principal do Quadro Kanban #}
-    <div class="card kanban-board-wrapper shadow-sm mb-4">
+    <div class="card kanban-board-wrapper shadow-sm mb-4"> 
         <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between bg-light border-bottom">
             <div class="d-flex align-items-center">
                 <a href="{{ url_for('backlog.project_selection') }}" class="btn btn-sm btn-outline-secondary me-3" title="Voltar para Seleção de Projetos">
@@ -581,11 +581,11 @@
                 <button class="btn btn-sm btn-outline-secondary" id="toggleDetailsBtn" title="Mostrar/Ocultar Detalhes do Projeto">
                     <i class="bi bi-info-circle me-1"></i>Detalhes
                 </button>
-                <button class="btn btn-sm btn-primary" id="addTaskBtn" {% if not current_backlog_id %}disabled{% endif %}>
+                 <button class="btn btn-sm btn-primary" id="addTaskBtn" {% if not current_backlog_id %}disabled{% endif %}>
                     <i class="bi bi-plus-lg me-1"></i>Nova Tarefa
                 </button>
+                </div>
             </div>
-        </div>
 
         {# Informações do Projeto (sempre visíveis) #}
         <div class="card-body pb-0">
@@ -595,8 +595,8 @@
 
             {# Mensagem de Status #}
             <div id="boardStatus" class="alert d-flex align-items-center mb-3" role="alert" style="display: none;">
-                <i class="bi flex-shrink-0 me-2"></i>
-                <div>{# Mensagem será definida pelo JS #}</div>
+              <i class="bi flex-shrink-0 me-2"></i>
+              <div>{# Mensagem será definida pelo JS #}</div>
             </div>
 
             {# Placeholder para o botão Criar Backlog #}
@@ -682,14 +682,14 @@
                 {% endfor %}
             </div>
         </div>
-    </div>
-
+            </div>
+            
     {# Container de Detalhes do Projeto (inicialmente oculto) #}
     <div id="projectDetailsContainer" class="card shadow-sm mb-4" style="display: none;">
         <div class="card-header py-3 d-flex justify-content-between align-items-center bg-light border-bottom">
-            <h6 class="m-0 font-weight-bold text-primary">
+                            <h6 class="m-0 font-weight-bold text-primary">
                 <i class="bi bi-info-circle me-1"></i>Detalhes do Projeto
-            </h6>
+                            </h6>
             <button type="button" class="btn-close" aria-label="Fechar" onclick="toggleProjectDetails()"></button>
         </div>
         <div class="card-body">
@@ -2393,14 +2393,14 @@
           console.error("[Milestones] Elemento milestonesTableBody não encontrado");
           return;
       }
-
+      
       const backlogId = document.getElementById('currentBacklogId')?.value;
       if (!backlogId) {
           console.warn("[Milestones] ID do backlog não encontrado");
           showNoDataMessage(milestonesTableBody, 'Selecione um projeto para ver os marcos.');
           return;
       }
-
+      
       showLoadingMessage(milestonesTableBody, 'Carregando marcos...');
       console.log(`[Milestones] Buscando marcos para backlog ${backlogId}`);
 
@@ -2411,15 +2411,15 @@
           if (!response.ok) {
               throw new Error(`Erro ${response.status} ao carregar marcos`);
           }
-
+          
           const milestones = await response.json();
           console.log(`[Milestones] Dados recebidos:`, milestones);
-
+          
           if (!milestones || milestones.length === 0) {
               showNoDataMessage(milestonesTableBody, 'Nenhum marco cadastrado para este projeto.');
               return;
           }
-
+          
           // Limpa a tabela
           milestonesTableBody.innerHTML = '';
 
@@ -2438,43 +2438,43 @@
                                    milestone.criticality?.toLowerCase() === "alta" ? "bg-warning text-dark" :
                                    milestone.criticality?.toLowerCase() === "média" ? "bg-info text-dark" :
                                    "bg-secondary";
-
-              // Formata datas
-              const plannedDate = milestone.planned_date ? formatDateString(milestone.planned_date) : "-";
-              const actualDate = milestone.actual_date ? formatDateString(milestone.actual_date) : "-";
-
-              tr.innerHTML = `
+                  
+                  // Formata datas
+                  const plannedDate = milestone.planned_date ? formatDateString(milestone.planned_date) : "-";
+                  const actualDate = milestone.actual_date ? formatDateString(milestone.actual_date) : "-";
+                  
+                  tr.innerHTML = `
                   <td>${escapeHtml(milestone.name)} ${milestone.is_checkpoint ? '<i class="bi bi-patch-check-fill text-primary" title="Checkpoint"></i>' : ''}</td>
-                  <td>${plannedDate}</td>
-                  <td>${actualDate}</td>
-                  <td><span class="badge ${statusClass}">${escapeHtml(milestone.status || 'Pendente')}</span></td>
-                  <td><span class="badge ${criticalityClass}">${escapeHtml(milestone.criticality || 'Média')}</span></td>
-                  <td>
-                      <button class="btn btn-outline-primary btn-sm edit-milestone-btn" title="Editar Marco">
-                          <i class="bi bi-pencil-fill"></i>
-                      </button>
+                      <td>${plannedDate}</td>
+                      <td>${actualDate}</td>
+                      <td><span class="badge ${statusClass}">${escapeHtml(milestone.status || 'Pendente')}</span></td>
+                      <td><span class="badge ${criticalityClass}">${escapeHtml(milestone.criticality || 'Média')}</span></td>
+                      <td>
+                          <button class="btn btn-outline-primary btn-sm edit-milestone-btn" title="Editar Marco">
+                              <i class="bi bi-pencil-fill"></i>
+                          </button>
                       <button class="btn btn-outline-danger btn-sm delete-milestone-btn" title="Excluir Marco">
-                          <i class="bi bi-trash-fill"></i>
-                      </button>
-                  </td>
-              `;
-
-              milestonesTableBody.appendChild(tr);
-
+                              <i class="bi bi-trash-fill"></i>
+                          </button>
+                      </td>
+                  `;
+                  
+                  milestonesTableBody.appendChild(tr);
+                  
               // Adiciona event listeners
-              const editBtn = tr.querySelector('.edit-milestone-btn');
+                  const editBtn = tr.querySelector('.edit-milestone-btn');
               const deleteBtn = tr.querySelector('.delete-milestone-btn');
 
-              if (editBtn) {
+                  if (editBtn) {
                   editBtn.addEventListener('click', () => openMilestoneModal(milestone.id));
-              }
-              if (deleteBtn) {
+                  }
+                  if (deleteBtn) {
                   deleteBtn.addEventListener('click', () => confirmDeleteMilestone(milestone.id, milestone.name));
               }
           });
 
           console.log('[Milestones] Renderização concluída com sucesso');
-
+          
       } catch (error) {
           console.error("[Milestones] Erro:", error);
           showErrorMessage(milestonesTableBody, `Erro ao carregar marcos: ${error.message}`);
@@ -3946,8 +3946,8 @@
       init: function() {
           if (this.initialized) {
               console.log('[Notes] NotesManager já foi inicializado. Ignorando chamada duplicada.');
-              return;
-          }
+          return;
+      }
           console.log('[Notes] Inicializando NotesManager pela primeira vez.');
 
           const modalElement = document.getElementById('noteModal');
@@ -3955,9 +3955,9 @@
               this.noteModal = new bootstrap.Modal(modalElement);
           } else {
               console.error('[Notes] Elemento #noteModal não encontrado.');
-              return;
-          }
-
+          return;
+      }
+      
           this.setupEventListeners();
           this.loadNotes();
           this.loadTasksForSelect();
@@ -3988,7 +3988,7 @@
               console.error('[Notes] Elementos não encontrados:', missingElements.join(', '));
               return;
           }
-
+          
           // Remove listeners antigos e adiciona novos
           Object.entries(elements).forEach(([key, element]) => {
               const newElement = element.cloneNode(true);
@@ -4030,15 +4030,15 @@
           const projectId = document.getElementById('currentBacklogId')?.value;
           if (!projectId) {
               console.warn('[Notes] ID do projeto não encontrado');
-              return;
+          return;
           }
 
           const notesList = document.getElementById('notesList');
           if (!notesList) {
               console.error('[Notes] Elemento notesList não encontrado');
-              return;
-          }
-
+          return;
+      }
+      
           notesList.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div> Carregando notas...</div>';
 
           fetch(`/backlog/api/notes?project_id=${projectId}`)
@@ -4076,7 +4076,7 @@
           const projectId = document.getElementById('currentBacklogId')?.value;
           if (!projectId) {
               this.showError('ID do projeto não encontrado');
-              return;
+          return;
           }
 
           const data = {
@@ -4094,9 +4094,9 @@
 
           if (!data.content) {
               this.showError('O conteúdo da nota é obrigatório');
-              return;
-          }
-
+          return;
+      }
+      
           const url = this.currentEditingNoteId 
               ? `/backlog/api/notes/${this.currentEditingNoteId}`
               : '/backlog/api/notes';
@@ -4113,17 +4113,17 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(data)
           })
-          .then(response => {
+              .then(response => {
               if (!response.ok) throw new Error(`Erro ${response.status} ao salvar nota`);
-              return response.json();
-          })
+                  return response.json();
+              })
           .then(result => {
               console.log('[Notes] Nota salva com sucesso:', result);
               this.noteModal.hide();
               this.loadNotes();
               this.showSuccess('Nota salva com sucesso');
-          })
-          .catch(error => {
+              })
+              .catch(error => {
               console.error('[Notes] Erro ao salvar nota:', error);
               this.showError(`Erro ao salvar nota: ${error.message}`);
           })
@@ -4147,7 +4147,7 @@
           fetch(`/backlog/api/notes/${this.currentEditingNoteId}`, {
               method: 'DELETE'
           })
-          .then(response => {
+              .then(response => {
               if (!response.ok) throw new Error('Erro ao excluir nota');
               this.noteModal.hide();
               this.loadNotes();
@@ -4183,12 +4183,12 @@
                       document.getElementById('notePriority').value = note.priority;
                       document.getElementById('noteTaskId').value = note.task_id || '';
                       document.getElementById('noteTags').value = note.tags.join(', ');
-                  })
-                  .catch(error => {
+              })
+              .catch(error => {
                       console.error('[Notes] Erro ao carregar nota:', error);
                       this.showError('Erro ao carregar nota');
                   });
-          } else {
+      } else {
               const modalTitle = document.querySelector('#noteModal .modal-title');
               if (modalTitle) modalTitle.textContent = 'Nova Nota';
           }
@@ -4202,7 +4202,7 @@
 
           if (!notes || notes.length === 0) {
               notesList.innerHTML = '<div class="text-center text-muted py-3">Nenhuma nota encontrada</div>';
-              return;
+          return;
           }
 
           const sortedNotes = [...notes].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -4461,7 +4461,7 @@
               }
               
               console.log('[Init] Carregamento inicial concluído com sucesso');
-          } catch (error) {
+        } catch (error) {
               console.error('[Init] Erro durante o carregamento inicial:', error);
           }
       }
@@ -4482,7 +4482,7 @@
           element.innerHTML = `
               <div class="text-center text-muted py-3">
                   <div class="spinner-border spinner-border-sm text-primary me-2"></div>${message}
-              </div>
+                    </div>
           `;
       }
   }
@@ -4495,7 +4495,7 @@
                   <i class="bi bi-info-circle me-2"></i>${message}
               </td></tr>
           `;
-      } else {
+        } else {
           element.innerHTML = `
               <div class="text-center text-muted py-3">
                   <i class="bi bi-info-circle me-2"></i>${message}

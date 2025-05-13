@@ -17,8 +17,8 @@ from app.utils import (
     COLUNAS_TEXTO
 )
 import unicodedata
-from ..models import Backlog # Adicionar import
-from .. import db # Adicionar import
+from ..models import Backlog, Note, Tag, Task  # Adicionar Note, Tag e Task
+from .. import db
 
 # Configuração de logging
 logging.basicConfig(level=logging.INFO)
@@ -3270,6 +3270,90 @@ class MacroService(BaseService):
                 self.logger.warning(f"[Status Report] Backlog não encontrado para projeto {project_id}, não é possível buscar riscos.")
             # FIM: Buscar riscos do projeto
             
+            # INÍCIO: Buscar notas do projeto
+            notas_do_projeto = []
+            try:
+                # Garantir que o project_id seja uma string limpa (apenas números)
+                project_id_str = str(project_id).strip().split('.')[0]  # Remove qualquer parte decimal
+                self.logger.info(f"[Status Report] Tentando buscar notas para o projeto {project_id_str} (tipo: {type(project_id_str)})")
+                
+                # Busca todas as notas relacionadas ao projeto diretamente
+                project_notes = Note.query.filter(Note.project_id == project_id_str)\
+                    .order_by(Note.created_at.desc())\
+                    .all()
+
+                self.logger.info(f"[Status Report] Query SQL: {Note.query.filter(Note.project_id == project_id_str)}")
+                self.logger.info(f"[Status Report] Project ID: {project_id_str}")
+                self.logger.info(f"[Status Report] Notas encontradas: {len(project_notes)}")
+                
+                if project_notes:
+                    self.logger.info(f"[Status Report] {len(project_notes)} notas encontradas para o projeto {project_id_str}")
+                    for note in project_notes:
+                        self.logger.info(f"[Status Report] Processando nota: ID={note.id}, Project_ID={note.project_id}, Backlog_ID={note.backlog_id}, Categoria={note.category}, Task_ID={note.task_id}, Conteúdo={note.content[:50]}...")
+                        # Busca o título da tarefa se a nota estiver vinculada a uma
+                        task_title = None
+                        if note.task_id:
+                            task = Task.query.get(note.task_id)
+                            if task:
+                                task_title = task.title
+                                self.logger.info(f"[Status Report] Título da tarefa encontrado: {task_title}")
+                            else:
+                                self.logger.warning(f"[Status Report] Tarefa {note.task_id} não encontrada")
+
+                        # Define as cores dos badges baseado na categoria e prioridade
+                        category_colors = {
+                            'decision': 'primary',
+                            'risk': 'danger',
+                            'impediment': 'warning',
+                            'status_update': 'info',
+                            'general': 'secondary'
+                        }
+                        
+                        priority_colors = {
+                            'high': 'danger',
+                            'medium': 'warning',
+                            'low': 'success'
+                        }
+
+                        category_texts = {
+                            'decision': 'Decisão',
+                            'risk': 'Risco',
+                            'impediment': 'Impedimento',
+                            'status_update': 'Atualização',
+                            'general': 'Geral'
+                        }
+
+                        priority_texts = {
+                            'high': 'Alta',
+                            'medium': 'Média',
+                            'low': 'Baixa'
+                        }
+
+                        nota_dict = {
+                            'id': note.id,
+                            'content': note.content,
+                            'category': note.category,
+                            'category_color': category_colors.get(note.category, 'secondary'),
+                            'category_text': category_texts.get(note.category, note.category),
+                            'priority': note.priority,
+                            'priority_color': priority_colors.get(note.priority, 'secondary'),
+                            'priority_text': priority_texts.get(note.priority, note.priority),
+                            'task_id': note.task_id,
+                            'task_title': task_title,
+                            'created_at': note.created_at.strftime('%d/%m/%Y %H:%M'),
+                            'tags': [tag.name for tag in note.tags] if note.tags else []
+                        }
+                        self.logger.info(f"[Status Report] Nota processada: {nota_dict}")
+                        notas_do_projeto.append(nota_dict)
+                else:
+                    self.logger.info(f"[Status Report] Nenhuma nota encontrada para o projeto {project_id_str}")
+            except Exception as e:
+                self.logger.error(f"[Status Report] Erro ao buscar notas do projeto {project_id_str}: {str(e)}")
+                self.logger.exception(e)  # Log do traceback completo
+            
+            self.logger.info(f"[Status Report] Total de notas processadas: {len(notas_do_projeto)}")
+            # FIM: Buscar notas do projeto
+
             # Se não encontrou marcos no banco de dados, usar uma lista vazia em vez dos marcos falsos
             if not marcos_recentes:
                 self.logger.info(f"[Status Report] Não foram encontrados marcos para o projeto {project_id}")
@@ -3295,9 +3379,10 @@ class MacroService(BaseService):
                     'percentual_consumido': percentual_consumido
                 },
                 'status_geral_indicador': status_geral_indicador,
-                'marcos_recentes': marcos_recentes, # Lista de marcos
-                'riscos_impedimentos': riscos_do_projeto, # Substituído o placeholder
-                'proximos_passos': [] # Placeholder
+                'marcos_recentes': marcos_recentes,
+                'riscos_impedimentos': riscos_do_projeto,
+                'notas': notas_do_projeto,
+                'proximos_passos': []
             }
 
             # Log detalhado para debug
@@ -3305,21 +3390,14 @@ class MacroService(BaseService):
                              f"Progresso={percentual_concluido}%, " +
                              f"Prazo='{status_prazo}', " +
                              f"Status Geral='{status_geral_indicador}', " +
-                             f"Marcos={len(marcos_recentes)}")
+                             f"Marcos={len(marcos_recentes)}, " +
+                             f"Notas={len(notas_do_projeto)}")
             
-            # Verificar se marcos_recentes está realmente no dicionário
+            # Verificar se as chaves existem no report_data
             for key in report_data.keys():
-                self.logger.debug(f"[Status Report] Chave encontrada: '{key}'")
-            
-            if 'marcos_recentes' in report_data:
-                self.logger.debug(f"[Status Report] Tipo de marcos_recentes: {type(report_data['marcos_recentes'])}")
-                self.logger.debug(f"[Status Report] Tamanho de marcos_recentes: {len(report_data['marcos_recentes'])}")
-                for i, marco in enumerate(report_data['marcos_recentes']):
-                    self.logger.debug(f"[Status Report] Marco {i+1}: {marco['nome']}, status: {marco['status']}")
-            else:
-                self.logger.error("[Status Report] ERRO: marcos_recentes não está presente no dicionário report_data!")
-                # Garantir que marcos_recentes exista
-                report_data['marcos_recentes'] = marcos_recentes
+                self.logger.debug(f"[Status Report] Chave encontrada: '{key}' com tipo {type(report_data[key])}")
+                if key == 'notas':
+                    self.logger.info(f"[Status Report] Conteúdo de notas: {report_data['notas']}")
 
             return report_data
 
@@ -3397,31 +3475,14 @@ class MacroService(BaseService):
         logger.debug(f"Gerando status report para o projeto: {project_id}")
 
         try:
-            # Obter detalhes do projeto
-            project_details = self.obter_detalhes_projeto(project_id)
-            if not project_details:
-                logger.warning(f"Projeto não encontrado: {project_id}")
+            # Usar a função gerar_dados_status_report que já tem toda a lógica necessária
+            report_data = self.gerar_dados_status_report(project_id)
+            if not report_data:
+                logger.warning(f"Projeto não encontrado ou erro ao gerar dados: {project_id}")
                 return None
-                
-            # Obter métricas e KPIs
-            # Esta parte está incompleta e precisa ser implementada
-            
-            # Por enquanto, vamos retornar os detalhes básicos do projeto
-            return {
-                'info_geral': project_details,
-                'marcos_recentes': [],  # Lista vazia por padrão
-                'progresso': {
-                    'percentual_concluido': 0,
-                    'data_prevista_termino': 'N/A',
-                    'status_prazo': 'A Definir'
-                },
-                'esforco': {
-                    'horas_planejadas': project_details.get('estimated_hours', 0),
-                    'horas_utilizadas': project_details.get('logged_hours', 0),
-                    'percentual_consumido': 0
-                },
-                'status_geral_indicador': 'cinza'
-            }
+
+            # Retorna os dados completos que já incluem as notas
+            return report_data
                 
         except Exception as e:
             logger.error(f"Erro ao gerar status report para projeto {project_id}: {str(e)}")

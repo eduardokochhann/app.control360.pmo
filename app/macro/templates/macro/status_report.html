@@ -144,7 +144,7 @@
             <div class="col-md-4">
                 <div class="card card-kpi">
                     <div class="card-body text-center">
-                        <h5 class="card-title">Status Geral</h5>
+                        <h5 class="card-title">Status Geral teste</h5>
                         {% set status_color = report_data.status_geral_indicador | default('cinza') %}
                         <span class="status-dot status-{{ status_color }}"></span>
                         <span class="fw-bold text-{{ status_color }}">{{ status_color | capitalize | default('A Definir') }}</span>
@@ -420,6 +420,52 @@
                         {% else %}
                             <div class="text-center p-3 text-muted small">
                                 <i class="bi bi-info-circle me-1"></i>Nenhum risco ativo.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Nova Seção: Notas e Observações -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-journal-text me-2"></i>
+                            Notas e Observações
+                        </h5>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if report_data.notas and report_data.notas|length > 0 %}
+                            <div class="list-group list-group-flush">
+                                {% for nota in report_data.notas %}
+                                    <div class="list-group-item border-start-0 border-end-0 py-3">
+                                        <div class="d-flex justify-content-between align-items-start mb-1">
+                                            <div>
+                                                {% if nota.task_id %}
+                                                    <span class="badge bg-info me-2">Tarefa: {{ nota.task_title }}</span>
+                                                {% endif %}
+                                                <span class="badge bg-{{ nota.category_color }}">{{ nota.category_text }}</span>
+                                                <span class="badge bg-{{ nota.priority_color }}">{{ nota.priority_text }}</span>
+                                            </div>
+                                            <small class="text-muted">{{ nota.created_at }}</small>
+                                        </div>
+                                        <div class="note-content" style="white-space: pre-wrap; font-size: 0.9rem;">{{ nota.content }}</div>
+                                        {% if nota.tags %}
+                                            <div class="mt-2">
+                                                {% for tag in nota.tags %}
+                                                    <span class="badge bg-secondary me-1" style="font-size: 0.7rem;">{{ tag }}</span>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center p-3 text-muted small">
+                                <i class="bi bi-info-circle me-1"></i>Nenhuma nota registrada.
                             </div>
                         {% endif %}
                     </div>

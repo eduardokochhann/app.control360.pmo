@@ -625,6 +625,47 @@
         text-align: center !important;
         min-width: 80px !important;
     }
+
+    /* Estilos para a seção de notas */
+    .note-section .list-group-item {
+        transition: background-color 0.2s ease;
+    }
+
+    .note-section .list-group-item:hover {
+        background-color: rgba(0,0,0,0.02);
+    }
+
+    .note-section .badge {
+        font-size: 0.7rem;
+        padding: 0.35em 0.65em;
+    }
+
+    .note-section .text-muted {
+        font-size: 0.8rem;
+    }
+
+    /* Cores específicas para categorias de notas */
+    .badge.bg-decision { background-color: #4e73df !important; }
+    .badge.bg-impediment { background-color: #e74a3b !important; }
+    .badge.bg-general { background-color: #858796 !important; }
+
+    /* Cores específicas para prioridades */
+    .badge.bg-high { background-color: #e74a3b !important; }
+    .badge.bg-medium { background-color: #f6c23e !important; }
+    .badge.bg-low { background-color: #1cc88a !important; }
+
+    /* Ajustes para impressão */
+    @media print {
+        .note-section {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        
+        .note-section .list-group-item {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -913,12 +954,12 @@
             <!-- Riscos e Impedimentos (Linha inteira) -->
             <div class="row mb-4">
                 <div class="col-md-12">
-                    <div class="placeholder-section"> {# ENVOLVENDO COM placeholder-section #}
+                    <div class="placeholder-section">
                         <div class="d-flex align-items-center mb-2">
-                            <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i> {# Ícone e cor do título #}
-                            <h6 class="section-title mb-0">Riscos e Impedimentos</h6> {# TÍTULO FORA DO CARD #}
+                            <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+                            <h6 class="section-title mb-0">Riscos e Impedimentos</h6>
                         </div>
-                        <div class="card shadow-sm h-100"> {# Removido card-header daqui #}
+                        <div class="card shadow-sm h-100">
                             <div class="card-body p-0" style="min-height: 180px;">
                                 {% if report_data.riscos_impedimentos and report_data.riscos_impedimentos|length > 0 %}
                                     <div class="table-responsive">
@@ -970,6 +1011,71 @@
                                     </div>
                                 {% endif %}
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Notas e Observações -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-journal-text me-2"></i>
+                                Notas e Observações
+                            </h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <!-- Seção de Debug -->
+                            <div class="debug-info p-3 bg-light border-bottom" style="font-family: monospace; font-size: 0.8rem;">
+                                <strong>Debug Info:</strong><br>
+                                report_data existe? {{ report_data is defined }}<br>
+                                {% if report_data is defined %}
+                                    notas existe? {{ report_data.notas is defined }}<br>
+                                    Número de notas: {{ report_data.notas|length if report_data.notas is defined else 0 }}<br>
+                                    {% if report_data.notas is defined %}
+                                        <strong>Notas:</strong><br>
+                                        {% for nota in report_data.notas %}
+                                            - ID: {{ nota.id }}, Project_ID: {{ nota.project_id }}, Backlog_ID: {{ nota.backlog_id }}, Categoria: {{ nota.category }}<br>
+                                        {% endfor %}
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                            <!-- Fim da Seção de Debug -->
+
+                            {% if report_data.notas and report_data.notas|length > 0 %}
+                                <div class="list-group list-group-flush">
+                                    {% for nota in report_data.notas %}
+                                        <div class="list-group-item border-start-0 border-end-0 py-3">
+                                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                                <div>
+                                                    {% if nota.task_id and nota.task_title %}
+                                                        <span class="badge bg-info me-2">Tarefa: {{ nota.task_title }}</span>
+                                                    {% endif %}
+                                                    <span class="badge bg-{{ nota.category_color }}">{{ nota.category_text }}</span>
+                                                    <span class="badge bg-{{ nota.priority_color }}">{{ nota.priority_text }}</span>
+                                                </div>
+                                                <small class="text-muted">{{ nota.created_at }}</small>
+                                            </div>
+                                            <div class="note-content" style="white-space: pre-wrap; font-size: 0.9rem;">{{ nota.content }}</div>
+                                            {% if nota.tags and nota.tags|length > 0 %}
+                                                <div class="mt-2">
+                                                    {% for tag in nota.tags %}
+                                                        <span class="badge bg-secondary me-1" style="font-size: 0.7rem;">{{ tag }}</span>
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-center p-3 text-muted small">
+                                    <i class="bi bi-info-circle me-1"></i>Nenhuma nota registrada para este projeto (ID: {{ project_id }}).
+                                    <br>
+                                    <small class="text-muted">As notas criadas no Quadro aparecerão aqui automaticamente.</small>
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

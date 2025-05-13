@@ -1552,6 +1552,8 @@ def get_notes():
     query = Note.query
     
     if project_id:
+        # Garante que o project_id seja uma string limpa (apenas números)
+        project_id = str(project_id).strip().split('.')[0]
         query = query.filter_by(project_id=project_id)
     if task_id:
         query = query.filter_by(task_id=task_id)
@@ -1574,6 +1576,11 @@ def create_note():
         return jsonify({'error': 'Conteúdo da nota é obrigatório'}), 400
     if not data.get('project_id'):
         return jsonify({'error': 'ID do projeto é obrigatório'}), 400
+        
+    # Busca o backlog pelo project_id
+    backlog = Backlog.query.filter_by(project_id=str(data['project_id'])).first()
+    if not backlog:
+        return jsonify({'error': 'Backlog não encontrado para este projeto'}), 404
     
     # Processa as tags
     tags = []
@@ -1592,7 +1599,8 @@ def create_note():
     
     note = Note(
         content=data['content'],
-        project_id=data['project_id'],
+        project_id=str(data['project_id']),  # ID do projeto
+        backlog_id=backlog.id,  # ID do backlog
         task_id=data.get('task_id'),
         category=data.get('category', 'general'),
         priority=data.get('priority', 'medium'),

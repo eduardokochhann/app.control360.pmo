@@ -1314,23 +1314,25 @@ def api_projetos_squad_status_mes():
 def status_report(project_id):
     """Rota para exibir o Status Report de um projeto específico."""
     try:
-        logger.info(f"Gerando Status Report para projeto ID: {project_id}")
+        logger.info(f"[Status Report] Gerando Status Report para projeto ID: {project_id}")
         
         # Chama a função do service para preparar os dados
         report_data = macro_service.gerar_dados_status_report(project_id)
         
         if not report_data:
-            logger.error(f"Não foi possível gerar os dados para o Status Report do projeto ID {project_id}.")
+            logger.error(f"[Status Report] Não foi possível gerar os dados para o Status Report do projeto ID {project_id}.")
             return render_template('macro/status_report.html',
                                  error=f"Não foi possível gerar dados para o projeto ID {project_id}. Verifique os logs.",
                                  project_id=project_id,
                                  report_data=None)
 
-        # Não adicione marcos falsos, use os marcos reais do backlog
-        # Log das estruturas de dados para debug
-        logger.debug(f"Status Report - Chaves no report_data: {list(report_data.keys())}")
-        if 'marcos_recentes' in report_data:
-            logger.debug(f"Status Report - Número de marcos: {len(report_data['marcos_recentes'])}")
+        # Log detalhado dos dados
+        logger.info(f"[Status Report] Dados recebidos do service para projeto {project_id}:")
+        logger.info(f"[Status Report] Chaves no report_data: {list(report_data.keys())}")
+        if 'notas' in report_data:
+            logger.info(f"[Status Report] Número de notas: {len(report_data['notas'])}")
+            for nota in report_data['notas']:
+                logger.info(f"[Status Report] Nota encontrada: ID={nota.get('id')}, Project_ID={nota.get('project_id')}, Backlog_ID={nota.get('backlog_id')}, Categoria={nota.get('category')}, Conteúdo={nota.get('content')[:50]}...")
         
         # Preparar contexto 
         context = {
@@ -1342,10 +1344,12 @@ def status_report(project_id):
             'generator_type': 'weasyprint' if weasyprint_installed else ('pdfkit' if pdfkit_installed else 'none')
         }
         
+        logger.info(f"[Status Report] Renderizando template com contexto: {context.keys()}")
+        
         return render_template('macro/status_report.html', **context)
 
     except Exception as e:
-        logger.exception(f"Erro ao gerar Status Report para projeto ID {project_id}: {str(e)}")
+        logger.exception(f"[Status Report] Erro ao gerar Status Report para projeto ID {project_id}: {str(e)}")
         # Renderiza o template com uma mensagem de erro genérica
         return render_template('macro/status_report.html',
                              error=f"Erro ao gerar o Status Report: {str(e)}",

@@ -289,7 +289,8 @@ class Note(db.Model):
     report_status = db.Column(db.String(20), nullable=False, server_default='draft')  # 'draft', 'ready_for_report', 'reported'
     
     # Relacionamentos
-    project_id = db.Column(db.String(50), nullable=False)
+    project_id = db.Column(db.String(50), nullable=False)  # ID do projeto (ex: 10237)
+    backlog_id = db.Column(db.Integer, db.ForeignKey('backlog.id', ondelete='CASCADE'), nullable=False)  # ID do backlog
     task_id = db.Column(db.Integer, db.ForeignKey('task.id', ondelete='CASCADE'), nullable=True)
     
     # Campos de controle
@@ -301,6 +302,7 @@ class Note(db.Model):
     tags = db.relationship('Tag', secondary=note_tags, lazy='subquery',
                          backref=db.backref('notes', lazy=True))
     task = db.relationship('Task', backref=db.backref('notes', lazy=True, cascade="all, delete-orphan"))
+    backlog = db.relationship('Backlog', backref=db.backref('notes', lazy=True, cascade="all, delete-orphan"))
 
     # Validações via CheckConstraint
     __table_args__ = (
@@ -332,6 +334,7 @@ class Note(db.Model):
             'priority': self.priority,
             'report_status': self.report_status,
             'project_id': self.project_id,
+            'backlog_id': self.backlog_id,
             'task_id': self.task_id,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
