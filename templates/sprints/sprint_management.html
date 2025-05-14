@@ -621,6 +621,83 @@
     </div>
 </div>
 
+{# Modal para Visualizar/Editar Tarefa #}
+<div class="modal fade" id="taskDetailsModal" tabindex="-1" aria-labelledby="taskDetailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="taskDetailsModalLabel">Detalhes da Tarefa</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="taskDetailsForm">
+          <input type="hidden" id="taskId" name="taskId">
+          <input type="hidden" id="taskType" name="taskType">
+          
+          <div class="row mb-3">
+            <div class="col-md-8">
+              <label for="taskTitle" class="form-label">Título <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="taskTitle" name="title" required>
+            </div>
+            <div class="col-md-4">
+              <label for="taskPriority" class="form-label">Prioridade</label>
+              <select class="form-select" id="taskPriority" name="priority">
+                <option value="Baixa">Baixa</option>
+                <option value="Média" selected>Média</option>
+                <option value="Alta">Alta</option>
+                <option value="Urgente">Urgente</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="taskSpecialist" class="form-label">Especialista</label>
+              <input type="text" class="form-control" id="taskSpecialist" name="specialist_name">
+            </div>
+            <div class="col-md-3">
+              <label for="taskEstimatedHours" class="form-label">Horas Estimadas</label>
+              <input type="number" class="form-control" id="taskEstimatedHours" name="estimated_hours" step="0.5" min="0">
+            </div>
+            <div class="col-md-3">
+              <label for="taskStatus" class="form-label">Status</label>
+              <select class="form-select" id="taskStatus" name="status">
+                <option value="pendente">Pendente</option>
+                <option value="em_andamento">Em Andamento</option>
+                <option value="concluido">Concluído</option>
+                <option value="bloqueado">Bloqueado</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="taskDescription" class="form-label">Descrição</label>
+            <textarea class="form-control" id="taskDescription" name="description" rows="4"></textarea>
+          </div>
+
+          <div id="backlogSpecificFields" class="d-none">
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label for="taskProjectId" class="form-label">ID do Projeto</label>
+                <input type="text" class="form-control" id="taskProjectId" name="project_id" readonly>
+              </div>
+              <div class="col-md-6">
+                <label for="taskColumnIdentifier" class="form-label">Coluna</label>
+                <input type="text" class="form-control" id="taskColumnIdentifier" name="column_identifier" readonly>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-danger me-auto" id="taskDeleteBtn">Excluir Tarefa</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+        <button type="submit" form="taskDetailsForm" class="btn btn-primary">Salvar Alterações</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -1567,6 +1644,132 @@
             });
         }
     }
+
+    // Função para abrir o modal de detalhes da tarefa
+    function openTaskDetailsModal(taskElement) {
+        const taskId = taskElement.dataset.taskId;
+        const taskType = taskElement.classList.contains('generic-task') ? 'generic' : 'backlog';
+        const form = document.getElementById('taskDetailsForm');
+        const backlogFields = document.getElementById('backlogSpecificFields');
+        const modalTitle = document.getElementById('taskDetailsModalLabel');
+        const deleteBtn = document.getElementById('taskDeleteBtn');
+
+        // Reset form e configura campos básicos
+        form.reset();
+        document.getElementById('taskId').value = taskId;
+        document.getElementById('taskType').value = taskType;
+
+        // Configura visibilidade dos campos específicos do backlog
+        backlogFields.classList.toggle('d-none', taskType === 'generic');
+
+        // Busca dados da tarefa na API
+        fetch(`/backlog/api/tasks/${taskId}`)
+            .then(response => {
+                if (!response.ok) throw new Error(`Erro ${response.status}`);
+                return response.json();
+            })
+            .then(task => {
+                // Preenche os campos do formulário
+                document.getElementById('taskTitle').value = task.name || '';
+                document.getElementById('taskPriority').value = task.priority || 'Média';
+                document.getElementById('taskSpecialist').value = task.specialist_name || '';
+                document.getElementById('taskEstimatedHours').value = task.estimated_hours || '';
+                document.getElementById('taskDescription').value = task.description || '';
+                document.getElementById('taskStatus').value = task.status || 'pendente';
+
+                if (taskType === 'backlog') {
+                    document.getElementById('taskProjectId').value = task.project_id || '';
+                    document.getElementById('taskColumnIdentifier').value = task.column_identifier || '';
+                }
+
+                // Configura título do modal
+                modalTitle.textContent = `Detalhes da Tarefa - ${task.name}`;
+
+                // Mostra o modal
+                const taskModal = new bootstrap.Modal(document.getElementById('taskDetailsModal'));
+                taskModal.show();
+            })
+            .catch(error => {
+                console.error('Erro ao carregar detalhes da tarefa:', error);
+                alert('Erro ao carregar detalhes da tarefa. Por favor, tente novamente.');
+            });
+    }
+
+    // Handler para submissão do formulário de detalhes da tarefa
+    document.getElementById('taskDetailsForm').addEventListener('submit', async function(event) {
+        event.preventDefault();
+        
+        const formData = new FormData(this);
+        const taskId = formData.get('taskId');
+        const taskType = formData.get('taskType');
+        
+        const data = {
+            name: formData.get('title'),
+            priority: formData.get('priority'),
+            specialist_name: formData.get('specialist_name'),
+            estimated_hours: formData.get('estimated_hours') ? parseFloat(formData.get('estimated_hours')) : null,
+            description: formData.get('description'),
+            status: formData.get('status')
+        };
+
+        try {
+            const response = await fetch(`/backlog/api/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) throw new Error(`Erro ${response.status}`);
+
+            // Fecha o modal
+            bootstrap.Modal.getInstance(document.getElementById('taskDetailsModal')).hide();
+            
+            // Recarrega os dados
+            loadSprints();
+            if (taskType === 'generic') loadGenericTasks();
+            else loadBacklogTasks();
+
+        } catch (error) {
+            console.error('Erro ao salvar tarefa:', error);
+            alert('Erro ao salvar alterações. Por favor, tente novamente.');
+        }
+    });
+
+    // Handler para exclusão de tarefa
+    document.getElementById('taskDeleteBtn').addEventListener('click', async function() {
+        const taskId = document.getElementById('taskId').value;
+        const taskType = document.getElementById('taskType').value;
+        
+        if (!confirm('Tem certeza que deseja excluir esta tarefa?')) return;
+
+        try {
+            const response = await fetch(`/backlog/api/tasks/${taskId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) throw new Error(`Erro ${response.status}`);
+
+            // Fecha o modal
+            bootstrap.Modal.getInstance(document.getElementById('taskDetailsModal')).hide();
+            
+            // Recarrega os dados
+            loadSprints();
+            if (taskType === 'generic') loadGenericTasks();
+            else loadBacklogTasks();
+
+        } catch (error) {
+            console.error('Erro ao excluir tarefa:', error);
+            alert('Erro ao excluir tarefa. Por favor, tente novamente.');
+        }
+    });
+
+    // Adiciona evento de clique nas tarefas
+    document.addEventListener('click', function(event) {
+        const taskCard = event.target.closest('.backlog-task-card, .generic-task');
+        if (taskCard && !event.target.closest('.task-actions')) {
+            openTaskDetailsModal(taskCard);
+        }
+    });
 
   }); // Fim DOMContentLoaded
 </script>
