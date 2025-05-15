@@ -63,6 +63,7 @@
     .kpi-card .kpi-content {
         width: 100%;
         margin-left: 0.8rem;
+        text-align: left; /* Adicionado para alinhar conteúdo à esquerda */
     }
     
     .kpi-card .kpi-icon {
@@ -226,6 +227,39 @@
             width: 100% !important;
         }
         
+        /* Cabeçalho da empresa na impressão */
+        .company-header.pdf-only {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            border-bottom: 1px solid #4e73df !important;
+            margin-bottom: 10px !important;
+            padding-bottom: 5px !important;
+        }
+
+        .company-header.pdf-only .company-logo {
+            font-size: 12pt !important;
+            font-weight: bold !important;
+            margin-bottom: 3px !important;
+        }
+
+        .company-header.pdf-only .report-date-print {
+            font-size: 8pt !important;
+            color: #666 !important;
+        }
+
+        /* Informações do projeto na impressão */
+        .project-info-line.pdf-only {
+            font-size: 9pt !important;
+            padding: 4px 0px !important;
+            margin-bottom: 30px !important; /* Aumentado para 30px */
+            text-align: left !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+
         /* Preservar quebras de página */
         .placeholder-section, .card {
             page-break-inside: avoid !important;
@@ -264,6 +298,7 @@
             font-size: 48pt !important;
             color: rgba(200, 200, 200, 0.15) !important;
             z-index: -1 !important;
+            display: none !important; /* Removendo marca d'água */
         }
     }
     
@@ -302,16 +337,33 @@
         margin-bottom: 10px !important;
         padding-bottom: 5px !important;
         border-bottom: 1px solid #4e73df !important;
+        display: flex; /* Usar flexbox para alinhar os itens */
+        flex-direction: column; /* Empilhar verticalmente */
+        align-items: flex-start; /* Alinhar itens à esquerda */
+        width: 100% !important; /* Garantir largura total */
+        box-sizing: border-box !important; /* Incluir padding e border na largura total */
     }
     
     .print-mode .company-logo {
         font-size: 12pt !important;
+        font-weight: bold; /* Adicionado para destacar */
+        margin-bottom: 3px; /* Espaço entre logo e data do relatório */
+    }
+
+    .print-mode .report-date-print { /* Nova classe para estilizar a data do relatório */
+        font-size: 8pt !important;
+        color: #666 !important;
+        /* align-self: flex-end; */ /* Removido para alinhar à esquerda com o pai */
+        /* margin-top: -1.5em; */ /* Removido */
     }
     
     .print-mode .project-info-line {
-        font-size: 8pt !important;
-        padding: 4px 6px !important;
-        margin-bottom: 10px !important;
+        font-size: 9pt !important; /* Aumentando a fonte */
+        padding: 4px 0px !important; /* Ajustando padding, removendo lateral */
+        margin-bottom: 30px !important; /* Aumentando margem inferior para mais espaço */
+        text-align: left !important; /* Garantindo alinhamento à esquerda */
+        width: 100% !important; /* Garantir largura total */
+        box-sizing: border-box !important; /* Incluir padding na largura total */
     }
     
     .print-mode .row {
@@ -409,6 +461,7 @@
         margin-top: 10px !important;
         padding-top: 5px !important;
         font-size: 7pt !important;
+        page-break-before: auto; /* Evitar quebra de página antes se não for necessário */
     }
     
     .print-mode .company-footer p {
@@ -691,6 +744,12 @@
                 </h1>
                 <div class="screen-only"> <!-- Div para agrupar data e botão -->
                     <span class="text-muted small me-3">Gerado em: {{ data_geracao | default('N/A', true) }}</span>
+                    <!-- Botão para o Quadro Kanban -->
+                    <a href="{{ url_for('backlog.board_by_project', project_id=project_id) }}" 
+                       class="btn btn-sm btn-outline-info me-2" 
+                       title="Ir para o Quadro Kanban do Projeto">
+                        <i class="bi bi-kanban me-1"></i> Quadro Kanban
+                    </a>
                     <!-- Botões de ação - apenas o botão de impressão será visível -->
                     <button class="btn btn-sm btn-outline-secondary ms-2" onclick="window.print();" title="Usar impressão do navegador">
                         <i class="bi bi-printer me-1"></i> Imprimir
@@ -719,18 +778,15 @@
             <!-- Cabeçalho Profissional (visível apenas na impressão/PDF) -->
             <div class="company-header pdf-only">
                 <div class="company-logo">
-                    <!-- Logo corporativo -->
-                    <i class="bi bi-building-fill me-2"></i> Control360 SOU
-                    <div style="font-size: 9pt; font-weight: normal; color: #666;">Gestão Inteligente de Projetos</div>
+                    Control360.SOU - PMO
                 </div>
-                <div class="report-date" style="text-align: right;">
-                    <div style="font-size: 8pt; color: #666;">Status Report</div>
-                    <strong>{{ data_geracao | default('N/A', true) }}</strong>
+                <div class="report-date-print"> <!-- Usando nova classe -->
+                    Data: <strong>{{ data_geracao | default('N/A', true) }}</strong>
                 </div>
             </div>
             
             <!-- Marca d'água de confidencialidade -->
-            <div class="document-confidential pdf-only">CONFIDENCIAL</div>
+            <!-- <div class="document-confidential pdf-only">CONFIDENCIAL</div> --> <!-- Comentado/Removido -->
             
             <!-- Detalhes do Projeto - Mantém o original na tela, redesenhado apenas na impressão -->
             <div class="project-details-header screen-only">
@@ -1082,11 +1138,11 @@
                         Documento gerado em: {{ data_geracao | default('N/A', true) }}
                     </div>
                     <div style="text-align: right; font-size: 7pt; color: #666;">
-                        Página 1 de 1
+                        Página <span class="pageNumber"></span> de <span class="totalPages"></span>
                     </div>
                 </div>
-                <p>Este documento é <strong>confidencial</strong> e destinado exclusivamente para o cliente.</p>
-                <p>© 2025 SOU Tecnologia - Todos os direitos reservados • <span style="color: #666;">suporte@control360.com.br</span></p>
+                <p>Este documento é destinado exclusivamente para o cliente.</p> <!-- Removido "confidencial" -->
+                <p>© 2025 SOU.cloud - Todos os direitos reservados • <span style="color: #666;">suporte@control360.com.br</span></p>
             </div>
             
             </div><!-- Fim do container para PDF -->
@@ -1623,7 +1679,19 @@
                                     orientation: 'portrait',
                                     compress: true
                                 },
-                                pagebreak: { mode: 'avoid-all' }
+                                pagebreak: { mode: 'avoid-all' },
+                                // Adicionar callback para numeração de página
+                                didDrawPage: function (data) {
+                                    // Adicionar número da página
+                                    const pageCount = data.doc.internal.getNumberOfPages();
+                                    data.doc.setFontSize(7);
+                                    data.doc.setTextColor(102, 102, 102); // Cor #666
+                                    data.doc.text(
+                                        'Página ' + data.pageNumber + ' de ' + pageCount,
+                                        data.settings.margin.left, // Alinha com a margem esquerda
+                                        data.doc.internal.pageSize.height - 7 // Posição no rodapé
+                                    );
+                                }
                             };
                             
                             // Gerar o PDF com configuração básica
@@ -1636,6 +1704,11 @@
                                 
                                 // Restaurar os canvas originais
                                 updateCharts();
+
+                                // Limpar a numeração de página manual se existir
+                                const pageNumSpans = pdfContent.querySelectorAll('.pageNumber, .totalPages');
+                                pageNumSpans.forEach(span => span.textContent = '');
+
                             }).catch(error => {
                                 console.error('Erro ao gerar PDF:', error);
                                 alert('Ocorreu um erro ao gerar o PDF. Por favor, tente novamente.');
@@ -1643,6 +1716,10 @@
                                 
                                 // Restaurar os canvas originais
                                 updateCharts();
+
+                                // Limpar a numeração de página manual se existir
+                                const pageNumSpans = pdfContent.querySelectorAll('.pageNumber, .totalPages');
+                                pageNumSpans.forEach(span => span.textContent = '');
                             });
                         });
                     } catch (error) {
