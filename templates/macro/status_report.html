@@ -1167,6 +1167,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 <script>
+    let reportData; // Declarar reportData em um escopo mais global
+
     document.addEventListener('DOMContentLoaded', function() {
         // --- Variáveis para o modo de edição ---
         const editModeBtn = document.getElementById('editModeBtn');
@@ -1179,16 +1181,19 @@
         const reportDataElement = document.getElementById('report-data-json');
         if (!reportDataElement) {
             console.error('Elemento com dados do report não encontrado!');
+            // Seta reportData como um objeto vazio para evitar erros subsequentes caso o script da timeline execute.
+            reportData = {}; 
             return;
         }
         
-        let reportData;
+        // let reportData; // Removida declaração local
         try {
-            reportData = JSON.parse(reportDataElement.textContent);
-            console.log("Dados do Report para JS:", reportData);
+            reportData = JSON.parse(reportDataElement.textContent); // Atribui à reportData do escopo superior
+            console.log("Dados do Report para JS (escopo principal):", reportData);
         } catch (e) {
             console.error("Erro ao parsear dados JSON do report:", e);
-            return;
+            reportData = {}; // Garante que reportData seja um objeto em caso de erro
+            return; 
         }
 
         // Verifica se os dados necessários existem ANTES de tentar criar os gráficos
@@ -1790,6 +1795,45 @@ document.addEventListener('DOMContentLoaded', function() {
         contentElement.style.display = (!isLoading && !hasError && !isEmpty) ? 'block' : 'none';
     }
     
+    let upcomingTasksPopulatedByReportData = false; // NOVA LINHA
+
+    // NOVO BLOCO para usar reportData.proximos_passos
+    // Assumindo que 'reportData' está disponível globalmente e que 'proximos_passos'
+    // tem a mesma estrutura que 'data.upcoming_tasks' (title, description, start_date, due_date)
+    if (typeof reportData !== 'undefined' && reportData && reportData.proximos_passos && reportData.proximos_passos.length > 0) {
+        console.log("Populando 'Próximas Tarefas' com dados de reportData.proximos_passos (timeline script):", reportData.proximos_passos);
+        let html = '';
+        html += `
+            <div class="column-headers">
+                <div class="task-column">Tarefa</div>
+                <div class="status-column">Status</div>
+                <div class="date-column">Período</div>
+            </div>
+        `;
+        reportData.proximos_passos.forEach(task => {
+            console.log("Dados da tarefa individual (proximos_passos):", task); // NOVA LINHA DE DEBUG
+            const startDate = task.start_date ? formatDateString(task.start_date) : '-'; // Manter como está, pois não temos a data
+            const dueDate = task.due_date ? formatDateString(task.due_date) : '-';   // Manter como está, pois não temos a data
+            
+            html += `
+                <li class="list-group-item" title="${escapeHtml(task.description || '')}"> 
+                    <span class="timeline-task-name">${escapeHtml(task.titulo || 'Tarefa sem título')}</span> {# Modificado de task.title para task.titulo #}
+                    <div class="status-container">
+                        <span class="badge bg-secondary">A Fazer</span>
+                    </div>
+                    <span class="text-muted small">
+                        ${startDate} → ${dueDate}
+                    </span>
+                </li>
+            `;
+        });
+        if (upcomingTasksList) { // Adicionada verificação de existência
+            upcomingTasksList.innerHTML = html;
+        }
+        upcomingTasksPopulatedByReportData = true;
+    }
+    // FIM DO NOVO BLOCO
+
     // Busca o ID do projeto da página
     const projectId = "{{ project_id }}";
     if (!projectId) {
@@ -1826,48 +1870,53 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("Dados da timeline recebidos:", data);
             
             // Verifica se há tarefas para exibir
-            const hasUpcoming = data.upcoming_tasks && data.upcoming_tasks.length > 0;
+            const hasUpcomingApi = data.upcoming_tasks && data.upcoming_tasks.length > 0; // Renomeado para clareza
             const hasStarted = data.recently_started && data.recently_started.length > 0;
             const hasCompleted = data.recently_completed && data.recently_completed.length > 0;
             
-            if (!hasUpcoming && !hasStarted && !hasCompleted) {
+            // Modificada a condição de vazio para considerar se reportData já populou upcomingTasks
+            const isEffectivelyEmpty = (!upcomingTasksPopulatedByReportData && !hasUpcomingApi) && !hasStarted && !hasCompleted;
+            
+            if (isEffectivelyEmpty) {
                 setTimelineStatus(false, false, null, true);
                 return;
             }
             
-            // Renderiza tarefas futuras
-            if (hasUpcoming) {
-                let html = '';
-                // Adicionar cabeçalho
-                html += `
-                    <div class="column-headers">
-                        <div class="task-column">Tarefa</div>
-                        <div class="status-column">Status</div>
-                        <div class="date-column">Período</div>
-                    </div>
-                `;
-                data.upcoming_tasks.forEach(task => {
-                    const startDate = task.start_date ? formatDateString(task.start_date) : '-';
-                    const dueDate = task.due_date ? formatDateString(task.due_date) : '-';
-                    
+            // Renderiza tarefas futuras SOMENTE SE NÃO FORAM POPULADAS POR REPORTDATA
+            if (!upcomingTasksPopulatedByReportData) {
+                if (hasUpcomingApi) {
+                    let html = '';
+                    // Adicionar cabeçalho
                     html += `
-                        <li class="list-group-item" title="${escapeHtml(task.description || '')}">
-                            <span class="timeline-task-name">${escapeHtml(task.title)}</span>
-                            <div class="status-container">
-                                <span class="badge bg-secondary">A Fazer</span>
-                            </div>
-                            <span class="text-muted small">
-                                ${startDate} → ${dueDate}
-                            </span>
-                        </li>
+                        <div class="column-headers">
+                            <div class="task-column">Tarefa</div>
+                            <div class="status-column">Status</div>
+                            <div class="date-column">Período</div>
+                        </div>
                     `;
-                });
-                upcomingTasksList.innerHTML = html || '<li class="list-group-item text-center text-muted small">Nenhuma tarefa futura</li>';
-            } else {
-                upcomingTasksList.innerHTML = '<li class="list-group-item text-center text-muted small">Nenhuma tarefa futura</li>';
+                    data.upcoming_tasks.forEach(task => {
+                        const startDate = task.start_date ? formatDateString(task.start_date) : '-';
+                        const dueDate = task.due_date ? formatDateString(task.due_date) : '-';
+                        
+                        html += `
+                            <li class="list-group-item" title="${escapeHtml(task.description || '')}">
+                                <span class="timeline-task-name">${escapeHtml(task.title)}</span>
+                                <div class="status-container">
+                                    <span class="badge bg-secondary">A Fazer</span>
+                                </div>
+                                <span class="text-muted small">
+                                    ${startDate} → ${dueDate}
+                                </span>
+                            </li>
+                        `;
+                    });
+                    if (upcomingTasksList) upcomingTasksList.innerHTML = html || '<li class="list-group-item text-center text-muted small">Nenhuma tarefa futura (API)</li>';
+                } else {
+                    if (upcomingTasksList) upcomingTasksList.innerHTML = '<li class="list-group-item text-center text-muted small">Nenhuma tarefa futura (API)</li>';
+                }
             }
             
-            // Renderiza tarefas em andamento
+            // Renderiza tarefas em andamento (lógica original mantida)
             if (hasStarted) {
                 let html = '';
                 // Adicionar cabeçalho
@@ -1931,10 +1980,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Mostra o conteúdo
-            setTimelineStatus(false, false, null, false);
+            setTimelineStatus(false, false, null, false); // Se chegou aqui, não está vazio
         })
         .catch(error => {
             console.error("Erro ao carregar timeline:", error);
+            // Modificado para preservar upcomingTasksList se populado por reportData
+            if (!upcomingTasksPopulatedByReportData) {
+                if (upcomingTasksList) upcomingTasksList.innerHTML = `<li class="list-group-item text-danger small">Erro ao carregar tarefas futuras: ${escapeHtml(error.message)}</li>`;
+            }
+            if (startedTasksList) startedTasksList.innerHTML = `<li class="list-group-item text-danger small">Erro ao carregar tarefas iniciadas: ${escapeHtml(error.message)}</li>`;
+            if (completedTasksList) completedTasksList.innerHTML = `<li class="list-group-item text-danger small">Erro ao carregar tarefas concluídas: ${escapeHtml(error.message)}</li>`;
+            
             setTimelineStatus(false, true, error.message, false);
         });
 });

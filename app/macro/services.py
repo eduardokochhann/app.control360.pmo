@@ -3359,6 +3359,45 @@ class MacroService(BaseService):
                 self.logger.info(f"[Status Report] Não foram encontrados marcos para o projeto {project_id}")
                 marcos_recentes = []
                 
+            # INÍCIO: Buscar Próximos Passos (Tarefas "A Fazer")
+            proximos_passos_list = []
+            if backlog: # Garante que o backlog foi encontrado
+                try:
+                    from ..models import Column, TaskStatus # Importar Column e TaskStatus
+                    self.logger.info(f"[Status Report - Próximos Passos] Buscando para project_id: {project_id}, backlog.id: {backlog.id}")
+
+                    coluna_a_fazer = Column.query.filter(Column.name.ilike('%A Fazer%')).first()
+                    self.logger.info(f"[Status Report - Próximos Passos] Coluna 'A Fazer' encontrada: {coluna_a_fazer.id if coluna_a_fazer else 'Nenhuma'}")
+
+                    if coluna_a_fazer:
+                        tarefas_a_fazer_query = Task.query.filter(
+                            Task.backlog_id == backlog.id,
+                            Task.column_id == coluna_a_fazer.id,
+                            Task.status != TaskStatus.DONE
+                        ).order_by(Task.position.asc())
+                        
+                        self.logger.info(f"[Status Report - Próximos Passos] Query SQL para tarefas 'A Fazer': {str(tarefas_a_fazer_query)}")
+                        
+                        tarefas_a_fazer = tarefas_a_fazer_query.all() # Removido .limit(10)
+                        self.logger.info(f"[Status Report - Próximos Passos] Número de tarefas 'A Fazer' encontradas pela query: {len(tarefas_a_fazer)}")
+
+                        for tarefa in tarefas_a_fazer:
+                            self.logger.info(f"[Status Report - Próximos Passos] Adicionando tarefa ID: {tarefa.id}, Título: {tarefa.title}")
+                            proximos_passos_list.append({
+                                'id': tarefa.id,
+                                'titulo': tarefa.title,
+                                'prioridade': tarefa.priority if hasattr(tarefa, 'priority') else 'N/A',
+                                'criada_em': tarefa.created_at.strftime('%d/%m/%Y') if tarefa.created_at else 'N/A',
+                                'start_date': tarefa.start_date.strftime('%d/%m/%Y') if tarefa.start_date else None,      # ADICIONADO
+                                'due_date': tarefa.due_date.strftime('%d/%m/%Y') if tarefa.due_date else None          # ADICIONADO
+                            })
+                        self.logger.info(f"[Status Report] {len(proximos_passos_list)} tarefas 'A Fazer' encontradas para próximos passos do projeto {project_id}.")
+                    else:
+                        self.logger.warning(f"[Status Report] Coluna 'A Fazer' não encontrada. Não foi possível buscar próximos passos.")
+                except Exception as e:
+                    self.logger.error(f"[Status Report] Erro ao buscar próximos passos (tarefas 'A Fazer') para o projeto {project_id}: {str(e)}")
+            # FIM: Buscar Próximos Passos
+                
             # 5. Montar a estrutura do report
             report_data = {
                 'info_geral': {
@@ -3382,7 +3421,7 @@ class MacroService(BaseService):
                 'marcos_recentes': marcos_recentes,
                 'riscos_impedimentos': riscos_do_projeto,
                 'notas': notas_do_projeto,
-                'proximos_passos': []
+                'proximos_passos': proximos_passos_list
             }
 
             # Log detalhado para debug
@@ -3391,7 +3430,9 @@ class MacroService(BaseService):
                              f"Prazo='{status_prazo}', " +
                              f"Status Geral='{status_geral_indicador}', " +
                              f"Marcos={len(marcos_recentes)}, " +
-                             f"Notas={len(notas_do_projeto)}")
+                             f"Riscos={len(riscos_do_projeto if riscos_do_projeto else [])}, " + # Adicionado verificação para riscos
+                             f"Notas={len(notas_do_projeto)}, " +
+                             f"Próximos Passos={len(proximos_passos_list)}")
             
             # Verificar se as chaves existem no report_data
             for key in report_data.keys():
@@ -3403,7 +3444,17 @@ class MacroService(BaseService):
 
         except Exception as e:
             self.logger.exception(f"[Status Report] Erro ao gerar dados para projeto ID {project_id}: {str(e)}")
-            return None
+            # Construir um dicionário de erro mínimo para evitar quebrar o template
+            return {
+                'info_geral': {'id': project_id, 'nome': 'Erro ao carregar', 'squad': '', 'especialista': '', 'status_atual': 'Erro'},
+                'progresso': {'percentual_concluido': 0, 'data_prevista_termino': 'N/A', 'status_prazo': 'Erro'},
+                'esforco': {'horas_planejadas': 0, 'horas_utilizadas': 0, 'percentual_consumido': 0},
+                'status_geral_indicador': 'cinza',
+                'marcos_recentes': [],
+                'riscos_impedimentos': [],
+                'notas': [],
+                'proximos_passos': []
+            }
     # <<< FIM: Nova função para dados do Status Report >>>
 
     def obter_marcos_recentes(self, project_id):
