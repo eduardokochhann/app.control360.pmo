@@ -1026,22 +1026,8 @@
                                 Notas e Observações
                             </h5>
                         </div>
-                        <div class="card-body p-0">
+                        <div class="card-body">
                             <!-- Seção de Debug -->
-                            <div class="debug-info p-3 bg-light border-bottom" style="font-family: monospace; font-size: 0.8rem;">
-                                <strong>Debug Info:</strong><br>
-                                report_data existe? {{ report_data is defined }}<br>
-                                {% if report_data is defined %}
-                                    notas existe? {{ report_data.notas is defined }}<br>
-                                    Número de notas: {{ report_data.notas|length if report_data.notas is defined else 0 }}<br>
-                                    {% if report_data.notas is defined %}
-                                        <strong>Notas:</strong><br>
-                                        {% for nota in report_data.notas %}
-                                            - ID: {{ nota.id }}, Project_ID: {{ nota.project_id }}, Backlog_ID: {{ nota.backlog_id }}, Categoria: {{ nota.category }}<br>
-                                        {% endfor %}
-                                    {% endif %}
-                                {% endif %}
-                            </div>
                             <!-- Fim da Seção de Debug -->
 
                             {% if report_data.notas and report_data.notas|length > 0 %}
@@ -1058,7 +1044,7 @@
                                                 </div>
                                                 <small class="text-muted">{{ nota.created_at }}</small>
                                             </div>
-                                            <div class="note-content" style="white-space: pre-wrap; font-size: 0.9rem;">{{ nota.content }}</div>
+                                            <div class="note-content" style="white-space: pre-wrap; font-size: 0.9rem; text-align: left;">{{ nota.content }}</div>
                                             {% if nota.tags and nota.tags|length > 0 %}
                                                 <div class="mt-2">
                                                     {% for tag in nota.tags %}
