@@ -4026,11 +4026,28 @@
           console.log('[Notes] Event listeners configurados com sucesso.');
       },
 
+      updateNoteType: function(selectedTaskId) {
+        const noteTypeSelect = document.getElementById('noteType');
+        if (noteTypeSelect) {
+            if (selectedTaskId && selectedTaskId !== '') {
+                noteTypeSelect.value = 'task';
+            } else {
+                // Se nenhuma tarefa for selecionada, pode-se manter 'project' 
+                // ou limpar, dependendo da lógica desejada.
+                // Por ora, vamos manter como 'project' se nenhuma tarefa estiver selecionada.
+                noteTypeSelect.value = 'project'; 
+            }
+        }
+      },
+
       loadNotes: function() {
-          const projectId = document.getElementById('currentBacklogId')?.value;
+          // const projectId = document.getElementById('currentBacklogId')?.value; // LINHA ANTIGA
+          const projectId = document.getElementById('currentProjectId')?.value; // CORREÇÃO: Usar o ID do PROJETO
+
           if (!projectId) {
-              console.warn('[Notes] ID do projeto não encontrado');
-          return;
+              // console.warn('[Notes] ID do projeto não encontrado'); // Comentado para evitar confusão se o backlogId for usado intencionalmente em outro lugar
+              console.warn('[Notes] ID do projeto (currentProjectId) não encontrado para carregar notas.');
+              return;
           }
 
           const notesList = document.getElementById('notesList');
@@ -4041,6 +4058,7 @@
       
           notesList.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div> Carregando notas...</div>';
 
+          // Caminho correto com o prefixo /backlog/
           fetch(`/backlog/api/notes?project_id=${projectId}`)
               .then(response => {
                   if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -4073,9 +4091,11 @@
       },
 
       saveNote: function() {
-          const projectId = document.getElementById('currentBacklogId')?.value;
+          // const projectId = document.getElementById('currentBacklogId')?.value; // LINHA ANTIGA
+          const projectId = document.getElementById('currentProjectId')?.value; // CORREÇÃO: Usar o ID do PROJETO
+          
           if (!projectId) {
-              this.showError('ID do projeto não encontrado');
+              this.showError('ID do projeto não encontrado no #currentProjectId');
           return;
           }
 
@@ -4083,7 +4103,7 @@
               content: document.getElementById('noteContent').value.trim(),
               category: document.getElementById('noteCategory').value,
               priority: document.getElementById('notePriority').value,
-              project_id: projectId,
+              project_id: projectId, // O project_id correto (ex: '10237')
               task_id: document.getElementById('noteTaskId').value || null,
               note_type: document.getElementById('noteType').value,
               tags: document.getElementById('noteTags').value
@@ -4097,9 +4117,9 @@
           return;
       }
       
-          const url = this.currentEditingNoteId 
-              ? `/backlog/api/notes/${this.currentEditingNoteId}`
-              : '/backlog/api/notes';
+          // URL completa incluindo o prefixo /backlog/
+          // Caminho completo da API incluindo o prefixo /backlog/
+          const url = this.currentEditingNoteId               ? `/backlog/api/notes/${this.currentEditingNoteId}`              : '/backlog/api/notes';
           
           const method = this.currentEditingNoteId ? 'PUT' : 'POST';
 
@@ -4144,6 +4164,7 @@
           deleteButton.disabled = true;
           deleteButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Excluindo...';
 
+          // Caminho correto com o prefixo /backlog/
           fetch(`/backlog/api/notes/${this.currentEditingNoteId}`, {
               method: 'DELETE'
           })
@@ -4175,6 +4196,7 @@
               const modalTitle = document.querySelector('#noteModal .modal-title');
               if (modalTitle) modalTitle.textContent = 'Editar Nota';
 
+              // Caminho correto com o prefixo /backlog/
               fetch(`/backlog/api/notes/${noteId}`)
                   .then(response => response.json())
                   .then(note => {

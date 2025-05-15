@@ -7,4 +7,6 @@ from flask import Blueprint
 backlog_bp = Blueprint('backlog', __name__, url_prefix='/backlog', template_folder='templates', static_folder='static')
 
 # Importa as rotas no final para evitar importações circulares
-from . import routes 
+from . import routes
+# Importar o módulo de rotas de notas separado
+from . import note_routes 
