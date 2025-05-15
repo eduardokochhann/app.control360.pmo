@@ -37,6 +37,9 @@
         background-color: #f8f9fc;
         border-radius: 0.35rem;
         border: 1px solid #e3e6f0;
+        display: flex; /* Adicionado para garantir o comportamento flex */
+        flex-wrap: wrap; /* Permite que os itens quebrem para a próxima linha */
+        align-items: center; /* Alinha os itens verticalmente */
     }
     
     .project-details-header strong {
@@ -44,7 +47,9 @@
     }
     
     .project-details-header span {
-        margin-right: 15px;
+        margin-right: 20px; /* Aumentar um pouco o espaço entre os itens */
+        margin-bottom: 8px; /* Adicionar espaço inferior para quando quebrar a linha */
+        white-space: nowrap; /* Evitar que o texto do item quebre no meio */
     }
     
     /* KPI cards originais */
@@ -761,13 +766,19 @@
                                 {% set status_color_class = report_data.status_geral_indicador | default('cinza') %}
                                 <div class="d-flex align-items-center">
                                      <span class="status-dot status-{{ status_color_class }}" data-status-dot></span>
-                                     <span class="h5 status-text text-{{ status_color_class }} editable-field" data-field="status-geral" data-status-text>{{ status_color_class | capitalize | default('A Definir') }}</span>
+                                     {% set status_text_map = {
+                                         'verde': 'No Prazo',
+                                         'amarelo': 'Atenção',
+                                         'vermelho': 'Crítico',
+                                         'cinza': 'Não Iniciado'
+                                     } %}
+                                     <span class="h5 status-text text-{{ status_color_class }} editable-field" data-field="status-geral" data-status-text>{{ status_text_map.get(status_color_class, 'Não Iniciado') }}</span>
                                      <div class="status-selector ml-2" style="display:none;">
                                         <select class="form-select form-select-sm">
-                                            <option value="verde">Verde</option>
-                                            <option value="amarelo">Amarelo</option>
-                                            <option value="vermelho">Vermelho</option>
-                                            <option value="cinza">Cinza</option>
+                                            <option value="verde">No Prazo</option>
+                                            <option value="amarelo">Atenção</option>
+                                            <option value="vermelho">Crítico</option>
+                                            <option value="cinza">Não Iniciado</option>
                                         </select>
                                      </div>
                                 </div>
@@ -1017,51 +1028,48 @@
             </div>
             
             <!-- Notas e Observações -->
-            <div class="row mt-4">
-                <div class="col-12">
-                    <div class="card shadow-sm">
-                        <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                            <h5 class="card-title mb-0">
-                                <i class="bi bi-journal-text me-2"></i>
-                                Notas e Observações
-                            </h5>
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="placeholder-section">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-journal-text text-primary me-2"></i>
+                            <h6 class="section-title mb-0">Notas e Observações</h6>
                         </div>
-                        <div class="card-body">
-                            <!-- Seção de Debug -->
-                            <!-- Fim da Seção de Debug -->
-
-                            {% if report_data.notas and report_data.notas|length > 0 %}
-                                <div class="list-group list-group-flush">
-                                    {% for nota in report_data.notas %}
-                                        <div class="list-group-item border-start-0 border-end-0 py-3">
-                                            <div class="d-flex justify-content-between align-items-start mb-1">
-                                                <div>
-                                                    {% if nota.task_id and nota.task_title %}
-                                                        <span class="badge bg-info me-2">Tarefa: {{ nota.task_title }}</span>
-                                                    {% endif %}
-                                                    <span class="badge bg-{{ nota.category_color }}">{{ nota.category_text }}</span>
-                                                    <span class="badge bg-{{ nota.priority_color }}">{{ nota.priority_text }}</span>
+                        <div class="card shadow-sm h-100">
+                            <div class="card-body">
+                                {% if report_data.notas and report_data.notas|length > 0 %}
+                                    <div class="list-group list-group-flush">
+                                        {% for nota in report_data.notas %}
+                                            <div class="list-group-item border-start-0 border-end-0 py-3">
+                                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                                    <div>
+                                                        {% if nota.task_id and nota.task_title %}
+                                                            <span class="badge bg-info me-2">Tarefa: {{ nota.task_title }}</span>
+                                                        {% endif %}
+                                                        <span class="badge bg-{{ nota.category_color }}">{{ nota.category_text }}</span>
+                                                        <span class="badge bg-{{ nota.priority_color }}">{{ nota.priority_text }}</span>
+                                                    </div>
+                                                    <small class="text-muted">{{ nota.created_at }}</small>
                                                 </div>
-                                                <small class="text-muted">{{ nota.created_at }}</small>
+                                                <div class="note-content" style="white-space: pre-wrap; font-size: 0.9rem; text-align: left;">{{ nota.content }}</div>
+                                                {% if nota.tags and nota.tags|length > 0 %}
+                                                    <div class="mt-2">
+                                                        {% for tag in nota.tags %}
+                                                            <span class="badge bg-secondary me-1" style="font-size: 0.7rem;">{{ tag }}</span>
+                                                        {% endfor %}
+                                                    </div>
+                                                {% endif %}
                                             </div>
-                                            <div class="note-content" style="white-space: pre-wrap; font-size: 0.9rem; text-align: left;">{{ nota.content }}</div>
-                                            {% if nota.tags and nota.tags|length > 0 %}
-                                                <div class="mt-2">
-                                                    {% for tag in nota.tags %}
-                                                        <span class="badge bg-secondary me-1" style="font-size: 0.7rem;">{{ tag }}</span>
-                                                    {% endfor %}
-                                                </div>
-                                            {% endif %}
-                                        </div>
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                <div class="text-center p-3 text-muted small">
-                                    <i class="bi bi-info-circle me-1"></i>Nenhuma nota registrada para este projeto (ID: {{ project_id }}).
-                                    <br>
-                                    <small class="text-muted">As notas criadas no Quadro aparecerão aqui automaticamente.</small>
-                                </div>
-                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <div class="text-center text-muted small py-3 px-3" style="min-height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                                        <i class="bi bi-info-circle" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+                                        <span>Nenhuma nota registrada para este projeto (ID: {{ project_id }}).</span>
+                                        <small class="text-muted mt-1">As notas criadas no Quadro aparecerão aqui automaticamente.</small>
+                                    </div>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1372,12 +1380,19 @@
                     const selectElement = statusSelector.querySelector('select');
                     selectElement.value = currentStatus;
                     
+                    const statusTextMap = {
+                        verde: "No Prazo",
+                        amarelo: "Atenção",
+                        vermelho: "Crítico",
+                        cinza: "Não Iniciado"
+                    };
+                    
                     // Adiciona listener para mudar a cor do status dot quando o select muda
                     selectElement.addEventListener('change', function() {
-                        const newStatus = selectElement.value;
-                        statusDot.className = 'status-dot status-' + newStatus;
-                        statusText.className = 'h5 status-text text-' + newStatus + ' editable-field';
-                        statusText.textContent = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+                        const newStatusColor = selectElement.value;
+                        statusDot.className = 'status-dot status-' + newStatusColor;
+                        statusText.className = 'h5 status-text text-' + newStatusColor + ' editable-field';
+                        statusText.textContent = statusTextMap[newStatusColor] || 'Não Iniciado';
                     });
                 }
 
