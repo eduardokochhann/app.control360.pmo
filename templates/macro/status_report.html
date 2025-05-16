@@ -92,12 +92,15 @@
     
     /* Charts originais */
     .chart-card .card-body {
-        min-height: 220px;
-        padding: 0.8rem;
+        min-height: 220px; /* Altura original */
+        padding: 0.8rem; /* Revertido para padding original/simples */
+        /* Removidos display:flex e outros que podem ter causado estreitamento */
     }
     
     .chart-card canvas {
-        max-height: 200px;
+        max-height: 200px; /* Reativado */
+        min-height: 180px; /* Mantido, pode ser !important se necessário */
+        /* Removidos min-width e max-width % para deixar o Chart.js gerenciar mais */
     }
     
     /* Títulos de seções */
@@ -191,57 +194,60 @@
     @media print {
         @page {
             size: A4 portrait;
-            margin: 10mm; /* Margem moderada e uniforme */
+            margin: 3mm !important; /* Margens mínimas reduzidas */
         }
 
         body {
-            font-size: 10pt;
             background-color: #fff !important;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
         }
 
-        /* Controle de visibilidade básico */
-        .pdf-only { display: block !important; }
-        .screen-only { display: none !important; }
-        
-        /* Esconder elementos da UI */
-        .navbar, #accordionSidebar, .btn-outline-secondary, footer.sticky-footer, .scroll-to-top {
+        /* --- Controle de Visibilidade Essencial para Impressão do Navegador --- */
+        .screen-only,
+        .navbar, 
+        #accordionSidebar, 
+        footer.sticky-footer, 
+        .scroll-to-top,
+        #editModeBtn, 
+        #generatePdfBtn, /* Botão do html2pdf.js */
+        button.btn-outline-secondary.ms-2[onclick="window.print();"], /* Botão "Imprimir" específico */
+        a.btn.btn-sm.btn-primary[title*='Baixar Relatório em PDF'], /* Botão "Baixar PDF (Servidor)" */
+        .d-sm-flex.align-items-center.justify-content-between.mb-3 > .screen-only /* Container dos botões no header da página */
+        {
             display: none !important;
         }
-        
-        /* Esconder botões de ação na impressão */
-        #editModeBtn, #generatePdfBtn, .btn-outline-secondary, .btn-primary {
-            display: none !important;
+
+        .pdf-only { /* Elementos que SÓ devem aparecer em qualquer tipo de PDF/impressão */
+            display: block !important; 
         }
-        
-        /* Ocultar seção de botões inteira */
-        .d-sm-flex.align-items-center.justify-content-between.mb-3 > div {
-            display: none !important;
+
+        /* Evitar quebras indesejadas DENTRO de seções importantes */
+        .placeholder-section, .card, .timeline-section, .table-responsive > table {
+            page-break-inside: avoid !important;
         }
-        
-        /* Configurações básicas de containers */
-        #content-wrapper, #content, .container, .container-fluid {
-            padding: 0 !important;
-            margin: 0 !important;
-            width: 100% !important;
+
+        /* Evitar quebra de página ANTES de um rodapé da empresa, se possível */
+        .company-footer.pdf-only {
+            page-break-before: auto !important; 
         }
-        
-        /* Cabeçalho da empresa na impressão */
+
+        /* Estilos para o cabeçalho da empresa na impressão do navegador */
         .company-header.pdf-only {
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: flex-start !important;
-            width: 100% !important;
-            box-sizing: border-box !important;
-            border-bottom: 1px solid #4e73df !important;
             margin-bottom: 10px !important;
             padding-bottom: 5px !important;
+            border-bottom: 1px solid #4e73df !important;
+            display: flex !important; /* Adicionado !important */
+            flex-direction: column !important; /* Adicionado !important */
+            align-items: flex-start !important; /* Adicionado !important */
+            width: 100% !important;
+            box-sizing: border-box !important;
+            padding-left: 0 !important; /* Garante que não haja padding esquerdo */
         }
 
         .company-header.pdf-only .company-logo {
             font-size: 12pt !important;
-            font-weight: bold !important;
+            font-weight: bold !important; /* Adicionado !important */
             margin-bottom: 3px !important;
         }
 
@@ -250,56 +256,18 @@
             color: #666 !important;
         }
 
-        /* Informações do projeto na impressão */
+        /* Estilos para a linha de informações do projeto na impressão do navegador */
         .project-info-line.pdf-only {
-            font-size: 9pt !important;
-            padding: 4px 0px !important;
-            margin-bottom: 30px !important; /* Aumentado para 30px */
+            font-size: 8.5pt !important;
+            padding: 4px 0px !important; /* Mantém padding vertical, zero horizontal */
+            margin-bottom: 30px !important;
             text-align: left !important;
             width: 100% !important;
             box-sizing: border-box !important;
+            padding-left: 0 !important; /* Garante que não haja padding esquerdo */
+            display: block !important; /* Adicionado para garantir o comportamento de bloco */
         }
 
-        /* Preservar quebras de página */
-        .placeholder-section, .card {
-            page-break-inside: avoid !important;
-        }
-        
-        /* Garantir texto não seja cortado */
-        td, th {
-            word-wrap: break-word !important;
-        }
-        
-        /* Preservar espaço em branco */
-        .row {
-            margin-bottom: 5mm !important;
-        }
-        
-        /* Garantir que textos não sejam cortados */
-        [data-field="data-prevista"],
-        [data-field="horas-utilizadas"],
-        [data-field="horas-planejadas"] {
-            white-space: nowrap !important;
-        }
-        
-        /* Cabeçalho e rodapé */
-        .company-header, .company-footer {
-            margin-bottom: 5mm !important;
-        }
-        
-        /* Marca d'água */
-        .document-confidential {
-            position: fixed !important;
-            top: 50% !important;
-            left: 0 !important;
-            right: 0 !important;
-            text-align: center !important;
-            transform: rotate(-45deg) !important;
-            font-size: 48pt !important;
-            color: rgba(200, 200, 200, 0.15) !important;
-            z-index: -1 !important;
-            display: none !important; /* Removendo marca d'água */
-        }
     }
     
     /* NOVO: Adicionar estilo para status pendente mais visível */
@@ -325,7 +293,7 @@
 
     /* Classe para estilo ao gerar PDF via browser */
     .print-mode {
-        font-size: 11pt !important;
+        font-size: 8pt !important;
         line-height: 1.3 !important;
         width: 210mm !important; /* Largura exata do A4 */
         box-sizing: border-box !important;
@@ -342,6 +310,7 @@
         align-items: flex-start; /* Alinhar itens à esquerda */
         width: 100% !important; /* Garantir largura total */
         box-sizing: border-box !important; /* Incluir padding e border na largura total */
+        /* padding-left: 25pt !important; */ /* Removido para alinhar à esquerda da página */
     }
     
     .print-mode .company-logo {
@@ -358,12 +327,13 @@
     }
     
     .print-mode .project-info-line {
-        font-size: 9pt !important; /* Aumentando a fonte */
+        font-size: 7.8pt !important; /* Reduzido de 8.5pt */
         padding: 4px 0px !important; /* Ajustando padding, removendo lateral */
         margin-bottom: 30px !important; /* Aumentando margem inferior para mais espaço */
         text-align: left !important; /* Garantindo alinhamento à esquerda */
         width: 100% !important; /* Garantir largura total */
         box-sizing: border-box !important; /* Incluir padding na largura total */
+        /* padding-left: 25pt !important; */ /* Removido para alinhar à esquerda da página */
     }
     
     .print-mode .row {
@@ -687,6 +657,7 @@
     /* Estilos para a seção de notas */
     .note-section .list-group-item {
         transition: background-color 0.2s ease;
+        text-align: left !important; /* Força o alinhamento do conteúdo à esquerda */
     }
 
     .note-section .list-group-item:hover {
@@ -715,16 +686,80 @@
     /* Ajustes para impressão */
     @media print {
         .note-section {
-            break-inside: avoid;
-            page-break-inside: avoid;
+            break-inside: avoid; /* Manter */
+            /* page-break-inside: avoid; */ /* Comentado */
         }
         
         .note-section .list-group-item {
-            break-inside: avoid;
-            page-break-inside: avoid;
+            break-inside: avoid; /* Manter */
+            /* page-break-inside: avoid; */ /* Comentado, pois a regra acima é mais específica e tem !important */
         }
     }
+
+    /* Permitir quebra dentro do card da seção de notas, mas manter itens de nota juntos */
+    .placeholder-section .card {
+        page-break-inside: auto !important;
+    }
+    /* Reforçar que itens de nota individuais não quebram */
+    .placeholder-section .card .note-section .list-group-item {
+        page-break-inside: avoid !important; 
+    }
+    
+    /* Permitir quebra dentro do card da seção de Riscos e Impedimentos */
+    .placeholder-section:has(h6:contains("Riscos e Impedimentos")) .card {
+        page-break-inside: auto !important;
+    }
+
+    /* Reforçar que itens de nota individuais NÃO quebram */
+    .placeholder-section .card .note-section .list-group-item {
+        page-break-inside: avoid !important; 
+    }
+
+    /* Estilos para o rodapé da empresa na impressão do navegador */
+    .company-footer.pdf-only {
+        /* page-break-before: auto !important; */ /* Comentado pois auto é o padrão e pode não ser necessário forçar */
+        margin-top: 20px !important; /* Aumentado para mais espaço acima */
+        padding-top: 10px !important; /* Aumentado para mais espaço interno acima */
+        border-top: 1px solid #ddd !important; /* Adiciona uma linha sutil no topo do rodapé */
+        text-align: left !important; /* Alinha todo o texto do rodapé à esquerda */
+        font-size: 7pt !important; /* Define um tamanho de fonte base para o rodapé */
+        color: #333 !important; /* Cor de texto principal para o rodapé */
+    }
+
+    .company-footer.pdf-only .footer-line {
+        margin-bottom: 3px !important; /* Pequeno espaço entre as linhas do rodapé */
+    }
+
+    /* Garantir que o contêiner dos badges de categoria/prioridade alinhe à esquerda */
+    .note-section .list-group-item > .d-flex > div:first-child {
+        text-align: left !important;
+    }
+
+    /* Garantir que o contêiner das tags (Informação, Combinado) alinhe à esquerda e não tenha padding lateral */
+    .note-section .list-group-item .mt-2 {
+        text-align: left !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        display: flex !important; /* Para garantir que justify-content funcione */
+        justify-content: flex-start !important; /* Alinha itens flex à esquerda */
+    }
+
+    /* Remover margem direita dos badges dentro da seção de notas para alinhamento à esquerda completo */
+    .note-section .list-group-item .badge.me-1,
+    .note-section .list-group-item .badge.me-2, /* Caso usem me-2, etc. */
+    .note-section .list-group-item .badge.m-1, /* Caso usem m-1, etc. */
+    .note-section .list-group-item .badge.ms-1,
+    .note-section .list-group-item .badge.ms-2 {
+        margin-right: 0 !important;
+        margin-left: 0 !important; /* Adicionado para garantir que não haja margem esquerda também */
+    }
+
+    .note-section .list-group-item:hover {
+        background-color: rgba(0,0,0,0.02);
+    }
+
 </style>
+
 {% endblock %}
 
 {% block content %}
@@ -760,7 +795,7 @@
                     </button>
                     {% if pdf_generator_available %}
                         <a href="{{ url_for('macro.download_status_report', project_id=project_id) }}" 
-                           class="btn btn-sm btn-primary d-none" 
+                           class="btn btn-sm btn-primary" 
                            title="Baixar Relatório em PDF ({{ generator_type }})">
                             <i class="bi bi-download me-1"></i> Baixar PDF (Servidor)
                         </a>
@@ -969,7 +1004,8 @@
                             <h6 class="section-title mb-0">Linha do Tempo (Tarefas)</h6>
                         </div>
                         <div class="card shadow-sm h-100">
-                            <div id="timeline-loading" class="text-center p-3">
+                            {# Mostrar loading apenas se NÃO for PDF #}
+                            <div id="timeline-loading" class="text-center p-3" {% if for_pdf %}style="display: none;"{% endif %}>
                                 <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
                                 <span class="text-muted small">Carregando tarefas...</span>
                             </div>
@@ -985,14 +1021,39 @@
                             </div>
                             
                             <!-- Lista de tarefas -->
-                            <div id="timeline-content" style="display: none;">
+                            {# Mostrar conteúdo da timeline: se for PDF, renderiza direto; senão, JS controla #}
+                            <div id="timeline-content" {% if for_pdf %}style="display: block;"{% else %}style="display: none;"{% endif %}>
                                 <!-- Próximas tarefas -->
                                 <div class="timeline-section">
                                     <div class="section-header">
                                         <i class="bi bi-calendar-event text-warning"></i>
                                         <span class="fw-bold">Próximas Tarefas</span>
                                     </div>
-                                    <ul class="list-group list-group-flush" id="upcoming-tasks-list"></ul>
+                                    <ul class="list-group list-group-flush" id="upcoming-tasks-list">
+                                        {% if for_pdf %}
+                                            {% if report_data.proximos_passos and report_data.proximos_passos|length > 0 %}
+                                                <div class="column-headers" style="display: flex; justify-content: space-between; padding: 0.5rem 1rem; background-color: #f8f9fc; border-bottom: 1px solid #e3e6f0; font-weight: bold; font-size: 0.75rem;">
+                                                    <div class="task-column" style="flex-basis: 60%;">Tarefa</div>
+                                                    <div class="status-column" style="flex-basis: 20%; text-align: center;">Status</div>
+                                                    <div class="date-column" style="flex-basis: 20%; text-align: right;">Período</div>
+                                                </div>
+                                                {% for task in report_data.proximos_passos %}
+                                                    <li class="list-group-item" title="{{ task.description if task.description else '' }}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 1rem; font-size: 0.8rem;">
+                                                        <span class="timeline-task-name" style="flex-basis: 60%; word-break: break-word;">{{ task.titulo | default('Tarefa sem título') }}</span>
+                                                        <div class="status-container" style="flex-basis: 20%; text-align: center;">
+                                                            <span class="badge bg-secondary">A Fazer</span>
+                                                        </div>
+                                                        <span class="text-muted small" style="flex-basis: 20%; text-align: right;">
+                                                            {{ task.start_date | default('-') }} → {{ task.due_date | default('-') }}
+                                                        </span>
+                                                    </li>
+                                                {% endfor %}
+                                            {% else %}
+                                                <li class="list-group-item text-center text-muted small">Nenhuma próxima tarefa encontrada.</li>
+                                            {% endif %}
+                                        {% endif %}
+                                        {# Para visualização não-PDF, o JS popula aqui #}
+                                    </ul>
                                 </div>
                                 
                                 <!-- Tarefas em andamento -->
@@ -1001,7 +1062,12 @@
                                         <i class="bi bi-play-circle text-primary"></i>
                                         <span class="fw-bold">Em Andamento</span>
                                     </div>
-                                    <ul class="list-group list-group-flush" id="started-tasks-list"></ul>
+                                    <ul class="list-group list-group-flush" id="started-tasks-list">
+                                        {% if for_pdf %}
+                                            <li class="list-group-item text-center text-muted small">Dados de tarefas em andamento não disponíveis para PDF.</li>
+                                        {% endif %}
+                                        {# Para visualização não-PDF, o JS popula aqui #}
+                                    </ul>
                                 </div>
                                 
                                 <!-- Tarefas concluídas -->
@@ -1010,7 +1076,12 @@
                                         <i class="bi bi-check-circle text-success"></i>
                                         <span class="fw-bold">Concluídas</span>
                                     </div>
-                                    <ul class="list-group list-group-flush" id="completed-tasks-list"></ul>
+                                    <ul class="list-group list-group-flush" id="completed-tasks-list">
+                                        {% if for_pdf %}
+                                            <li class="list-group-item text-center text-muted small">Dados de tarefas concluídas não disponíveis para PDF.</li>
+                                        {% endif %}
+                                        {# Para visualização não-PDF, o JS popula aqui #}
+                                    </ul>
                                 </div>
                             </div>
                         </div>
@@ -1133,16 +1204,15 @@
             
             <!-- Rodapé Profissional -->
             <div class="company-footer pdf-only">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                    <div style="text-align: left; font-size: 7pt; color: #666;">
-                        Documento gerado em: {{ data_geracao | default('N/A', true) }}
-                    </div>
-                    <div style="text-align: right; font-size: 7pt; color: #666;">
-                        Página <span class="pageNumber"></span> de <span class="totalPages"></span>
-                    </div>
+                <div class="footer-line"> <!-- Nova classe para controle -->
+                    Documento gerado em: {{ data_geracao | default('N/A', true) }}
                 </div>
-                <p>Este documento é destinado exclusivamente para o cliente.</p> <!-- Removido "confidencial" -->
-                <p>© 2025 SOU.cloud - Todos os direitos reservados • <span style="color: #666;">suporte@control360.com.br</span></p>
+                <div class="footer-line"> <!-- Nova classe para controle -->
+                    Este documento é destinado exclusivamente para o cliente.
+                </div>
+                <div class="footer-line"> <!-- Nova classe para controle -->
+                    © 2025 SOU.cloud - Todos os direitos reservados
+                </div>
             </div>
             
             </div><!-- Fim do container para PDF -->
@@ -1285,8 +1355,8 @@
                                 backgroundColor: [corUtilizado, corPlanejado],
                                 borderColor: [corUtilizado, corPlanejado],
                                 borderWidth: 1,
-                                barPercentage: 0.6, 
-                                categoryPercentage: 0.7
+                                barPercentage: 0.5, /* Reduzido de 0.6 */ 
+                                categoryPercentage: 0.6 /* Reduzido de 0.7 */
                             }
                         ]
                     },
@@ -1294,11 +1364,11 @@
                         indexAxis: 'y', 
                         responsive: true,
                         maintainAspectRatio: false,
-                        aspectRatio: 2.2,
+                        aspectRatio: 2.2, 
                         layout: {
-                            padding: {
-                                left: 5,
-                                right: 10,
+                            padding: { 
+                                left: 5, /* Revertido de 45 */
+                                right: 10, /* Revertido de 20 */
                                 top: 5,
                                 bottom: 5
                             }
@@ -1334,10 +1404,16 @@
                             },
                             y: {
                                 ticks: {
-                                    padding: 5
+                                    padding: 5,
+                                    font: { 
+                                        size: 9 /* Reduzir um pouco o tamanho da fonte das legendas Y */ 
+                                    }
                                 },
                                 grid: {
                                     display: false
+                                },
+                                afterFit: function(scaleInstance) {
+                                    scaleInstance.width = scaleInstance.width + 30; // Adicionar 30px para as legendas do eixo Y
                                 }
                             }
                         }
