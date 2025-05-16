@@ -213,7 +213,8 @@
         #generatePdfBtn, /* Botão do html2pdf.js */
         button.btn-outline-secondary.ms-2[onclick="window.print();"], /* Botão "Imprimir" específico */
         a.btn.btn-sm.btn-primary[title*='Baixar Relatório em PDF'], /* Botão "Baixar PDF (Servidor)" */
-        .d-sm-flex.align-items-center.justify-content-between.mb-3 > .screen-only /* Container dos botões no header da página */
+        .d-sm-flex.align-items-center.justify-content-between.mb-3 > .screen-only, /* Container dos botões no header da página */
+        .d-sm-flex.align-items-center.justify-content-between.mb-3 > h1.h3.text-gray-800 /* Oculta o H1 original na impressão */
         {
             display: none !important;
         }
@@ -233,28 +234,80 @@
         }
 
         /* Estilos para o cabeçalho da empresa na impressão do navegador */
-        .company-header.pdf-only {
-            margin-bottom: 10px !important;
-            padding-bottom: 5px !important;
-            border-bottom: 1px solid #4e73df !important;
-            display: flex !important; /* Adicionado !important */
-            flex-direction: column !important; /* Adicionado !important */
-            align-items: flex-start !important; /* Adicionado !important */
+        /* ANTIGO CABEÇALHO - SERÁ OCULTADO ABAIXO */
+        /* .company-header.pdf-only { ... } */
+        /* .company-header.pdf-only .print-logo { ... } */
+        /* .company-header.pdf-only .company-header-text { ... } */
+        /* .company-header.pdf-only .company-logo { ... } */
+        /* .company-header.pdf-only .report-date-print { ... } */
+
+        /* NOVO LAYOUT DO CABEÇALHO DE IMPRESSÃO */
+        .print-header-layout.pdf-only {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-start !important; /* Alinha blocos internos (logo-area, company-info-area) à esquerda */
             width: 100% !important;
-            box-sizing: border-box !important;
-            padding-left: 0 !important; /* Garante que não haja padding esquerdo */
+            margin-bottom: 10px !important; /* Reduzido para menos espaço antes dos detalhes do projeto */
         }
 
-        .company-header.pdf-only .company-logo {
-            font-size: 12pt !important;
-            font-weight: bold !important; /* Adicionado !important */
+        .print-header-layout.pdf-only .print-logo-area {
+            width: 100%; 
+            display: flex !important;
+            justify-content: flex-start !important; /* Alinha o logo à esquerda */
+            margin-bottom: 10px !important;
+        }
+
+        .print-header-layout.pdf-only .print-logo-large {
+            max-height: 30px !important; /* Tamanho do logo reduzido */
+            width: auto !important;
+            opacity: 0.9 !important; 
+        }
+
+        .print-header-layout.pdf-only .company-info-area {
+            width: 100%;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-start !important; /* Alinha "Control360" e "Data" à esquerda */
+            margin-bottom: 10px !important; /* Espaço entre info empresa e título Status Report */
+        }
+
+        .print-header-layout.pdf-only .company-name {
+            font-size: 10pt !important; 
+            font-weight: bold !important;
+            color: #444 !important;
             margin-bottom: 3px !important;
         }
 
-        .company-header.pdf-only .report-date-print {
+        .print-header-layout.pdf-only .report-date {
             font-size: 8pt !important;
             color: #666 !important;
         }
+        
+        .print-header-layout.pdf-only .print-title-area {
+            width: 100% !important;
+            text-align: center !important; /* Centraliza o título "Status Report" */
+            margin-bottom: 15px !important; /* Espaço após o título */
+            padding-bottom: 10px !important; /* Espaço para a borda */
+            border-bottom: 1px solid #e3e6f0 !important; /* Borda abaixo do título */
+        }
+
+        .print-header-layout.pdf-only .print-main-title {
+            font-size: 1.6rem !important; 
+            font-weight: 600 !important;
+            color: #333 !important;
+            margin: 0 !important;
+        }
+
+        /* Comentar ou remover regras para o antigo .company-header.pdf-only se não forem mais necessárias */
+        /*
+        .company-header.pdf-only,
+        .company-header.pdf-only .print-logo,
+        .company-header.pdf-only .company-header-text,
+        .company-header.pdf-only .company-logo,
+        .company-header.pdf-only .report-date-print {
+            display: none !important;
+        }
+        */
 
         /* Estilos para a linha de informações do projeto na impressão do navegador */
         .project-info-line.pdf-only {
@@ -810,18 +863,19 @@
             <!-- Container principal que será convertido para PDF -->
             <div id="pdfContent">
             
-            <!-- Cabeçalho Profissional (visível apenas na impressão/PDF) -->
-            <div class="company-header pdf-only">
-                <div class="company-logo">
-                    Control360.SOU - PMO
+            <!-- NOVO CABEÇALHO PARA IMPRESSÃO (logo, info empresa, título) -->
+            <div class="print-header-layout pdf-only">
+                <div class="print-logo-area">
+                    <img src="{{ url_for('static', filename='images/sou.cloud.png') }}" alt="SOU.cloud Logo" class="print-logo-large">
                 </div>
-                <div class="report-date-print"> <!-- Usando nova classe -->
-                    Data: <strong>{{ data_geracao | default('N/A', true) }}</strong>
+                <div class="company-info-area">
+                    <div class="company-name">Control360.SOU - PMO</div>
+                    <div class="report-date">Data: <strong>{{ data_geracao | default('N/A', true) }}</strong></div>
+                </div>
+                <div class="print-title-area">
+                    <h1 class="print-main-title">Status Report</h1>
                 </div>
             </div>
-            
-            <!-- Marca d'água de confidencialidade -->
-            <!-- <div class="document-confidential pdf-only">CONFIDENCIAL</div> --> <!-- Comentado/Removido -->
             
             <!-- Detalhes do Projeto - Mantém o original na tela, redesenhado apenas na impressão -->
             <div class="project-details-header screen-only">
