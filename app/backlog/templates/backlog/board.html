@@ -1493,9 +1493,9 @@
           // NOVO: Lógica condicional para a data no rodapé
           let footerDateHTML = '';
           if (task.column_identifier === 'concluido' && task.completed_at) {
-              footerDateHTML = `<small class="text-muted task-card-detail-text task-completion-date" title="Concluído em"><i class="bi bi-calendar-check-fill me-1"></i>${formatDateString(task.completed_at)}</small>`;
+              footerDateHTML = `<small class="text-muted task-card-detail-text task-completion-date" title="Concluído em"><i class="bi bi-calendar-check-fill me-1"></i>${formatDateString(task.completed_at, true)}</small>`;
           } else {
-              footerDateHTML = `<small class="text-muted task-card-detail-text" title="Data de Início Previsto"><i class="bi bi-calendar-event me-1"></i>${task.start_date ? formatDateString(task.start_date) : 'N/A'}</small>`;
+              footerDateHTML = `<small class="text-muted task-card-detail-text" title="Data de Início Previsto"><i class="bi bi-calendar-event me-1"></i>${task.start_date ? formatDateString(task.start_date, false) : 'N/A'}</small>`;
           }
 
 
@@ -2676,25 +2676,54 @@
   }
 
   // Adicionar a função formatDateString que estava faltando
-  function formatDateString(dateStr) {
-      if (!dateStr) return "-";
-      try {
-          // Se vier no formato 'YYYY-MM-DD', tratar como local
-          if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-              const [year, month, day] = dateStr.split('-');
-              // Mês no JS é 0-based!
-              const date = new Date(Number(year), Number(month) - 1, Number(day));
-              return date.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'});
-          }
-          // Caso contrário, tenta o padrão normal
-          const date = new Date(dateStr);
-          if (isNaN(date.getTime())) return dateStr;
-          return date.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'});
-      } catch (e) {
-          console.error("Erro ao formatar data:", e, dateStr);
-          return dateStr;
-      }
-  }
+  function formatDateString(dateStr, isDateTime = false) {
+    if (!dateStr) return "-";
+    try {
+        // Se for apenas uma string de data no formato YYYY-MM-DD (para start_date, due_date)
+        if (!isDateTime && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            const parts = dateStr.split('-');
+            const year = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10); // Mês é 1-12
+            const day = parseInt(parts[2], 10);
+            if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+                return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+            }
+            return dateStr; // Fallback
+        }
+
+        // Para strings de data e hora (ex: completed_at, ou outras que vêm como ISO UTC)
+        const date = new Date(dateStr); // new Date() interpreta ISO strings (com Z ou offset) como UTC.
+        if (isNaN(date.getTime())) {
+            console.warn('[formatDateString] Data inválida recebida:', dateStr);
+            return dateStr; // Retorna a string original se a data for inválida
+        }
+
+        if (isDateTime) {
+            return date.toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZone: 'America/Sao_Paulo'
+            });
+        } else {
+            // Se for uma data completa mas queremos exibir só a parte da data no fuso correto
+            // (Ex: completed_at que é datetime, mas o card só mostra a data)
+            // Para garantir que a DATA seja a correta em Sao_Paulo, mesmo que a hora UTC seja próxima da meia-noite.
+            const options = {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                timeZone: 'America/Sao_Paulo'
+            };
+            return new Intl.DateTimeFormat('pt-BR', options).format(date);
+        }
+    } catch (e) {
+        console.error("Erro ao formatar data:", e, dateStr);
+        return dateStr;
+    }
+}
 
   // Função para confirmar e excluir um marco
   function confirmDeleteMilestone(milestoneId, milestoneName) {
@@ -4337,39 +4366,54 @@
           return texts[priority] || priority;
       },
 
-      formatDate: function(dateString, isEventDate = false) { // <<< ADICIONADO PARÂMETRO isEventDate
+      formatDate: function(dateString, isEventDate = false) {
           if (!dateString) return '';
+
+          // Para event_date (que é apenas data, sem hora)
+          if (isEventDate) {
+              // Se já vier no formato dd/MM/yyyy (ex: do backend, após uma primeira formatação), retorna direto
+              if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
+                  return dateString;
+              }
+              // Se vier como YYYY-MM-DD (do input date ou do banco)
+              const parts = dateString.split('-');
+              if (parts.length === 3) {
+                  const year = parseInt(parts[0], 10);
+                  const month = parseInt(parts[1], 10); // 1-12
+                  const day = parseInt(parts[2], 10);
+                  if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+                    return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+                  }
+              }
+              // Se for um objeto Date (ex: vindo de um input type="date" que já foi convertido para Date pelo navegador antes de chegar aqui)
+              if (dateString instanceof Date && !isNaN(dateString)) {
+                 // O objeto Date já está no fuso local do navegador, mas representa meia-noite UTC da data selecionada.
+                 // Para evitar problemas de off-by-one ao formatar, pegamos os componentes UTC.
+                 const day = String(dateString.getUTCDate()).padStart(2, '0');
+                 const month = String(dateString.getUTCMonth() + 1).padStart(2, '0'); // getUTCMonth is 0-indexed
+                 const year = dateString.getUTCFullYear();
+                 return `${day}/${month}/${year}`;
+              }
+              console.warn('[Notes.formatDate] Formato de event_date não reconhecido:', dateString, typeof dateString);
+              return dateString; // Fallback se não conseguir parsear
+          }
+
+          // Para datas com hora (created_at, updated_at)
+          // new Date() interpreta strings ISO 8601 (com Z ou offset) como UTC e converte para o fuso local do navegador.
           const date = new Date(dateString);
-          
-          // Para event_date, que já vem como YYYY-MM-DD, não precisamos do ajuste de fuso horário para exibição.
-          // Para outras datas (created_at, updated_at) que são timestamps UTC, o ajuste é mantido.
-          let displayDate = date;
-          if (!isEventDate) {
-            // Ajuste de fuso horário para datas de criação/modificação (assumindo que vêm como UTC)
-            // Se event_date já vier formatada corretamente do backend ou for sempre local, este ajuste pode não ser necessário para ela.
-            // Por ora, aplicaremos o ajuste apenas se não for event_date
-             displayDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000)); // Ajusta para UTC 0 antes de formatar para pt-BR
+          if (isNaN(date.getTime())) {
+            console.warn('[Notes.formatDate] Data/hora inválida recebida:', dateString);
+            return dateString; // Retorna a string original se a data for inválida
           }
 
-
-          // Se for apenas data (ex: event_date), formata sem hora
-          if (isEventDate || dateString.length === 10) { // Verifica se a string é apenas YYYY-MM-DD
-            return displayDate.toLocaleDateString('pt-BR', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                  timeZone: 'UTC' // Garante que a data seja interpretada como UTC para evitar off-by-one
-            });
-          }
-
-          return displayDate.toLocaleString('pt-BR', {
+          return date.toLocaleString('pt-BR', {
               day: '2-digit',
               month: '2-digit',
               year: 'numeric',
               hour: '2-digit',
               minute: '2-digit',
-              hour12: false
-              // timeZone: 'America/Sao_Paulo' // Considerar se o backend já salva em UTC
+              // second: '2-digit', // Descomente para incluir segundos
+              timeZone: 'America/Sao_Paulo' // Força a exibição neste fuso
           });
       },
 

@@ -1230,7 +1230,7 @@
                                                         <span class="badge bg-{{ nota.category_color }}">{{ nota.category_text }}</span>
                                                         <span class="badge bg-{{ nota.priority_color }}">{{ nota.priority_text }}</span>
                                                     </div>
-                                                    <small class="text-muted">{{ nota.created_at }}</small>
+                                                    <small class="text-muted" title="{{ 'Data do Evento' if nota.event_date else 'Data de Criação' }}">{{ nota.event_date if nota.event_date else nota.created_at }}</small>
                                                 </div>
                                                 <div class="note-content" style="white-space: pre-wrap; font-size: 0.9rem; text-align: left;">{{ nota.content }}</div>
                                                 {% if nota.tags and nota.tags|length > 0 %}

@@ -3329,6 +3329,34 @@ class MacroService(BaseService):
                             'low': 'Baixa'
                         }
 
+                        event_date_str = None
+                        if note.event_date:
+                            try:
+                                event_date_str = note.event_date.strftime('%d/%m/%Y')
+                            except AttributeError: # Se já for string por algum motivo ou outro tipo de objeto de data
+                                event_date_str = str(note.event_date) # Tenta converter para string como fallback
+                                # Idealmente, você saberia o formato exato se não for datetime.date
+                                # e faria a formatação apropriada aqui.
+                                # Por simplicidade, apenas convertemos para string.
+                                # Se for um objeto date e strftime falhar por algum motivo inesperado,
+                                # isso garante que algo seja passado.
+                                if isinstance(note.event_date, datetime): # Tenta formatar se for datetime completo
+                                     event_date_str = note.event_date.strftime('%d/%m/%Y')
+                                elif hasattr(note.event_date, 'isoformat'): # Se for um objeto date/datetime-like
+                                     # Converte para YYYY-MM-DD e depois tentamos reformatar se necessário
+                                     # ou apenas usamos YYYY-MM-DD que é um formato seguro.
+                                     # Aqui, vamos manter simples e apenas passar a string,
+                                     # o template Jinja pode precisar de um filtro de data.
+                                     # A melhor abordagem é garantir que o tipo de `note.event_date` seja consistente.
+                                     pass # Deixa event_date_str como str(note.event_date)
+                                     
+                        created_at_str = None
+                        if note.created_at:
+                            try:
+                                created_at_str = note.created_at.strftime('%d/%m/%Y %H:%M')
+                            except AttributeError:
+                                created_at_str = str(note.created_at) # Fallback
+
                         nota_dict = {
                             'id': note.id,
                             'content': note.content,
@@ -3340,7 +3368,8 @@ class MacroService(BaseService):
                             'priority_text': priority_texts.get(note.priority, note.priority),
                             'task_id': note.task_id,
                             'task_title': task_title,
-                            'created_at': note.created_at.strftime('%d/%m/%Y %H:%M'),
+                            'event_date': event_date_str, 
+                            'created_at': created_at_str, 
                             'tags': [tag.name for tag in note.tags] if note.tags else []
                         }
                         self.logger.info(f"[Status Report] Nota processada: {nota_dict}")
