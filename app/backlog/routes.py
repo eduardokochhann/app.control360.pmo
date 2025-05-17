@@ -794,7 +794,7 @@ def get_unassigned_tasks():
         #    ordenadas por backlog e posição
         unassigned_tasks = Task.query.filter(
                                         Task.sprint_id == None,
-                                        db.or_(Task.is_generic == False, Task.is_generic == None) # <<< ALTERAÇÃO AQUI
+                                        Task.is_generic == False # Simplifica a condição
                                       )\
                                       .join(Backlog)\
                                       .order_by(Task.backlog_id, Task.position).all()

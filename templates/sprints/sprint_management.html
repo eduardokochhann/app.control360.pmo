@@ -819,7 +819,7 @@
                         .map(([name, hours]) => `<div>${escapeHtml(name)}: <strong>${hours.toFixed(1)}h</strong></div>`)
                         .join('');
                     if (!popoverContent) {
-                        popoverContent = '<div class="text-muted small">Nenhuma tarefa com horas ou especialista.</div>';
+                        popoverContent = '<div class="text-muted small">Especialista</div>';
                     }
                     // <<< FIM: Calcular Horas por Especialista >>>
 
@@ -832,6 +832,7 @@
                                         <span class="sprint-badge">
                                             <i class="bi bi-stopwatch"></i>${totalSprintHours.toFixed(1)}h
                                         </span>
+                                        ${Object.keys(hoursBySpecialist).length > 0 ? `
                                         <button type="button" class="sprint-badge specialist-hours-popover" 
                                                 data-bs-toggle="popover" 
                                                 data-bs-placement="bottom"
@@ -841,6 +842,7 @@
                                                 data-bs-content="${popoverContent}">
                                             <i class="bi bi-people"></i>Especialistas
                                         </button>
+                                        ` : ''}
                                     </div>
                                 </div>
                                 <div class="sprint-card-actions">
@@ -883,7 +885,7 @@
                                             </div>
                                             ${task.specialist_name ? `<div class="task-specialist"><i class="bi bi-person-fill"></i> ${escapeHtml(task.specialist_name)}</div>` : ''}
                                             <div class="task-actions">
-                                                {### REMOVIDO BOTÃO DEVOLVER DAQUI ###}
+                                                {# REMOVIDO BOTÃO DEVOLVER DAQUI #}
                                             </div>
                                         </div>`;
                                     }).join('') 
@@ -960,13 +962,21 @@
     // Função para renderizar um projeto do backlog
     function renderBacklogProject(backlog) {
         const projectBoardUrl = `/backlog/board/${backlog.project_id}`; // URL de destino para o quadro do projeto
+        
+        // Limita o nome do projeto até "MSM SOLUCOES PARA"
+        let displayName = backlog.project_name || 'Sem Nome';
+        const msmIndex = displayName.indexOf('MSM SOLUCOES PARA');
+        if (msmIndex >= 0) {
+            displayName = displayName.substring(0, msmIndex + 'MSM SOLUCOES PARA'.length);
+        }
+
         return `
             <div class="backlog-project" data-project-id="${backlog.project_id}">
                 <div class="backlog-project-header">
                     <div class="project-info">
                         <a href="${projectBoardUrl}" class="project-link-to-board" title="Abrir quadro do projeto ${escapeHtml(backlog.project_name || 'Projeto sem nome')}" style="text-decoration: none; color: inherit;">
                             <span class="project-id">${backlog.project_id}</span>
-                            <span class="project-name">${escapeHtml(backlog.project_name || 'Sem Nome')}</span>
+                            <span class="project-name">${escapeHtml(displayName)}</span>
                         </a>
                     </div>
                     <i class="bi bi-chevron-down" onclick="toggleProjectTasks(this.closest('.backlog-project-header'))" style="cursor: pointer;"></i>
@@ -1675,19 +1685,17 @@
 
         // Calcula horas por especialista
         tasks.forEach(task => {
-            const specialist = task.dataset.specialistName || 'Não Atribuído';
-            const hours = parseFloat(task.dataset.estimatedHours) || 0;
-            hoursBySpecialist[specialist] = (hoursBySpecialist[specialist] || 0) + hours;
+            const specialist = task.dataset.specialistName;
+            if (specialist && specialist.trim()) { // Só considera se tiver especialista
+                const hours = parseFloat(task.dataset.estimatedHours) || 0;
+                hoursBySpecialist[specialist] = (hoursBySpecialist[specialist] || 0) + hours;
+            }
         });
 
         // Formata o conteúdo do popover
         let popoverContent = Object.entries(hoursBySpecialist)
             .map(([name, hours]) => `<div>${escapeHtml(name)}: <strong>${hours.toFixed(1)}h</strong></div>`)
             .join('');
-
-        if (!popoverContent) {
-            popoverContent = '<div class="text-muted small">Nenhuma tarefa com horas ou especialista.</div>';
-        }
 
         // Atualiza o popover
         const popoverButton = sprintCard.querySelector('.specialist-hours-popover');
@@ -1698,13 +1706,18 @@
                 popoverInstance.dispose();
             }
 
-            // Cria um novo popover com o conteúdo atualizado
-            new bootstrap.Popover(popoverButton, {
-                content: popoverContent,
-                html: true,
-                placement: 'bottom',
-                trigger: 'hover focus'
-            });
+            if (Object.keys(hoursBySpecialist).length > 0) {
+                // Cria um novo popover com o conteúdo atualizado
+                new bootstrap.Popover(popoverButton, {
+                    content: popoverContent,
+                    html: true,
+                    placement: 'bottom',
+                    trigger: 'hover focus'
+                });
+                popoverButton.style.display = 'inline-flex';
+            } else {
+                popoverButton.style.display = 'none';
+            }
         }
     }
 
@@ -1828,7 +1841,7 @@
 
     // Adiciona evento de clique nas tarefas
     document.addEventListener('click', function(event) {
-        const taskCard = event.target.closest('.backlog-task-card, .generic-task');
+        const taskCard = event.target.closest('.backlog-task-card:not(.generic-task)');
         if (taskCard && !event.target.closest('.task-actions')) {
             openTaskDetailsModal(taskCard);
         }
