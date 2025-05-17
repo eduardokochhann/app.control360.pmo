@@ -1,4 +1,4 @@
-from flask import request, jsonify, abort, render_template, send_file
+from flask import request, jsonify, abort, render_template, send_file, current_app
 from datetime import datetime
 from collections import defaultdict
 from openpyxl import Workbook
@@ -8,7 +8,7 @@ import os
 
 from . import sprints_bp
 from .. import db
-from ..models import Sprint, Task, Column
+from ..models import Sprint, Task, Column, TaskStatus
 from ..backlog.routes import serialize_task
 
 # --- Rotas de Frontend --- 
@@ -24,25 +24,34 @@ def sprint_management_page():
 # GET /api/sprints - Listar todas as Sprints
 @sprints_bp.route('/api/sprints', methods=['GET'])
 def get_sprints():
+    current_app.logger.info("Acessando rota /api/sprints (GET)")
     try:
-        sprints = Sprint.query.order_by(Sprint.start_date.asc()).all()
-        sprints_list = [
-            {
-                'id': s.id,
-                'name': s.name,
-                'start_date': s.start_date.isoformat() if s.start_date else None,
-                'end_date': s.end_date.isoformat() if s.end_date else None,
-                'goal': s.goal,
-                'criticality': s.criticality,
-                'tasks': [serialize_task(task) for task in s.tasks]
-                # Adicionar capacidade e carga horária aqui futuramente
-            } for s in sprints
-        ]
-        return jsonify(sprints_list)
+        sprints = Sprint.query.order_by(Sprint.start_date).all()
+        sprints_data = []
+        for sprint in sprints:
+            try:
+                sprint_dict = sprint.to_dict()
+                tasks_in_sprint = Task.query.filter_by(sprint_id=sprint.id).order_by(Task.position).all()
+                serialized_tasks = []
+                for task in tasks_in_sprint:
+                    try:
+                        serialized_tasks.append(serialize_task(task))
+                    except Exception as task_e:
+                        current_app.logger.error(f"Erro ao serializar tarefa ID {getattr(task, 'id', 'N/A')} para sprint ID {sprint.id}: {task_e}", exc_info=True)
+                        # Adiciona um placeholder ou omite a tarefa problemática
+                        serialized_tasks.append({'id': getattr(task, 'id', 'N/A'), 'title': 'Erro ao carregar tarefa', 'error': str(task_e)})
+                sprint_dict['tasks'] = serialized_tasks
+                sprints_data.append(sprint_dict)
+            except Exception as sprint_e:
+                current_app.logger.error(f"Erro ao processar sprint ID {sprint.id} ({getattr(sprint, 'name', 'N/A')}): {sprint_e}", exc_info=True)
+                # Adiciona um placeholder ou omite a sprint problemática
+                sprints_data.append({'id': sprint.id, 'name': f"Erro ao carregar sprint {sprint.id}", 'error': str(sprint_e), 'tasks': []})
+        
+        current_app.logger.info(f"Retornando {len(sprints_data)} sprints.")
+        return jsonify(sprints_data)
     except Exception as e:
-        # Logar o erro seria ideal aqui
-        print(f"Erro ao buscar sprints: {e}")
-        return jsonify({"message": "Erro interno ao buscar sprints."}), 500
+        current_app.logger.error(f"Erro GERAL ao buscar sprints: {e}", exc_info=True)
+        return jsonify({"message": f"Erro interno geral ao buscar sprints: {str(e)}"}), 500
 
 # GET /api/sprints/<int:sprint_id> - Obter detalhes de uma Sprint
 @sprints_bp.route('/api/sprints/<int:sprint_id>', methods=['GET'])
@@ -62,100 +71,71 @@ def get_sprint(sprint_id):
 @sprints_bp.route('/api/sprints', methods=['POST'])
 def create_sprint():
     data = request.get_json()
-    if not data or not data.get('name') or not data.get('start_date') or not data.get('end_date'):
-        abort(400, description="Campos obrigatórios ausentes: name, start_date, end_date")
+    if not all(k in data for k in ('name', 'start_date', 'end_date')):
+        abort(400, description="Campos 'name', 'start_date', e 'end_date' são obrigatórios.")
 
     try:
         start_date = datetime.fromisoformat(data['start_date'])
         end_date = datetime.fromisoformat(data['end_date'])
     except ValueError:
-        abort(400, description="Formato de data inválido. Use ISO 8601 (YYYY-MM-DDTHH:MM:SS ou YYYY-MM-DD).")
+        abort(400, description="Formato de data inválido. Use ISO YYYY-MM-DD.")
 
+    if start_date > end_date:
+        abort(400, description="Data de início não pode ser posterior à data de fim.")
+    
     new_sprint = Sprint(
         name=data['name'],
         start_date=start_date,
         end_date=end_date,
-        goal=data.get('goal'), # Goal é opcional
-        criticality=data.get('criticality', 'Normal') # Usa valor do form ou default
+        goal=data.get('goal'),
+        criticality=data.get('criticality', 'Normal') # Adiciona criticidade
     )
-    try:
-        user_provided_name = new_sprint.name # Guarda o nome original
-
-        db.session.add(new_sprint) # Adiciona à sessão
-        db.session.flush() # Força a atribuição do ID sem commitar
-
-        # Cria o nome final com prefixo e ID
-        final_name = f"SPT-{new_sprint.id}-{user_provided_name}"
-        new_sprint.name = final_name # Atualiza o nome no objeto
-
-        db.session.commit()
-        return jsonify({
-            'id': new_sprint.id,
-            'name': new_sprint.name,
-            'start_date': new_sprint.start_date.isoformat(),
-            'end_date': new_sprint.end_date.isoformat(),
-            'goal': new_sprint.goal,
-            'criticality': new_sprint.criticality
-        }), 201
-    except Exception as e:
-        db.session.rollback()
-        print(f"Erro ao criar sprint: {e}")
-        return jsonify({"message": "Erro interno ao criar sprint."}), 500
+    db.session.add(new_sprint)
+    db.session.commit()
+    return jsonify(new_sprint.to_dict()), 201
 
 # PUT /api/sprints/<int:sprint_id> - Atualizar uma Sprint
 @sprints_bp.route('/api/sprints/<int:sprint_id>', methods=['PUT'])
 def update_sprint(sprint_id):
     sprint = Sprint.query.get_or_404(sprint_id)
     data = request.get_json()
-    if not data:
-        abort(400, description="Nenhum dado fornecido para atualização.")
 
-    try:
-        if 'name' in data: sprint.name = data['name']
-        if 'start_date' in data: sprint.start_date = datetime.fromisoformat(data['start_date'])
-        if 'end_date' in data: sprint.end_date = datetime.fromisoformat(data['end_date'])
-        if 'goal' in data: sprint.goal = data['goal']
-        if 'criticality' in data: sprint.criticality = data['criticality']
+    if 'name' in data:
+        sprint.name = data['name']
+    if 'start_date' in data:
+        try:
+            sprint.start_date = datetime.fromisoformat(data['start_date'])
+        except ValueError:
+            abort(400, "Formato de start_date inválido.")
+    if 'end_date' in data:
+        try:
+            sprint.end_date = datetime.fromisoformat(data['end_date'])
+        except ValueError:
+            abort(400, "Formato de end_date inválido.")
+    if 'goal' in data:
+        sprint.goal = data.get('goal')
+    if 'criticality' in data: # Adiciona atualização de criticidade
+        sprint.criticality = data.get('criticality', sprint.criticality)
+
+
+    if sprint.start_date and sprint.end_date and sprint.start_date > sprint.end_date:
+        abort(400, description="Data de início não pode ser posterior à data de fim.")
         
-        db.session.commit()
-        return jsonify({
-            'id': sprint.id,
-            'name': sprint.name,
-            'start_date': sprint.start_date.isoformat() if sprint.start_date else None,
-            'end_date': sprint.end_date.isoformat() if sprint.end_date else None,
-            'goal': sprint.goal,
-            'criticality': sprint.criticality
-        })
-    except ValueError:
-        db.session.rollback()
-        abort(400, description="Formato de data inválido. Use ISO 8601.")
-    except Exception as e:
-        db.session.rollback()
-        print(f"Erro ao atualizar sprint {sprint_id}: {e}")
-        return jsonify({"message": f"Erro interno ao atualizar sprint {sprint_id}."}), 500
+    db.session.commit()
+    return jsonify(sprint.to_dict())
 
 # DELETE /api/sprints/<int:sprint_id> - Deletar uma Sprint
 @sprints_bp.route('/api/sprints/<int:sprint_id>', methods=['DELETE'])
 def delete_sprint(sprint_id):
     sprint = Sprint.query.get_or_404(sprint_id)
-
-    # Regra de negócio: O que fazer com as tarefas associadas?
-    # Opção 1: Impedir exclusão se houver tarefas.
-    # Opção 2: Desassociar tarefas (setar task.sprint_id = None).
-    # Opção 3: Excluir tarefas (perigoso!).
-    # Vamos implementar a Opção 2 por enquanto (desassociar).
     
-    try:
-        for task in sprint.tasks:
-            task.sprint_id = None
-        
-        db.session.delete(sprint)
-        db.session.commit()
-        return jsonify({'message': f'Sprint {sprint_id} deletada e tarefas desassociadas.'}), 200
-    except Exception as e:
-        db.session.rollback()
-        print(f"Erro ao deletar sprint {sprint_id}: {e}")
-        return jsonify({"message": f"Erro interno ao deletar sprint {sprint_id}."}), 500
+    # Desassocia tarefas da sprint antes de excluí-la
+    Task.query.filter_by(sprint_id=sprint_id).update({Task.sprint_id: None}, synchronize_session='fetch')
+    
+    db.session.delete(sprint)
+    db.session.commit()
+    # HTTP 204 No Content é mais apropriado para DELETE bem-sucedido sem corpo de resposta
+    return '', 204
 
 # --- Rotas Adicionais (Exemplo: Associar Tarefas) ---
 # POST /api/sprints/<int:sprint_id>/tasks
@@ -167,85 +147,69 @@ def delete_sprint(sprint_id):
 
 # GET /sprints/api/generic-tasks - Lista todas as tarefas genéricas
 @sprints_bp.route('/api/generic-tasks', methods=['GET'])
-def list_generic_tasks():
-    # Busca apenas tarefas genéricas que não estão em nenhuma sprint
-    tasks = Task.query.filter_by(
-        is_generic=True,
-        sprint_id=None
-    ).order_by(Task.position).all()
-    return jsonify([serialize_task(task) for task in tasks])
+def get_generic_tasks_for_sprint_view():
+    # Busca tarefas genéricas que NÃO estão em nenhuma sprint
+    tasks = Task.query.filter(Task.is_generic == True, Task.sprint_id == None).order_by(Task.position).all()
+    return jsonify([serialize_task(t) for t in tasks])
 
 # POST /sprints/api/generic-tasks - Cria uma nova tarefa genérica
 @sprints_bp.route('/api/generic-tasks', methods=['POST'])
-def create_generic_task():
+def create_generic_task_from_sprint_view():
     data = request.get_json()
-    
-    # Validação básica
-    if not data or 'title' not in data:
-        abort(400, description="Título da tarefa é obrigatório")
-        
-    # Encontra a primeira coluna (TODO) para posicionar a tarefa
-    first_column = Column.query.order_by(Column.position).first()
-    if not first_column:
-        abort(500, description="Nenhuma coluna encontrada no sistema")
-    
-    # Cria a tarefa genérica
-    task = Task(
+    if not data or not data.get('title'):
+        abort(400, description="Título é obrigatório para tarefa genérica.")
+
+    new_task = Task(
         title=data['title'],
-        description=data.get('description', ''),
+        description=data.get('description'),
         priority=data.get('priority', 'Média'),
-        estimated_effort=data.get('estimated_hours'),  # Usa estimated_hours do frontend
+        estimated_effort=data.get('estimated_hours'),
         specialist_name=data.get('specialist_name'),
         is_generic=True,
-        column_id=first_column.id,
-        backlog_id=1  # Assumindo que existe um backlog padrão com ID 1 para tarefas genéricas
+        status=TaskStatus.TODO # Status inicial
+        # position será definida se/quando for adicionada a uma sprint ou lista.
+        # backlog_id é None para tarefas genéricas
+        # column_id é None até ser movida para um quadro de backlog real (se aplicável)
     )
-    
-    db.session.add(task)
+    db.session.add(new_task)
     db.session.commit()
-    
-    return jsonify(serialize_task(task)), 201
+    return jsonify(serialize_task(new_task)), 201
 
 # PUT /sprints/api/generic-tasks/<task_id> - Atualiza uma tarefa genérica
 @sprints_bp.route('/api/generic-tasks/<int:task_id>', methods=['PUT'])
-def update_generic_task(task_id):
+def update_generic_task_from_sprint_view(task_id):
     task = Task.query.get_or_404(task_id)
-    
-    # Verifica se é uma tarefa genérica
     if not task.is_generic:
-        abort(400, description="Esta não é uma tarefa genérica")
+        abort(403, description="Esta rota é apenas para tarefas genéricas.")
     
     data = request.get_json()
-    
-    # Atualiza os campos permitidos
-    if 'title' in data:
-        task.title = data['title']
-    if 'description' in data:
-        task.description = data['description']
-    if 'priority' in data:
-        task.priority = data['priority']
-    if 'estimated_hours' in data:  # Usa estimated_hours do frontend
-        task.estimated_effort = data['estimated_hours']
-    if 'specialist_name' in data:
-        task.specialist_name = data['specialist_name']
-    if 'status' in data:
-        task.status = data['status']
+    if not data:
+        abort(400, description="Dados não fornecidos.")
+
+    task.title = data.get('title', task.title)
+    task.description = data.get('description', task.description)
+    task.priority = data.get('priority', task.priority)
+    task.estimated_effort = data.get('estimated_hours', task.estimated_effort)
+    task.specialist_name = data.get('specialist_name', task.specialist_name)
     
     db.session.commit()
     return jsonify(serialize_task(task))
 
 # DELETE /sprints/api/generic-tasks/<task_id> - Remove uma tarefa genérica
 @sprints_bp.route('/api/generic-tasks/<int:task_id>', methods=['DELETE'])
-def delete_generic_task(task_id):
+def delete_generic_task_from_sprint_view(task_id):
     task = Task.query.get_or_404(task_id)
-    
-    # Verifica se é uma tarefa genérica
     if not task.is_generic:
-        abort(400, description="Esta não é uma tarefa genérica")
+        abort(403, description="Esta rota é apenas para tarefas genéricas.")
+
+    # Se a tarefa estiver em uma sprint, precisa ser desassociada primeiro
+    # ou a exclusão deve lidar com isso (ex: ON DELETE SET NULL no DB)
+    # Por simplicidade, vamos permitir a exclusão direta.
+    # O frontend deverá recarregar as sprints para refletir a remoção.
     
     db.session.delete(task)
     db.session.commit()
-    return '', 204
+    return jsonify({"message": "Tarefa genérica excluída com sucesso."}), 200
 
 # GET /sprints/report/<int:sprint_id> - Página de Relatório da Sprint
 @sprints_bp.route('/report/<int:sprint_id>', methods=['GET'])
@@ -517,4 +481,37 @@ def export_consolidated_report():
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
         download_name=filename
-    ) 
+    )
+
+# POST /api/sprints/tasks/<int:task_id>/move-to-backlog - Mover tarefa para o backlog (ou genéricas)
+@sprints_bp.route('/api/sprints/tasks/<int:task_id>/move-to-backlog', methods=['POST'])
+def move_task_to_backlog(task_id):
+    current_app.logger.info(f">>> ROTA ACESSADA (move-to-backlog) para task {task_id} com método {request.method}")
+    task = Task.query.get_or_404(task_id)
+    current_app.logger.info(f"Detalhes da tarefa antes da alteração: ID={task.id}, SprintID={task.sprint_id}, is_generic={task.is_generic}")
+
+    if task.sprint_id is None:
+        current_app.logger.warn(f"Tarefa {task_id} já não está em uma sprint.")
+        # Ainda assim, retorna sucesso pois o estado desejado (fora da sprint) é alcançado.
+        # O frontend vai recarregar as listas, então a tarefa aparecerá no lugar certo.
+        return jsonify(serialize_task(task)), 200
+
+    try:
+        task.sprint_id = None
+        # A posição da tarefa no backlog ou na lista de genéricas não é alterada aqui,
+        # ela mantém sua última posição conhecida nessas listas.
+        # Se for necessário re-posicionar ao final da lista de backlog/genéricas,
+        # seria preciso adicionar lógica aqui ou no frontend para recalcular.
+        # Por ora, simplificamos e a tarefa apenas "volta" para onde estava.
+
+        db.session.commit()
+        current_app.logger.info(f"Tarefa {task_id} desvinculada da sprint. Novo SprintID: {task.sprint_id}")
+        
+        # Serializa e retorna a tarefa atualizada.
+        # O frontend usará o campo 'is_generic' para decidir qual lista recarregar.
+        return jsonify(serialize_task(task)), 200
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao mover tarefa {task_id} para fora da sprint: {e}", exc_info=True)
+        return jsonify({"message": "Erro interno ao tentar mover a tarefa."}), 500 

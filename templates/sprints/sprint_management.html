@@ -760,13 +760,34 @@
             if (!response.ok) {
                 throw new Error(`Erro ${response.status}: Falha ao buscar sprints`);
             }
-            const sprints = await response.json();
+            const sprintsApiResponse = await response.json();
 
             sprintBoard.innerHTML = ''; // Limpa o quadro
-            if (sprints.length === 0) {
+            if (!sprintsApiResponse || sprintsApiResponse.length === 0) {
                 sprintBoard.innerHTML = '<div class="text-center text-muted p-5">Nenhuma sprint encontrada. Crie uma nova!</div>';
             } else {
-                sprints.forEach(sprint => {
+                sprintsApiResponse.forEach(sprint => {
+                    // INÍCIO DA NOVA VERIFICAÇÃO DE ERRO
+                    if (sprint.error) {
+                        console.warn(`[Sprint Mgmt] Sprint ID ${sprint.id || 'N/A'} retornou com erro da API: ${sprint.error}`);
+                        const errorCard = document.createElement('div');
+                        // Adicionar classes para estilizar o card de erro, se desejado
+                        errorCard.className = 'sprint-card'; 
+                        errorCard.style.border = '2px solid red';
+                        errorCard.innerHTML = `
+                            <div class="sprint-card-header" style="background-color: #f8d7da; color: #721c24;">
+                                <h6 class="sprint-card-title">Erro ao carregar Sprint ${sprint.id || '(ID Desconhecido)'}</h6>
+                            </div>
+                            <div class="sprint-card-body">
+                                <p><strong>Detalhe do erro:</strong> ${escapeHtml(sprint.error)}</p>
+                                <p class="text-muted small">Verifique os logs do servidor para mais informações.</p>
+                            </div>
+                        `;
+                        sprintBoard.appendChild(errorCard);
+                        return; // Pula para a próxima sprint
+                    }
+                    // FIM DA NOVA VERIFICAÇÃO DE ERRO
+
                     const sprintCard = document.createElement('div');
                     sprintCard.className = 'sprint-card';
                     sprintCard.dataset.sprintId = sprint.id;
@@ -850,19 +871,22 @@
                                         const isCompleted = task.column_identifier === 'concluido';
                                         const fullTaskId = `${projectPart}-${columnPart}-${task.id}`;
                                         return `
-                                        <div class="backlog-task-card sprint-task-card ${isCompleted ? 'task-completed' : ''}" data-task-id="${task.id}" draggable="true" data-estimated-hours="${task.estimated_hours || 0}" data-specialist-name="${escapeHtml(task.specialist_name || '')}">
+                                        <div class="backlog-task-card sprint-task-card ${isCompleted ? 'task-completed' : ''}" data-task-id="${task.id}" draggable="true" data-estimated-hours="${task.estimated_hours || 0}" data-specialist-name="${escapeHtml(task.specialist_name || '')}" data-is-generic="${task.is_generic || false}">
                                             <div class="task-title">${escapeHtml(task.name)}</div>
                                             <div class="task-meta">
                                                 <div class="task-meta-left">
                                                     <span class="badge rounded-pill task-priority-badge">${escapeHtml(task.priority || 'Média')}</span>
                                                 </div>
                                                 <div class="task-meta-right text-muted task-hours">
-                                                    <span title="Estimado"><i class="bi bi-clock-history"></i>${task.estimated_hours != null ? task.estimated_hours.toFixed(1) : '-'}h</span>
-                                                    <code class="task-full-id">${fullTaskId}</code>
+                                                    ${task.estimated_hours ? `<i class="bi bi-clock"></i> ${task.estimated_hours}h` : ''}
                                                 </div>
                                             </div>
-                                        </div>
-                                    `}).join('') 
+                                            ${task.specialist_name ? `<div class="task-specialist"><i class="bi bi-person-fill"></i> ${escapeHtml(task.specialist_name)}</div>` : ''}
+                                            <div class="task-actions">
+                                                {### REMOVIDO BOTÃO DEVOLVER DAQUI ###}
+                                            </div>
+                                        </div>`;
+                                    }).join('') 
                                     : '<small class="text-muted fst-italic ps-2">Nenhuma tarefa alocada.</small>' 
                                 } 
                             </div>
@@ -935,14 +959,17 @@
 
     // Função para renderizar um projeto do backlog
     function renderBacklogProject(backlog) {
+        const projectBoardUrl = `/backlog/board/${backlog.project_id}`; // URL de destino para o quadro do projeto
         return `
             <div class="backlog-project" data-project-id="${backlog.project_id}">
-                <div class="backlog-project-header" onclick="toggleProjectTasks(this)">
+                <div class="backlog-project-header">
                     <div class="project-info">
-                        <span class="project-id">${backlog.project_id}</span>
-                        <span class="project-name">${escapeHtml(backlog.project_name || 'Sem Nome')}</span>
+                        <a href="${projectBoardUrl}" class="project-link-to-board" title="Abrir quadro do projeto ${escapeHtml(backlog.project_name || 'Projeto sem nome')}" style="text-decoration: none; color: inherit;">
+                            <span class="project-id">${backlog.project_id}</span>
+                            <span class="project-name">${escapeHtml(backlog.project_name || 'Sem Nome')}</span>
+                        </a>
                     </div>
-                    <i class="bi bi-chevron-down"></i>
+                    <i class="bi bi-chevron-down" onclick="toggleProjectTasks(this.closest('.backlog-project-header'))" style="cursor: pointer;"></i>
                 </div>
                 <div class="project-tasks">
                     ${backlog.tasks && backlog.tasks.length > 0 
@@ -1030,7 +1057,7 @@
         console.log("[Sprint Mgmt] Inicializando SortableJS...");
 
         // Seleciona TODAS as listas de tarefas (backlog, sprints e tarefas genéricas)
-        const taskLists = document.querySelectorAll('.backlog-task-list, .sprint-tasks, .backlog-column-body');
+        const taskLists = document.querySelectorAll('.project-tasks, #genericTasksList, .sprint-tasks');
         
         taskLists.forEach(list => {
             const instance = new Sortable(list, {
@@ -1038,7 +1065,7 @@
                 animation: 150,
                 ghostClass: 'sortable-ghost-task', // Classe CSS para o fantasma
                 chosenClass: 'sortable-chosen-task', // Classe CSS para o item escolhido
-                draggable: '.backlog-task-card', // Itens arrastáveis (usamos a mesma classe)
+                draggable: '.backlog-task-card, .generic-task', // Itens arrastáveis
                 
                 onEnd: function (evt) {
                     const item = evt.item; // O elemento da tarefa movida
@@ -1093,9 +1120,45 @@
                     if (targetSprintId) {
                         updateTaskSprintAssignment(taskId, targetSprintId, newIndex);
                     } else {
-                        // Se a tarefa foi movida de volta para a coluna de tarefas genéricas
-                        // ou para o backlog, remove a associação com a sprint
-                        updateTaskSprintAssignment(taskId, null, newIndex);
+                        // Se a tarefa foi movida para fora de uma sprint (para Backlog ou Tarefas Genéricas na UI)
+                        // chamar a API de "move-to-backlog".
+                        console.log(`[Sortable onEnd] Tarefa ${taskId} movida para fora da sprint (destino não é uma sprint). Chamando API /move-to-backlog.`);
+                        fetch(`/sprints/api/sprints/tasks/${taskId}/move-to-backlog`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                // Adicionar CSRF token se necessário
+                                // {% raw %}'X-CSRFToken': '{{ csrf_token() }}'{% endraw %} 
+                            }
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.json().then(err => { throw new Error(err.message || `Erro ${response.status}`); });
+                            }
+                            return response.json();
+                        })
+                        .then(updatedTask => {
+                            console.log(`[Sortable onEnd] Tarefa ${taskId} movida para backlog via API. Dados:`, updatedTask);
+                            // O elemento já foi movido pelo SortableJS.
+                            // A sprint de origem precisa ser atualizada (contagem de horas).
+                            // As listas de backlog/genéricas precisam ser atualizadas para refletir a tarefa devolvida corretamente.
+                            if (updatedTask.is_generic) {
+                                console.log(`[Sortable onEnd] Tarefa ${taskId} (genérica) devolvida. Recarregando tarefas genéricas.`);
+                                loadGenericTasks();
+                            } else {
+                                console.log(`[Sortable onEnd] Tarefa ${taskId} (de projeto) devolvida. Recarregando backlog de projetos.`);
+                                loadBacklogTasks();
+                            }
+                            loadSprints(); // Atualiza a sprint de origem e outras para consistência
+                        })
+                        .catch(error => {
+                            console.error(`[Sortable onEnd] Erro ao mover tarefa ${taskId} para o backlog via API:`, error);
+                            alert(`Erro ao tentar mover tarefa para o backlog: ${error.message}. A interface pode estar dessincronizada. Por favor, atualize a página.`);
+                            // Para garantir, recarregar tudo para tentar sincronizar
+                            loadSprints();
+                            loadBacklogTasks();
+                            loadGenericTasks();
+                        });
                     }
                 }
             });
@@ -1770,6 +1833,35 @@
             openTaskDetailsModal(taskCard);
         }
     });
+
+    // Delegação de eventos para botões de editar e excluir Sprints
+    sprintBoard.addEventListener('click', function(event) {
+        const editButton = event.target.closest('.edit-btn');
+        const deleteButton = event.target.closest('.delete-btn');
+
+        if (editButton) {
+            const sprintId = editButton.dataset.id;
+            openEditModal(sprintId);
+        } else if (deleteButton) {
+            const sprintId = deleteButton.dataset.id;
+            const sprintName = deleteButton.dataset.name;
+            deleteSprint(sprintId, sprintName);
+        }
+    });
+
+    // Carrega os dados iniciais (Este bloco de chamadas diretas é redundante se Promise.all está sendo usado)
+    // loadSprints(); // Redundante
+    // loadBacklogTasks(); // Redundante
+    // loadGenericTasks(); // Redundante
+
+    // <<< INÍCIO: Event Listeners para Coluna de Tarefas Genéricas >>>
+    // A declaração e o listener para addGenericTaskBtn já foram feitos anteriormente no código.
+    // Este bloco abaixo é uma duplicação e causa o erro de linter, então será removido.
+    // const addGenericTaskBtn = document.getElementById('addGenericTaskBtn'); 
+    // if (addGenericTaskBtn) {
+    //     addGenericTaskBtn.addEventListener('click', () => openGenericTaskModal());
+    // }
+    // <<< FIM: Event Listeners para Coluna de Tarefas Genéricas >>>
 
   }); // Fim DOMContentLoaded
 </script>

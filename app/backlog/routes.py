@@ -12,6 +12,13 @@ br_timezone = pytz.timezone('America/Sao_Paulo') # <<< ADICIONADO
 
 # Função auxiliar para serializar uma tarefa
 def serialize_task(task):
+    """Converte um objeto Task em um dicionário serializável."""
+    if not task:
+        return None
+    
+    # Adicionando log para depuração
+    current_app.logger.info(f"[serialize_task] Serializando tarefa ID: {task.id}, Título: {task.title}, is_generic: {task.is_generic}")
+
     try:
         # Calcula horas restantes (se possível)
         remaining_hours = None
@@ -783,8 +790,12 @@ def get_project_details(project_id):
 def get_unassigned_tasks():
     macro_service = MacroService() # Re-adiciona instância do serviço
     try:
-        # 1. Busca todas as tarefas sem sprint_id, ordenadas por backlog e posição
-        unassigned_tasks = Task.query.filter(Task.sprint_id == None)\
+        # 1. Busca todas as tarefas sem sprint_id E QUE NÃO SÃO GENÉRICAS,
+        #    ordenadas por backlog e posição
+        unassigned_tasks = Task.query.filter(
+                                        Task.sprint_id == None,
+                                        db.or_(Task.is_generic == False, Task.is_generic == None) # <<< ALTERAÇÃO AQUI
+                                      )\
                                       .join(Backlog)\
                                       .order_by(Task.backlog_id, Task.position).all()
 

@@ -50,6 +50,36 @@ class Sprint(db.Model):
     def __repr__(self):
         return f'<Sprint {self.name}>'
 
+    def to_dict(self):
+        # Importar serialize_task aqui para evitar importação circular no nível do módulo,
+        # assumindo que serialize_task pode depender de modelos definidos neste arquivo.
+        # Uma melhor prática seria ter serialize_task em um arquivo de utils ou helpers.
+        from app.backlog.routes import serialize_task 
+
+        sprint_data = {
+            'id': self.id,
+            'name': self.name,
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'end_date': self.end_date.isoformat() if self.end_date else None,
+            'goal': self.goal,
+            'criticality': self.criticality,
+            'tasks': [] # Inicializa com lista vazia
+        }
+        try:
+            # .all() é necessário porque 'tasks' é lazy='dynamic'
+            tasks_for_sprint = self.tasks.all() 
+            sprint_data['tasks'] = [serialize_task(task) for task in tasks_for_sprint]
+        except Exception as e:
+            # Logar o erro seria ideal aqui.
+            # Por enquanto, se houver erro na serialização das tarefas, 
+            # retornamos a sprint com uma lista de tarefas vazia e um campo de erro.
+            # Isso permite que o frontend ainda mostre a sprint, mesmo com erro nas tarefas.
+            print(f"Erro ao serializar tarefas para a sprint {self.id}: {e}") # Log no servidor
+            sprint_data['tasks'] = []
+            sprint_data['error_serializing_tasks'] = str(e) # Adiciona um campo de erro
+
+        return sprint_data
+
 class Backlog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     # Vincula ao ID do projeto externo (armazenado em JSON/Excel)
