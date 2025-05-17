@@ -3,6 +3,7 @@ from app import db
 from app.models import Note, Tag, Backlog
 from . import backlog_bp
 import logging
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,17 @@ def create_note():
     if note_type not in ['project', 'task']:
         note_type = 'project' if not data.get('task_id') else 'task'
     
+    # Processar event_date
+    event_date_str = data.get('event_date')
+    parsed_event_date = None
+    if event_date_str:
+        try:
+            parsed_event_date = datetime.strptime(event_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            logger.warning(f"[API Notes] Formato inválido para event_date: {event_date_str}. Será ignorado.")
+            # Opcional: retornar erro 400 se event_date for obrigatório ou tiver formato inválido
+            # return jsonify({'error': 'Formato de event_date inválido. Use YYYY-MM-DD'}), 400
+
     note = Note(
         content=data['content'],
         project_id=cleaned_project_id,  # ID do projeto limpo
@@ -90,6 +102,7 @@ def create_note():
         category=data.get('category', 'general'),
         priority=data.get('priority', 'medium'),
         note_type=note_type,
+        event_date=parsed_event_date,
         tags=tags
     )
     
@@ -123,6 +136,19 @@ def update_note(note_id):
     if 'task_id' in data:
         note.task_id = data['task_id']
     
+    # Atualizar event_date
+    if 'event_date' in data:
+        event_date_str = data['event_date']
+        if event_date_str:
+            try:
+                note.event_date = datetime.strptime(event_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                logger.warning(f"[API Notes] Formato inválido para event_date ao atualizar: {event_date_str}. Será ignorado.")
+                # Opcional: retornar erro 400
+                # return jsonify({'error': 'Formato de event_date inválido. Use YYYY-MM-DD'}), 400
+        else:
+            note.event_date = None # Permite limpar a event_date enviando null ou string vazia
+
     # Atualiza tags
     if 'tags' in data:
         note.tags.clear()

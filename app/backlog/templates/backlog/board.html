@@ -4106,6 +4106,7 @@
               project_id: projectId, // O project_id correto (ex: '10237')
               task_id: document.getElementById('noteTaskId').value || null,
               note_type: document.getElementById('noteType').value,
+              event_date: document.getElementById('noteEventDate').value || null, // <<< ADICIONADO
               tags: document.getElementById('noteTags').value
                   .split(',')
                   .map(tag => tag.trim())
@@ -4188,6 +4189,7 @@
           this.currentEditingNoteId = noteId;
           const form = document.getElementById('noteForm');
           form.reset();
+          document.getElementById('noteEventDate').value = ''; // <<< ADICIONADO: Limpar campo event_date
 
           const deleteBtn = document.getElementById('deleteNoteBtn');
           deleteBtn.style.display = noteId ? 'block' : 'none';
@@ -4204,6 +4206,7 @@
                       document.getElementById('noteCategory').value = note.category;
                       document.getElementById('notePriority').value = note.priority;
                       document.getElementById('noteTaskId').value = note.task_id || '';
+                      document.getElementById('noteEventDate').value = note.event_date || ''; // <<< ADICIONADO
                       document.getElementById('noteTags').value = note.tags.join(', ');
               })
               .catch(error => {
@@ -4235,6 +4238,11 @@
               noteElement.className = `note-card priority-${note.priority}`;
               noteElement.dataset.noteId = note.id;
 
+              let eventDateHtml = '';
+              if (note.event_date) {
+                eventDateHtml = `<div class="text-muted small" style="font-style: italic;" title="Data do Evento"><i class="bi bi-calendar-event me-1"></i>Evento: ${this.formatDate(note.event_date, true)}</div>`;
+              }
+
               noteElement.innerHTML = `
                   <div class="note-header">
                       <div>
@@ -4242,8 +4250,9 @@
                           <span class="badge bg-${this.getCategoryBadgeColor(note.category)}">${this.getCategoryText(note.category)}</span>
                           <span class="badge bg-${this.getPriorityBadgeColor(note.priority)}">${this.getPriorityText(note.priority)}</span>
                       </div>
-                      <div class="text-muted small">${this.formatDate(note.created_at)}</div>
+                      <div class="text-muted small" title="Data de Criação/Modificação"><i class="bi bi-clock-history me-1"></i>${this.formatDate(note.updated_at || note.created_at)}</div>
                   </div>
+                  ${eventDateHtml} {/* <<< ADICIONADO Event Date HTML */}
                   <div class="note-content">${escapeHtml(note.content)}</div>
                   <div class="note-footer">
                       <div class="note-tags">
@@ -4337,17 +4346,39 @@
           return texts[priority] || priority;
       },
 
-      formatDate: function(dateString) {
+      formatDate: function(dateString, isEventDate = false) { // <<< ADICIONADO PARÂMETRO isEventDate
           if (!dateString) return '';
           const date = new Date(dateString);
-          const brasilDate = new Date(date.getTime() - (3 * 60 * 60 * 1000));
-          return brasilDate.toLocaleString('pt-BR', {
+          
+          // Para event_date, que já vem como YYYY-MM-DD, não precisamos do ajuste de fuso horário para exibição.
+          // Para outras datas (created_at, updated_at) que são timestamps UTC, o ajuste é mantido.
+          let displayDate = date;
+          if (!isEventDate) {
+            // Ajuste de fuso horário para datas de criação/modificação (assumindo que vêm como UTC)
+            // Se event_date já vier formatada corretamente do backend ou for sempre local, este ajuste pode não ser necessário para ela.
+            // Por ora, aplicaremos o ajuste apenas se não for event_date
+             displayDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000)); // Ajusta para UTC 0 antes de formatar para pt-BR
+          }
+
+
+          // Se for apenas data (ex: event_date), formata sem hora
+          if (isEventDate || dateString.length === 10) { // Verifica se a string é apenas YYYY-MM-DD
+            return displayDate.toLocaleDateString('pt-BR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  timeZone: 'UTC' // Garante que a data seja interpretada como UTC para evitar off-by-one
+            });
+          }
+
+          return displayDate.toLocaleString('pt-BR', {
               day: '2-digit',
               month: '2-digit',
               year: 'numeric',
               hour: '2-digit',
               minute: '2-digit',
               hour12: false
+              // timeZone: 'America/Sao_Paulo' // Considerar se o backend já salva em UTC
           });
       },
 
@@ -4667,6 +4698,12 @@
                             <select class="form-select" id="noteTaskId" onchange="NotesManager.updateNoteType(this.value)">
                                 <option value="">Selecione uma tarefa...</option>
                             </select>
+                        </div>
+
+                        {# NOVO CAMPO: Data do Evento #}
+                        <div class="col-md-4">
+                            <label for="noteEventDate" class="form-label">Data do Evento</label>
+                            <input type="date" class="form-control" id="noteEventDate">
                         </div>
                     </div>
                     

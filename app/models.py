@@ -326,6 +326,7 @@ class Note(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     report_date = db.Column(db.DateTime, nullable=True)
+    event_date = db.Column(db.Date, nullable=True)
     
     # Relacionamentos
     tags = db.relationship('Tag', secondary=note_tags, lazy='subquery',
@@ -368,6 +369,7 @@ class Note(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'report_date': self.report_date.isoformat() if self.report_date else None,
+            'event_date': self.event_date.isoformat() if self.event_date else None,
             'tags': [tag.name for tag in self.tags],
             'task_title': self.task.title if self.task else None
         } 
