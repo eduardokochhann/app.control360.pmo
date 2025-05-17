@@ -261,7 +261,8 @@ def board_by_project(project_id):
             tasks_json=jsonify(tasks_list).get_data(as_text=True), 
             current_project=project_details, # Passa os detalhes do projeto atual
             current_backlog_id=backlog_id, 
-            current_backlog_name=backlog_name
+            current_backlog_name=backlog_name,
+            backlog=current_backlog # Adiciona o objeto backlog completo
         )
 
     except Exception as e:
@@ -1567,4 +1568,42 @@ def get_agenda_tasks():
 
 # --- FIM ROTAS AGENDA ---
 
-# API para Notas movida para note_routes.py# As funções abaixo estão comentadas e foram substituídas pelas novas implementações em note_routes.py# @backlog_bp.route('/api/notes', methods=['GET'])# def get_notes():#     """Retorna todas as notas de um projeto ou tarefa específica."""#     # Implementação movida para note_routes.py#     pass# @backlog_bp.route('/api/notes/<int:note_id>', methods=['GET'])# def get_note(note_id):#     """Retorna uma nota específica."""#     # Implementação movida para note_routes.py#     pass # @backlog_bp.route('/api/notes', methods=['POST'])# def create_note():#     """Cria uma nova nota."""#     # Implementação movida para note_routes.py#     pass# @backlog_bp.route('/api/notes/<int:note_id>', methods=['PUT'])# def update_note(note_id):#     """Atualiza uma nota existente."""#     # Implementação movida para note_routes.py#     pass# @backlog_bp.route('/api/notes/<int:note_id>', methods=['DELETE'])# def delete_note(note_id):#     """Exclui uma nota."""#     # Implementação movida para note_routes.py#     pass# @backlog_bp.route('/api/tags', methods=['GET'])# def get_tags():#     """Retorna todas as tags disponíveis."""#     # Implementação movida para note_routes.py#     pass
+# API para Notas movida para note_routes.py
+# As funções abaixo estão comentadas e foram substituídas pelas novas implementações em note_routes.py
+# @backlog_bp.route('/api/notes', methods=['GET'])
+# def get_notes():
+#     """Retorna todas as notas de um projeto ou tarefa específica."""
+#     # Implementação movida para note_routes.py
+#     pass
+
+# @backlog_bp.route('/api/notes/<int:note_id>', methods=['GET'])
+# def get_note(note_id):
+#     """Retorna uma nota específica."""
+#     # Implementação movida para note_routes.py
+#     pass 
+
+# @backlog_bp.route('/api/notes', methods=['POST'])
+# def create_note():
+#     """Cria uma nova nota."""
+#     # Implementação movida para note_routes.py
+#     pass
+
+# @backlog_bp.route('/api/notes/<int:note_id>', methods=['PUT'])
+# def update_note(note_id):
+#     """Atualiza uma nota existente."""
+#     # Implementação movida para note_routes.py
+#     pass
+
+# @backlog_bp.route('/api/notes/<int:note_id>', methods=['DELETE'])
+# def delete_note(note_id):
+#     """Exclui uma nota."""
+#     # Implementação movida para note_routes.py
+#     pass
+
+# @backlog_bp.route('/api/tags', methods=['GET'])
+# def get_tags():
+#     """Retorna todas as tags disponíveis."""
+#     # Implementação movida para note_routes.py
+#     pass
+
+# Rota de disponibilidade para sprint removida

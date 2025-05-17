@@ -8,7 +8,7 @@ import os
 
 from . import sprints_bp
 from .. import db
-from ..models import Sprint, Task, Column, TaskStatus
+from ..models import Sprint, Task, Column, TaskStatus, Backlog
 from ..backlog.routes import serialize_task
 
 # --- Rotas de Frontend --- 
@@ -159,6 +159,23 @@ def create_generic_task_from_sprint_view():
     if not data or not data.get('title'):
         abort(400, description="Título é obrigatório para tarefa genérica.")
 
+    # Busca o backlog padrão
+    default_backlog = Backlog.query.filter_by(project_id='default_project').first()
+    if not default_backlog:
+        abort(500, description="Backlog padrão não encontrado. Execute 'flask seed-db' primeiro.")
+
+    # Busca a primeira coluna
+    first_column = Column.query.order_by(Column.position).first()
+    if not first_column:
+        abort(500, description="Nenhuma coluna encontrada. Execute 'flask seed-db' primeiro.")
+
+    # Calcula a posição da nova tarefa
+    max_pos = db.session.query(db.func.max(Task.position)).filter(
+        Task.backlog_id == default_backlog.id,
+        Task.column_id == first_column.id
+    ).scalar()
+    new_position = (max_pos or -1) + 1
+
     new_task = Task(
         title=data['title'],
         description=data.get('description'),
@@ -166,14 +183,20 @@ def create_generic_task_from_sprint_view():
         estimated_effort=data.get('estimated_hours'),
         specialist_name=data.get('specialist_name'),
         is_generic=True,
-        status=TaskStatus.TODO # Status inicial
-        # position será definida se/quando for adicionada a uma sprint ou lista.
-        # backlog_id é None para tarefas genéricas
-        # column_id é None até ser movida para um quadro de backlog real (se aplicável)
+        status=TaskStatus.TODO,
+        backlog_id=default_backlog.id,
+        column_id=first_column.id,
+        position=new_position
     )
-    db.session.add(new_task)
-    db.session.commit()
-    return jsonify(serialize_task(new_task)), 201
+    
+    try:
+        db.session.add(new_task)
+        db.session.commit()
+        return jsonify(serialize_task(new_task)), 201
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao criar tarefa genérica: {e}", exc_info=True)
+        abort(500, description=f"Erro ao criar tarefa genérica: {str(e)}")
 
 # PUT /sprints/api/generic-tasks/<task_id> - Atualiza uma tarefa genérica
 @sprints_bp.route('/api/generic-tasks/<int:task_id>', methods=['PUT'])

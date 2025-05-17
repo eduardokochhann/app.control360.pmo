@@ -88,6 +88,7 @@ class Backlog(db.Model):
     name = db.Column(db.String(150), nullable=False, default='Backlog Principal') # Ex: Backlog do Projeto X
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    available_for_sprint = db.Column(db.Boolean, nullable=False, server_default='1') # Adicionado
     tasks = db.relationship('Task', backref='backlog', lazy=True, order_by='Task.position') # Tarefas neste backlog
 
     # --- NOVO RELACIONAMENTO PARA MARCOS E RISCOS ---
