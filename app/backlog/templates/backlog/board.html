@@ -953,6 +953,14 @@
             </div>
            </div>
 
+           {# NOVO CAMPO: Data de Conclusão #}
+           <div class="row" id="completedDateGroup" style="display: none;"> {# Inicialmente oculto #}
+            <div class="col-md-6">
+              <label for="taskCompletedDate" class="form-label">Data de Conclusão</label>
+              <input type="date" class="form-control form-control-sm" id="taskCompletedDate" name="completed_at">
+            </div>
+           </div>
+
            {# <<< INÍCIO: Ler campo Especialista (agora um select) >>> #}
            <hr> {# Divisor #}
            <div class="row">
@@ -1312,9 +1320,10 @@
       const deleteTaskBtn = document.getElementById('deleteTaskBtn');
       const remainingHoursGroup = document.getElementById('remainingHoursGroup'); // Seleciona o grupo
       const segmentsSummaryDisplay = document.getElementById('taskSegmentsSummaryDisplay'); // <<< MOVIDO PARA CÁ
+      const completedDateGroup = document.getElementById('completedDateGroup'); // <<< NOVO: Campo Data Conclusão
 
-      if (!addTaskForm || !addTaskModalLabel || !deleteTaskBtn || !remainingHoursGroup || !segmentsSummaryDisplay) { // <<< ADICIONADO segmentsSummaryDisplay À VERIFICAÇÃO
-           console.error("Elementos do modal (form, label, deleteBtn, remainingHoursGroup, segmentsSummaryDisplay) não encontrados!");
+      if (!addTaskForm || !addTaskModalLabel || !deleteTaskBtn || !remainingHoursGroup || !segmentsSummaryDisplay || !completedDateGroup) { // <<< ADICIONADO completedDateGroup À VERIFICAÇÃO
+           console.error("Elementos do modal (form, label, deleteBtn, remainingHoursGroup, segmentsSummaryDisplay, completedDateGroup) não encontrados!");
            return;
       }
       
@@ -1350,6 +1359,16 @@
           addTaskForm.querySelector('#taskRemainingHours').value = taskData.remaining_hours != null ? taskData.remaining_hours : ''; 
           addTaskForm.querySelector('#taskStartDate').value = taskData.start_date ? taskData.start_date.substring(0, 10) : '';
           addTaskForm.querySelector('#taskDueDate').value = taskData.due_date ? taskData.due_date.substring(0, 10) : '';
+          addTaskForm.querySelector('#taskCompletedDate').value = taskData.completed_at ? taskData.completed_at.substring(0, 10) : ''; // <<< NOVO
+          
+          // Controlar visibilidade do campo Data de Conclusão
+          const columnIdentifier = taskCard.classList.value.match(/task-col-([^\s]+)/);
+          const isInCompletedColumn = columnIdentifier && columnIdentifier[1] === 'concluido';
+          if (taskData.completed_at || isInCompletedColumn) {
+            completedDateGroup.style.display = 'block';
+          } else {
+            completedDateGroup.style.display = 'none';
+          }
           
           // Atualiza título final (se necessário, embora já setado como Editar)
           // addTaskModalLabel.textContent = 'Editar Tarefa'; // Removido, já feito com innerHTML e ícone
@@ -1470,7 +1489,14 @@
 
           // Rodapé do Card: Horas e Data de Início
           const footerHoursHTML = `<small class="text-muted task-card-detail-text" title="Horas Estimadas"><i class="bi bi-clock-history me-1"></i>${task.estimated_hours != null ? task.estimated_hours.toFixed(1) : '0.0'}h</small>`;
-          const footerStartDateHTML = `<small class="text-muted task-card-detail-text" title="Data de Início Previsto"><i class="bi bi-calendar-event me-1"></i>${task.start_date ? formatDateString(task.start_date) : 'N/A'}</small>`;
+          
+          // NOVO: Lógica condicional para a data no rodapé
+          let footerDateHTML = '';
+          if (task.column_identifier === 'concluido' && task.completed_at) {
+              footerDateHTML = `<small class="text-muted task-card-detail-text task-completion-date" title="Concluído em"><i class="bi bi-calendar-check-fill me-1"></i>${formatDateString(task.completed_at)}</small>`;
+          } else {
+              footerDateHTML = `<small class="text-muted task-card-detail-text" title="Data de Início Previsto"><i class="bi bi-calendar-event me-1"></i>${task.start_date ? formatDateString(task.start_date) : 'N/A'}</small>`;
+          }
 
 
           const taskCardHTML = `
@@ -1496,7 +1522,7 @@
                       <!-- Linha 1 Footer: Horas e Data Início -->
                       <div class="d-flex justify-content-between align-items-center mb-1">
                           ${footerHoursHTML}
-                          ${footerStartDateHTML}
+                          ${footerDateHTML} {# <<< MODIFICADO DE footerStartDateHTML PARA footerDateHTML #}
                       </div>
                       <!-- Linha 2 Footer: Botão Segmentos -->
                       ${manageSegmentsButtonHTML}
@@ -1556,7 +1582,7 @@
                   };
 
                   // Adiciona um feedback visual temporário (opcional)
-                  evt.item.style.opacity = '0.5'; 
+                  // evt.item.style.opacity = '0.5'; // Comentado pois vamos remover e recriar o item
 
                   let updatedTask = null; // << DECLARA FORA DO TRY
                   try {
@@ -1581,36 +1607,24 @@
                       if (taskIndex > -1) {
                           currentTasksData[taskIndex] = updatedTask;
                       } else {
+                          // Se não encontrou, pode ser uma tarefa que foi criada e movida rapidamente
+                          // ou algum estado inconsistente. Adicionar é uma forma de tentar corrigir.
                           currentTasksData.push(updatedTask);
+                          console.warn(`[Task Moved] Tarefa ID ${updatedTask.id} não encontrada em currentTasksData. Adicionando.`);
                       }
                       
-                      // --- ATUALIZAÇÃO VISUAL DO CARD MOVIDO --- 
-                      // 1. Atualiza a classe de cor (borda superior)
-                      const newColumnIdentifierForColor = updatedTask.column_identifier || 'default';
-                      const newColorClass = `task-col-${newColumnIdentifierForColor}`;
-                      evt.item.classList.forEach(className => {
-                          if (className.startsWith('task-col-')) {
-                              evt.item.classList.remove(className);
-                          }
-                      });
-                      evt.item.classList.add(newColorClass);
-                      console.log(`[Task Moved UI] Classe de cor (borda) atualizada para ${newColorClass} no item ${updatedTask.id}`);
-
-                      // 2. Atualiza o ID completo exibido no card
-                      const taskFullIdElement = evt.item.querySelector('.task-id-display'); // Alterado para a nova classe
-                      if (taskFullIdElement) {
-                          const newAbbreviatedStatus = getAbbreviatedColumnIdentifier(updatedTask.column_identifier);
-                          const newFullIdText = `${initialProjectId || 'PROJ'}-${newAbbreviatedStatus}-${updatedTask.id}`;
-                          if (taskFullIdElement.textContent !== newFullIdText) {
-                                taskFullIdElement.textContent = newFullIdText;
-                                console.log(`[Task Moved UI] ID completo do card atualizado para ${newFullIdText} no item ${updatedTask.id}`);
-                          }
+                      // --- NOVA ABORDAGEM: Remover o item antigo e re-renderizar com addTaskToBoard ---
+                      if (evt.item && evt.item.parentNode) {
+                          evt.item.parentNode.removeChild(evt.item);
+                          console.log(`[Task Moved UI] Item DOM original (ID: ${taskId}) removido.`);
                       }
-                      // ---------------------------------------------
-
+                      addTaskToBoard(updatedTask); // Re-renderiza o card com os dados atualizados
+                      console.log(`[Task Moved UI] Card (ID: ${updatedTask.id}) re-renderizado por addTaskToBoard.`);
+                      // ---------------------------------------------------------------------------------
+                      
                       // Atualiza a timeline sempre que uma tarefa for movida
                       console.log(`[Task Moved] Atualizando timeline após movimentação da tarefa ${taskId}`);
-                      setTimeout(updateTimelineTasks, 500);
+                      setTimeout(updateTimelineTasks, 500); // Pequeno delay para garantir que o DOM esteja estável
 
                       // Recalcula totais
                       updateColumnTotals();
@@ -1618,11 +1632,13 @@
                   } catch (error) {
                       console.error('[Task Moved] Erro ao salvar nova posição:', error);
                       alert(`Erro ao mover tarefa: ${error.message}. A interface pode estar dessincronizada. Recarregue a página.`);
-                      // TODO: Reverter a mudança visual do SortableJS em caso de erro?
-                      // Sortable.active.sort(originalOrder); // Requer guardar a ordem original
+                      // Em caso de erro, o item original (evt.item) ainda estará no DOM,
+                      // mas pode estar na posição errada visualmente devido ao SortableJS.
+                      // Uma recarga da página pode ser a melhor saída ou tentar reverter a ação do sortable.
+                      // Por ora, a renderização completa via renderTasks() pode ser uma opção de fallback.
+                      renderTasks(currentTasksData); // Tenta re-renderizar tudo para corrigir estado visual.
                   } finally {
-                       // Restaura a opacidade normal
-                       evt.item.style.opacity = '1';
+                       // Não precisamos mais restaurar opacidade do evt.item, pois ele foi removido/recriado.
                   }
                   
                   // --- Atualização da UI para Mensagem "Nenhuma Tarefa" ---
@@ -1649,48 +1665,17 @@
                   // ----------------------------------------------------------
 
                   // --- ATUALIZAÇÃO VISUAL: Data de Conclusão ---
-                  const completionDateSpan = evt.item.querySelector('.task-completion-date');
-                  let newCompletionHtml = ''; // HTML a ser inserido
-                  if (updatedTask && updatedTask.column_identifier === 'concluido' && updatedTask.completed_at) { // Verifica se updatedTask existe
-                      try {
-                          const completedDate = new Date(updatedTask.completed_at);
-                          const formattedDate = completedDate.toLocaleDateString('pt-BR', {
-                              day: '2-digit', month: '2-digit', year: 'numeric'
-                          });
-                          newCompletionHtml = `
-                              <i class="bi bi-calendar-check-fill"></i>
-                              ${formattedDate}
-                          `; // Gera apenas o conteúdo interno do span
-                      } catch (e) {
-                          console.error("Erro ao formatar data de conclusão (onEnd):", e, updatedTask.completed_at);
-                          newCompletionHtml = '<i class="bi bi-exclamation-triangle text-danger"></i> Data Inválida';
-                      }
-                  }
-
-                  // Atualiza ou cria o span da data de conclusão
-                  if (completionDateSpan) {
-                       // Se o span já existe, apenas atualiza o conteúdo ou remove se não for mais necessário
-                       if (newCompletionHtml) {
-                           completionDateSpan.innerHTML = newCompletionHtml;
-                           completionDateSpan.style.display = 'inline-flex'; // Garante visibilidade
-                       } else {
-                           completionDateSpan.style.display = 'none'; // Esconde se não aplicável
-                           completionDateSpan.innerHTML = ''; // Limpa conteúdo
-                       }
-                  } else if (newCompletionHtml) {
-                       // Se o span não existe E deveria existir (tarefa movida para concluído)
-                       // Cria o span e adiciona na div de detalhes
-                       const detailsDiv = evt.item.querySelector('.task-details');
-                       if (detailsDiv) {
-                           const newSpan = document.createElement('span');
-                           newSpan.className = 'task-completion-date'; // Removido ms-auto
-                           newSpan.title = 'Concluído em';
-                           newSpan.innerHTML = newCompletionHtml;
-                           newSpan.style.display = 'inline-flex'; // Garante display
-                           detailsDiv.appendChild(newSpan);
-                           console.log(`[Task Moved UI] Span de data de conclusão criado para ${updatedTask.id}`);
-                       }
-                  }
+                  // ESTA SEÇÃO FOI REMOVIDA POIS addTaskToBoard AGORA CUIDA DISSO
+                  // const completionDateSpan = evt.item.querySelector('.task-completion-date');
+                  // let newCompletionHtml = ''; 
+                  // if (updatedTask && updatedTask.column_identifier === 'concluido' && updatedTask.completed_at) { 
+                  //    // ... lógica de formatação ...
+                  // }
+                  // if (completionDateSpan) {
+                  //    // ...
+                  // } else if (newCompletionHtml) {
+                  //    // ...
+                  // }
                   // ---------------------------------------------------
               }
           });
@@ -1813,6 +1798,7 @@
           const deleteBtn = document.getElementById('deleteTaskBtn');
           const remainingHoursGroup = document.getElementById('remainingHoursGroup'); // Seleciona o grupo
           const segmentsSummaryDisplay = document.getElementById('taskSegmentsSummaryDisplay'); // Novo
+          const completedDateGroup = document.getElementById('completedDateGroup'); // <<< NOVO
 
           if (form) form.reset();
           editingTaskId = null;
@@ -1822,6 +1808,8 @@
           if (segmentsSummaryDisplay) { // Novo: Limpar resumo dos segmentos
               segmentsSummaryDisplay.innerHTML = '<p class="text-muted m-0">Carregando informações dos segmentos...</p>';
           }
+          if (completedDateGroup) completedDateGroup.style.display = 'none'; // <<< NOVO: Ocultar ao fechar
+
           showLoadingFeedback(false); // Garante que o loading overlay seja escondido
       });
   } else {
@@ -1851,6 +1839,7 @@
           // Leitura explícita das datas
           taskData.start_date = form.querySelector('#taskStartDate')?.value || null;
           taskData.due_date = form.querySelector('#taskDueDate')?.value || null;
+          taskData.completed_at = form.querySelector('#taskCompletedDate')?.value || null; // <<< NOVO
 
           // <<< INÍCIO: Ler campo Especialista (agora um select) >>>
           const selectedSpecialist = form.querySelector('#taskSpecialist')?.value;
@@ -2046,6 +2035,8 @@
           if(label) label.innerHTML = '<i class="bi bi-plus-square-dotted me-2"></i>Adicionar Nova Tarefa'; 
           if(deleteBtn) deleteBtn.style.display = 'none';
           if(remainingHoursGroup) remainingHoursGroup.style.display = 'none'; // *** ESCONDE HORAS RESTANTES NA CRIAÇÃO ***
+          const completedDateGroup = document.getElementById('completedDateGroup'); // <<< NOVO
+          if(completedDateGroup) completedDateGroup.style.display = 'none'; // <<< NOVO: Ocultar na criação
           showLoadingFeedback(false);
           
           // Foca no campo nome ao abrir para criação
@@ -4252,7 +4243,7 @@
                       </div>
                       <div class="text-muted small" title="Data de Criação/Modificação"><i class="bi bi-clock-history me-1"></i>${this.formatDate(note.updated_at || note.created_at)}</div>
                   </div>
-                  ${eventDateHtml} {/* <<< ADICIONADO Event Date HTML */}
+                  ${eventDateHtml} 
                   <div class="note-content">${escapeHtml(note.content)}</div>
                   <div class="note-footer">
                       <div class="note-tags">

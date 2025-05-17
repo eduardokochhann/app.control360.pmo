@@ -486,34 +486,42 @@ def update_task_details(task_id):
         else: # Permite limpar a data
             task.start_date = None
             
-    if 'due_date' in data: # <<< ADICIONADO PARA DUE_DATE
+    if 'due_date' in data:
         if data['due_date']:
             try:
                 task.due_date = datetime.strptime(data['due_date'], '%Y-%m-%d')
             except (ValueError, TypeError):
                 abort(400, description="Formato inválido para 'due_date'. Use YYYY-MM-DD.")
-        else:
+        else: # Permite limpar a data
             task.due_date = None
-            
-    if 'logged_time' in data: # <<< ADICIONADO PARA LOGGED_TIME
-        if data['logged_time'] is not None and data['logged_time'] != '':
+
+    # <<< INÍCIO: Processar completed_at >>>
+    if 'completed_at' in data:
+        completed_at_str = data['completed_at']
+        if completed_at_str:
+            parsed_completed_at = None
+            # Tentar parsear como YYYY-MM-DD primeiro, pois é o formato do input date
             try:
-                logged = float(data['logged_time'])
-                if logged < 0:
-                    abort(400, description="'logged_time' não pode ser negativo.")
-                task.logged_time = logged
+                parsed_completed_at = datetime.strptime(completed_at_str, '%Y-%m-%d')
             except (ValueError, TypeError):
-                 abort(400, description="Valor inválido para 'logged_time'. Use um número.")
-        else:
-             # Permitir zerar o tempo logado? Ou apenas incrementar?
-             # Por ora, permite definir/limpar.
-             task.logged_time = None 
-    
-    # <<< INÍCIO: Atualizar especialista >>>
+                # Se falhar, tentar como ISO format (que pode incluir Z ou offset)
+                try:
+                    # Remover 'Z' e tratar como UTC, ou adicionar suporte a timezone se necessário
+                    if completed_at_str.endswith('Z'):
+                        completed_at_str = completed_at_str[:-1] + '+00:00'
+                    parsed_completed_at = datetime.fromisoformat(completed_at_str)
+                except (ValueError, TypeError):
+                    abort(400, description="Formato inválido para 'completed_at'. Use YYYY-MM-DD ou formato ISO.")
+            task.completed_at = parsed_completed_at
+        else: # Permite limpar a data (enviando null ou string vazia)
+            task.completed_at = None
+    # <<< FIM: Processar completed_at >>>
+            
+    # <<< INÍCIO: Processar specialist_name >>>
     if 'specialist_name' in data:
         # Permite string vazia ou None para limpar o especialista
         task.specialist_name = data['specialist_name'] if data['specialist_name'] else None
-    # <<< FIM: Atualizar especialista >>>
+    # <<< FIM: Processar specialist_name >>>
 
     try:
         db.session.commit()
@@ -708,25 +716,34 @@ def move_task(task_id):
     # Atualiza status e data de conclusão
     if is_moving_to_done:
         task.status = TaskStatus.DONE
-        if not task.completed_at: # Define apenas na primeira vez que entra em DONE
+        if not task.completed_at: # Define apenas se NÃO houver data de conclusão prévia
             task.completed_at = datetime.utcnow()
-            current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para Concluído, data de conclusão definida")
+            current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para Concluído, data de conclusão definida.")
+        else:
+            current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para Concluído, data de conclusão existente mantida: {task.completed_at}")
     else:
-        # Se saiu de DONE, volta para um status apropriado e limpa data de conclusão
-        if was_in_done:
-             task.completed_at = None 
+        # Se saiu de DONE, NÃO limpa mais a data de conclusão automaticamente.
+        # A data de conclusão (se existir) é mantida para fins de histórico.
+        # O status da tarefa é atualizado com base na nova coluna.
+        
         # Tenta mapear nome da coluna para status comparando com os valores do Enum
         found_status = False
         for status_member in TaskStatus:
+            # Compara o valor do enum (ex: 'A Fazer') com o nome da coluna do BD
             if status_member.value.upper() == target_column.name.upper():
                 task.status = status_member
                 found_status = True
-                break # Encontrou o status correspondente
+                current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para coluna '{target_column.name}', status definido para '{task.status.value}'.")
+                break 
         
-        if not found_status and not is_moving_to_done: # Se não encontrou e não está indo para DONE
-            task.status = TaskStatus.TODO # Mantém o fallback para TODO
-            current_app.logger.warning(f"Não foi possível mapear o nome da coluna '{target_column.name}' para um TaskStatus.")
-    
+        if not found_status: 
+            # Fallback se o nome da coluna não corresponder diretamente a um TaskStatus.value
+            if task.status == TaskStatus.DONE: # Só muda se ESTAVA em DONE e não encontrou novo status válido
+                 task.status = TaskStatus.TODO # Ou TaskStatus.IN_PROGRESS, dependendo da regra de negócio
+                 current_app.logger.info(f"[Task Moved] Tarefa {task.id} saiu de 'Concluído' para coluna '{target_column.name}', status revertido para '{task.status.value}' (fallback)." )
+            # else: # Se não estava em DONE e não achou match, o status atual é mantido (pode ser TODO, IN_PROGRESS etc)
+            #    current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para coluna '{target_column.name}', status MANTIDO como '{task.status.value}' pois não estava em 'Concluído' e não houve match de coluna para novo status.")
+
     db.session.commit()
     
     # Recarrega a tarefa para obter relacionamentos atualizados
