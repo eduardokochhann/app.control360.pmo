@@ -581,6 +581,10 @@
                 <button class="btn btn-sm btn-outline-secondary" id="toggleDetailsBtn" title="Mostrar/Ocultar Detalhes do Projeto">
                     <i class="bi bi-info-circle me-1"></i>Detalhes
                 </button>
+                 {# Botão Importar Tarefas #}
+                 <button class="btn btn-sm btn-outline-success" id="importTasksBtn" {% if not current_backlog_id %}disabled{% endif %}>
+                    <i class="bi bi-file-earmark-excel me-1"></i>Importar Tarefas
+                </button>
                  <button class="btn btn-sm btn-primary" id="addTaskBtn" {% if not current_backlog_id %}disabled{% endif %}>
                     <i class="bi bi-plus-lg me-1"></i>Nova Tarefa
                 </button>
@@ -1007,6 +1011,54 @@
             </div>
         </div>
       </form>
+    </div>
+  </div>
+</div>
+
+{# Modal para Importar Tarefas do Excel #}
+<div class="modal fade" id="importTasksModal" tabindex="-1" aria-labelledby="importTasksModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="importTasksModalLabel"><i class="bi bi-file-earmark-excel me-2"></i>Importar Tarefas do Excel</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Selecione um arquivo Excel (<code>.xlsx</code>) para importar tarefas. Certifique-se de que o arquivo siga o formato especificado.</p>
+        
+        <div class="alert alert-info small">
+          <strong>Formato esperado da planilha:</strong>
+          <ul>
+            <li>Coluna A: <code>Titulo</code> (Texto, Obrigatório)</li>
+            <li>Coluna B: <code>HorasEstimadas</code> (Número, Opcional)</li>
+            <li>Coluna C: <code>DataInicio</code> (Data YYYY-MM-DD ou dd/mm/aa, Opcional)</li>
+            <li>Coluna D: <code>DataFim</code> (Data YYYY-MM-DD ou dd/mm/aa, Opcional)</li>
+            <li>Coluna E: <code>ColunaKanban</code> (Texto, Nome Exato da Coluna no Quadro, Obrigatório)</li>
+          </ul>
+          {# Futuramente, podemos adicionar um link para baixar um arquivo modelo #}
+          {# <p><a href="/path/to/template.xlsx" download>Baixar modelo da planilha</a></p> #}
+        </div>
+
+        <div class="mb-3">
+          <label for="excelFile" class="form-label">Arquivo Excel (<code>.xlsx</code>)</label>
+          <input class="form-control" type="file" id="excelFile" accept=".xlsx">
+        </div>
+
+        <div id="importFeedback" class="mt-3" style="display: none;">
+          {/* Feedback será inserido aqui pelo JavaScript */}
+        </div>
+        
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="uploadExcelBtn"><i class="bi bi-upload me-1"></i>Importar</button>
+      </div>
+      {# Loading Feedback para o modal de importação #}
+        <div class="loading-overlay" id="importLoadingOverlay" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Importando...</span>
+            </div>
+        </div>
     </div>
   </div>
 </div>
@@ -3973,7 +4025,7 @@
           const modalElement = document.getElementById('noteModal');
           if (modalElement) {
               this.noteModal = new bootstrap.Modal(modalElement);
-          } else {
+    } else {
               console.error('[Notes] Elemento #noteModal não encontrado.');
           return;
       }
@@ -4006,9 +4058,9 @@
 
           if (missingElements.length > 0) {
               console.error('[Notes] Elementos não encontrados:', missingElements.join(', '));
-              return;
-          }
-          
+        return;
+    }
+
           // Remove listeners antigos e adiciona novos
           Object.entries(elements).forEach(([key, element]) => {
               const newElement = element.cloneNode(true);
@@ -4051,7 +4103,7 @@
         if (noteTypeSelect) {
             if (selectedTaskId && selectedTaskId !== '') {
                 noteTypeSelect.value = 'task';
-            } else {
+    } else {
                 // Se nenhuma tarefa for selecionada, pode-se manter 'project' 
                 // ou limpar, dependendo da lógica desejada.
                 // Por ora, vamos manter como 'project' se nenhuma tarefa estiver selecionada.
@@ -4067,15 +4119,15 @@
           if (!projectId) {
               // console.warn('[Notes] ID do projeto não encontrado'); // Comentado para evitar confusão se o backlogId for usado intencionalmente em outro lugar
               console.warn('[Notes] ID do projeto (currentProjectId) não encontrado para carregar notas.');
-              return;
-          }
+        return;
+    }
 
           const notesList = document.getElementById('notesList');
           if (!notesList) {
               console.error('[Notes] Elemento notesList não encontrado');
-          return;
-      }
-      
+        return;
+    }
+
           notesList.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div> Carregando notas...</div>';
 
           // Caminho correto com o prefixo /backlog/
@@ -4116,8 +4168,8 @@
           
           if (!projectId) {
               this.showError('ID do projeto não encontrado no #currentProjectId');
-          return;
-          }
+        return;
+    }
 
           const data = {
               content: document.getElementById('noteContent').value.trim(),
@@ -4135,9 +4187,9 @@
 
           if (!data.content) {
               this.showError('O conteúdo da nota é obrigatório');
-          return;
-      }
-      
+        return;
+    }
+
           // URL completa incluindo o prefixo /backlog/
           // Caminho completo da API incluindo o prefixo /backlog/
           const url = this.currentEditingNoteId               ? `/backlog/api/notes/${this.currentEditingNoteId}`              : '/backlog/api/notes';
@@ -4232,8 +4284,8 @@
               .catch(error => {
                       console.error('[Notes] Erro ao carregar nota:', error);
                       this.showError('Erro ao carregar nota');
-                  });
-      } else {
+        });
+    } else {
               const modalTitle = document.querySelector('#noteModal .modal-title');
               if (modalTitle) modalTitle.textContent = 'Nova Nota';
           }
@@ -4247,8 +4299,8 @@
 
           if (!notes || notes.length === 0) {
               notesList.innerHTML = '<div class="text-center text-muted py-3">Nenhuma nota encontrada</div>';
-          return;
-          }
+        return;
+    }
 
           const sortedNotes = [...notes].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
@@ -4566,7 +4618,7 @@
                   <div class="spinner-border spinner-border-sm text-primary me-2"></div>${message}
               </td></tr>
           `;
-      } else {
+    } else {
           element.innerHTML = `
               <div class="text-center text-muted py-3">
                   <div class="spinner-border spinner-border-sm text-primary me-2"></div>${message}
@@ -4608,6 +4660,130 @@
           `;
       }
   }
+
+  // --- INÍCIO: Lógica para Importação de Tarefas do Excel ---
+  let importTasksModalInstance = null;
+  const importTasksBtn = document.getElementById('importTasksBtn');
+  const uploadExcelBtn = document.getElementById('uploadExcelBtn');
+  const excelFileEl = document.getElementById('excelFile');
+  const importFeedbackEl = document.getElementById('importFeedback');
+  const importLoadingOverlayEl = document.getElementById('importLoadingOverlay');
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const importTasksModalEl = document.getElementById('importTasksModal');
+    if (importTasksModalEl) {
+        importTasksModalInstance = new bootstrap.Modal(importTasksModalEl);
+        
+        importTasksModalEl.addEventListener('hidden.bs.modal', function () {
+            if (excelFileEl) excelFileEl.value = null;
+            if (importFeedbackEl) {
+                importFeedbackEl.innerHTML = '';
+                importFeedbackEl.style.display = 'none';
+            }
+        });
+    } else {
+        console.error("[Import Excel] Modal #importTasksModal não encontrado.");
+    }
+
+    if (importTasksBtn) {
+        importTasksBtn.addEventListener('click', () => {
+            if (importTasksModalInstance) {
+                importTasksModalInstance.show();
+            }
+        });
+    } else {
+        console.error("[Import Excel] Botão #importTasksBtn não encontrado.");
+    }
+
+    if (uploadExcelBtn) {
+        uploadExcelBtn.addEventListener('click', handleExcelUpload);
+    } else {
+        console.error("[Import Excel] Botão #uploadExcelBtn não encontrado.");
+    }
+  });
+
+  async function handleExcelUpload() {
+    if (!excelFileEl || !excelFileEl.files || excelFileEl.files.length === 0) {
+        showImportFeedback('Por favor, selecione um arquivo Excel.', 'warning');
+        return;
+    }
+
+    const file = excelFileEl.files[0];
+    if (file.type !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+        showImportFeedback('Tipo de arquivo inválido. Por favor, selecione um arquivo <code>.xlsx</code>.', 'danger');
+        return;
+    }
+
+    const currentBacklogId = document.getElementById('currentBacklogId')?.value;
+    if (!currentBacklogId) {
+        showImportFeedback('Erro: ID do backlog não encontrado. Não é possível importar tarefas.', 'danger');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('excel_file', file);
+
+    showImportLoading(true);
+    showImportFeedback('', 'info'); 
+
+    try {
+        const response = await fetch(`/backlog/api/backlogs/${currentBacklogId}/import-tasks`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || `Erro ${response.status} ao importar.`);
+        }
+
+        showImportFeedback(result.message || 'Tarefas importadas com sucesso!', 'success');
+        
+        // Tenta atualizar as tarefas no quadro
+        if (typeof fetchTasksAndRender === 'function') { 
+            fetchTasksAndRender();
+        } else if (typeof renderTasks === 'function' && typeof currentTasksData !== 'undefined'){
+            // Se a função dedicada não existir, tenta um reload simples dos dados atuais.
+            // Isso pode não ser o ideal se currentTasksData não for atualizado após a importação.
+            // A melhor abordagem é uma função que busca *novos* dados da API.
+            console.warn("[Import Excel] Função fetchTasksAndRender() não encontrada. Tentando re-renderizar com dados possivelmente desatualizados.");
+            // Para forçar uma busca real, precisaríamos de algo como:
+            // const tasks = await fetchAllTasksFromApi(currentBacklogId);
+            // currentTasksData = tasks;
+            // renderTasks(currentTasksData);
+            // Por ora, apenas indicamos que a recarga manual pode ser necessária.
+             alert("Importação concluída! Pode ser necessário recarregar a página para ver todas as tarefas.");
+        }
+
+        setTimeout(() => {
+            if (importTasksModalInstance) importTasksModalInstance.hide();
+        }, 2500);
+
+    } catch (error) {
+        console.error('[Import Excel] Erro:', error);
+        showImportFeedback(error.message || 'Ocorreu um erro desconhecido durante a importação.', 'danger');
+    } finally {
+        showImportLoading(false);
+    }
+  }
+
+  function showImportFeedback(message, type = 'info') {
+    if (importFeedbackEl) {
+        importFeedbackEl.innerHTML = `<div class="alert alert-${type} small p-2">${message}</div>`;
+        importFeedbackEl.style.display = 'block';
+    }
+  }
+
+  function showImportLoading(isLoading) {
+    if (importLoadingOverlayEl) {
+        importLoadingOverlayEl.style.display = isLoading ? 'flex' : 'none';
+    }
+    if (uploadExcelBtn) {
+        uploadExcelBtn.disabled = isLoading;
+    }
+  }
+  // --- FIM: Lógica para Importação de Tarefas do Excel ---
 
   // ... rest of the code ...
 </script>

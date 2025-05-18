@@ -1624,3 +1624,233 @@ def get_agenda_tasks():
 #     pass
 
 # Rota de disponibilidade para sprint removida
+
+# --- NOVA ROTA PARA IMPORTAR TAREFAS DO EXCEL --- (Coloque antes de qualquer função utilitária solta no final, se houver)
+@backlog_bp.route('/api/backlogs/<int:backlog_id>/import-tasks', methods=['POST'])
+def import_tasks_from_excel(backlog_id):
+    current_app.logger.info(f"[Import Excel API] Requisição recebida para backlog ID: {backlog_id}")
+
+    backlog = Backlog.query.get_or_404(backlog_id)
+    if not backlog:
+        current_app.logger.error(f"[Import Excel API] Backlog ID {backlog_id} não encontrado.")
+        return jsonify({'message': 'Backlog não encontrado.'}), 404
+
+    # Obter detalhes do projeto para pegar o especialista padrão
+    macro_service = MacroService()
+    # Assumindo que backlog.project_id é o ID que o macro_service espera
+    project_details = macro_service.obter_detalhes_projeto(str(backlog.project_id))
+    default_specialist = project_details.get('especialista') if project_details else None
+    current_app.logger.info(f"[Import Excel API] Projeto ID: {backlog.project_id}, Especialista Padrão do Projeto: {default_specialist}")
+
+    if 'excel_file' not in request.files:
+        current_app.logger.warning("[Import Excel API] Nenhum arquivo enviado na requisição.")
+        return jsonify({'message': 'Nenhum arquivo excel enviado.'}), 400
+
+    file = request.files['excel_file']
+
+    if file.filename == '':
+        current_app.logger.warning("[Import Excel API] Nome do arquivo vazio.")
+        return jsonify({'message': 'Nenhum arquivo selecionado.'}), 400
+
+    if file and file.filename.endswith('.xlsx'):
+        try:
+            current_app.logger.info(f"[Import Excel API] Lendo arquivo Excel: {file.filename}")
+            df = pd.read_excel(file, engine='openpyxl')
+            current_app.logger.debug(f"[Import Excel API] DataFrame lido. Colunas: {df.columns.tolist()}")
+
+            expected_columns = { # Colunas esperadas e se são obrigatórias
+                'Titulo': True,
+                'HorasEstimadas': False,
+                'DataInicio': False,
+                'DataFim': False,
+                'ColunaKanban': True
+            }
+            
+            missing_required_columns = [col for col, req in expected_columns.items() if req and col not in df.columns]
+            if missing_required_columns:
+                msg = f"Colunas obrigatórias faltando na planilha: {', '.join(missing_required_columns)}."
+                current_app.logger.error(f"[Import Excel API] {msg}")
+                return jsonify({'message': msg}), 400
+
+            imported_count = 0
+            errors = []
+            newly_created_tasks_ids = []
+
+            kanban_columns_db = Column.query.all()
+            column_name_to_id_map = {str(col.name).strip().lower(): col.id for col in kanban_columns_db}
+            current_app.logger.debug(f"[Import Excel API] Mapa de colunas Kanban do DB: {column_name_to_id_map}")
+
+            for index, row in df.iterrows():
+                try:
+                    titulo = row.get('Titulo')
+                    coluna_kanban_name = row.get('ColunaKanban')
+
+                    if not titulo or pd.isna(titulo):
+                        errors.append(f"Linha {index + 2}: Título da tarefa está vazio.")
+                        continue 
+                    if not coluna_kanban_name or pd.isna(coluna_kanban_name):
+                        errors.append(f"Linha {index + 2}: Nome da Coluna Kanban está vazio para a tarefa '{str(titulo)[:50]}'.")
+                        continue
+                    
+                    titulo_str = str(titulo).strip()
+                    coluna_kanban_name_str = str(coluna_kanban_name).strip().lower()
+
+                    target_column_id = column_name_to_id_map.get(coluna_kanban_name_str)
+                    if not target_column_id:
+                        valid_cols = list(column_name_to_id_map.keys())
+                        errors.append(f"Linha {index + 2}: Coluna Kanban '{coluna_kanban_name}' não encontrada. Válidas: {valid_cols}")
+                        continue
+                        
+                    horas_estimadas_raw = row.get('HorasEstimadas')
+                    horas_estimadas = None # Garante que se houver erro ou valor vazio, será None
+                    if horas_estimadas_raw and not pd.isna(horas_estimadas_raw):
+                        valor_processar = str(horas_estimadas_raw).strip()
+                        
+                        # Remove 'hrs' ou 'hr' (case-insensitive) e espaços ao redor
+                        if valor_processar.lower().endswith('hrs'):
+                            valor_processar = valor_processar[:-3].strip()
+                        elif valor_processar.lower().endswith('hr'):
+                            valor_processar = valor_processar[:-2].strip()
+                        
+                        # Substitui vírgula por ponto para aceitar decimais como 7,5
+                        valor_processar = valor_processar.replace(',', '.')
+                        
+                        if valor_processar: # Verifica se sobrou algo para converter
+                            try:
+                                horas_convertidas = float(valor_processar)
+                                if horas_convertidas >= 0:
+                                    horas_estimadas = horas_convertidas
+                                else:
+                                    errors.append(f"Linha {index + 2}: HorasEstimadas ('{horas_estimadas_raw}') resultou em valor negativo ({horas_convertidas}) para '{titulo_str}'. Será importado sem horas.")
+                            except ValueError:
+                                errors.append(f"Linha {index + 2}: HorasEstimadas ('{horas_estimadas_raw}') não pôde ser convertido para número para '{titulo_str}'. Será importado sem horas.")
+                        # Se valor_processar ficou vazio (ex: celula continha apenas 'hrs'), horas_estimadas permanece None
+                                
+                    def parse_date_from_excel(date_input, field_name):
+                        if date_input is None or pd.isna(date_input): return None
+                        if isinstance(date_input, datetime): return date_input.date()
+                        
+                        full_str = str(date_input).strip()
+                        date_str_to_parse = full_str # Default to the full string
+                        
+                        # Verifica se há um prefixo textual antes da data (ex: "Qua 14/05/25")
+                        # Se a string tiver um espaço, e a parte após o *último* espaço contiver '/' ou '-',
+                        # é provável que seja o formato "TEXTO DATA"
+                        last_space_index = full_str.rfind(' ')
+                        if last_space_index != -1:
+                            potential_date_candidate = full_str[last_space_index+1:]
+                            # Verifica se o candidato realmente parece uma data
+                            is_candidate_like_dd_mm_yy = '/' in potential_date_candidate
+                            is_candidate_like_yyyy_mm_dd = potential_date_candidate.count('-') == 2
+                            
+                            if is_candidate_like_dd_mm_yy or is_candidate_like_yyyy_mm_dd:
+                                date_str_to_parse = potential_date_candidate
+                            else:
+                                # Se a última parte não parece data (ex: "HH:MM:SS" de "YYYY-MM-DD HH:MM:SS"),
+                                # ou o espaço não era para separar dia da semana.
+                                # Nesse caso, a lógica de pegar a primeira parte antes do espaço é melhor.
+                                date_str_to_parse = full_str.split(' ')[0]
+                        else:
+                            # Sem espaços, usa a string inteira (ex: "14/05/25" ou "2023-10-26")
+                            # date_str_to_parse já é full_str, então não precisa de ação aqui.
+                            pass
+
+                        # Tenta formato YYYY-MM-DD primeiro
+                        try:
+                            return datetime.strptime(date_str_to_parse, '%Y-%m-%d').date()
+                        except ValueError:
+                            # Tenta formato dd/mm/yy ou dd/mm/yyyy
+                            try:
+                                # Tenta dd/mm/yyyy primeiro
+                                return datetime.strptime(date_str_to_parse, '%d/%m/%Y').date()
+                            except ValueError:
+                                try:
+                                    # Depois tenta dd/mm/yy
+                                    dt_obj = datetime.strptime(date_str_to_parse, '%d/%m/%y')
+                                    # Python's strptime %y handles 00-68 as 2000-2068 and 69-99 as 1969-1999.
+                                    current_app.logger.debug(f"Data '{date_str_to_parse}' com formato '%d/%m/%y' resultou em ano {dt_obj.year}")
+                                    return dt_obj.date()
+                                except ValueError:
+                                    errors.append(f"Linha {index + 2}: Formato de {field_name} ('{date_input}') inválido para '{titulo_str}'. Use YYYY-MM-DD ou dd/mm/aa(aaaa), opcionalmente precedido por dia da semana (ex: Qua dd/mm/aa).")
+                                    return 'PARSE_ERROR'
+
+                    data_inicio = parse_date_from_excel(row.get('DataInicio'), 'DataInicio')
+                    if data_inicio == 'PARSE_ERROR': continue
+                    data_fim = parse_date_from_excel(row.get('DataFim'), 'DataFim')
+                    if data_fim == 'PARSE_ERROR': continue
+                    
+                    # Define a posição inicial como 0 (topo da coluna)
+                    # Tarefas existentes serão deslocadas automaticamente pela lógica de `move_task` se essa API for chamada depois,
+                    # ou se a ordenação no frontend/banco for baseada em `position`.
+                    next_position = 0 
+
+                    new_task = Task(
+                        title=titulo_str,
+                        backlog_id=backlog.id,
+                        column_id=target_column_id,
+                        # project_id=backlog.project_id, # Task não tem project_id direto, é via backlog
+                        priority='Média', 
+                        specialist_name=default_specialist,
+                        estimated_effort=horas_estimadas,
+                        start_date=data_inicio,
+                        due_date=data_fim,
+                        position=next_position,
+                        status=TaskStatus.TODO # Default inicial
+                    )
+                    
+                    target_column_obj = next((col for col in kanban_columns_db if col.id == target_column_id), None)
+                    if target_column_obj:
+                        col_name_lower = target_column_obj.name.lower()
+                        if 'andamento' in col_name_lower:
+                            new_task.status = TaskStatus.IN_PROGRESS
+                            if not new_task.start_date: new_task.actually_started_at = datetime.utcnow()
+                        elif 'revis' in col_name_lower:
+                            new_task.status = TaskStatus.REVIEW
+                        elif 'concluído' in col_name_lower or 'concluido' in col_name_lower:
+                            new_task.status = TaskStatus.DONE
+                            if not new_task.completed_at: new_task.completed_at = datetime.utcnow()
+                        
+                    db.session.add(new_task)
+                    db.session.flush() # Para obter o ID da new_task
+                    newly_created_tasks_ids.append(new_task.id)
+                    imported_count += 1
+                    current_app.logger.debug(f"[Import Excel API] Tarefa '{titulo_str}' (ID futuro: {new_task.id}) preparada.")
+
+                except Exception as e_row:
+                    current_app.logger.error(f"[Import Excel API] Erro ao processar linha {index + 2}: {str(e_row)}", exc_info=True)
+                    errors.append(f"Linha {index + 2}: Erro inesperado - {str(e_row)}")
+            
+            if errors and imported_count > 0:
+                 db.session.commit()
+                 current_app.logger.info(f"[Import Excel API] {imported_count} tarefas importadas. {len(errors)} erros.")
+                 return jsonify({
+                    'message': f"{imported_count} tarefas importadas com {len(errors)} erros. Verifique os detalhes.",
+                    'imported_count': imported_count,
+                    'created_task_ids': newly_created_tasks_ids,
+                    'errors': errors
+                }), 207
+            elif errors: 
+                db.session.rollback()
+                current_app.logger.warning(f"[Import Excel API] Nenhuma tarefa importada. {len(errors)} erros.")
+                return jsonify({'message': 'Nenhuma tarefa importada devido a erros.', 'errors': errors}), 422
+            else: 
+                db.session.commit()
+                current_app.logger.info(f"[Import Excel API] {imported_count} tarefas importadas com sucesso.")
+                return jsonify({
+                    'message': f'{imported_count} tarefas importadas com sucesso!',
+                    'imported_count': imported_count,
+                    'created_task_ids': newly_created_tasks_ids
+                }), 201
+                
+        except pd.errors.EmptyDataError:
+            current_app.logger.error("[Import Excel API] Planilha vazia.")
+            return jsonify({'message': 'A planilha enviada está vazia.'}), 400
+        except Exception as e_general:
+            db.session.rollback()
+            current_app.logger.error(f"[Import Excel API] Erro geral: {str(e_general)}", exc_info=True)
+            return jsonify({'message': f'Erro geral ao processar o arquivo: {str(e_general)}'}), 500
+    else:
+        current_app.logger.warning("[Import Excel API] Tipo de arquivo inválido.")
+        return jsonify({'message': 'Tipo de arquivo inválido. Apenas .xlsx.'}), 400
+
+# Certifique-se que esta é a última parte adicionada ou que está em uma seção lógica de rotas.
