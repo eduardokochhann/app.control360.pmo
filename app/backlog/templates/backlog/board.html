@@ -749,7 +749,7 @@
                         <div class="card-body" style="max-height: 350px; overflow-y: auto;">
                             <div id="timelineContainer">
                                 <div class="timeline-section mb-3">
-                                    <h6 class="text-muted"><i class="bi bi-check-circle-fill text-success me-2"></i>Recentemente Concluídas</h6>
+                                    <h6 class="text-muted"><i class="bi bi-check-circle-fill text-success me-2"></i>Concluídas</h6>
                                     <ul class="list-group list-group-flush" id="completedTasksList">
                                         <li class="list-group-item text-center text-muted small">
                                             <i class="bi bi-hourglass me-1"></i> Carregando...
@@ -2878,7 +2878,7 @@
             }
             
             // Renderizar tarefas concluídas recentemente
-            renderTasksList(completedTasksList, data.recently_completed, 'check-circle-fill', 'text-success', 'Nenhuma tarefa concluída recentemente');
+            renderTasksList(completedTasksList, data.all_completed, 'check-circle-fill', 'text-success', 'Nenhuma tarefa concluída recentemente');
             
             // Renderizar próximas tarefas
             renderTasksList(upcomingTasksList, data.upcoming_tasks, 'calendar-event-fill', 'text-warning', 'Nenhuma tarefa com prazo próximo');

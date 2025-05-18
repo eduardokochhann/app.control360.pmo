@@ -1081,29 +1081,31 @@
                                 <div class="timeline-section">
                                     <div class="section-header">
                                         <i class="bi bi-calendar-event text-warning"></i>
-                                        <span class="fw-bold">Próximas Tarefas</span>
+                                        <span class="fw-bold">Próximas Tarefas (7 dias)</span>
                                     </div>
                                     <ul class="list-group list-group-flush" id="upcoming-tasks-list">
                                         {% if for_pdf %}
-                                            {% if report_data.proximos_passos and report_data.proximos_passos|length > 0 %}
+                                            {# Lógica para PDF para próximas tarefas, se houver dados #}
+                                            {% if report_data.tarefas_proximo_prazo and report_data.tarefas_proximo_prazo|length > 0 %}
                                                 <div class="column-headers" style="display: flex; justify-content: space-between; padding: 0.5rem 1rem; background-color: #f8f9fc; border-bottom: 1px solid #e3e6f0; font-weight: bold; font-size: 0.75rem;">
-                                                    <div class="task-column" style="flex-basis: 60%;">Tarefa</div>
-                                                    <div class="status-column" style="flex-basis: 20%; text-align: center;">Status</div>
-                                                    <div class="date-column" style="flex-basis: 20%; text-align: right;">Período</div>
+                                                    <div class="task-column" style="flex-basis: 50%;">Tarefa</div>
+                                                    <div class="status-column" style="flex-basis: 20%; text-align: center;">Prioridade</div>
+                                                    <div class="date-column" style="flex-basis: 30%; text-align: right;">Prazo</div>
                                                 </div>
-                                                {% for task in report_data.proximos_passos %}
+                                                {% for task in report_data.tarefas_proximo_prazo %}
                                                     <li class="list-group-item" title="{{ task.description if task.description else '' }}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 1rem; font-size: 0.8rem;">
-                                                        <span class="timeline-task-name" style="flex-basis: 60%; word-break: break-word;">{{ task.titulo | default('Tarefa sem título') }}</span>
+                                                        <span class="timeline-task-name" style="flex-basis: 50%; word-break: break-word;">{{ task.title | default('Tarefa sem título') }}</span>
                                                         <div class="status-container" style="flex-basis: 20%; text-align: center;">
-                                                            <span class="badge bg-secondary">A Fazer</span>
+                                                            {# Adapte o badge conforme necessário, ex: task.status ou task.priority #}
+                                                            <span class="badge bg-warning text-dark">{{ task.priority | default('N/A') }}</span>
                                                         </div>
-                                                        <span class="text-muted small" style="flex-basis: 20%; text-align: right;">
-                                                            {{ task.start_date | default('-') }} → {{ task.due_date | default('-') }}
+                                                        <span class="text-muted small" style="flex-basis: 30%; text-align: right;">
+                                                             {{ task.due_date | default('-') }}
                                                         </span>
                                                     </li>
                                                 {% endfor %}
                                             {% else %}
-                                                <li class="list-group-item text-center text-muted small">Nenhuma próxima tarefa encontrada.</li>
+                                                <li class="list-group-item text-center text-muted small">Nenhuma tarefa com prazo nos próximos 7 dias.</li>
                                             {% endif %}
                                         {% endif %}
                                         {# Para visualização não-PDF, o JS popula aqui #}
@@ -1118,7 +1120,61 @@
                                     </div>
                                     <ul class="list-group list-group-flush" id="started-tasks-list">
                                         {% if for_pdf %}
-                                            <li class="list-group-item text-center text-muted small">Dados de tarefas em andamento não disponíveis para PDF.</li>
+                                            {# Lógica para PDF para tarefas em andamento, se houver dados #}
+                                            {% if report_data.tarefas_em_andamento and report_data.tarefas_em_andamento|length > 0 %}
+                                                <div class="column-headers" style="display: flex; justify-content: space-between; padding: 0.5rem 1rem; background-color: #f8f9fc; border-bottom: 1px solid #e3e6f0; font-weight: bold; font-size: 0.75rem;">
+                                                    <div class="task-column" style="flex-basis: 50%;">Tarefa</div>
+                                                    <div class="status-column" style="flex-basis: 20%; text-align: center;">Prioridade</div>
+                                                    <div class="date-column" style="flex-basis: 30%; text-align: right;">Prazo</div>
+                                                </div>
+                                                {% for task in report_data.tarefas_em_andamento %}
+                                                    <li class="list-group-item" title="{{ task.description if task.description else '' }}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 1rem; font-size: 0.8rem;">
+                                                        <span class="timeline-task-name" style="flex-basis: 50%; word-break: break-word;">{{ task.title | default('Tarefa sem título') }}</span>
+                                                        <div class="status-container" style="flex-basis: 20%; text-align: center;">
+                                                            <span class="badge bg-primary">{{ task.priority | default('N/A')}}</span>
+                                                        </div>
+                                                        <span class="text-muted small" style="flex-basis: 30%; text-align: right;">
+                                                            {{ task.due_date | default('-') }}
+                                                        </span>
+                                                    </li>
+                                                {% endfor %}
+                                            {% else %}
+                                                <li class="list-group-item text-center text-muted small">Nenhuma tarefa em andamento.</li>
+                                            {% endif %}
+                                        {% endif %}
+                                        {# Para visualização não-PDF, o JS popula aqui #}
+                                    </ul>
+                                </div>
+                                
+                                <!-- NOVA SEÇÃO: Tarefas em Revisão -->
+                                <div class="timeline-section">
+                                    <div class="section-header">
+                                        <i class="bi bi-search text-info"></i> {# Ícone para Revisão #}
+                                        <span class="fw-bold">Em Revisão</span>
+                                    </div>
+                                    <ul class="list-group list-group-flush" id="review-tasks-list">
+                                        {% if for_pdf %}
+                                            {# Lógica para PDF para tarefas em revisão, se houver dados #}
+                                            {% if report_data.tarefas_em_revisao and report_data.tarefas_em_revisao|length > 0 %}
+                                                <div class="column-headers" style="display: flex; justify-content: space-between; padding: 0.5rem 1rem; background-color: #f8f9fc; border-bottom: 1px solid #e3e6f0; font-weight: bold; font-size: 0.75rem;">
+                                                    <div class="task-column" style="flex-basis: 50%;">Tarefa</div>
+                                                    <div class="status-column" style="flex-basis: 20%; text-align: center;">Prioridade</div>
+                                                    <div class="date-column" style="flex-basis: 30%; text-align: right;">Prazo</div>
+                                                </div>
+                                                {% for task in report_data.tarefas_em_revisao %}
+                                                    <li class="list-group-item" title="{{ task.description if task.description else '' }}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 1rem; font-size: 0.8rem;">
+                                                        <span class="timeline-task-name" style="flex-basis: 50%; word-break: break-word;">{{ task.title | default('Tarefa sem título') }}</span>
+                                                        <div class="status-container" style="flex-basis: 20%; text-align: center;">
+                                                            <span class="badge bg-info">{{ task.priority | default('N/A') }}</span>
+                                                        </div>
+                                                        <span class="text-muted small" style="flex-basis: 30%; text-align: right;">
+                                                            {{ task.due_date | default('-') }}
+                                                        </span>
+                                                    </li>
+                                                {% endfor %}
+                                            {% else %}
+                                                <li class="list-group-item text-center text-muted small">Nenhuma tarefa em revisão.</li>
+                                            {% endif %}
                                         {% endif %}
                                         {# Para visualização não-PDF, o JS popula aqui #}
                                     </ul>
@@ -1871,20 +1927,30 @@
 <!-- Script para carregar a linha do tempo -->
 <script>
 // Formatação de data
-function formatDateString(dateStr) {
+function formatDateStringSR(dateStr) { // Renomeado para evitar conflito se houver outra formatDateString global
     if (!dateStr) return "-";
+    // Verifica se a string já está no formato dd/MM/YYYY (pode vir assim do backend)
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+        return dateStr;
+    }
+    // Se for YYYY-MM-DD (comum de inputs ou algumas APIs)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        const parts = dateStr.split('-');
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    // Tenta parsear como ISO (para datas com hora)
     try {
         const date = new Date(dateStr);
-        if (isNaN(date.getTime())) return dateStr; // Retorna a string original se a data for inválida
+        if (isNaN(date.getTime())) return dateStr; 
         return date.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'});
     } catch (e) {
-        console.error("Erro ao formatar data:", e, dateStr);
+        console.error("[SR Timeline] Erro ao formatar data:", e, dateStr);
         return dateStr;
     }
 }
 
 // Escapa HTML para tooltips seguros
-function escapeHtml(unsafe) {
+function escapeHtmlSR(unsafe) { // Renomeado
     if (!unsafe) return '';
     return unsafe
         .toString()
@@ -1895,7 +1961,6 @@ function escapeHtml(unsafe) {
         .replace(/'/g, "&#039;");
 }
 
-// Função para carregar a timeline de tarefas
 document.addEventListener('DOMContentLoaded', function() {
     // Elementos DOM para manipulação
     const loadingElement = document.getElementById('timeline-loading');
@@ -1904,225 +1969,117 @@ document.addEventListener('DOMContentLoaded', function() {
     const emptyElement = document.getElementById('timeline-empty');
     const contentElement = document.getElementById('timeline-content');
     
-    // Listas para as tarefas
     const upcomingTasksList = document.getElementById('upcoming-tasks-list');
-    const startedTasksList = document.getElementById('started-tasks-list');
+    const startedTasksList = document.getElementById('started-tasks-list'); // Para "Em Andamento"
+    const reviewTasksList = document.getElementById('review-tasks-list'); // NOVA LISTA
     const completedTasksList = document.getElementById('completed-tasks-list');
     
-    // Verifica se os elementos existem
     if (!loadingElement || !errorElement || !emptyElement || !contentElement ||
-        !upcomingTasksList || !startedTasksList || !completedTasksList) {
-        console.error("Elementos da linha do tempo não encontrados");
+        !upcomingTasksList || !startedTasksList || !reviewTasksList || !completedTasksList) {
+        console.error("[SR Timeline] Um ou mais elementos da linha do tempo não encontrados no DOM.");
+        if(loadingElement) loadingElement.style.display = 'none';
+        if(errorElement) {
+            errorElement.style.display = 'block';
+            if(errorMessageElement) errorMessageElement.textContent = 'Erro na configuração da página (elementos faltando).';
+        }
         return;
     }
-    
-    // Função para mostrar/ocultar elementos de status
-    function setTimelineStatus(isLoading, hasError, errorMsg, isEmpty) {
+
+    // Função para mostrar/ocultar elementos de status da timeline
+    function setTimelineDisplayStatus(isLoading, hasError, errorMsg, isEmptyOverall) {
         loadingElement.style.display = isLoading ? 'block' : 'none';
         errorElement.style.display = hasError ? 'block' : 'none';
-        if (errorMsg) errorMessageElement.textContent = errorMsg;
-        emptyElement.style.display = isEmpty ? 'block' : 'none';
-        contentElement.style.display = (!isLoading && !hasError && !isEmpty) ? 'block' : 'none';
+        if (errorMessageElement && errorMsg) errorMessageElement.textContent = errorMsg;
+        emptyElement.style.display = isEmptyOverall ? 'block' : 'none';
+        contentElement.style.display = (!isLoading && !hasError && !isEmptyOverall) ? 'block' : 'none';
     }
-    
-    let upcomingTasksPopulatedByReportData = false; // NOVA LINHA
 
-    // NOVO BLOCO para usar reportData.proximos_passos
-    // Assumindo que 'reportData' está disponível globalmente e que 'proximos_passos'
-    // tem a mesma estrutura que 'data.upcoming_tasks' (title, description, start_date, due_date)
-    if (typeof reportData !== 'undefined' && reportData && reportData.proximos_passos && reportData.proximos_passos.length > 0) {
-        console.log("Populando 'Próximas Tarefas' com dados de reportData.proximos_passos (timeline script):", reportData.proximos_passos);
+    // Função auxiliar para renderizar uma lista de tarefas
+    function renderTaskListSR(listElement, tasks, sectionTitle, defaultStatusBadge) {
+        if (!listElement) {
+            console.warn(`[SR Timeline] Elemento de lista para '${sectionTitle}' não encontrado.`);
+            return 0; // Retorna 0 tarefas renderizadas
+        }
+        if (!tasks || tasks.length === 0) {
+            listElement.innerHTML = `<li class="list-group-item text-center text-muted small">Nenhuma tarefa ${sectionTitle.toLowerCase()}.</li>`;
+            return 0;
+        }
+        
         let html = '';
+        // Adicionar cabeçalho padrão para todas as listas
         html += `
-            <div class="column-headers">
-                <div class="task-column">Tarefa</div>
-                <div class="status-column">Status</div>
-                <div class="date-column">Período</div>
+            <div class="column-headers" style="display: flex; justify-content: space-between; padding: 0.5rem 1rem; background-color: #f8f9fc; border-bottom: 1px solid #e3e6f0; font-weight: bold; font-size: 0.75rem;">
+                <div class="task-column" style="flex-basis: 50%;">Tarefa</div>
+                <div class="status-column" style="flex-basis: 20%; text-align: center;">Prioridade</div>
+                <div class="date-column" style="flex-basis: 30%; text-align: right;">Prazo/Conclusão</div>
             </div>
         `;
-        reportData.proximos_passos.forEach(task => {
-            console.log("Dados da tarefa individual (proximos_passos):", task); // NOVA LINHA DE DEBUG
-            const startDate = task.start_date ? formatDateString(task.start_date) : '-'; // Manter como está, pois não temos a data
-            const dueDate = task.due_date ? formatDateString(task.due_date) : '-';   // Manter como está, pois não temos a data
-            
+
+        tasks.forEach(task => {
+            const title = task.title || task.titulo || 'Tarefa sem título';
+            const priority = task.priority || 'N/A';
+            let dateDisplay = task.due_date ? formatDateStringSR(task.due_date) : 'N/A';
+            if (sectionTitle.toLowerCase().includes('concluída') && task.completed_at) {
+                dateDisplay = formatDateStringSR(task.completed_at.split(' ')[0]); // Pega só a data de completed_at
+            }
+
+            let priorityBadgeClass = 'bg-secondary';
+            if (priority === 'Alta') priorityBadgeClass = 'bg-warning text-dark';
+            else if (priority === 'Urgente') priorityBadgeClass = 'bg-danger';
+            else if (priority === 'Média') priorityBadgeClass = 'bg-info'; // Ajuste para Média ser azul claro
+            else if (priority === 'Baixa') priorityBadgeClass = 'bg-success'; // Ajuste para Baixa ser verde claro
+
             html += `
-                <li class="list-group-item" title="${escapeHtml(task.description || '')}"> 
-                    <span class="timeline-task-name">${escapeHtml(task.titulo || 'Tarefa sem título')}</span> {# Modificado de task.title para task.titulo #}
-                    <div class="status-container">
-                        <span class="badge bg-secondary">A Fazer</span>
+                <li class="list-group-item" title="${escapeHtmlSR(task.description || '')}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 1rem; font-size: 0.8rem;">
+                    <span class="timeline-task-name" style="flex-basis: 50%; word-break: break-word;">${escapeHtmlSR(title)}</span>
+                    <div class="status-container" style="flex-basis: 20%; text-align: center;">
+                        <span class="badge ${priorityBadgeClass}">${escapeHtmlSR(priority)}</span>
                     </div>
-                    <span class="text-muted small">
-                        ${startDate} → ${dueDate}
+                    <span class="text-muted small" style="flex-basis: 30%; text-align: right;">
+                        ${dateDisplay}
                     </span>
                 </li>
             `;
         });
-        if (upcomingTasksList) { // Adicionada verificação de existência
-            upcomingTasksList.innerHTML = html;
-        }
-        upcomingTasksPopulatedByReportData = true;
+        listElement.innerHTML = html;
+        return tasks.length;
     }
-    // FIM DO NOVO BLOCO
 
-    // Busca o ID do projeto da página
-    const projectId = "{{ project_id }}";
-    if (!projectId) {
-        setTimelineStatus(false, true, "ID do projeto não definido", false);
+    // Checa se reportData está disponível (deve ter sido parseado pelo script anterior)
+    if (typeof reportData === 'undefined' || !reportData) {
+        console.error("[SR Timeline] reportData não está definido ou é nulo.");
+        setTimelineDisplayStatus(false, true, "Dados do relatório não puderam ser carregados.", false);
         return;
     }
+
+    console.log("[SR Timeline] Usando reportData para popular listas:", reportData);
     
-    // Busca o backlog do projeto
-    console.log("Buscando backlog para projeto", projectId);
-    fetch(`/backlog/api/projects/${projectId}/backlog`)
-        .then(response => {
-            if (!response.ok) {
-                if (response.status === 404) {
-                    throw new Error("Nenhum backlog encontrado para este projeto");
-                }
-                throw new Error(`Erro ao buscar backlog: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(backlogData => {
-            const backlogId = backlogData.id;
-            console.log("Backlog encontrado:", backlogId);
-            
-            // Agora busca as tarefas da timeline
-            return fetch(`/backlog/api/backlogs/${backlogId}/timeline-tasks`);
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`Erro ao carregar tarefas: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log("Dados da timeline recebidos:", data);
-            
-            // Verifica se há tarefas para exibir
-            const hasUpcomingApi = data.upcoming_tasks && data.upcoming_tasks.length > 0; // Renomeado para clareza
-            const hasStarted = data.recently_started && data.recently_started.length > 0;
-            const hasCompleted = data.recently_completed && data.recently_completed.length > 0;
-            
-            // Modificada a condição de vazio para considerar se reportData já populou upcomingTasks
-            const isEffectivelyEmpty = (!upcomingTasksPopulatedByReportData && !hasUpcomingApi) && !hasStarted && !hasCompleted;
-            
-            if (isEffectivelyEmpty) {
-                setTimelineStatus(false, false, null, true);
-                return;
-            }
-            
-            // Renderiza tarefas futuras SOMENTE SE NÃO FORAM POPULADAS POR REPORTDATA
-            if (!upcomingTasksPopulatedByReportData) {
-                if (hasUpcomingApi) {
-                    let html = '';
-                    // Adicionar cabeçalho
-                    html += `
-                        <div class="column-headers">
-                            <div class="task-column">Tarefa</div>
-                            <div class="status-column">Status</div>
-                            <div class="date-column">Período</div>
-                        </div>
-                    `;
-                    data.upcoming_tasks.forEach(task => {
-                        const startDate = task.start_date ? formatDateString(task.start_date) : '-';
-                        const dueDate = task.due_date ? formatDateString(task.due_date) : '-';
-                        
-                        html += `
-                            <li class="list-group-item" title="${escapeHtml(task.description || '')}">
-                                <span class="timeline-task-name">${escapeHtml(task.title)}</span>
-                                <div class="status-container">
-                                    <span class="badge bg-secondary">A Fazer</span>
-                                </div>
-                                <span class="text-muted small">
-                                    ${startDate} → ${dueDate}
-                                </span>
-                            </li>
-                        `;
-                    });
-                    if (upcomingTasksList) upcomingTasksList.innerHTML = html || '<li class="list-group-item text-center text-muted small">Nenhuma tarefa futura (API)</li>';
-                } else {
-                    if (upcomingTasksList) upcomingTasksList.innerHTML = '<li class="list-group-item text-center text-muted small">Nenhuma tarefa futura (API)</li>';
-                }
-            }
-            
-            // Renderiza tarefas em andamento (lógica original mantida)
-            if (hasStarted) {
-                let html = '';
-                // Adicionar cabeçalho
-                html += `
-                    <div class="column-headers">
-                        <div class="task-column">Tarefa</div>
-                        <div class="status-column">Status</div>
-                        <div class="date-column">Período</div>
-                    </div>
-                `;
-                data.recently_started.forEach(task => {
-                    const startDate = task.start_date ? formatDateString(task.start_date) : '-';
-                    const dueDate = task.due_date ? formatDateString(task.due_date) : '-';
-                    
-                    html += `
-                        <li class="list-group-item" title="${escapeHtml(task.description || '')}">
-                            <span class="timeline-task-name">${escapeHtml(task.title)}</span>
-                            <div class="status-container">
-                                <span class="badge bg-primary">Andamento</span>
-                            </div>
-                            <span class="text-muted small">
-                                ${startDate} → ${dueDate}
-                            </span>
-                        </li>
-                    `;
-                });
-                startedTasksList.innerHTML = html || '<li class="list-group-item text-center text-muted small">Nenhuma tarefa em andamento</li>';
-            } else {
-                startedTasksList.innerHTML = '<li class="list-group-item text-center text-muted small">Nenhuma tarefa em andamento</li>';
-            }
-            
-            // Renderiza tarefas concluídas
-            if (hasCompleted) {
-                let html = '';
-                // Adicionar cabeçalho
-                html += `
-                    <div class="column-headers">
-                        <div class="task-column">Tarefa</div>
-                        <div class="status-column">Status</div>
-                        <div class="date-column">Data Conclusão</div>
-                    </div>
-                `;
-                data.recently_completed.forEach(task => {
-                    const completedDate = task.completed_at ? formatDateString(task.completed_at) : '-';
-                    
-                    html += `
-                        <li class="list-group-item" title="${escapeHtml(task.description || '')}">
-                            <span class="timeline-task-name">${escapeHtml(task.title)}</span>
-                            <div class="status-container">
-                                <span class="badge bg-success">Concluído</span>
-                            </div>
-                            <span class="text-muted small">
-                                ${completedDate}
-                            </span>
-                        </li>
-                    `;
-                });
-                completedTasksList.innerHTML = html || '<li class="list-group-item text-center text-muted small">Nenhuma tarefa concluída</li>';
-            } else {
-                completedTasksList.innerHTML = '<li class="list-group-item text-center text-muted small">Nenhuma tarefa concluída</li>';
-            }
-            
-            // Mostra o conteúdo
-            setTimelineStatus(false, false, null, false); // Se chegou aqui, não está vazio
-        })
-        .catch(error => {
-            console.error("Erro ao carregar timeline:", error);
-            // Modificado para preservar upcomingTasksList se populado por reportData
-            if (!upcomingTasksPopulatedByReportData) {
-                if (upcomingTasksList) upcomingTasksList.innerHTML = `<li class="list-group-item text-danger small">Erro ao carregar tarefas futuras: ${escapeHtml(error.message)}</li>`;
-            }
-            if (startedTasksList) startedTasksList.innerHTML = `<li class="list-group-item text-danger small">Erro ao carregar tarefas iniciadas: ${escapeHtml(error.message)}</li>`;
-            if (completedTasksList) completedTasksList.innerHTML = `<li class="list-group-item text-danger small">Erro ao carregar tarefas concluídas: ${escapeHtml(error.message)}</li>`;
-            
-            setTimelineStatus(false, true, error.message, false);
-        });
+    // Ocultar loading inicial e mensagem de erro/vazio, pois vamos popular ou mostrar mensagens específicas por lista.
+    loadingElement.style.display = 'none';
+    errorElement.style.display = 'none';
+    emptyElement.style.display = 'none';
+    contentElement.style.display = 'block'; // Garante que o container das listas esteja visível
+
+    let totalTasksRendered = 0;
+
+    // 1. Próximas Tarefas (usa reportData.tarefas_proximo_prazo)
+    totalTasksRendered += renderTaskListSR(upcomingTasksList, reportData.tarefas_proximo_prazo, 'Próximas a Vencer', '<span class="badge bg-warning text-dark">Pendente</span>');
+
+    // 2. Tarefas em Andamento (usa reportData.tarefas_em_andamento)
+    totalTasksRendered += renderTaskListSR(startedTasksList, reportData.tarefas_em_andamento, 'Em Andamento', '<span class="badge bg-primary">Andamento</span>');
+
+    // 3. Tarefas em Revisão (usa reportData.tarefas_em_revisao) - NOVA
+    totalTasksRendered += renderTaskListSR(reviewTasksList, reportData.tarefas_em_revisao, 'Em Revisão', '<span class="badge bg-info">Revisão</span>');
+
+    // 4. Tarefas Concluídas (usa reportData.tarefas_concluidas)
+    totalTasksRendered += renderTaskListSR(completedTasksList, reportData.tarefas_concluidas, 'Concluídas', '<span class="badge bg-success">Concluído</span>');
+
+    // Se nenhuma tarefa foi renderizada em nenhuma lista, mostra a mensagem geral de "timeline vazia"
+    if (totalTasksRendered === 0) {
+        emptyElement.style.display = 'block';
+        // Opcional: esconder o contentElement se não houver absolutamente nada.
+        // contentElement.style.display = 'none'; 
+    }
 });
 </script>
 {% endblock %}

@@ -3139,351 +3139,381 @@ class MacroService(BaseService):
             return [] # Retorna lista vazia em caso de erro
     # <<< FIM: Novo método para obter lista de especialistas >>>
 
-    # <<< INÍCIO: Nova função para dados do Status Report >>>
     def gerar_dados_status_report(self, project_id):
         """
-        Prepara os dados necessários para o Status Report de um projeto.
+        Prepara os dados necessários para o Status Report de um projeto,
+        combinando KPIs do projeto com listas de tarefas detalhadas.
         """
         try:
             self.logger.info(f"[Status Report] Gerando dados para projeto ID: {project_id}")
 
-            # 1. Carrega todos os dados (padrão)
-            dados_todos = self.carregar_dados(fonte=None)
+            # --- Lógica para detalhes do projeto e KPIs (mantida e adaptada) ---
+            dados_todos = self.carregar_dados(fonte=None) # Idealmente, project_id seria usado para buscar dados específicos do projeto mais eficientemente
             if dados_todos.empty:
-                self.logger.error("[Status Report] Falha ao carregar dados gerais.")
-                return None
+                self.logger.error("[Status Report] Falha ao carregar dados gerais (dados_todos).")
+                return self._get_empty_status_report_data(project_id, "Falha ao carregar dados gerais.")
 
-            # 2. Converte ID para int para filtro
             try:
                 project_id_int = int(project_id)
             except (ValueError, TypeError):
                 self.logger.error(f"[Status Report] project_id inválido: {project_id}")
-                return None
+                return self._get_empty_status_report_data(project_id, "ID do projeto inválido.")
             
-            # Garante que a coluna 'Numero' existe e é numérica
             if 'Numero' not in dados_todos.columns:
-                self.logger.error("[Status Report] Coluna 'Numero' não encontrada nos dados.")
-                return None
-            dados_todos['Numero'] = pd.to_numeric(dados_todos['Numero'], errors='coerce').astype('Int64')
-
-            # 3. Filtra pelo projeto específico
-            dados_projeto_df = dados_todos[dados_todos['Numero'] == project_id_int]
+                self.logger.error("[Status Report] Coluna 'Numero' não encontrada nos dados carregados.")
+                return self._get_empty_status_report_data(project_id, "Coluna 'Numero' ausente nos dados.")
+            
+            # Certifique-se de que 'Numero' é comparável com project_id_int
+            # Se 'Numero' puder ter NaNs ou valores não numéricos após coerção, filtre-os.
+            dados_todos['Numero'] = pd.to_numeric(dados_todos['Numero'], errors='coerce')
+            dados_projeto_df = dados_todos.dropna(subset=['Numero'])[dados_todos.dropna(subset=['Numero'])['Numero'].astype(int) == project_id_int]
 
             if dados_projeto_df.empty:
-                self.logger.warning(f"[Status Report] Projeto ID {project_id_int} não encontrado nos dados carregados.")
-                return None
-            
+                self.logger.warning(f"[Status Report] Projeto ID {project_id_int} não encontrado nos dados carregados via 'Numero'.")
+                detalhes_fallback = self.obter_detalhes_projeto(project_id) # obter_detalhes_projeto usa project_id string
+                info_geral_fallback = {
+                    'id': project_id,
+                    'nome': detalhes_fallback.get('name', 'Projeto não encontrado') if detalhes_fallback else 'Projeto não encontrado',
+                    'squad': detalhes_fallback.get('squad', 'N/A') if detalhes_fallback else 'N/A',
+                    'especialista': detalhes_fallback.get('specialist', 'N/A') if detalhes_fallback else 'N/A',
+                    'status_atual': 'N/A'
+                }
+                return self._get_empty_status_report_data(project_id, "Projeto não encontrado nos dados.", info_geral=info_geral_fallback)
+
             dados_projeto = dados_projeto_df.iloc[0]
 
-            # 4. Extrair e Calcular Dados para o Report
-            
-            # Progresso
             percentual_concluido = float(dados_projeto.get('Conclusao', 0.0))
             data_prevista_termino_dt = pd.to_datetime(dados_projeto.get('VencimentoEm'), errors='coerce')
             data_prevista_termino_str = data_prevista_termino_dt.strftime('%d/%m/%Y') if pd.notna(data_prevista_termino_dt) else 'N/A'
 
-            # Calcular Status do Prazo
             status_prazo = 'A Definir'
-            hoje_data = datetime.now().date() # Pega apenas a data atual
+            hoje_data_obj = datetime.now().date() 
             if pd.notna(data_prevista_termino_dt):
-                data_prevista_termino_data = data_prevista_termino_dt.date() # Pega apenas a data prevista
-                if data_prevista_termino_data < hoje_data:
+                data_prevista_termino_data_obj = data_prevista_termino_dt.date()
+                if data_prevista_termino_data_obj < hoje_data_obj and percentual_concluido < 100: # Adicionado percentual_concluido < 100
                     status_prazo = 'Atrasado'
-                # Compara apenas as datas
-                elif data_prevista_termino_data >= hoje_data and data_prevista_termino_data <= hoje_data + timedelta(days=15):
-                     status_prazo = 'Próximo (15d)'
+                elif data_prevista_termino_data_obj < hoje_data_obj and percentual_concluido >= 100:
+                     status_prazo = 'Concluído (com Atraso)'
+                elif data_prevista_termino_data_obj <= hoje_data_obj + timedelta(days=15):
+                    status_prazo = 'Próximo (15d)'
                 else: 
                     status_prazo = 'No Prazo'
             else:
                  status_prazo = 'Sem Prazo Definido'
+            
+            if percentual_concluido >= 100 and status_prazo not in ['Concluído (com Atraso)']:
+                 status_prazo = 'Concluído'
 
-            # Esforço
+
             horas_planejadas = float(dados_projeto.get('Horas', 0.0))
             horas_utilizadas = float(dados_projeto.get('HorasTrabalhadas', 0.0))
             percentual_consumido = 0.0
             if horas_planejadas > 0:
                 percentual_consumido = round((horas_utilizadas / horas_planejadas) * 100, 1)
             
-            # Status Geral (Lógica Refinada)
-            status_geral_indicador = 'cinza' # Default: Sem prazo e sem estouro
+            status_geral_indicador = 'cinza' 
             horas_estouradas = horas_utilizadas > horas_planejadas and horas_planejadas > 0
-
-            if status_prazo == 'Atrasado' or horas_estouradas:
+            
+            if status_prazo == 'Atrasado' or (horas_estouradas and percentual_concluido < 100) :
                 status_geral_indicador = 'vermelho'
             elif status_prazo == 'Próximo (15d)':
-                # Atenção se próximo e progresso baixo OU consumo desproporcional
-                if percentual_concluido < 70 or (percentual_consumido >= 80 and percentual_concluido < 70):
+                if percentual_concluido < 70 or (percentual_consumido >= 80 and percentual_concluido < 70): # Regra mantida
                     status_geral_indicador = 'amarelo' 
                 else:
-                    status_geral_indicador = 'verde' # Próximo, mas progresso/consumo OK
+                    status_geral_indicador = 'verde' 
             elif status_prazo == 'No Prazo':
                 status_geral_indicador = 'verde'
-            elif status_prazo == 'Sem Prazo Definido':
-                status_geral_indicador = 'cinza' # Mantém cinza se não tem prazo e não estourou horas
+            elif 'Concluído' in status_prazo : # status_prazo pode ser 'Concluído' ou 'Concluído (com Atraso)'
+                status_geral_indicador = 'azul' # Indicador para concluído
+
+
+            info_geral_dict = {
+                'id': project_id,
+                'nome': dados_projeto.get('Projeto', 'N/A'),
+                'squad': dados_projeto.get('Squad', 'N/A'),
+                'especialista': dados_projeto.get('Especialista', 'N/A'),
+                'status_atual': normalize_status(dados_projeto.get('Status', 'N/A'))
+            }
+            progresso_dict = {
+                'percentual_concluido': round(percentual_concluido, 1),
+                'data_prevista_termino': data_prevista_termino_str,
+                'status_prazo': status_prazo 
+            }
+            esforco_dict = {
+                'horas_planejadas': round(horas_planejadas, 1),
+                'horas_utilizadas': round(horas_utilizadas, 1),
+                'percentual_consumido': percentual_consumido
+            }
+            # --- Fim da lógica para KPIs ---
+
+            # --- Busca de Backlog e Tarefas ---
+            from ..models import Backlog, Task, Column, TaskStatus, ProjectMilestone, ProjectRisk, RiskStatus, Note 
+            from sqlalchemy import or_, and_, func, case
+            from datetime import date, timedelta # datetime.date e datetime.timedelta
+
+            backlog = Backlog.query.filter_by(project_id=str(project_id)).first()
             
-            # INÍCIO: Buscar marcos do projeto
-            marcos_recentes = []
-            try:
-                # Buscar backlog associado ao projeto
-                from ..models import Backlog, ProjectMilestone
-                backlog = Backlog.query.filter_by(project_id=str(project_id)).first()
+            tarefas_concluidas_list = []
+            tarefas_em_andamento_list = []
+            tarefas_em_revisao_list = []
+            tarefas_proximo_prazo_list = []
+            # proximos_passos_list = [] # Removida - não é mais populada ou usada consistentemente
+
+            if backlog:
+                hoje_date_obj_for_queries = date.today() 
+                proximos_7_dias_date_obj = hoje_date_obj_for_queries + timedelta(days=7)
+
+                def serialize_task_for_report(task, column_name_override=None): # Adicionado column_name_override
+                    if not task: return None
+                    
+                    # Determina o nome da coluna
+                    # Se um nome de coluna for fornecido (override), use-o.
+                    # Caso contrário, tente obter do task.column. Se não disponível, use 'N/A'.
+                    final_column_name = column_name_override if column_name_override else (task.column.name if task.column else 'N/A')
+
+                    return {
+                        'id': task.id,
+                        'title': task.title,
+                        'status': task.status.value if task.status else 'N/A',
+                        'priority': task.priority,
+                        'estimated_effort': task.estimated_effort,
+                        'due_date': task.due_date.strftime('%d/%m/%Y') if task.due_date else 'N/A',
+                        'completed_at': task.completed_at.strftime('%d/%m/%Y %H:%M:%S') if task.completed_at else 'N/A', # Incluindo hora
+                        'column_name': final_column_name, # Usa o nome da coluna determinado
+                        'specialist_name': task.specialist_name if task.specialist_name else 'N/A',
+                        'start_date': task.start_date.strftime('%d/%m/%Y') if task.start_date else None,
+                        'criada_em': task.created_at.strftime('%d/%m/%Y %H:%M') if task.created_at else 'N/A'
+                    }
+
+                # 1. Tarefas Concluídas (todas, sem limite de data)
+                # Considera tarefas com completed_at definido OU na coluna "Concluído" E status DONE
+                tarefas_concluidas_q = Task.query.join(Column, Task.column_id == Column.id).filter(
+                    Task.backlog_id == backlog.id,
+                    or_(
+                        Task.completed_at != None,
+                        and_(
+                            or_(
+                                func.lower(Column.name).like('%concluído%'),
+                                func.lower(Column.name).like('%concluido%')
+                            ),
+                            Task.status == TaskStatus.DONE
+                        )
+                    )
+                ).order_by(Task.completed_at.desc().nullslast(), Task.updated_at.desc()).all()
+                tarefas_concluidas_list = [serialize_task_for_report(t) for t in tarefas_concluidas_q]
+
+                # 2. Tarefas em Andamento
+                # Coluna "Em Andamento" OU status IN_PROGRESS, mas NÃO concluídas ou em revisão
+                tarefas_em_andamento_q = Task.query.join(Column, Task.column_id == Column.id).filter(
+                    Task.backlog_id == backlog.id,
+                    or_(
+                        func.lower(Column.name).like('%em andamento%'),
+                        Task.status == TaskStatus.IN_PROGRESS
+                    ),
+                    Task.completed_at == None, # Explicitamente não concluídas
+                    Task.status != TaskStatus.DONE,
+                    Task.status != TaskStatus.REVIEW 
+                ).order_by(
+                    case((Task.priority == 'Alta', 1), (Task.priority == 'Média', 2), (Task.priority == 'Baixa', 3), else_=4),
+                    Task.due_date.asc().nullslast(), 
+                    Task.created_at.asc()
+                ).all()
+                tarefas_em_andamento_list = [serialize_task_for_report(t) for t in tarefas_em_andamento_q]
+
+                # 3. Tarefas em Revisão
+                # Coluna "Revisão" OU status REVIEW, mas NÃO concluídas
+                tarefas_em_revisao_q = Task.query.join(Column, Task.column_id == Column.id).filter(
+                    Task.backlog_id == backlog.id,
+                    or_(
+                        func.lower(Column.name).like('%revisão%'),
+                        func.lower(Column.name).like('%revisao%'),
+                        Task.status == TaskStatus.REVIEW
+                    ),
+                    Task.completed_at == None, # Explicitamente não concluídas
+                    Task.status != TaskStatus.DONE
+                ).order_by(
+                    case((Task.priority == 'Alta', 1), (Task.priority == 'Média', 2), (Task.priority == 'Baixa', 3), else_=4),
+                    Task.due_date.asc().nullslast(), 
+                    Task.created_at.asc()
+                ).all()
+                tarefas_em_revisao_list = [serialize_task_for_report(t) for t in tarefas_em_revisao_q]
                 
-                if backlog:
-                    # Busca os marcos mais recentes
-                    milestones = ProjectMilestone.query.filter_by(backlog_id=backlog.id).order_by(ProjectMilestone.planned_date.desc()).limit(5).all()
-                    
-                    for milestone in milestones:
-                        # Converter para dicionário e adicionar à lista
-                        marcos_recentes.append({
-                            'id': milestone.id,
-                            'nome': milestone.name,
-                            'data_planejada': milestone.planned_date.strftime('%d/%m/%Y') if milestone.planned_date else 'N/A',
-                            'data_real': milestone.actual_date.strftime('%d/%m/%Y') if milestone.actual_date else 'N/A',
-                            'status': milestone.status.value,
-                            'criticidade': milestone.criticality.value,
-                            'atrasado': milestone.is_delayed
-                        })
-                    self.logger.info(f"[Status Report] {len(marcos_recentes)} marcos encontrados para o projeto {project_id}")
-                else:
-                    self.logger.warning(f"[Status Report] Nenhum backlog encontrado para o projeto {project_id}")
-            except Exception as e:
-                self.logger.error(f"[Status Report] Erro ao buscar marcos do projeto: {str(e)}")
-                # Continua com a lista vazia em caso de erro
-            # FIM: Buscar marcos do projeto
-            
-            # INÍCIO: Buscar riscos do projeto
-            riscos_do_projeto = []
-            if backlog: # Garante que o backlog foi encontrado
-                try:
-                    from ..models import ProjectRisk # Importar dentro da função ou no topo do arquivo
-                    
-                    project_risks = ProjectRisk.query.filter_by(backlog_id=backlog.id).order_by(ProjectRisk.created_at.desc()).all()
-                    if project_risks:
-                        self.logger.info(f"[Status Report] {len(project_risks)} riscos encontrados para o backlog ID {backlog.id} do projeto {project_id}")
-                        for risk in project_risks:
-                            riscos_do_projeto.append(risk.to_dict())
-                    else:
-                        self.logger.info(f"[Status Report] Nenhum risco encontrado para o backlog ID {backlog.id} do projeto {project_id}")
-                except Exception as e:
-                    self.logger.error(f"[Status Report] Erro ao buscar riscos do projeto {project_id}: {str(e)}")
+                # 4. Tarefas com Prazo Próximo (due_date nos próximos 7 dias, não concluídas)
+                tarefas_proximo_prazo_q = Task.query.filter(
+                    Task.backlog_id == backlog.id,
+                    Task.completed_at == None,
+                    Task.status != TaskStatus.DONE, # Redundante se completed_at is None, mas seguro
+                    Task.due_date != None,
+                    Task.due_date >= hoje_date_obj_for_queries, # due_date é hoje ou no futuro
+                    Task.due_date <= proximos_7_dias_date_obj # due_date é dentro dos próximos 7 dias
+                ).order_by(Task.due_date.asc()).all()
+                tarefas_proximo_prazo_list = [serialize_task_for_report(t) for t in tarefas_proximo_prazo_q]
+                
+                self.logger.info(f"[Status Report - {project_id}] Tarefas DB: {len(tarefas_concluidas_list)} concl., {len(tarefas_em_andamento_list)} and., {len(tarefas_em_revisao_list)} rev., {len(tarefas_proximo_prazo_list)} prazo.")
+
+                # 5. Próximos Passos (Tarefas em colunas como "A Fazer", "Backlog", "To Do", etc., não concluídas e sem data de início ou com data de início futura)
+                # Tentativa de buscar por múltiplos nomes de colunas comuns para "A Fazer"
+                nomes_colunas_a_fazer = ['%a fazer%', '%backlog%', '%to do%', '%pendente%']
+                condicoes_colunas_a_fazer = [func.lower(Column.name).like(nome) for nome in nomes_colunas_a_fazer]
+
+                tarefas_a_fazer_q = Task.query.join(Column, Task.column_id == Column.id).filter(
+                    Task.backlog_id == backlog.id,
+                    or_(*condicoes_colunas_a_fazer),
+                    Task.completed_at == None,
+                    Task.status != TaskStatus.DONE,
+                    Task.status != TaskStatus.IN_PROGRESS, # Não deve estar em progresso
+                    Task.status != TaskStatus.REVIEW,     # Não deve estar em revisão
+                    or_(Task.start_date == None, Task.start_date > hoje_date_obj_for_queries) # Sem data de início ou início futuro
+                ).order_by(Task.position.asc(), Task.priority.asc(), Task.created_at.asc()).all()
+                # proximos_passos_list = [serialize_task_for_report(t) for t in tarefas_a_fazer_q]
+                # self.logger.info(f"[Status Report - {project_id}] {len(proximos_passos_list)} tarefas 'Próximos Passos' (A Fazer/Backlog) encontradas.")
+
             else:
-                self.logger.warning(f"[Status Report] Backlog não encontrado para projeto {project_id}, não é possível buscar riscos.")
-            # FIM: Buscar riscos do projeto
-            
-            # INÍCIO: Buscar notas do projeto
-            notas_do_projeto = []
-            try:
-                # Garantir que o project_id seja uma string limpa (apenas números)
-                project_id_str = str(project_id).strip().split('.')[0]  # Remove qualquer parte decimal
-                self.logger.info(f"[Status Report] Tentando buscar notas para o projeto {project_id_str} (tipo: {type(project_id_str)})")
-                
-                # Busca todas as notas relacionadas ao projeto diretamente
-                project_notes = Note.query.filter(Note.project_id == project_id_str)\
-                    .order_by(Note.created_at.desc())\
-                    .all()
+                self.logger.warning(f"[Status Report] Backlog não encontrado para o projeto {project_id}, listas de tarefas estarão vazias.")
+            # --- Fim da busca de Tarefas ---
 
-                self.logger.info(f"[Status Report] Query SQL: {Note.query.filter(Note.project_id == project_id_str)}")
-                self.logger.info(f"[Status Report] Project ID: {project_id_str}")
-                self.logger.info(f"[Status Report] Notas encontradas: {len(project_notes)}")
+            # --- Busca de Marcos, Riscos, Notas (lógica adaptada e mantida) ---
+            marcos_recentes_list = []
+            riscos_do_projeto_list = []
+            notas_do_projeto_list = []
+
+            if backlog:
+                # Marcos
+                try:
+                    # Ordena por data planejada mais recente, depois por status (ativo primeiro), depois por criticidade
+                    milestones = ProjectMilestone.query.filter_by(backlog_id=backlog.id)\
+                        .order_by(
+                            ProjectMilestone.planned_date.desc().nullslast(),
+                            case( (ProjectMilestone.status == 'active', 1), (ProjectMilestone.status == 'on_hold', 2), (ProjectMilestone.status == 'completed', 3), else_=4),
+                            ProjectMilestone.criticality.desc())\
+                        .all() # Mostra todos os marcos, o template pode decidir quantos exibir
+
+                    for m in milestones:
+                        marcos_recentes_list.append({
+                            'id': m.id, 'name': m.name, 'nome': m.name, 
+                            'data_planejada': m.planned_date.strftime('%d/%m/%Y') if m.planned_date else 'N/A',
+                            'data_real': m.actual_date.strftime('%d/%m/%Y') if m.actual_date else 'N/A',
+                            'status': m.status.value if m.status else 'N/A',
+                            'criticidade': m.criticality.value if m.criticality else 'N/A',
+                            'atrasado': m.is_delayed if hasattr(m, 'is_delayed') else False,
+                            'details': m.details if hasattr(m, 'details') else ''
+                        })
+                except Exception as e_m:
+                    self.logger.error(f"[Status Report] Erro ao buscar marcos: {str(e_m)}", exc_info=True)
+
+                # Riscos (ativos e ordenados por criticidade e data)
+                try:
+                    project_risks = ProjectRisk.query.filter_by(backlog_id=backlog.id, status=RiskStatus.ACTIVE)\
+                        .order_by(ProjectRisk.criticality.desc(), ProjectRisk.created_at.desc()).all()
+                    riscos_do_projeto_list = [risk.to_dict() for risk in project_risks] 
+                except Exception as e_r:
+                    self.logger.error(f"[Status Report] Erro ao buscar riscos: {str(e_r)}", exc_info=True)
                 
-                if project_notes:
-                    self.logger.info(f"[Status Report] {len(project_notes)} notas encontradas para o projeto {project_id_str}")
+                # Notas (do projeto, ordenadas por data do evento/criação)
+                try:
+                    project_notes = Note.query.filter(Note.backlog_id == backlog.id, Note.task_id == None)\
+                                        .order_by(Note.event_date.desc().nullslast(), Note.created_at.desc()).all()
+                    
+                    category_colors = {'decision': 'primary', 'risk': 'danger', 'impediment': 'warning', 'status_update': 'info', 'general': 'secondary'}
+                    priority_colors = {'high': 'danger', 'medium': 'warning', 'low': 'success'}
+                    category_texts = {'decision': 'Decisão', 'risk': 'Risco', 'impediment': 'Impedimento', 'status_update': 'Atualização', 'general': 'Geral'}
+                    priority_texts = {'high': 'Alta', 'medium': 'Média', 'low': 'Baixa'}
+
                     for note in project_notes:
-                        self.logger.info(f"[Status Report] Processando nota: ID={note.id}, Project_ID={note.project_id}, Backlog_ID={note.backlog_id}, Categoria={note.category}, Task_ID={note.task_id}, Conteúdo={note.content[:50]}...")
-                        # Busca o título da tarefa se a nota estiver vinculada a uma
-                        task_title = None
-                        if note.task_id:
-                            task = Task.query.get(note.task_id)
-                            if task:
-                                task_title = task.title
-                                self.logger.info(f"[Status Report] Título da tarefa encontrado: {task_title}")
-                            else:
-                                self.logger.warning(f"[Status Report] Tarefa {note.task_id} não encontrada")
-
-                        # Define as cores dos badges baseado na categoria e prioridade
-                        category_colors = {
-                            'decision': 'primary',
-                            'risk': 'danger',
-                            'impediment': 'warning',
-                            'status_update': 'info',
-                            'general': 'secondary'
-                        }
-                        
-                        priority_colors = {
-                            'high': 'danger',
-                            'medium': 'warning',
-                            'low': 'success'
-                        }
-
-                        category_texts = {
-                            'decision': 'Decisão',
-                            'risk': 'Risco',
-                            'impediment': 'Impedimento',
-                            'status_update': 'Atualização',
-                            'general': 'Geral'
-                        }
-
-                        priority_texts = {
-                            'high': 'Alta',
-                            'medium': 'Média',
-                            'low': 'Baixa'
-                        }
-
-                        event_date_str = None
-                        if note.event_date:
-                            try:
-                                event_date_str = note.event_date.strftime('%d/%m/%Y')
-                            except AttributeError: # Se já for string por algum motivo ou outro tipo de objeto de data
-                                event_date_str = str(note.event_date) # Tenta converter para string como fallback
-                                # Idealmente, você saberia o formato exato se não for datetime.date
-                                # e faria a formatação apropriada aqui.
-                                # Por simplicidade, apenas convertemos para string.
-                                # Se for um objeto date e strftime falhar por algum motivo inesperado,
-                                # isso garante que algo seja passado.
-                                if isinstance(note.event_date, datetime): # Tenta formatar se for datetime completo
-                                     event_date_str = note.event_date.strftime('%d/%m/%Y')
-                                elif hasattr(note.event_date, 'isoformat'): # Se for um objeto date/datetime-like
-                                     # Converte para YYYY-MM-DD e depois tentamos reformatar se necessário
-                                     # ou apenas usamos YYYY-MM-DD que é um formato seguro.
-                                     # Aqui, vamos manter simples e apenas passar a string,
-                                     # o template Jinja pode precisar de um filtro de data.
-                                     # A melhor abordagem é garantir que o tipo de `note.event_date` seja consistente.
-                                     pass # Deixa event_date_str como str(note.event_date)
-                                     
-                        created_at_str = None
-                        if note.created_at:
-                            try:
-                                created_at_str = note.created_at.strftime('%d/%m/%Y %H:%M')
-                            except AttributeError:
-                                created_at_str = str(note.created_at) # Fallback
-
-                        nota_dict = {
+                        data_exibicao = note.event_date if note.event_date else note.created_at
+                        notas_do_projeto_list.append({
                             'id': note.id,
                             'content': note.content,
                             'category': note.category,
                             'category_color': category_colors.get(note.category, 'secondary'),
-                            'category_text': category_texts.get(note.category, note.category),
+                            'category_text': category_texts.get(note.category, note.category.capitalize() if note.category else 'Geral'),
                             'priority': note.priority,
                             'priority_color': priority_colors.get(note.priority, 'secondary'),
-                            'priority_text': priority_texts.get(note.priority, note.priority),
-                            'task_id': note.task_id,
-                            'task_title': task_title,
-                            'event_date': event_date_str, 
-                            'created_at': created_at_str, 
-                            'tags': [tag.name for tag in note.tags] if note.tags else []
-                        }
-                        self.logger.info(f"[Status Report] Nota processada: {nota_dict}")
-                        notas_do_projeto.append(nota_dict)
-                else:
-                    self.logger.info(f"[Status Report] Nenhuma nota encontrada para o projeto {project_id_str}")
-            except Exception as e:
-                self.logger.error(f"[Status Report] Erro ao buscar notas do projeto {project_id_str}: {str(e)}")
-                self.logger.exception(e)  # Log do traceback completo
+                            'priority_text': priority_texts.get(note.priority, note.priority.capitalize() if note.priority else 'Normal'),
+                            'task_id': note.task_id, 
+                            'task_title': None, 
+                            'event_date': note.event_date.strftime('%d/%m/%Y') if note.event_date else 'N/A',
+                            'created_at': note.created_at.strftime('%d/%m/%Y %H:%M') if note.created_at else 'N/A',
+                            'date_display_report': data_exibicao.strftime('%d/%m/%Y') if data_exibicao else 'N/A',
+                            'tags': [tag.name for tag in note.tags] if hasattr(note, 'tags') else []
+                        })
+                except Exception as e_n:
+                    self.logger.error(f"[Status Report] Erro ao buscar notas: {str(e_n)}", exc_info=True)
+            # --- Fim da busca de Marcos, Riscos, Notas ---
             
-            self.logger.info(f"[Status Report] Total de notas processadas: {len(notas_do_projeto)}")
-            # FIM: Buscar notas do projeto
+            dados_ultima_semana_dict = {'concluidas': 0, 'novas': 0, 'horas_registradas': 0} # Placeholder
 
-            # Se não encontrou marcos no banco de dados, usar uma lista vazia em vez dos marcos falsos
-            if not marcos_recentes:
-                self.logger.info(f"[Status Report] Não foram encontrados marcos para o projeto {project_id}")
-                marcos_recentes = []
-                
-            # INÍCIO: Buscar Próximos Passos (Tarefas "A Fazer")
-            proximos_passos_list = []
-            if backlog: # Garante que o backlog foi encontrado
-                try:
-                    from ..models import Column, TaskStatus # Importar Column e TaskStatus
-                    self.logger.info(f"[Status Report - Próximos Passos] Buscando para project_id: {project_id}, backlog.id: {backlog.id}")
-
-                    coluna_a_fazer = Column.query.filter(Column.name.ilike('%A Fazer%')).first()
-                    self.logger.info(f"[Status Report - Próximos Passos] Coluna 'A Fazer' encontrada: {coluna_a_fazer.id if coluna_a_fazer else 'Nenhuma'}")
-
-                    if coluna_a_fazer:
-                        tarefas_a_fazer_query = Task.query.filter(
-                            Task.backlog_id == backlog.id,
-                            Task.column_id == coluna_a_fazer.id,
-                            Task.status != TaskStatus.DONE
-                        ).order_by(Task.position.asc())
-                        
-                        self.logger.info(f"[Status Report - Próximos Passos] Query SQL para tarefas 'A Fazer': {str(tarefas_a_fazer_query)}")
-                        
-                        tarefas_a_fazer = tarefas_a_fazer_query.all() # Removido .limit(10)
-                        self.logger.info(f"[Status Report - Próximos Passos] Número de tarefas 'A Fazer' encontradas pela query: {len(tarefas_a_fazer)}")
-
-                        for tarefa in tarefas_a_fazer:
-                            self.logger.info(f"[Status Report - Próximos Passos] Adicionando tarefa ID: {tarefa.id}, Título: {tarefa.title}")
-                            proximos_passos_list.append({
-                                'id': tarefa.id,
-                                'titulo': tarefa.title,
-                                'prioridade': tarefa.priority if hasattr(tarefa, 'priority') else 'N/A',
-                                'criada_em': tarefa.created_at.strftime('%d/%m/%Y') if tarefa.created_at else 'N/A',
-                                'start_date': tarefa.start_date.strftime('%d/%m/%Y') if tarefa.start_date else None,      # ADICIONADO
-                                'due_date': tarefa.due_date.strftime('%d/%m/%Y') if tarefa.due_date else None          # ADICIONADO
-                            })
-                        self.logger.info(f"[Status Report] {len(proximos_passos_list)} tarefas 'A Fazer' encontradas para próximos passos do projeto {project_id}.")
-                    else:
-                        self.logger.warning(f"[Status Report] Coluna 'A Fazer' não encontrada. Não foi possível buscar próximos passos.")
-                except Exception as e:
-                    self.logger.error(f"[Status Report] Erro ao buscar próximos passos (tarefas 'A Fazer') para o projeto {project_id}: {str(e)}")
-            # FIM: Buscar Próximos Passos
-                
-            # 5. Montar a estrutura do report
             report_data = {
-                'info_geral': {
-                    'id': project_id,
-                    'nome': dados_projeto.get('Projeto', 'N/A'),
-                    'squad': dados_projeto.get('Squad', 'N/A'),
-                    'especialista': dados_projeto.get('Especialista', 'N/A'),
-                    'status_atual': normalize_status(dados_projeto.get('Status', 'N/A'))
-                },
-                'progresso': {
-                    'percentual_concluido': round(percentual_concluido, 1),
-                    'data_prevista_termino': data_prevista_termino_str,
-                    'status_prazo': status_prazo 
-                },
-                'esforco': {
-                    'horas_planejadas': round(horas_planejadas, 1),
-                    'horas_utilizadas': round(horas_utilizadas, 1),
-                    'percentual_consumido': percentual_consumido
-                },
+                'info_geral': info_geral_dict,
+                'progresso': progresso_dict,
+                'esforco': esforco_dict,
                 'status_geral_indicador': status_geral_indicador,
-                'marcos_recentes': marcos_recentes,
-                'riscos_impedimentos': riscos_do_projeto,
-                'notas': notas_do_projeto,
-                'proximos_passos': proximos_passos_list
+                
+                'tarefas_concluidas': tarefas_concluidas_list,
+                'tarefas_em_andamento': tarefas_em_andamento_list,
+                'tarefas_em_revisao': tarefas_em_revisao_list,
+                'tarefas_proximo_prazo': tarefas_proximo_prazo_list,
+                # 'proximos_passos': proximos_passos_list, # Removida do retorno
+                'marcos_recentes': marcos_recentes_list, # Adicionado
+                'riscos_ativos': riscos_do_projeto_list, # Adicionado
+                'notas': notas_do_projeto_list, # Adicionado
+                
+                'dados_ultima_semana': dados_ultima_semana_dict,
+                'data_geracao': datetime.now().strftime("%d/%m/%Y %H:%M:%S")
             }
 
-            # Log detalhado para debug
-            self.logger.info(f"[Status Report] Dados calculados para projeto {project_id}: " +
-                             f"Progresso={percentual_concluido}%, " +
-                             f"Prazo='{status_prazo}', " +
-                             f"Status Geral='{status_geral_indicador}', " +
-                             f"Marcos={len(marcos_recentes)}, " +
-                             f"Riscos={len(riscos_do_projeto if riscos_do_projeto else [])}, " + # Adicionado verificação para riscos
-                             f"Notas={len(notas_do_projeto)}, " +
-                             f"Próximos Passos={len(proximos_passos_list)}")
-            
-            # Verificar se as chaves existem no report_data
-            for key in report_data.keys():
-                self.logger.debug(f"[Status Report] Chave encontrada: '{key}' com tipo {type(report_data[key])}")
-                if key == 'notas':
-                    self.logger.info(f"[Status Report] Conteúdo de notas: {report_data['notas']}")
-
+            self.logger.info(f"[Status Report] Dados gerados com sucesso para projeto ID: {project_id}. {len(tarefas_concluidas_list)} concl., {len(tarefas_em_andamento_list)} em and., {len(tarefas_em_revisao_list)} rev., {len(tarefas_proximo_prazo_list)} prox.")
             return report_data
 
         except Exception as e:
-            self.logger.exception(f"[Status Report] Erro ao gerar dados para projeto ID {project_id}: {str(e)}")
-            # Construir um dicionário de erro mínimo para evitar quebrar o template
-            return {
-                'info_geral': {'id': project_id, 'nome': 'Erro ao carregar', 'squad': '', 'especialista': '', 'status_atual': 'Erro'},
-                'progresso': {'percentual_concluido': 0, 'data_prevista_termino': 'N/A', 'status_prazo': 'Erro'},
-                'esforco': {'horas_planejadas': 0, 'horas_utilizadas': 0, 'percentual_consumido': 0},
-                'status_geral_indicador': 'cinza',
-                'marcos_recentes': [],
-                'riscos_impedimentos': [],
-                'notas': [],
-                'proximos_passos': []
-            }
+            self.logger.exception(f"[Status Report] Erro CRÍTICO ao gerar dados para projeto ID {project_id}: {str(e)}")
+            # Tenta obter info_geral mesmo em caso de erro crítico, se possível
+            info_geral_critico = None
+            try:
+                detalhes_critico = self.obter_detalhes_projeto(project_id)
+                if detalhes_critico:
+                     info_geral_critico = {
+                        'id': project_id,
+                        'nome': detalhes_critico.get('name', f'Projeto {project_id}'),
+                        'squad': detalhes_critico.get('squad', 'N/A'),
+                        'especialista': detalhes_critico.get('specialist', 'N/A'),
+                        'status_atual': 'Erro na geração de dados'
+                    }
+            except: # noqa
+                pass # ignora erros ao tentar obter detalhes em um cenário de erro crítico
+
+            return self._get_empty_status_report_data(project_id, f"Erro crítico na geração do relatório: {str(e)}", info_geral=info_geral_critico)
+
+    def _get_empty_status_report_data(self, project_id, error_message, info_geral=None):
+        """Retorna uma estrutura de dados vazia para o status report em caso de erro."""
+        self.logger.error(f"[Status Report - ERRO para {project_id}] {error_message}")
+        base_info = {
+            'id': project_id, 'nome': f'Erro ao carregar ({project_id})', 
+            'squad': 'N/A', 'especialista': 'N/A', 'status_atual': 'Erro'
+        }
+        if info_geral: # Permite passar info_geral mais específica se disponível
+            base_info = info_geral
+            base_info['nome'] = f"{base_info.get('nome', 'N/A')} (informações parciais devido a erro)"
+
+
+        return {
+            'info_geral': base_info,
+            'progresso': {'percentual_concluido': 0, 'data_prevista_termino': 'N/A', 'status_prazo': 'Erro'},
+            'esforco': {'horas_planejadas': 0, 'horas_utilizadas': 0, 'percentual_consumido': 0},
+            'status_geral_indicador': 'cinza',
+            'tarefas_concluidas': [],
+            'tarefas_em_andamento': [],
+            'tarefas_em_revisao': [],
+            'tarefas_proximo_prazo': [],
+            # 'proximos_passos': [], # Removida do retorno
+            'marcos_recentes': [], # Adicionado
+            'riscos_ativos': [], # Adicionado
+            'notas': [], # Adicionado
+            'dados_ultima_semana': {'concluidas': 0, 'novas': 0, 'horas_registradas': 0},
+            'data_geracao': datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            'error_message': error_message # Adiciona a mensagem de erro ao payload
+        }
+
     # <<< FIM: Nova função para dados do Status Report >>>
 
     def obter_marcos_recentes(self, project_id):

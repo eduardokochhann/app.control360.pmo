@@ -1371,25 +1371,13 @@ def get_timeline_tasks(backlog_id):
         recent_past_limit_date_started_brt = today_brt_date - timedelta(days=days_for_recently_started)
         recent_past_limit_datetime_start_started_brt = br_timezone.localize(datetime.combine(recent_past_limit_date_started_brt, datetime.min.time()))
 
-        # 1. Tarefas Recentemente Concluídas
-        # completed_at é naive (UTC), precisamos comparar com limites BRT convertidos para UTC ou tornar completed_at aware
-        # Por simplicidade na query, vamos assumir que completed_at também foi salvo em BRT (ou próximo o suficiente para a lógica de dias)
-        # Se completed_at é UTC, a comparação ideal seria:
-        # Task.completed_at >= recent_past_limit_datetime_start_completed_brt.astimezone(pytz.utc)
-        # Task.completed_at <= end_of_today_brt.astimezone(pytz.utc)
-        # Para manter simples por agora, e assumindo que completed_at foi salvo com datetime.now() ou datetime.utcnow()
-        # e a diferença de horas não quebra a lógica de DIAS, continuamos com a comparação direta.
-        # Idealmente, todos os campos de data/hora no DB seriam UTC ou explicitamente BRT.
-        # Vamos assumir que completed_at está "próximo" do BRT para a lógica de dias.
-        # Se 'completed_at' também for gravado com datetime.now(br_timezone), esta comparação é direta.
-        recently_completed_tasks_q = Task.query.filter(
+        # 1. Tarefas Concluídas (todas, sem limite de data)
+        all_completed_tasks_q = Task.query.filter(
             Task.backlog_id == backlog_id,
-            Task.completed_at != None,
-            Task.completed_at >= recent_past_limit_datetime_start_completed_brt, 
-            Task.completed_at <= end_of_today_brt 
+            Task.completed_at != None
         ).order_by(Task.completed_at.desc()).all()
-        recently_completed_tasks = [serialize_task(t) for t in recently_completed_tasks_q]
-        current_app.logger.info(f"[Timeline API] Encontradas {len(recently_completed_tasks)} tarefas recentemente concluídas (BRT Based).")
+        all_completed_tasks = [serialize_task(t) for t in all_completed_tasks_q]
+        current_app.logger.info(f"[Timeline API] Encontradas {len(all_completed_tasks)} tarefas concluídas (todas).")
 
         # 2. Próximas Tarefas (com start_date nos próximos Y dias, NÃO Concluídas e NÃO Em Andamento)
         # start_date é Date, não DateTime. Comparação com today_brt_date e upcoming_future_limit_date_brt é direta.
@@ -1417,7 +1405,7 @@ def get_timeline_tasks(backlog_id):
         current_app.logger.info(f"[Timeline API] Encontradas {len(recently_started_tasks)} tarefas iniciadas recentemente (BRT Based, usando actually_started_at).")
         
         return jsonify({
-            'recently_completed': recently_completed_tasks,
+            'all_completed': all_completed_tasks, # CHAVE RENOMEADA
             'upcoming_tasks': upcoming_tasks,
             'recently_started': recently_started_tasks
         })
@@ -1426,7 +1414,7 @@ def get_timeline_tasks(backlog_id):
         current_app.logger.error(f"[Timeline API] Erro ao buscar tarefas da timeline para backlog {backlog_id}: {str(e)}", exc_info=True)
         return jsonify({
             'error': f"Erro ao buscar tarefas da timeline: {str(e)}",
-            'recently_completed': [], # Retorna arrays vazios em caso de erro
+            'all_completed': [], # CHAVE RENOMEADA
             'upcoming_tasks': [],
             'recently_started': []
         }), 500 
