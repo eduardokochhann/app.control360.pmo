@@ -981,6 +981,19 @@
            </div>
            {# <<< FIM: Campo Especialista >>> #}
 
+          {# --- INÍCIO: Checkbox Tarefa Não Programada --- #}
+          <div class="row mt-2 mb-2">
+            <div class="col-12">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="" id="taskIsUnplanned" name="is_unplanned">
+                <label class="form-check-label" for="taskIsUnplanned">
+                  Tarefa Não Programada
+                </label>
+              </div>
+            </div>
+          </div>
+          {# --- FIM: Checkbox Tarefa Não Programada --- #}
+
           {# --- INÍCIO: Nova Seção para Resumo dos Segmentos --- #}
           <hr> 
           <div class="row mb-3">
@@ -1412,6 +1425,7 @@
           addTaskForm.querySelector('#taskStartDate').value = taskData.start_date ? taskData.start_date.substring(0, 10) : '';
           addTaskForm.querySelector('#taskDueDate').value = taskData.due_date ? taskData.due_date.substring(0, 10) : '';
           addTaskForm.querySelector('#taskCompletedDate').value = taskData.completed_at ? taskData.completed_at.substring(0, 10) : ''; // <<< NOVO
+          addTaskForm.querySelector('#taskIsUnplanned').checked = taskData.is_unplanned || false; // <<< NOVO PARA IS_UNPLANNED
           
           // Controlar visibilidade do campo Data de Conclusão
           const columnIdentifier = taskCard.classList.value.match(/task-col-([^\s]+)/);
@@ -1550,9 +1564,13 @@
               footerDateHTML = `<small class="text-muted task-card-detail-text" title="Data de Início Previsto"><i class="bi bi-calendar-event me-1"></i>${task.start_date ? formatDateString(task.start_date, false) : 'N/A'}</small>`;
           }
 
+          let unplannedIndicatorHTML = '';
+          if (task.is_unplanned) {
+              unplannedIndicatorHTML = '<span class="task-unplanned-indicator ms-1" title="Tarefa Não Programada"><i class="bi bi-exclamation-triangle-fill text-warning"></i></span>';
+          }
 
           const taskCardHTML = `
-              <div class="kanban-task-card card mb-2 shadow-sm ${task.column_identifier === 'concluido' ? 'task-completed-card' : ''} task-col-${task.column_identifier || 'default'}" data-task-id="${task.id}" data-task-title="${escapeHtml(task.title)}" draggable="true">
+              <div class="kanban-task-card card mb-2 shadow-sm ${task.column_identifier === 'concluido' ? 'task-completed-card' : ''} task-col-${task.column_identifier || 'default'} ${task.is_unplanned ? 'task-unplanned' : ''}" data-task-id="${task.id}" data-task-title="${escapeHtml(task.title)}" draggable="true">
                   <div class="card-body py-1 px-2">
                       <!-- Linha 1: Prioridade (Esquerda) e ID (Direita) -->
                       <div class="d-flex justify-content-between align-items-start mb-1">
@@ -1561,7 +1579,7 @@
                       </div>
 
                       <!-- Linha 2: Título -->
-                      <h6 class="card-title mb-1 task-main-title">${escapeHtml(task.title)}</h6>
+                      <h6 class="card-title mb-1 task-main-title">${escapeHtml(task.title)}${unplannedIndicatorHTML}</h6>
 
                       <!-- Meio: Especialista e Segmentos -->
                       <div class="task-middle-details mb-1">
@@ -1897,6 +1915,8 @@
           const selectedSpecialist = form.querySelector('#taskSpecialist')?.value;
           taskData.specialist_name = selectedSpecialist || null; // Se for string vazia (opção padrão), envia null
           // <<< FIM: Ler campo Especialista (agora um select) >>>
+
+          taskData.is_unplanned = form.querySelector('#taskIsUnplanned')?.checked || false; // <<< NOVO PARA IS_UNPLANNED
 
           // DEBUG: Logar o valor RAW das datas para verificar formato YYYY-MM-DD
           console.log("[Form Submit] Raw Date Values - Start:", form.querySelector('#taskStartDate')?.value, "Due:", form.querySelector('#taskDueDate')?.value);

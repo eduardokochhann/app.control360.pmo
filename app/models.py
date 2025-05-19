@@ -116,6 +116,7 @@ class Task(db.Model):
     actually_started_at = db.Column(db.DateTime, nullable=True)
     specialist_name = db.Column(db.String(150), nullable=True, index=True)
     is_generic = db.Column(db.Boolean, default=False, nullable=False, server_default='0')  # Campo para identificar tarefas genéricas
+    is_unplanned = db.Column(db.Boolean, nullable=False, default=False, server_default='0') # NOVO CAMPO: Tarefa não programada
 
     # Chaves Estrangeiras
     backlog_id = db.Column(db.Integer, db.ForeignKey('backlog.id'), nullable=False)

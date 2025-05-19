@@ -79,7 +79,9 @@ def serialize_task(task):
             'sprint_id': task.sprint_id if hasattr(task, 'sprint_id') else None,
             'project_id': backlog.project_id if backlog else None,
             'sprint_name': sprint.name if sprint else None,
-            'specialist_name': task.specialist_name if hasattr(task, 'specialist_name') else None
+            'specialist_name': task.specialist_name if hasattr(task, 'specialist_name') else None,
+            'is_generic': task.is_generic if hasattr(task, 'is_generic') else False, # Adicionado para is_generic
+            'is_unplanned': task.is_unplanned if hasattr(task, 'is_unplanned') else False # NOVO CAMPO
         }
 
         # --- INÍCIO: Adicionar resumo dos segmentos da tarefa ---
@@ -430,107 +432,115 @@ def update_task_details(task_id):
     data = request.get_json()
 
     if not data:
-        abort(400, description="Nenhum dado fornecido para atualização.")
+        return jsonify({'error': 'Nenhum dado fornecido'}), 400
 
-    # Atualiza campos permitidos
-    if 'name' in data:
-        title = data['name'].strip()
-        if not title:
-            abort(400, description="Título (Nome) não pode ser vazio.")
-        task.title = title
-        
-    if 'description' in data:
-        task.description = data['description']
-        
-    if 'priority' in data:
-        task.priority = data['priority']
+    current_app.logger.info(f"Atualizando tarefa {task_id} com dados: {data}")
 
-    # --- Atualização das Horas --- 
-    # Mapeia 'estimated_hours' do frontend para 'estimated_effort' do backend
-    if 'estimated_hours' in data:
+    # Campos que podem ser atualizados diretamente
+    simple_update_fields = {
+        'title': 'title',
+        'description': 'description',
+        'priority': 'priority',
+        'estimated_hours': 'estimated_effort', # Frontend envia 'estimated_hours', modelo usa 'estimated_effort'
+        'logged_time': 'logged_time',
+        'specialist_name': 'specialist_name'
+        # 'is_generic' e 'is_unplanned' serão tratados abaixo
+    }
+
+    for front_key, model_key in simple_update_fields.items():
+        if front_key in data:
+            setattr(task, model_key, data[front_key])
+
+    # Tratamento para 'status'
+    if 'status' in data:
         try:
-            # Permite None ou valor vazio para limpar a estimativa
-            if data['estimated_hours'] is None or str(data['estimated_hours']).strip() == '':
-                 task.estimated_effort = None
-            else:
-                estimated = float(data['estimated_hours'])
-                if estimated < 0:
-                    abort(400, description="Horas estimadas não podem ser negativas.")
-                task.estimated_effort = estimated
-        except (ValueError, TypeError):
-             abort(400, description="Valor inválido para 'estimated_hours'. Use um número.")
+            status_enum = TaskStatus[data['status']]
+            task.status = status_enum
+        except KeyError:
+            return jsonify({'error': f"Status inválido: {data['status']}"}), 400
 
-    # Nota: 'remaining_hours' não é atualizado diretamente aqui.
-    # Ele é calculado na função serialize_task com base em estimated_effort e logged_time.
-    # Se precisarmos editar 'logged_time', um campo e lógica similar a 'estimated_hours' seriam necessários.
-    # Por exemplo:
-    # if 'logged_time' in data:
-    #     try:
-    #         if data['logged_time'] is None or str(data['logged_time']).strip() == '':
-    #              task.logged_time = None
-    #         else:
-    #             logged = float(data['logged_time'])
-    #             if logged < 0:
-    #                 abort(400, description="Horas trabalhadas não podem ser negativas.")
-    #             task.logged_time = logged
-    #     except (ValueError, TypeError):
-    #          abort(400, description="Valor inválido para 'logged_time'. Use um número.")
-    # ------------------------------
-        
-    if 'start_date' in data:
-        if data['start_date']: # Se não for vazio/null
-            try:
+    # Tratamento para 'is_generic'
+    if 'is_generic' in data:
+        if isinstance(data['is_generic'], bool):
+            task.is_generic = data['is_generic']
+        else:
+            current_app.logger.warning(f"Valor inválido para is_generic: {data['is_generic']}. Esperado um booleano.")
+            task.is_generic = str(data['is_generic']).lower() in ['true', '1', 'yes']
+
+    # Tratamento para 'is_unplanned' - NOVO
+    if 'is_unplanned' in data:
+        if isinstance(data['is_unplanned'], bool):
+            task.is_unplanned = data['is_unplanned']
+        else:
+            current_app.logger.warning(f"Valor inválido para is_unplanned: {data['is_unplanned']}. Esperado um booleano.")
+            task.is_unplanned = str(data['is_unplanned']).lower() in ['true', '1', 'yes']
+
+    # Tratamento para 'start_date'
+    if 'start_date' in data and data['start_date']:
+        try:
+            task.start_date = datetime.fromisoformat(data['start_date'].replace('Z', '+00:00'))
+        except ValueError:
+            try: # Tentar parsear apenas data YYYY-MM-DD
                 task.start_date = datetime.strptime(data['start_date'], '%Y-%m-%d')
-            except (ValueError, TypeError):
-                abort(400, description="Formato inválido para 'start_date'. Use YYYY-MM-DD.")
-        else: # Permite limpar a data
-            task.start_date = None
-            
-    if 'due_date' in data:
-        if data['due_date']:
-            try:
-                task.due_date = datetime.strptime(data['due_date'], '%Y-%m-%d')
-            except (ValueError, TypeError):
-                abort(400, description="Formato inválido para 'due_date'. Use YYYY-MM-DD.")
-        else: # Permite limpar a data
-            task.due_date = None
+            except ValueError:
+                 return jsonify({'error': f"Formato de start_date inválido: {data['start_date']}"}), 400
+    elif 'start_date' in data and not data['start_date']: # Permitir limpar a data
+        task.start_date = None
 
-    # <<< INÍCIO: Processar completed_at >>>
-    if 'completed_at' in data:
-        completed_at_str = data['completed_at']
-        if completed_at_str:
-            parsed_completed_at = None
-            # Tentar parsear como YYYY-MM-DD primeiro, pois é o formato do input date
-            try:
-                parsed_completed_at = datetime.strptime(completed_at_str, '%Y-%m-%d')
-            except (ValueError, TypeError):
-                # Se falhar, tentar como ISO format (que pode incluir Z ou offset)
-                try:
-                    # Remover 'Z' e tratar como UTC, ou adicionar suporte a timezone se necessário
-                    if completed_at_str.endswith('Z'):
-                        completed_at_str = completed_at_str[:-1] + '+00:00'
-                    parsed_completed_at = datetime.fromisoformat(completed_at_str)
-                except (ValueError, TypeError):
-                    abort(400, description="Formato inválido para 'completed_at'. Use YYYY-MM-DD ou formato ISO.")
-            task.completed_at = parsed_completed_at
-        else: # Permite limpar a data (enviando null ou string vazia)
-            task.completed_at = None
-    # <<< FIM: Processar completed_at >>>
-            
-    # <<< INÍCIO: Processar specialist_name >>>
-    if 'specialist_name' in data:
-        # Permite string vazia ou None para limpar o especialista
-        task.specialist_name = data['specialist_name'] if data['specialist_name'] else None
-    # <<< FIM: Processar specialist_name >>>
+    # Tratamento para 'due_date'
+    if 'due_date' in data and data['due_date']:
+        try:
+            task.due_date = datetime.fromisoformat(data['due_date'].replace('Z', '+00:00'))
+        except ValueError:
+            try: # Tentar parsear apenas data YYYY-MM-DD
+                task.due_date = datetime.strptime(data['due_date'], '%Y-%m-%d')
+            except ValueError:
+                return jsonify({'error': f"Formato de due_date inválido: {data['due_date']}"}), 400
+    elif 'due_date' in data and not data['due_date']: # Permitir limpar a data
+        task.due_date = None
+
+    # Tratamento para 'completed_at'
+    if 'completed_at' in data and data['completed_at']:
+        try:
+            task.completed_at = datetime.fromisoformat(data['completed_at'].replace('Z', '+00:00'))
+            # Se a tarefa está sendo marcada como concluída, atualiza o status para DONE
+            # a menos que já seja um status final (ex: ARCHIVED)
+            if task.status not in [TaskStatus.DONE, TaskStatus.ARCHIVED]: # CORRIGIDO AQUI
+                task.status = TaskStatus.DONE # CORRIGIDO AQUI
+        except ValueError:
+            try: # Tentar parsear apenas data YYYY-MM-DD
+                dt_obj = datetime.strptime(data['completed_at'], '%Y-%m-%d')
+                # Se apenas a data for fornecida, podemos definir a hora para o final do dia ou manter como meia-noite.
+                # Para consistência, manter meia-noite UTC se nenhuma hora for dada.
+                task.completed_at = dt_obj 
+                if task.status not in [TaskStatus.DONE, TaskStatus.ARCHIVED]: # CORRIGIDO AQUI
+                    task.status = TaskStatus.DONE # CORRIGIDO AQUI
+            except ValueError:
+                current_app.logger.error(f"Formato de data inválido para completed_at: {data['completed_at']}")
+                
+    elif 'completed_at' in data and not data['completed_at']:
+        task.completed_at = None
+        # Se a data de conclusão é removida, e o status era CONCLUIDO,
+        # pode ser necessário reverter o status para um anterior (ex: EM_ANDAMENTO ou A_FAZER).
+        # Isso depende da lógica de negócios. Por enquanto, apenas remove a data.
+        # Poderíamos adicionar: if task.status == TaskStatus.DONE: task.status = TaskStatus.IN_PROGRESS # Ou A_FAZER # CORRIGIDO AQUI (exemplo)
 
     try:
         db.session.commit()
-        db.session.refresh(task) 
-        return jsonify(serialize_task(task))
+        # Log após o commit bem-sucedido
+        current_app.logger.info(f"Tarefa {task_id} atualizada com sucesso. Novo status: {task.status}, Título: {task.title}")
+        # Serializa a tarefa atualizada para retornar na resposta
+        updated_task_data = serialize_task(task)
+        if updated_task_data.get('error'): # Verifica se a serialização falhou
+            current_app.logger.error(f"Erro ao serializar tarefa {task_id} após atualização: {updated_task_data.get('error')}")
+            # Mesmo que a serialização falhe, a atualização no DB ocorreu.
+            # Retornar uma mensagem genérica de sucesso ou tentar um fallback.
+            return jsonify({'message': 'Tarefa atualizada, mas erro ao obter detalhes completos.'}), 200
+        return jsonify(updated_task_data), 200
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Erro ao salvar alterações da tarefa {task_id}: {e}", exc_info=True)
-        abort(500, description="Erro interno ao salvar alterações da tarefa.")
+        current_app.logger.error(f"Erro ao atualizar tarefa {task_id}: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Erro ao salvar alterações: {str(e)}'}), 500
 
 # API para excluir uma tarefa
 @backlog_bp.route('/api/tasks/<int:task_id>', methods=['DELETE'])
@@ -623,12 +633,10 @@ def create_task(backlog_id):
         position=new_position,
         start_date=start_date_obj, # <<< Usa a variável processada
         due_date=due_date_obj, # <<< CORREÇÃO: Usa o objeto datetime validado
-        # logged_time deve iniciar como 0 ou None (não vem do form de criação)
-        # sprint_id também não vem do form de criação
         backlog_id=backlog.id,
         column_id=first_column.id, # Atribui à primeira coluna
         specialist_name=default_specialist, # <<< Define o especialista padrão >>>
-        # sprint_id=data.get('sprint_id') # Remover se não for enviado
+        is_unplanned=data.get('is_unplanned', False) # <<< NOVO CAMPO >>>
     )
     db.session.add(new_task)
     db.session.commit()
@@ -1665,28 +1673,71 @@ def import_tasks_from_excel(backlog_id):
             newly_created_tasks_ids = []
 
             kanban_columns_db = Column.query.all()
-            column_name_to_id_map = {str(col.name).strip().lower(): col.id for col in kanban_columns_db}
-            current_app.logger.debug(f"[Import Excel API] Mapa de colunas Kanban do DB: {column_name_to_id_map}")
+            # Mapa dos nomes canônicos (do BD, em minúsculas) para IDs
+            db_column_name_to_id_map = {str(col.name).strip().lower(): col.id for col in kanban_columns_db}
+            current_app.logger.debug(f"[Import Excel API] Mapa de colunas Kanban do DB: {db_column_name_to_id_map}")
+
+            # Dicionário de aliases para nomes de colunas do Excel (chave: minúscula, valor: nome canônico minúsculo do BD)
+            excel_column_name_aliases = {
+                # Para "A Fazer" (Supondo que 'A Fazer' é o nome no BD)
+                'to do': 'a fazer',
+                'todo': 'a fazer',
+                'a fazer': 'a fazer',
+                'a_fazer': 'a fazer',
+                'fazer': 'a fazer',
+                # Para "Em Andamento" (Supondo que 'Em Andamento' é o nome no BD)
+                'in progress': 'em andamento',
+                'inprogress': 'em andamento',
+                'em andamento': 'em andamento',
+                'em_andamento': 'em andamento',
+                'andamento': 'em andamento',
+                # Para "Revisão" (Supondo que 'Revisão' é o nome no BD)
+                'review': 'revisão',
+                'revisao': 'revisão', # Sem acento
+                'revisão': 'revisão',
+                'em revisão': 'revisão',
+                'em revisao': 'revisão',
+                # Para "Concluído" (Supondo que 'Concluído' é o nome no BD)
+                'done': 'concluído',
+                'concluido': 'concluído', # Sem acento
+                'concluído': 'concluído',
+                'completed': 'concluído',
+                # Adicione mais aliases conforme necessário para outras colunas
+            }
+            # Nomes canônicos válidos (em minúsculas, como estão no BD) para referência
+            valid_canonical_column_names = list(db_column_name_to_id_map.keys())
+
 
             for index, row in df.iterrows():
                 try:
                     titulo = row.get('Titulo')
-                    coluna_kanban_name = row.get('ColunaKanban')
+                    coluna_kanban_name_excel = row.get('ColunaKanban') # Nome como está no Excel
 
                     if not titulo or pd.isna(titulo):
                         errors.append(f"Linha {index + 2}: Título da tarefa está vazio.")
                         continue 
-                    if not coluna_kanban_name or pd.isna(coluna_kanban_name):
+                    if not coluna_kanban_name_excel or pd.isna(coluna_kanban_name_excel):
                         errors.append(f"Linha {index + 2}: Nome da Coluna Kanban está vazio para a tarefa '{str(titulo)[:50]}'.")
                         continue
                     
                     titulo_str = str(titulo).strip()
-                    coluna_kanban_name_str = str(coluna_kanban_name).strip().lower()
+                    
+                    # Normaliza o nome da coluna do Excel para busca (minúsculas, sem espaços extras)
+                    normalized_excel_col_name = str(coluna_kanban_name_excel).strip().lower()
 
-                    target_column_id = column_name_to_id_map.get(coluna_kanban_name_str)
+                    # Tenta encontrar um nome canônico correspondente usando o mapa de aliases
+                    canonical_name_target = excel_column_name_aliases.get(normalized_excel_col_name)
+                    
+                    target_column_id = None
+                    if canonical_name_target:
+                        # Se encontrou no alias, busca o ID usando o nome canônico
+                        target_column_id = db_column_name_to_id_map.get(canonical_name_target)
+                    else:
+                        # Se não encontrou no alias, tenta a correspondência direta com o nome normalizado do Excel
+                        target_column_id = db_column_name_to_id_map.get(normalized_excel_col_name)
+
                     if not target_column_id:
-                        valid_cols = list(column_name_to_id_map.keys())
-                        errors.append(f"Linha {index + 2}: Coluna Kanban '{coluna_kanban_name}' não encontrada. Válidas: {valid_cols}")
+                        errors.append(f"Linha {index + 2}: Coluna Kanban '{coluna_kanban_name_excel}' não reconhecida ou mapeada. Válidas (ou aliases para): {', '.join(valid_canonical_column_names)}")
                         continue
                         
                     horas_estimadas_raw = row.get('HorasEstimadas')
