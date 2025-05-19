@@ -3249,7 +3249,7 @@ class MacroService(BaseService):
             # --- Busca de Backlog e Tarefas ---
             from ..models import Backlog, Task, Column, TaskStatus, ProjectMilestone, ProjectRisk, RiskStatus, Note 
             from sqlalchemy import or_, and_, func, case
-            from datetime import date, timedelta # datetime.date e datetime.timedelta
+            from datetime import date # REMOVIDO timedelta DESTA LINHA
 
             backlog = Backlog.query.filter_by(project_id=str(project_id)).first()
             
@@ -3404,15 +3404,15 @@ class MacroService(BaseService):
                 # Riscos (ativos e ordenados por criticidade e data)
                 try:
                     project_risks = ProjectRisk.query.filter_by(backlog_id=backlog.id, status=RiskStatus.ACTIVE)\
-                        .order_by(ProjectRisk.criticality.desc(), ProjectRisk.created_at.desc()).all()
+                        .order_by(ProjectRisk.impact.desc(), ProjectRisk.probability.desc(), ProjectRisk.created_at.desc()).all() # CORRIGIDO AQUI
                     riscos_do_projeto_list = [risk.to_dict() for risk in project_risks] 
                 except Exception as e_r:
                     self.logger.error(f"[Status Report] Erro ao buscar riscos: {str(e_r)}", exc_info=True)
                 
                 # Notas (do projeto, ordenadas por data do evento/criação)
                 try:
-                    project_notes = Note.query.filter(Note.backlog_id == backlog.id, Note.task_id == None)\
-                                        .order_by(Note.event_date.desc().nullslast(), Note.created_at.desc()).all()
+                    project_notes = Note.query.filter(Note.backlog_id == backlog.id)\
+                                        .order_by(Note.event_date.desc().nullslast(), Note.created_at.desc()).all() # Removido Note.task_id == None
                     
                     category_colors = {'decision': 'primary', 'risk': 'danger', 'impediment': 'warning', 'status_update': 'info', 'general': 'secondary'}
                     priority_colors = {'high': 'danger', 'medium': 'warning', 'low': 'success'}
@@ -3455,7 +3455,7 @@ class MacroService(BaseService):
                 'tarefas_proximo_prazo': tarefas_proximo_prazo_list,
                 # 'proximos_passos': proximos_passos_list, # Removida do retorno
                 'marcos_recentes': marcos_recentes_list, # Adicionado
-                'riscos_ativos': riscos_do_projeto_list, # Adicionado
+                'riscos_impedimentos': riscos_do_projeto_list, # Adicionado E RENOMEADO AQUI
                 'notas': notas_do_projeto_list, # Adicionado
                 
                 'dados_ultima_semana': dados_ultima_semana_dict,
@@ -3507,7 +3507,7 @@ class MacroService(BaseService):
             'tarefas_proximo_prazo': [],
             # 'proximos_passos': [], # Removida do retorno
             'marcos_recentes': [], # Adicionado
-            'riscos_ativos': [], # Adicionado
+            'riscos_impedimentos': [], # Adicionado
             'notas': [], # Adicionado
             'dados_ultima_semana': {'concluidas': 0, 'novas': 0, 'horas_registradas': 0},
             'data_geracao': datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
