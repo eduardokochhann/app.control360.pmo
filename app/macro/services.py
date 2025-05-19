@@ -3257,11 +3257,15 @@ class MacroService(BaseService):
             tarefas_em_andamento_list = []
             tarefas_em_revisao_list = []
             tarefas_proximo_prazo_list = []
-            # proximos_passos_list = [] # Removida - não é mais populada ou usada consistentemente
+            tarefas_pendentes_list = [] # NOVA LISTA
 
             if backlog:
                 hoje_date_obj_for_queries = date.today() 
                 proximos_7_dias_date_obj = hoje_date_obj_for_queries + timedelta(days=7)
+
+                # Coletar IDs de tarefas em "Próximas Tarefas" para exclusão posterior de "Pendentes"
+                # Esta linha será movida para DEPOIS da query de tarefas_proximo_prazo_list
+                # ids_tarefas_proximo_prazo = {t['id'] for t in tarefas_proximo_prazo_list if t and 'id' in t}
 
                 def serialize_task_for_report(task, column_name_override=None): # Adicionado column_name_override
                     if not task: return None
@@ -3338,35 +3342,50 @@ class MacroService(BaseService):
                 ).all()
                 tarefas_em_revisao_list = [serialize_task_for_report(t) for t in tarefas_em_revisao_q]
                 
-                # 4. Tarefas com Prazo Próximo (due_date nos próximos 7 dias, não concluídas)
+                # 4. Tarefas com Prazo Próximo (due_date nos próximos 7 dias, não concluídas, não em revisão)
                 tarefas_proximo_prazo_q = Task.query.filter(
                     Task.backlog_id == backlog.id,
                     Task.completed_at == None,
-                    Task.status != TaskStatus.DONE, # Redundante se completed_at is None, mas seguro
+                    Task.status != TaskStatus.DONE, 
+                    Task.status != TaskStatus.REVIEW, # Adicionado para não pegar tarefas em revisão aqui também
                     Task.due_date != None,
-                    Task.due_date >= hoje_date_obj_for_queries, # due_date é hoje ou no futuro
-                    Task.due_date <= proximos_7_dias_date_obj # due_date é dentro dos próximos 7 dias
+                    Task.due_date >= hoje_date_obj_for_queries, 
+                    Task.due_date <= proximos_7_dias_date_obj
                 ).order_by(Task.due_date.asc()).all()
                 tarefas_proximo_prazo_list = [serialize_task_for_report(t) for t in tarefas_proximo_prazo_q]
                 
-                self.logger.info(f"[Status Report - {project_id}] Tarefas DB: {len(tarefas_concluidas_list)} concl., {len(tarefas_em_andamento_list)} and., {len(tarefas_em_revisao_list)} rev., {len(tarefas_proximo_prazo_list)} prazo.")
+                # Agora sim, obter os IDs das tarefas que estão em "Próximas Tarefas"
+                ids_tarefas_proximo_prazo = {t['id'] for t in tarefas_proximo_prazo_list if t and 'id' in t}
+                
+                # Log atualizado para incluir espaço para pendentes (que será calculado a seguir)
+                self.logger.info(f"[Status Report - {project_id}] Tarefas DB (antes de pendentes): {len(tarefas_concluidas_list)} concl., {len(tarefas_em_andamento_list)} and., {len(tarefas_em_revisao_list)} rev., {len(tarefas_proximo_prazo_list)} prazo.")
 
-                # 5. Próximos Passos (Tarefas em colunas como "A Fazer", "Backlog", "To Do", etc., não concluídas e sem data de início ou com data de início futura)
-                # Tentativa de buscar por múltiplos nomes de colunas comuns para "A Fazer"
+                # 5. Tarefas Pendentes (colunas "A Fazer", não concluídas, não em andamento, não em revisão E NÃO em "Próximas Tarefas")
                 nomes_colunas_a_fazer = ['%a fazer%', '%backlog%', '%to do%', '%pendente%']
                 condicoes_colunas_a_fazer = [func.lower(Column.name).like(nome) for nome in nomes_colunas_a_fazer]
 
-                tarefas_a_fazer_q = Task.query.join(Column, Task.column_id == Column.id).filter(
+                query_pendentes = Task.query.join(Column, Task.column_id == Column.id).filter(
                     Task.backlog_id == backlog.id,
                     or_(*condicoes_colunas_a_fazer),
                     Task.completed_at == None,
                     Task.status != TaskStatus.DONE,
-                    Task.status != TaskStatus.IN_PROGRESS, # Não deve estar em progresso
-                    Task.status != TaskStatus.REVIEW,     # Não deve estar em revisão
-                    or_(Task.start_date == None, Task.start_date > hoje_date_obj_for_queries) # Sem data de início ou início futuro
-                ).order_by(Task.position.asc(), Task.priority.asc(), Task.created_at.asc()).all()
-                # proximos_passos_list = [serialize_task_for_report(t) for t in tarefas_a_fazer_q]
-                # self.logger.info(f"[Status Report - {project_id}] {len(proximos_passos_list)} tarefas 'Próximos Passos' (A Fazer/Backlog) encontradas.")
+                    Task.status != TaskStatus.IN_PROGRESS,
+                    Task.status != TaskStatus.REVIEW
+                )
+                
+                if ids_tarefas_proximo_prazo:
+                    query_pendentes = query_pendentes.filter(Task.id.notin_(ids_tarefas_proximo_prazo))
+                
+                tarefas_pendentes_q = query_pendentes.order_by(
+                    Task.position.asc(), 
+                    case((Task.priority == 'Urgente', 0),(Task.priority == 'Alta', 1), (Task.priority == 'Média', 2), (Task.priority == 'Baixa', 3), else_=4),
+                    Task.created_at.asc()
+                ).all()
+                
+                tarefas_pendentes_list = [serialize_task_for_report(t) for t in tarefas_pendentes_q]
+                
+                # Log final com todas as contagens
+                self.logger.info(f"[Status Report - {project_id}] Tarefas DB: {len(tarefas_concluidas_list)} concl., {len(tarefas_em_andamento_list)} and., {len(tarefas_em_revisao_list)} rev., {len(tarefas_proximo_prazo_list)} prazo, {len(tarefas_pendentes_list)} pend.")
 
             else:
                 self.logger.warning(f"[Status Report] Backlog não encontrado para o projeto {project_id}, listas de tarefas estarão vazias.")
@@ -3453,10 +3472,10 @@ class MacroService(BaseService):
                 'tarefas_em_andamento': tarefas_em_andamento_list,
                 'tarefas_em_revisao': tarefas_em_revisao_list,
                 'tarefas_proximo_prazo': tarefas_proximo_prazo_list,
-                # 'proximos_passos': proximos_passos_list, # Removida do retorno
-                'marcos_recentes': marcos_recentes_list, # Adicionado
-                'riscos_impedimentos': riscos_do_projeto_list, # Adicionado E RENOMEADO AQUI
-                'notas': notas_do_projeto_list, # Adicionado
+                'tarefas_pendentes': tarefas_pendentes_list, # ADICIONADA NOVA LISTA
+                'marcos_recentes': marcos_recentes_list,
+                'riscos_impedimentos': riscos_do_projeto_list,
+                'notas': notas_do_projeto_list,
                 
                 'dados_ultima_semana': dados_ultima_semana_dict,
                 'data_geracao': datetime.now().strftime("%d/%m/%Y %H:%M:%S")
@@ -3505,10 +3524,10 @@ class MacroService(BaseService):
             'tarefas_em_andamento': [],
             'tarefas_em_revisao': [],
             'tarefas_proximo_prazo': [],
-            # 'proximos_passos': [], # Removida do retorno
-            'marcos_recentes': [], # Adicionado
-            'riscos_impedimentos': [], # Adicionado
-            'notas': [], # Adicionado
+            'tarefas_pendentes': [], # ADICIONADA NOVA LISTA
+            'marcos_recentes': [],
+            'riscos_impedimentos': [],
+            'notas': [],
             'dados_ultima_semana': {'concluidas': 0, 'novas': 0, 'horas_registradas': 0},
             'data_geracao': datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
             'error_message': error_message # Adiciona a mensagem de erro ao payload

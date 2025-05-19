@@ -915,6 +915,7 @@
                                          'verde': 'No Prazo',
                                          'amarelo': 'Atenção',
                                          'vermelho': 'Crítico',
+                                         'azul': 'Concluído',
                                          'cinza': 'Não Iniciado'
                                      } %}
                                      <span class="h5 status-text text-{{ status_color_class }} editable-field" data-field="status-geral" data-status-text>{{ status_text_map.get(status_color_class, 'Não Iniciado') }}</span>
@@ -1174,6 +1175,45 @@
                                                 {% endfor %}
                                             {% else %}
                                                 <li class="list-group-item text-center text-muted small">Nenhuma tarefa em revisão.</li>
+                                            {% endif %}
+                                        {% endif %}
+                                        {# Para visualização não-PDF, o JS popula aqui #}
+                                    </ul>
+                                </div>
+                                
+                                <!-- NOVA SEÇÃO: Tarefas Pendentes -->
+                                <div class="timeline-section">
+                                    <div class="section-header">
+                                        <i class="bi bi-pause-circle text-secondary"></i> {# Ícone para Pendente #}
+                                        <span class="fw-bold">Pendente</span>
+                                    </div>
+                                    <ul class="list-group list-group-flush" id="pending-tasks-list">
+                                        {% if for_pdf %}
+                                            {# Lógica para PDF para tarefas pendentes, se houver dados #}
+                                            {% if report_data.tarefas_pendentes and report_data.tarefas_pendentes|length > 0 %}
+                                                <div class="column-headers" style="display: flex; justify-content: space-between; padding: 0.5rem 1rem; background-color: #f8f9fc; border-bottom: 1px solid #e3e6f0; font-weight: bold; font-size: 0.75rem;">
+                                                    <div class="task-column" style="flex-basis: 50%;">Tarefa</div>
+                                                    <div class="status-column" style="flex-basis: 20%; text-align: center;">Prioridade</div>
+                                                    <div class="date-column" style="flex-basis: 30%; text-align: right;">Prazo</div>
+                                                </div>
+                                                {% for task in report_data.tarefas_pendentes %}
+                                                    <li class="list-group-item" title="{{ task.description if task.description else '' }}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 1rem; font-size: 0.8rem;">
+                                                        <span class="timeline-task-name" style="flex-basis: 50%; word-break: break-word;">{{ task.title | default('Tarefa sem título') }}</span>
+                                                        <div class="status-container" style="flex-basis: 20%; text-align: center;">
+                                                            {% set priority_class = 'bg-secondary' %}
+                                                            {% if task.priority == 'Alta' %} {% set priority_class = 'bg-warning text-dark' %}
+                                                            {% elif task.priority == 'Urgente' %} {% set priority_class = 'bg-danger' %}
+                                                            {% elif task.priority == 'Média' %} {% set priority_class = 'bg-info' %}
+                                                            {% elif task.priority == 'Baixa' %} {% set priority_class = 'bg-success' %}{% endif %}
+                                                            <span class="badge {{ priority_class }}">{{ task.priority | default('N/A')}}</span>
+                                                        </div>
+                                                        <span class="text-muted small" style="flex-basis: 30%; text-align: right;">
+                                                            {{ task.due_date | default('-') }}
+                                                        </span>
+                                                    </li>
+                                                {% endfor %}
+                                            {% else %}
+                                                <li class="list-group-item text-center text-muted small">Nenhuma tarefa pendente.</li>
                                             {% endif %}
                                         {% endif %}
                                         {# Para visualização não-PDF, o JS popula aqui #}
@@ -1972,10 +2012,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const upcomingTasksList = document.getElementById('upcoming-tasks-list');
     const startedTasksList = document.getElementById('started-tasks-list'); // Para "Em Andamento"
     const reviewTasksList = document.getElementById('review-tasks-list'); // NOVA LISTA
+    const pendingTasksList = document.getElementById('pending-tasks-list'); // NOVA LISTA PENDENTES
     const completedTasksList = document.getElementById('completed-tasks-list');
     
     if (!loadingElement || !errorElement || !emptyElement || !contentElement ||
-        !upcomingTasksList || !startedTasksList || !reviewTasksList || !completedTasksList) {
+        !upcomingTasksList || !startedTasksList || !reviewTasksList || !pendingTasksList || !completedTasksList) { // Adicionado pendingTasksList
         console.error("[SR Timeline] Um ou mais elementos da linha do tempo não encontrados no DOM.");
         if(loadingElement) loadingElement.style.display = 'none';
         if(errorElement) {
@@ -2071,7 +2112,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // 3. Tarefas em Revisão (usa reportData.tarefas_em_revisao) - NOVA
     totalTasksRendered += renderTaskListSR(reviewTasksList, reportData.tarefas_em_revisao, 'Em Revisão', '<span class="badge bg-info">Revisão</span>');
 
-    // 4. Tarefas Concluídas (usa reportData.tarefas_concluidas)
+    // X. Tarefas Pendentes (NOVO)
+    totalTasksRendered += renderTaskListSR(pendingTasksList, reportData.tarefas_pendentes, 'Pendentes', '<span class="badge bg-secondary">Pendente</span>');
+
+    // 4. Tarefas Concluídas (usa report_data.tarefas_concluidas)
     totalTasksRendered += renderTaskListSR(completedTasksList, reportData.tarefas_concluidas, 'Concluídas', '<span class="badge bg-success">Concluído</span>');
 
     // Se nenhuma tarefa foi renderizada em nenhuma lista, mostra a mensagem geral de "timeline vazia"
