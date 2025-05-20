@@ -1784,9 +1784,12 @@
             priority: formData.get('priority'),
             specialist_name: formData.get('specialist_name'),
             estimated_hours: formData.get('estimated_hours') ? parseFloat(formData.get('estimated_hours')) : null,
-            description: formData.get('description'),
-            status: formData.get('status')
+            description: formData.get('description')
         };
+        const statusValue = formData.get('status');
+        if (statusValue && statusValue !== 'None' && statusValue !== '') {
+            data.status = statusValue;
+        }
 
         try {
             const response = await fetch(`/backlog/api/tasks/${taskId}`, {

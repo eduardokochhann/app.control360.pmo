@@ -3422,8 +3422,8 @@ class MacroService(BaseService):
 
                 # Riscos (ativos e ordenados por criticidade e data)
                 try:
-                    project_risks = ProjectRisk.query.filter_by(backlog_id=backlog.id, status=RiskStatus.ACTIVE)\
-                        .order_by(ProjectRisk.impact.desc(), ProjectRisk.probability.desc(), ProjectRisk.created_at.desc()).all() # CORRIGIDO AQUI
+                    project_risks = ProjectRisk.query.filter_by(backlog_id=backlog.id)\
+                        .order_by(ProjectRisk.impact.desc(), ProjectRisk.probability.desc(), ProjectRisk.created_at.desc()).all() # REMOVIDO FILTRO DE STATUS
                     riscos_do_projeto_list = [risk.to_dict() for risk in project_risks] 
                 except Exception as e_r:
                     self.logger.error(f"[Status Report] Erro ao buscar riscos: {str(e_r)}", exc_info=True)
