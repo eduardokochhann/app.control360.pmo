@@ -1,0 +1,630 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.1/dist/bootstrap-table.min.css" rel="stylesheet">
+<style>
+    body {
+        background-color: #f8f9fa;
+        font-family: 'Inter', sans-serif;
+    }
+    .card {
+        margin-bottom: 1.5rem;
+        border-radius: 0.5rem;
+        border: 1px solid #dee2e6;
+        box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+    }
+    .table-container {
+        padding: 1.5rem;
+    }
+    #toolbar {
+        margin-bottom: 1rem;
+    }
+    .fixed-table-toolbar .search-input {
+        min-width: 250px;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.375rem;
+    }
+    /* Estilos para barras de progresso e badges (copiados do dashboard.html para consistência) */
+    .progress-thin {
+        height: 6px;
+        margin-top: 4px;
+        background-color: #f0f0f0;
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    .progress-thin .progress-bar {
+        border-radius: 3px;
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+    .progress-value {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.85rem;
+        font-weight: 500;
+        margin-bottom: 2px;
+    }
+    .progress-value-text {
+        font-family: 'Inter', monospace;
+    }
+    .progress-danger .progress-bar { background-color: #dc3545 !important; }
+    .progress-warning .progress-bar { background-color: #ffc107 !important; }
+    .progress-success .progress-bar { background-color: #198754 !important; }
+    .progress-info .progress-bar { background-color: #0dcaf0 !important; }
+
+    .status-badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    .truncate-text {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+        max-width: 250px; /* Ajuste conforme necessário */
+    }
+     .projeto-col {
+        max-width: 300px; /* Ajuste conforme necessário */
+    }
+    .squad-col {
+        max-width: 180px; /* Ajuste conforme necessário */
+    }
+    .status-col {
+        max-width: 150px; /* Ajuste conforme necessário */
+    }
+
+    /* Estilo para texto de horas negativas */
+    .text-danger-bold {
+        color: #dc3545 !important;
+        font-weight: bold;
+    }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800"><i class="bi bi-list-task me-2"></i>{{ title }}</h1>
+        <span class="text-muted small">
+             {% if hora_atualizacao %}
+                Atualizado em: {{ hora_atualizacao.strftime('%d/%m/%Y %H:%M:%S') }}
+             {% endif %}
+        </span>
+    </div>
+
+    <div class="card">
+        <div class="card-body table-container">
+            <div id="toolbar">
+                <div class="btn-group" role="group" aria-label="Exportação">
+                    <button type="button" class="btn btn-success btn-sm" onclick="exportToExcel()">
+                        <i class="bi bi-file-earmark-excel"></i> Exportar Excel
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="exportToPDF()">
+                        <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
+                    </button>
+                </div>
+            </div>
+            <table
+              id="tabelaProjetosAtivos"
+              data-url="/macro/api/projetos/ativos"
+              data-pagination="true"
+              data-search="true"
+              data-show-refresh="true"
+              data-show-toggle="true"
+              data-show-columns="true"
+              data-toolbar="#toolbar"
+              data-buttons-class="primary">
+              <thead>
+                <tr>
+                  <th>Número</th>
+                  <th>Projeto</th>
+                  <th>Status</th>
+                  <th>Squad</th>
+                  <th>Conclusão</th>
+                  <th>Horas Rest.</th>
+                  <th>Previsão Enc.</th>
+                  <th>Ações</th>
+                  <th>Backlog</th>
+                </tr>
+              </thead>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.1/dist/bootstrap-table.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.1/dist/extensions/export/bootstrap-table-export.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tableexport.jquery.plugin@1.28.0/tableExport.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.1/dist/locale/bootstrap-table-pt-BR.min.js"></script>
+<!-- Adicionando bibliotecas para exportação Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<script>
+    // Funções auxiliares de formatação (copiadas e adaptadas de dashboard.html)
+    function getStatusColor(status) {
+        const cores = {
+            'NOVO': 'info',
+            'EM ATENDIMENTO': 'primary',
+            'AGUARDANDO': 'warning',
+            'BLOQUEADO': 'danger',
+            'FECHADO': 'success',
+            'ENCERRADO': 'success',
+            'RESOLVIDO': 'success',
+            'CANCELADO': 'secondary'
+        };
+        return cores[status?.toUpperCase()] || 'secondary';
+    }
+
+    function escapeHtml(unsafe) {
+      if (unsafe === null || typeof unsafe === 'undefined') return '';
+      return String(unsafe)
+           .replace(/&/g, "&amp;")
+           .replace(/</g, "&lt;")
+           .replace(/>/g, "&gt;")
+           .replace(/"/g, "&quot;")
+           .replace(/'/g, "&#039;");
+    }
+
+    function numeroFormatter(value, row) {
+        if (!value) return 'N/A';
+        return `<a href="https://atendimento.sou.cloud/Ticket/Edit/${value}" target="_blank" style="text-decoration: none; color: inherit;">${value}</a>`;
+    }
+
+    function projetoFormatter(value, row) {
+        const nomeProjeto = escapeHtml(value) || 'N/A';
+        return `<span class="truncate-text" title="${nomeProjeto}">${nomeProjeto}</span>`;
+    }
+    
+    function squadFormatter(value, row) {
+        const squad = escapeHtml(value) || 'N/D';
+        return `<span class="truncate-text" title="${squad}">${squad}</span>`;
+    }
+
+    function statusFormatter(value, row) {
+        const status = escapeHtml(value) || 'N/A';
+        return `<span class="badge status-badge bg-${getStatusColor(status)}">${status}</span>`;
+    }
+
+    function conclusaoFormatter(value, row) {
+        const conclusao = !isNaN(parseFloat(value)) ? parseFloat(value) : 0;
+        let progressClassConclusao = 'progress-info';
+        if (conclusao < 30) progressClassConclusao = 'progress-danger';
+        else if (conclusao < 70) progressClassConclusao = 'progress-warning';
+        else if (conclusao >= 70) progressClassConclusao = 'progress-success';
+
+        return `
+            <div class="progress-value">
+                <span class="progress-value-text">${conclusao.toFixed(1)}%</span>
+            </div>
+            <div class="progress-thin ${progressClassConclusao}">
+                <div class="progress-bar" style="width: ${conclusao}%"></div>
+            </div>
+        `;
+    }
+
+    // Formatador apenas para EXIBIÇÃO da coluna Horas Restantes
+    function horasFormatter(value, row) {
+        const totalHorasDecimal = !isNaN(parseFloat(value)) ? parseFloat(value) : 0;
+
+        // Formata para exibição na tabela
+        const sinal = totalHorasDecimal < 0 ? "-" : "";
+        const horasAbs = Math.abs(totalHorasDecimal);
+        const horasInteiras = Math.floor(horasAbs);
+        const minutosDecimais = (horasAbs - horasInteiras) * 60;
+        const minutosInteiros = Math.round(minutosDecimais); // Arredonda para o minuto mais próximo
+
+        const displayValue = `${sinal}${horasInteiras}h${String(minutosInteiros).padStart(2, '0')}m`;
+
+        // Lógica da barra de progresso (mantida)
+        const esforco = !isNaN(parseFloat(row.Horas)) ? parseFloat(row.Horas) : 0;
+        let horasClass = 'progress-success';
+        let corBarra = '#198754'; // Verde
+        let percentualHoras = 0;
+
+        if (totalHorasDecimal < 0) {
+            horasClass = 'progress-danger';
+            corBarra = '#dc3545'; // Vermelho
+            percentualHoras = 100;
+        } else if (totalHorasDecimal < 10 && esforco > 0) {
+            horasClass = 'progress-warning';
+            corBarra = '#ffc107'; // Amarelo
+            percentualHoras = Math.min(100, Math.max(0, (totalHorasDecimal / esforco) * 100));
+        } else if (esforco > 0) {
+            percentualHoras = Math.min(100, Math.max(0, (totalHorasDecimal / esforco) * 100));
+        }
+
+        return `
+            <div class="progress-value">
+                <span class="progress-value-text ${totalHorasDecimal < 0 ? 'text-danger-bold' : ''}">${displayValue}</span>
+            </div>
+            <div class="progress-thin ${horasClass}">
+                <div class="progress-bar" style="width: ${percentualHoras.toFixed(1)}%; background-color: ${corBarra};"></div>
+            </div>
+        `;
+    }
+
+    // Formatador específico para exportação Excel das horas
+    function horasExcelFormatter(value, row) {
+        const totalHorasDecimal = !isNaN(parseFloat(value)) ? parseFloat(value) : 0;
+        
+        // Para Excel, formatamos como [h]:mm para permitir horas negativas e valores acima de 24h
+        const sinal = totalHorasDecimal < 0 ? "-" : "";
+        const horasAbs = Math.abs(totalHorasDecimal);
+        const horasInteiras = Math.floor(horasAbs);
+        const minutosDecimais = (horasAbs - horasInteiras) * 60;
+        const minutosInteiros = Math.round(minutosDecimais);
+        
+        return `${sinal}${horasInteiras}:${String(minutosInteiros).padStart(2, '0')}`;
+    }
+
+    function dateFormatter(value, row) {
+        if (!value || value === 'N/A' || value === null) return 'N/A';
+        
+        try {
+            // Se o valor já está no formato dd/mm/yyyy, retorna como está
+            if (typeof value === 'string' && value.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                return value;
+            }
+            
+            // Tenta criar um objeto Date. O valor da API deve vir como YYYY-MM-DD.
+            let date;
+            if (typeof value === 'string') {
+                // Se contém apenas a data (YYYY-MM-DD), adiciona T00:00:00 para garantir interpretação local
+                if (value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    date = new Date(value + 'T00:00:00');
+                } else {
+                    date = new Date(value);
+                }
+            } else {
+                date = new Date(value);
+            }
+            
+            // Verifica se a data é válida
+            if (isNaN(date.getTime())) {
+                console.warn("Date Formatter: Data inválida recebida:", value);
+                return 'N/A';
+            }
+            
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0'); // Mês é 0-indexed
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        } catch (e) {
+            console.error("Date Formatter: Erro ao formatar data:", value, e);
+            return 'N/A';
+        }
+    }
+
+    function acoesFormatter(value, row) {
+        // O 'value' aqui é o 'numero' do projeto, conforme data-field
+        if (!value) return '';
+        return `
+            <a href="/macro/status-report/${value}" target="_blank" class="btn btn-sm btn-outline-primary" title="Status Report">
+                <i class="bi bi-file-earmark-text"></i>
+            </a>
+        `;
+    }
+
+    function backlogLinkFormatter(value, row) {
+        // O 'value' aqui é o 'backlog_exists' (true/false)
+        // O 'row.numero' é o número do projeto
+        if (value && row.numero) {
+            return `
+                <a href="/backlog/board/${row.numero}" target="_blank" class="btn btn-sm btn-info" title="Abrir Quadro de Backlog">
+                    <i class="bi bi-kanban"></i>
+                </a>
+            `;
+        }
+        return '<span class="text-muted small" title="Backlog não disponível ou não aplicável"><i class="bi bi-ban"></i></span>';
+    }
+
+    function loadingTemplate() {
+        return '<div class="text-center p-3"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Carregando...</span></div> <span class="ms-2">Carregando dados...</span></div>';
+    }
+
+    // Funções de exportação personalizadas
+    function exportToExcel() {
+        try {
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '_');
+            const filename = `relatorio_projetos_ativos_${timestamp}.xlsx`;
+            
+            // Obtém os dados da tabela
+            const data = $('#tabelaProjetosAtivos').bootstrapTable('getData');
+            
+            if (!data || data.length === 0) {
+                alert('Não há dados para exportar.');
+                return;
+            }
+            
+            // Prepara os dados para exportação
+            const exportData = data.map(row => ({
+                'Número': row.numero || 'N/A',
+                'Projeto': row.projeto || 'N/A',
+                'Status': row.status || 'N/A',
+                'Squad': row.squad || 'N/D',
+                'Conclusão (%)': row.conclusao || 0,
+                'Horas Restantes': horasExcelFormatter(row.horasRestantes, row),
+                'Previsão Encerramento': row.dataPrevEnc || 'N/A'
+            }));
+            
+            // Cria o workbook
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            
+            // Adiciona a planilha ao workbook
+            XLSX.utils.book_append_sheet(wb, ws, 'Projetos Ativos');
+            
+            // Faz o download
+            XLSX.writeFile(wb, filename);
+            
+        } catch (error) {
+            console.error('Erro ao exportar para Excel:', error);
+            alert('Erro ao exportar para Excel. Verifique o console para mais detalhes.');
+        }
+    }
+
+    function exportToPDF() {
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '_');
+        
+        // Obtém os dados da tabela
+        const data = $('#tabelaProjetosAtivos').bootstrapTable('getData');
+        
+        if (!data || data.length === 0) {
+            alert('Não há dados para exportar.');
+            return;
+        }
+        
+        // Cria uma nova janela para o PDF
+        const printWindow = window.open('', '_blank');
+        
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Relatório de Projetos Ativos</title>
+                <style>
+                    body { 
+                        font-family: Arial, sans-serif; 
+                        margin: 20px; 
+                        font-size: 12px;
+                    }
+                    .header {
+                        text-align: center;
+                        margin-bottom: 20px;
+                        border-bottom: 2px solid #333;
+                        padding-bottom: 10px;
+                    }
+                    .header h1 {
+                        margin: 0;
+                        color: #333;
+                    }
+                    .header .timestamp {
+                        color: #666;
+                        font-size: 10px;
+                        margin-top: 5px;
+                    }
+                    table { 
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        margin-top: 10px;
+                    }
+                    th, td { 
+                        border: 1px solid #ddd; 
+                        padding: 8px; 
+                        text-align: left;
+                    }
+                    th { 
+                        background-color: #f2f2f2; 
+                        font-weight: bold;
+                    }
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    .status-badge {
+                        padding: 2px 6px;
+                        border-radius: 3px;
+                        font-size: 10px;
+                        font-weight: bold;
+                    }
+                    .bg-success { background-color: #d4edda; color: #155724; }
+                    .bg-warning { background-color: #fff3cd; color: #856404; }
+                    .bg-danger { background-color: #f8d7da; color: #721c24; }
+                    .bg-info { background-color: #d1ecf1; color: #0c5460; }
+                    .bg-primary { background-color: #d1ecf1; color: #0c5460; }
+                    .bg-secondary { background-color: #e2e3e5; color: #383d41; }
+                    .text-danger-bold { color: #dc3545; font-weight: bold; }
+                    @media print {
+                        body { margin: 0; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>Relatório de Projetos Ativos</h1>
+                    <div class="timestamp">Gerado em: ${new Date().toLocaleString('pt-BR')}</div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Projeto</th>
+                            <th>Status</th>
+                            <th>Squad</th>
+                            <th>Conclusão</th>
+                            <th>Horas Rest.</th>
+                            <th>Previsão Enc.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(row => `
+                            <tr>
+                                <td class="text-center">${row.numero || 'N/A'}</td>
+                                <td>${(row.projeto || 'N/A').substring(0, 50)}${(row.projeto || '').length > 50 ? '...' : ''}</td>
+                                <td class="text-center">
+                                    <span class="status-badge bg-${getStatusColor(row.status)}">${row.status || 'N/A'}</span>
+                                </td>
+                                <td>${row.squad || 'N/D'}</td>
+                                <td class="text-right">${(row.conclusao || 0).toFixed(1)}%</td>
+                                <td class="text-right ${(row.horasRestantes || 0) < 0 ? 'text-danger-bold' : ''}">${formatHorasForPDF(row.horasRestantes)}</td>
+                                <td class="text-center">${formatDateForPDF(row.dataPrevEnc)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <div class="no-print" style="margin-top: 20px; text-align: center;">
+                    <button onclick="window.print()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        Imprimir / Salvar como PDF
+                    </button>
+                    <button onclick="window.close()" style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px;">
+                        Fechar
+                    </button>
+                </div>
+            </body>
+            </html>
+        `;
+        
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        
+        // Aguarda o carregamento e abre o diálogo de impressão
+        printWindow.onload = function() {
+            setTimeout(() => {
+                printWindow.print();
+            }, 250);
+        };
+    }
+
+    // Funções auxiliares para formatação no PDF
+    function formatHorasForPDF(value) {
+        const totalHorasDecimal = !isNaN(parseFloat(value)) ? parseFloat(value) : 0;
+        const sinal = totalHorasDecimal < 0 ? "-" : "";
+        const horasAbs = Math.abs(totalHorasDecimal);
+        const horasInteiras = Math.floor(horasAbs);
+        const minutosDecimais = (horasAbs - horasInteiras) * 60;
+        const minutosInteiros = Math.round(minutosDecimais);
+        return `${sinal}${horasInteiras}h${String(minutosInteiros).padStart(2, '0')}m`;
+    }
+
+    function formatDateForPDF(value) {
+        if (!value || value === 'N/A' || value === null) return 'N/A';
+        
+        try {
+            // Se já está no formato dd/mm/yyyy, retorna como está
+            if (typeof value === 'string' && value.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                return value;
+            }
+            
+            let date;
+            if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                date = new Date(value + 'T00:00:00');
+            } else {
+                date = new Date(value);
+            }
+            
+            if (isNaN(date.getTime())) return 'N/A';
+            
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        } catch (e) {
+            return 'N/A';
+        }
+    }
+
+    // Eventos para os botões de ação (se necessário no futuro)
+    window.acoesEvents = {
+        // 'click .edit': function (e, value, row, index) {
+        //   alert('Você clicou em editar linha com ID: ' + row.numero);
+        // }
+    };
+    window.backlogEvents = {
+        //  Poderia adicionar eventos se os links fossem botões que fazem algo mais complexo
+    };
+
+    $(function() {
+        $('#tabelaProjetosAtivos').bootstrapTable({
+            url: '/macro/api/projetos/ativos',
+            pagination: true,
+            search: true,
+            showRefresh: true,
+            showToggle: true,
+            showColumns: true,
+            toolbar: '#toolbar',
+            buttonsClass: 'primary',
+            loadingTemplate: loadingTemplate,
+            locale: 'pt-BR',
+            columns: [
+              {
+                field: 'numero',
+                title: 'Número',
+                sortable: true,
+                formatter: numeroFormatter
+              },
+              {
+                field: 'projeto',
+                title: 'Projeto',
+                sortable: true,
+                formatter: projetoFormatter,
+                classes: 'projeto-col'
+              },
+              {
+                field: 'status',
+                title: 'Status',
+                sortable: true,
+                formatter: statusFormatter,
+                classes: 'status-col'
+              },
+              {
+                field: 'squad',
+                title: 'Squad',
+                sortable: true,
+                formatter: squadFormatter,
+                classes: 'squad-col'
+              },
+              {
+                field: 'conclusao',
+                title: 'Conclusão',
+                sortable: true,
+                align: 'right',
+                formatter: conclusaoFormatter
+              },
+              {
+                field: 'horasRestantes',
+                title: 'Horas Rest.',
+                sortable: true,
+                align: 'right',
+                formatter: horasFormatter
+              },
+              {
+                field: 'dataPrevEnc',
+                title: 'Previsão Enc.',
+                sortable: true,
+                formatter: dateFormatter
+              },
+              {
+                field: 'numero',
+                title: 'Ações',
+                formatter: acoesFormatter,
+                events: window.acoesEvents
+              },
+              {
+                field: 'backlog_exists',
+                title: 'Backlog',
+                formatter: backlogLinkFormatter,
+                events: window.backlogEvents
+              }
+            ]
+        });
+    });
+</script>
+{% endblock %} 

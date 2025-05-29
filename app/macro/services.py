@@ -626,9 +626,10 @@ class MacroService(BaseService):
             if 'dataPrevEnc' in dados_para_retorno.columns:
                  # Primeiro converte para datetime (caso ainda não seja)
                  dados_para_retorno['dataPrevEnc'] = pd.to_datetime(dados_para_retorno['dataPrevEnc'], errors='coerce')
-                 # Depois formata e preenche NaT
+                 # Depois formata como string no formato brasileiro
                  dados_para_retorno['dataPrevEnc'] = dados_para_retorno['dataPrevEnc'].dt.strftime('%d/%m/%Y')
-                 dados_para_retorno['dataPrevEnc'].fillna('N/A', inplace=True)
+                 # Substitui valores NaT/None por 'N/A'
+                 dados_para_retorno['dataPrevEnc'] = dados_para_retorno['dataPrevEnc'].fillna('N/A')
             # <<< FIM: Restaurar Renomeação e Formatação >>>
 
             logger.info(f"Calculados {metricas['total']} projetos ativos. Colunas retornadas após renomeação: {dados_para_retorno.columns.tolist()}")
@@ -758,7 +759,7 @@ class MacroService(BaseService):
             
             # Formata a data de vencimento
             dados_modal['dataPrevEnc'] = dados_modal['dataPrevEnc'].dt.strftime('%d/%m/%Y')
-            dados_modal['dataPrevEnc'].fillna('N/A', inplace=True)
+            dados_modal['dataPrevEnc'] = dados_modal['dataPrevEnc'].fillna('N/A')
             
             return {
                 'total': metricas['total'],

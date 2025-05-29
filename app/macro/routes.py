@@ -236,6 +236,38 @@ def dashboard():
                              projetos_risco=[],
                              por_status={})
 
+@macro_bp.route('/relatorio/ativos')
+def relatorio_projetos_ativos():
+    """Rota para o relatório de projetos ativos com funcionalidades de exportação"""
+    try:
+        logger.info("Acessando relatório de projetos ativos")
+        
+        # Carrega dados atuais
+        dados_atuais = macro_service.carregar_dados(fonte=None)
+        
+        if dados_atuais.empty:
+            logger.warning("Dados vazios para o relatório de projetos ativos")
+            return render_template('macro/relatorio_projetos_ativos.html', 
+                                 title="Relatório de Projetos Ativos",
+                                 error="Nenhum dado disponível para exibição",
+                                 hora_atualizacao=datetime.now())
+        
+        # Prepara contexto para o template
+        context = {
+            'title': 'Relatório de Projetos Ativos',
+            'hora_atualizacao': datetime.now()
+        }
+        
+        logger.info(f"Renderizando relatório de projetos ativos com {len(dados_atuais)} registros")
+        return render_template('macro/relatorio_projetos_ativos.html', **context)
+        
+    except Exception as e:
+        logger.exception(f"Erro na rota relatorio_projetos_ativos: {str(e)}")
+        return render_template('macro/relatorio_projetos_ativos.html', 
+                             title="Relatório de Projetos Ativos",
+                             error=str(e),
+                             hora_atualizacao=datetime.now())
+
 # --- Rotas de API (Mantidas exatamente como estavam) ---
 @macro_bp.route('/api/especialistas')
 def api_especialistas():
