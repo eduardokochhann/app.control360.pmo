@@ -1108,10 +1108,10 @@
 
                         console.log("Clique em especialista:", nomeEspecialista);
                         const modalEspecialista = new bootstrap.Modal(document.getElementById('modalEspecialistaProjetos'));
-                        const modalBody = document.getElementById('listaProjetosModal');
+                        const modalBody = document.querySelector('#modalEspecialistaProjetos .modal-body');
                         
                         if (!modalBody) {
-                            console.error("Elemento 'listaProjetosModal' não encontrado");
+                            console.error("Elemento '.modal-body' dentro de '#modalEspecialistaProjetos' não encontrado");
                             return;
                         }
                         
@@ -1172,10 +1172,10 @@
 
                         console.log("Clique em account manager:", nomeAccount);
                         const modalAccount = new bootstrap.Modal(document.getElementById('modalAccountProjetos'));
-                        const modalBody = document.getElementById('listaProjetosAccountModal');
+                        const modalBody = document.querySelector('#modalAccountProjetos .modal-body');
                         
                         if (!modalBody) {
-                            console.error("Elemento 'listaProjetosAccountModal' não encontrado");
+                            console.error("Elemento '.modal-body' dentro de '#modalAccountProjetos' não encontrado");
                             return;
                         }
                         
