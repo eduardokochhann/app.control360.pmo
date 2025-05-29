@@ -2502,17 +2502,32 @@ class MacroService(BaseService):
                     no_prazo = (validos_para_prazo['VencimentoEm'] >= inicio_mes_ref).sum()
                     
                     # Fora do prazo: VencimentoEm < início do mês de referência
-                    fora_prazo = (validos_para_prazo['VencimentoEm'] < inicio_mes_ref).sum()
+                    fora_prazo_com_data = (validos_para_prazo['VencimentoEm'] < inicio_mes_ref).sum()
 
-                    logger.info(f"Contagem Final Prazo: No Prazo = {no_prazo}, Fora Prazo = {fora_prazo}")
+                    logger.info(f"Projetos com data válida: No Prazo = {no_prazo}, Fora Prazo com data = {fora_prazo_com_data}")
                     
-                    projetos_sem_vencimento = total_mes - len(validos_para_prazo) # Ajuste para comparar com o total após dropna
+                    # Projetos sem data de vencimento são considerados FORA DO PRAZO
+                    projetos_sem_vencimento = total_mes - len(validos_para_prazo)
+                    fora_prazo = fora_prazo_com_data + projetos_sem_vencimento
+                    
+                    logger.info(f"[Visão Atual] No Prazo = {no_prazo}, Fora Prazo = {fora_prazo} (incluindo {projetos_sem_vencimento} sem data)")
+                    
                     if projetos_sem_vencimento > 0:
-                        logger.warning(f"{projetos_sem_vencimento} projetos concluídos no mês não possuem data de vencimento válida e foram ignorados no cálculo de prazo.")
+                        # Identifica quais projetos não têm data de vencimento válida
+                        projetos_invalidos = dados_filtrados[dados_filtrados['VencimentoEm'].isna() | 
+                                                            dados_filtrados['VencimentoEm'].isnull()]
+                        
+                        logger.warning(f"[Visão Atual] {projetos_sem_vencimento} projetos sem data de vencimento serão considerados FORA DO PRAZO.")
+                        
+                        for _, projeto in projetos_invalidos.iterrows():
+                            numero = projeto.get('Numero', projeto.get('Número', 'N/A'))
+                            nome_projeto = projeto.get('Projeto', 'N/A')
+                            logger.warning(f"  - Projeto #{numero}: {nome_projeto}")
                 else:
-                     logger.warning("Nenhum projeto concluído no mês com data de vencimento válida encontrado após dropna.") # Log ajustado
-            else:
-                 logger.warning("Coluna 'VencimentoEm' não encontrada ou DataFrame 'dados_filtrados' vazio. Não foi possível calcular no_prazo/fora_prazo.")
+                    # Se não há projetos com data válida, todos são considerados fora do prazo
+                    no_prazo = 0
+                    fora_prazo = total_mes
+                    logger.warning(f"[Visão Atual] Nenhum projeto com data válida. Todos os {total_mes} projetos serão considerados FORA DO PRAZO.")
 
             # Calcular histórico (agora apenas do mês anterior)
             historico = self.calcular_historico_entregas(dados, mes_referencia)
