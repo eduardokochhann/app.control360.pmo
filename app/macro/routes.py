@@ -429,37 +429,49 @@ def api_projetos_por_especialista(nome_especialista):
         elif 'Numero' not in dados_especialista.columns:
             logger.warning(f"Coluna 'Numero' não encontrada para especialista '{nome_decodificado}'. Criando coluna vazia.")
             dados_especialista['Numero'] = ''
+        else:
+            # Garante que 'Numero' seja string para a consulta do backlog
+            dados_especialista['Numero'] = dados_especialista['Numero'].astype(str)
 
-        # Selecionar e renomear colunas relevantes
-        colunas = {
-            'Numero': 'numero',
-            'Projeto': 'projeto',
-            'Status': 'status',
-            'Squad': 'squad',
-            'HorasRestantes': 'horasRestantes',
-            'Conclusao': 'conclusao',
-            'VencimentoEm': 'dataPrevEnc',
-            'Horas': 'Horas' # Adicionado Horas (Esforço) - Não precisa renomear
-        }
-        
-        # Garantir que todas as colunas existem
-        colunas_existentes = {k: v for k, v in colunas.items() if k in dados_especialista.columns}
-        dados_formatados = dados_especialista[list(colunas_existentes.keys())].copy()
-        
-        # Renomear colunas
-        dados_formatados = dados_formatados.rename(columns=colunas_existentes)
+        # <<< INÍCIO: Adicionar verificação de backlog >>>
+        if not dados_especialista.empty and 'Numero' in dados_especialista.columns:
+            # Pega todos os IDs de projeto (números) únicos e não vazios
+            project_ids = dados_especialista['Numero'].dropna().unique().tolist()
+            project_ids = [pid for pid in project_ids if pid]  # Remove vazios
 
-        # Formatar a data de previsão de encerramento
-        if 'dataPrevEnc' in dados_formatados.columns:
-            dados_formatados['dataPrevEnc'] = pd.to_datetime(
-                dados_formatados['dataPrevEnc'], 
-                errors='coerce'
-            ).dt.strftime('%d/%m/%Y')
-            # Substituir NaN por 'N/A' sem usar inplace
-            dados_formatados['dataPrevEnc'] = dados_formatados['dataPrevEnc'].fillna('N/A')
+            if project_ids:
+                # Consulta o banco para ver quais IDs têm backlog
+                try:
+                    from app.models import Backlog
+                    from app import db
+                    
+                    backlogs_existentes = db.session.query(Backlog.project_id)\
+                                                    .filter(Backlog.project_id.in_(project_ids))\
+                                                    .all()
+                    # Cria um set com os IDs que têm backlog para busca rápida
+                    ids_com_backlog = {result[0] for result in backlogs_existentes}
+                    logger.info(f"Encontrados {len(ids_com_backlog)} backlogs para {len(project_ids)} projetos do especialista verificados.")
+                    
+                    # Adiciona a coluna 'backlog_exists' ao DataFrame
+                    dados_especialista['backlog_exists'] = dados_especialista['Numero'].apply(
+                        lambda pid: pid in ids_com_backlog if pd.notna(pid) else False
+                    )
 
-        # Converter para lista de dicionários
-        projetos = dados_formatados.to_dict('records')
+                except Exception as db_error:
+                    logger.error(f"Erro ao consultar backlogs existentes: {db_error}", exc_info=True)
+                    # Se der erro no DB, assume que nenhum backlog existe para não quebrar
+                    dados_especialista['backlog_exists'] = False
+            else:
+                logger.info("Nenhum ID de projeto válido encontrado para verificar backlog.")
+                dados_especialista['backlog_exists'] = False
+        else:
+            logger.info("DataFrame vazio ou sem coluna 'Numero'. Pulando verificação de backlog.")
+            if 'Numero' in dados_especialista.columns:
+                dados_especialista['backlog_exists'] = False
+        # <<< FIM: Adicionar verificação de backlog >>>
+
+        # Usar a função _formatar_projetos para manter consistência
+        projetos = macro_service._formatar_projetos(dados_especialista)
         
         logger.info(f"API: Encontrados {len(projetos)} projetos ativos para '{nome_decodificado}'.")
         return jsonify(projetos)
@@ -571,38 +583,49 @@ def api_projetos_por_account(nome_account):
         elif 'Numero' not in dados_account.columns:
             logger.warning(f"Coluna 'Numero' não encontrada para account '{nome_decodificado}'. Criando coluna vazia.")
             dados_account['Numero'] = ''
+        else:
+            # Garante que 'Numero' seja string para a consulta do backlog
+            dados_account['Numero'] = dados_account['Numero'].astype(str)
 
-        # Selecionar e renomear colunas relevantes
-        colunas = {
-            'Numero': 'numero',
-            'Projeto': 'projeto',
-            'Status': 'status',
-            'Squad': 'squad',
-            'Especialista': 'especialista',
-            'HorasRestantes': 'horasRestantes',
-            'Conclusao': 'conclusao',
-            'VencimentoEm': 'dataPrevEnc',
-            'Horas': 'Horas' # Adicionado Horas (Esforço) - Não precisa renomear
-        }
-        
-        # Garantir que todas as colunas existem
-        colunas_existentes = {k: v for k, v in colunas.items() if k in dados_account.columns}
-        dados_formatados = dados_account[list(colunas_existentes.keys())].copy()
-        
-        # Renomear colunas
-        dados_formatados = dados_formatados.rename(columns=colunas_existentes)
+        # <<< INÍCIO: Adicionar verificação de backlog >>>
+        if not dados_account.empty and 'Numero' in dados_account.columns:
+            # Pega todos os IDs de projeto (números) únicos e não vazios
+            project_ids = dados_account['Numero'].dropna().unique().tolist()
+            project_ids = [pid for pid in project_ids if pid]  # Remove vazios
 
-        # Formatar a data de previsão de encerramento
-        if 'dataPrevEnc' in dados_formatados.columns:
-            dados_formatados['dataPrevEnc'] = pd.to_datetime(
-                dados_formatados['dataPrevEnc'], 
-                errors='coerce'
-            ).dt.strftime('%d/%m/%Y')
-            # Substituir NaN por 'N/A'
-            dados_formatados['dataPrevEnc'] = dados_formatados['dataPrevEnc'].fillna('N/A')
+            if project_ids:
+                # Consulta o banco para ver quais IDs têm backlog
+                try:
+                    from app.models import Backlog
+                    from app import db
+                    
+                    backlogs_existentes = db.session.query(Backlog.project_id)\
+                                                    .filter(Backlog.project_id.in_(project_ids))\
+                                                    .all()
+                    # Cria um set com os IDs que têm backlog para busca rápida
+                    ids_com_backlog = {result[0] for result in backlogs_existentes}
+                    logger.info(f"Encontrados {len(ids_com_backlog)} backlogs para {len(project_ids)} projetos do account manager verificados.")
+                    
+                    # Adiciona a coluna 'backlog_exists' ao DataFrame
+                    dados_account['backlog_exists'] = dados_account['Numero'].apply(
+                        lambda pid: pid in ids_com_backlog if pd.notna(pid) else False
+                    )
 
-        # Converter para lista de dicionários
-        projetos = dados_formatados.to_dict('records')
+                except Exception as db_error:
+                    logger.error(f"Erro ao consultar backlogs existentes: {db_error}", exc_info=True)
+                    # Se der erro no DB, assume que nenhum backlog existe para não quebrar
+                    dados_account['backlog_exists'] = False
+            else:
+                logger.info("Nenhum ID de projeto válido encontrado para verificar backlog.")
+                dados_account['backlog_exists'] = False
+        else:
+            logger.info("DataFrame vazio ou sem coluna 'Numero'. Pulando verificação de backlog.")
+            if 'Numero' in dados_account.columns:
+                dados_account['backlog_exists'] = False
+        # <<< FIM: Adicionar verificação de backlog >>>
+
+        # Usar a função _formatar_projetos para manter consistência
+        projetos = macro_service._formatar_projetos(dados_account)
         
         logger.info(f"API: Encontrados {len(projetos)} projetos ativos para '{nome_decodificado}'.")
         return jsonify(projetos)

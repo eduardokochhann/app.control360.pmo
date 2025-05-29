@@ -1145,6 +1145,7 @@
                                                         <th>Horas Rest.</th>
                                                         <th>Previsão</th>
                                                         <th>Ações</th> <!-- Nova coluna -->
+                                                        <th>Backlog</th> <!-- Nova Coluna -->
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -1210,6 +1211,7 @@
                                                         <th>Horas Rest.</th>
                                                         <th>Previsão</th>
                                                         <th>Ações</th> <!-- Nova coluna -->
+                                                        <th>Backlog</th> 
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -1235,7 +1237,7 @@
                 try {
                     if (!p) {
                         console.error('Projeto indefinido ou nulo no Macro');
-                        return '<tr><td colspan="7" class="text-center">Dados inválidos</td></tr>';
+                        return '<tr><td colspan="9" class="text-center">Dados inválidos</td></tr>'; // Colspan atualizado para 9
                     }
 
                     const numero = p.numero || '';
