@@ -1445,3 +1445,109 @@ def download_status_report(project_id):
         # Para simplificar, vamos redirecionar, mas o flash conterá a mensagem de erro do WeasyPrint.
         return redirect(url_for('macro.status_report', project_id=project_id))
 # <<< FIM: Nova Rota para Download do PDF >>>
+
+@macro_bp.route('/api/projetos/status/<string:status>')
+def api_projetos_por_status(status):
+    """API para obter projetos filtrados por status específico"""
+    try:
+        logger.info(f"Buscando projetos com status: {status}")
+        
+        # Carrega dados atuais
+        dados = macro_service.carregar_dados()
+        
+        if dados.empty:
+            logger.warning("Dados vazios ao buscar projetos por status")
+            return jsonify([])
+        
+        # Normaliza o status para comparação (uppercase)
+        status_normalizado = status.upper().strip()
+        
+        # Se for status FECHADO, usar a função específica que filtra por mês atual
+        if status_normalizado == 'FECHADO':
+            logger.info("Status FECHADO detectado - usando filtro por mês atual")
+            projetos_concluidos = macro_service.calcular_projetos_concluidos(dados)
+            projetos_formatados = projetos_concluidos['dados'].to_dict('records')
+            
+            # Adiciona campos necessários para compatibilidade com o modal
+            for projeto in projetos_formatados:
+                # Adiciona campos que podem estar faltando
+                if 'numero' not in projeto:
+                    projeto['numero'] = ''
+                if 'dataPrevEnc' not in projeto:
+                    projeto['dataPrevEnc'] = 'N/A'
+                if 'horasRestantes' not in projeto:
+                    projeto['horasRestantes'] = 0.0  # Projetos fechados têm 0 horas restantes
+                if 'Horas' not in projeto:
+                    projeto['Horas'] = projeto.get('horasContratadas', 0.0)
+                
+                # REMOVE a coluna conclusão para projetos fechados
+                if 'conclusao' in projeto:
+                    del projeto['conclusao']
+            
+            logger.info(f"Encontrados {len(projetos_formatados)} projetos fechados no mês atual")
+            return jsonify(projetos_formatados)
+        
+        # Para outros status, usar o filtro normal
+        projetos_filtrados = dados[dados['Status'].str.upper() == status_normalizado].copy()
+        
+        if projetos_filtrados.empty:
+            logger.info(f"Nenhum projeto encontrado com status: {status}")
+            return jsonify([])
+        
+        # Adiciona verificação de backlog para todos os projetos (exceto FECHADO que já tem tratamento especial)
+        if status_normalizado != 'FECHADO':
+            # Certifica-se de que a coluna Numero existe
+            if 'Numero' not in projetos_filtrados.columns and 'Número' in projetos_filtrados.columns:
+                projetos_filtrados['Numero'] = projetos_filtrados['Número']
+            elif 'Numero' not in projetos_filtrados.columns:
+                logger.warning("Coluna 'Numero' não encontrada. Criando coluna vazia.")
+                projetos_filtrados['Numero'] = ''
+            else:
+                # Garante que 'Numero' seja string para a consulta do backlog
+                projetos_filtrados['Numero'] = projetos_filtrados['Numero'].astype(str)
+
+            # Adiciona verificação de backlog
+            if not projetos_filtrados.empty and 'Numero' in projetos_filtrados.columns:
+                # Pega todos os IDs de projeto (números) únicos e não vazios
+                project_ids = projetos_filtrados['Numero'].dropna().unique().tolist()
+                project_ids = [pid for pid in project_ids if pid]  # Remove vazios
+
+                if project_ids:
+                    # Consulta o banco para ver quais IDs têm backlog
+                    try:
+                        from app.models import Backlog
+                        from app import db
+                        
+                        backlogs_existentes = db.session.query(Backlog.project_id)\
+                                                        .filter(Backlog.project_id.in_(project_ids))\
+                                                        .all()
+                        # Cria um set com os IDs que têm backlog para busca rápida
+                        ids_com_backlog = {result[0] for result in backlogs_existentes}
+                        logger.info(f"Encontrados {len(ids_com_backlog)} backlogs para {len(project_ids)} projetos verificados.")
+                        
+                        # Adiciona a coluna 'backlog_exists' ao DataFrame
+                        projetos_filtrados['backlog_exists'] = projetos_filtrados['Numero'].apply(
+                            lambda pid: pid in ids_com_backlog if pd.notna(pid) else False
+                        )
+
+                    except Exception as db_error:
+                        logger.error(f"Erro ao consultar backlogs existentes: {db_error}", exc_info=True)
+                        # Se der erro no DB, assume que nenhum backlog existe para não quebrar
+                        projetos_filtrados['backlog_exists'] = False
+                else:
+                    logger.info("Nenhum ID de projeto válido encontrado para verificar backlog.")
+                    projetos_filtrados['backlog_exists'] = False
+            else:
+                logger.info("DataFrame vazio ou sem coluna 'Numero'. Pulando verificação de backlog.")
+                if 'Numero' in projetos_filtrados.columns:
+                    projetos_filtrados['backlog_exists'] = False
+        
+        # Formata os projetos usando a função padrão
+        projetos_formatados = macro_service._formatar_projetos(projetos_filtrados)
+        
+        logger.info(f"Encontrados {len(projetos_formatados)} projetos com status {status}")
+        return jsonify(projetos_formatados)
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar projetos por status {status}: {str(e)}", exc_info=True)
+        return jsonify({'erro': 'Erro interno do servidor'}), 500

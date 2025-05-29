@@ -346,9 +346,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <div id="listaProjetosModal">
-                            <p class="text-center">Carregando projetos...</p>
-                        </div>
+                        <!-- Conteúdo será preenchido dinamicamente pelo JavaScript -->
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
@@ -368,9 +366,27 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <div id="listaProjetosAccountModal">
-                            <p class="text-center">Carregando projetos...</p>
-                        </div>
+                        <!-- Conteúdo será preenchido dinamicamente pelo JavaScript -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Projetos por Status -->
+        <div class="modal fade" id="modalProjetosPorStatus" tabindex="-1" aria-labelledby="modalProjetosPorStatusLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title" id="modalProjetosPorStatusLabel">
+                            <i class="bi bi-clipboard-check"></i> Projetos por Status
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Conteúdo será preenchido dinamicamente pelo JavaScript -->
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
@@ -585,7 +601,7 @@
                                             <tbody>
                                                 {% for status, data in por_status.items() %}
                                                     {% if status in ['EM ATENDIMENTO', 'AGUARDANDO', 'BLOQUEADO'] %}
-                                                    <tr>
+                                                    <tr class="clickable-row" data-status="{{ status }}" style="cursor: pointer;" title="Clique para ver os projetos com status {{ status }}">
                                                         <td>
                                                             <span class="badge bg-{{ data.cor|default('light') }}">
                                                                 {{ status }}
@@ -615,7 +631,7 @@
                                             <tbody>
                                                 {% for status, data in por_status.items() %}
                                                     {% if status in ['NOVO', 'FECHADO'] %}
-                                                    <tr>
+                                                    <tr class="clickable-row" data-status="{{ status }}" style="cursor: pointer;" title="Clique para ver os projetos com status {{ status }}">
                                                         <td>
                                                             <span class="badge bg-{{ data.cor|default('light') }}">
                                                                 {{ status }}
@@ -1804,6 +1820,233 @@
                 });
             }
             // <<< FIM: Lógica de Busca >>>
+
+            // <<< INÍCIO: Lógica do Modal Projetos por Status >>>
+            // Adiciona evento de clique nas linhas da tabela de status
+            document.addEventListener('click', function(e) {
+                console.log('Clique detectado em:', e.target);
+                const row = e.target.closest('tr.clickable-row[data-status]');
+                if (row) {
+                    const status = row.getAttribute('data-status');
+                    console.log('Linha clicável encontrada com status:', status);
+                    if (status) {
+                        abrirModalProjetosPorStatus(status);
+                    }
+                } else {
+                    console.log('Não é uma linha clicável');
+                }
+            });
+
+            function abrirModalProjetosPorStatus(status) {
+                console.log(`Abrindo modal para status: ${status}`);
+                
+                // Atualiza o título do modal
+                document.getElementById('modalProjetosPorStatusLabel').innerHTML = `
+                    <i class="bi bi-clipboard-check"></i> Projetos com Status: ${status}
+                `;
+                
+                // Determina se é projeto fechado para ajustar colunas
+                const isProjetoFechado = status.toUpperCase() === 'FECHADO';
+                
+                // Atualiza o corpo do modal com a estrutura da tabela
+                const modalBody = document.querySelector('#modalProjetosPorStatus .modal-body');
+                
+                if (isProjetoFechado) {
+                    // Estrutura para projetos fechados (sem coluna Conclusão)
+                    modalBody.innerHTML = `
+                        <!-- Campo de Busca -->
+                        <div class="mb-3">
+                            <input type="text" class="form-control form-control-sm" id="buscaProjetosStatusInput" placeholder="Buscar por número, projeto, status ou squad...">
+                        </div>
+                        <!-- Fim Campo de Busca -->
+                        <div class="table-responsive">
+                            <table class="table table-hover" style="min-width: 800px;">
+                                <thead>
+                                    <tr>
+                                        <th>Número</th>
+                                        <th>Projeto</th>
+                                        <th>Status</th>
+                                        <th>Squad</th>
+                                        <th>Horas Restantes</th>
+                                        <th>Previsão Encerramento</th>
+                                        <th>Status Report</th>
+                                        <th>Backlog</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelaProjetosStatus">
+                                    <tr><td colspan="8" class="text-center">Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else {
+                    // Estrutura padrão para outros status
+                    modalBody.innerHTML = `
+                        <!-- Campo de Busca -->
+                        <div class="mb-3">
+                            <input type="text" class="form-control form-control-sm" id="buscaProjetosStatusInput" placeholder="Buscar por número, projeto, status ou squad...">
+                        </div>
+                        <!-- Fim Campo de Busca -->
+                        <div class="table-responsive">
+                            <table class="table table-hover" style="min-width: 800px;">
+                                <thead>
+                                    <tr>
+                                        <th>Número</th>
+                                        <th>Projeto</th>
+                                        <th>Status</th>
+                                        <th>Squad</th>
+                                        <th>Conclusão</th>
+                                        <th>Horas Restantes</th>
+                                        <th>Previsão Encerramento</th>
+                                        <th>Status Report</th>
+                                        <th>Backlog</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelaProjetosStatus">
+                                    <tr><td colspan="9" class="text-center">Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+                
+                // Mostra o modal
+                const modal = new bootstrap.Modal(document.getElementById('modalProjetosPorStatus'));
+                modal.show();
+                
+                // Busca os dados da API
+                fetch(`/macro/api/projetos/status/${encodeURIComponent(status)}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log(`Dados recebidos para status ${status}:`, data);
+                        
+                        const tbody = document.getElementById('tabelaProjetosStatus');
+                        
+                        if (!data || data.length === 0) {
+                            const colspan = isProjetoFechado ? 8 : 9;
+                            tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted">Nenhum projeto encontrado</td></tr>`;
+                            return;
+                        }
+                        
+                        // Usa a função de formatação apropriada baseada no status
+                        const formatarFuncao = isProjetoFechado ? formatarLinhaProjetoFechado : formatarLinhaMacro;
+                        tbody.innerHTML = data.map(formatarFuncao).join('');
+                        
+                        console.log(`Modal preenchido com ${data.length} projetos para status: ${status}`);
+                        
+                        // Reaplica a lógica de busca após carregar os dados
+                        aplicarBuscaModalStatus();
+                    })
+                    .catch(error => {
+                        console.error("Erro ao carregar projetos:", error);
+                        const tbody = document.getElementById('tabelaProjetosStatus');
+                        const colspan = isProjetoFechado ? 8 : 9;
+                        tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-danger">Erro ao carregar projetos: ${error.message}</td></tr>`;
+                    });
+            }
+
+            // Função para aplicar busca no modal de status
+            function aplicarBuscaModalStatus() {
+                const buscaStatusInput = document.getElementById('buscaProjetosStatusInput');
+                if (buscaStatusInput) {
+                    // Remove listeners anteriores
+                    buscaStatusInput.removeEventListener('keyup', buscarProjetosStatus);
+                    // Adiciona novo listener
+                    buscaStatusInput.addEventListener('keyup', buscarProjetosStatus);
+                }
+            }
+
+            function buscarProjetosStatus() {
+                const termoBusca = this.value.toLowerCase().trim();
+                const tabelaBody = document.getElementById('tabelaProjetosStatus');
+                
+                if (tabelaBody) {
+                    const linhas = tabelaBody.getElementsByTagName('tr');
+
+                    for (let i = 0; i < linhas.length; i++) {
+                        const linha = linhas[i];
+                        const celulas = linha.getElementsByTagName('td');
+                        let encontrou = false;
+
+                        // Verifica colunas relevantes (Número[0], Projeto[1], Status[2], Squad[3])
+                        if (celulas.length > 3) { 
+                            const textoLinha = (
+                                (celulas[0]?.textContent || '') + ' ' + 
+                                (celulas[1]?.textContent || '') + ' ' + 
+                                (celulas[2]?.textContent || '') + ' ' + 
+                                (celulas[3]?.textContent || '')
+                            ).toLowerCase();
+
+                            if (textoLinha.includes(termoBusca)) {
+                                encontrou = true;
+                            }
+                        }
+                        
+                        // Mostra ou esconde a linha
+                        linha.style.display = encontrou ? '' : 'none';
+                    }
+                }
+            }
+            // <<< FIM: Lógica do Modal Projetos por Status >>>
+
+            // Função específica para formatar linha de projetos FECHADOS (sem coluna Conclusão)
+            function formatarLinhaProjetoFechado(p) {
+                console.log("Formatando linha para projeto fechado:", p);
+                try {
+                    if (!p) {
+                        console.error('Projeto indefinido ou nulo no modal fechado');
+                        return '<tr><td colspan="8" class="text-center">Dados inválidos</td></tr>';
+                    }
+
+                    const numero = p.numero || '';
+                    const nomeProjeto = p.projeto || 'N/A';
+                    const status = p.status || 'N/D';
+                    const squad = p.squad || 'N/D';
+                    const horasRestantesRaw = p.horasRestantes;
+                    const backlog_exists = p.backlog_exists;
+                    
+                    const horasRestantes = !isNaN(parseFloat(horasRestantesRaw)) ? parseFloat(horasRestantesRaw) : 0;
+                    const vencimento = p.dataPrevEnc || 'N/A';
+
+                    // Para projetos fechados, horas restantes sempre 0 e sem barra de progresso
+                    const horasHTML = `<span class="text-muted">${horasRestantes.toFixed(1)}h</span>`;
+
+                    const numeroLink = numero ? `<a href="https://atendimento.sou.cloud/Ticket/Edit/${numero}" target="_blank" style="text-decoration: none; color: inherit;">${numero}</a>` : 'N/A';
+                    const statusBadge = `<span class="badge bg-${getStatusColor(status || '')}">${status || 'N/A'}</span>`;
+
+                    return `
+                        <tr>
+                            <td>${numeroLink}</td>
+                            <td class="projeto-col" title="${nomeProjeto}"><span class="truncate-text">${nomeProjeto}</span></td>
+                            <td class="status-col">${statusBadge}</td>
+                            <td class="squad-col" title="${squad}">${squad}</td>
+                            <td class="text-end">${horasHTML}</td>
+                            <td>${vencimento}</td>
+                            <td>
+                                <a href="/macro/status-report/${numero}" target="_blank" class="btn btn-sm btn-outline-primary" title="Status Report">
+                                    <i class="bi bi-file-earmark-text"></i>
+                                </a>
+                            </td>
+                            <td>
+                                ${backlog_exists && numero ? 
+                                    `<a href="/backlog/board/${numero}" target="_blank" class="btn btn-sm btn-info" title="Abrir Quadro de Backlog">
+                                        <i class="bi bi-kanban"></i>
+                                    </a>` : 
+                                    '<span class="text-muted small"><i class="bi bi-ban"></i></span>'
+                                }
+                            </td>
+                        </tr>
+                    `;
+                } catch (error) {
+                    console.error('Erro ao formatar linha de projeto fechado:', error, p);
+                    return '<tr><td colspan="8" class="text-center text-danger">Erro ao processar dados</td></tr>';
+                }
+            }
         });
     </script>
 </body>

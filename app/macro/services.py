@@ -481,7 +481,7 @@ class MacroService(BaseService):
                 data_inicio_fmt = data_inicio_str.strftime('%d/%m/%Y') if pd.notna(data_inicio_str) else ''
                 
                 data_vencimento_str = row.get(col_data_vencimento, pd.NaT)
-                data_vencimento_fmt = data_vencimento_str.strftime('%d/%m/%Y') if pd.notna(data_vencimento_str) else ''
+                data_vencimento_fmt = data_vencimento_str.strftime('%d/%m/%Y') if pd.notna(data_vencimento_str) else 'N/A'
                 
                 resultados.append({
                     'numero': numero_val,
@@ -491,11 +491,12 @@ class MacroService(BaseService):
                     'especialista': row.get(col_especialista, 'N/A'),
                     'account': account_val,
                     'data_inicio': data_inicio_fmt,
-                    'data_vencimento': data_vencimento_fmt,
+                    'dataPrevEnc': data_vencimento_fmt,  # CORRIGIDO: usar dataPrevEnc que o JS espera
                     'conclusao': float(row.get(col_conclusao, 0.0)) if pd.notna(row.get(col_conclusao)) else 0.0,
                     'horas_trabalhadas': float(row.get(col_horas_trab, 0.0)) if pd.notna(row.get(col_horas_trab)) else 0.0,
-                    'horas_previstas': float(row.get(col_horas_prev, 0.0)) if pd.notna(row.get(col_horas_prev)) else 0.0, # Adicionado Horas previstas
-                    'horas_restantes': float(row.get(col_horas_rest, 0.0)) if pd.notna(row.get(col_horas_rest)) else 0.0
+                    'horasRestantes': float(row.get(col_horas_rest, 0.0)) if pd.notna(row.get(col_horas_rest)) else 0.0,  # CORRIGIDO: usar horasRestantes que o JS espera
+                    'Horas': float(row.get(col_horas_prev, 0.0)) if pd.notna(row.get(col_horas_prev)) else 0.0,  # CORRIGIDO: usar Horas que o JS espera
+                    'backlog_exists': row.get('backlog_exists', False)  # Adiciona coluna backlog se existir
                 })
             return resultados
             
@@ -810,25 +811,32 @@ class MacroService(BaseService):
                 projetos_por_squad = {}
             
             # Prepara dados para o modal
-            colunas_modal = ['Projeto', 'Status', 'Squad', 'Horas', 'HorasTrabalhadas', 'DataTermino']
+            colunas_modal = ['Numero', 'Projeto', 'Status', 'Squad', 'Horas', 'HorasTrabalhadas', 'HorasRestantes', 'VencimentoEm', 'DataTermino']
             dados_modal = projetos_concluidos[colunas_modal].copy()
             
             # Renomeia colunas para o formato esperado pelo frontend
             dados_modal = dados_modal.rename(columns={
+                'Numero': 'numero',
                 'Projeto': 'projeto',
                 'Status': 'status',
                 'Squad': 'squad',
                 'Horas': 'horasContratadas',
                 'HorasTrabalhadas': 'horasTrabalhadas',
+                'HorasRestantes': 'horasRestantes',
+                'VencimentoEm': 'dataPrevEnc',
                 'DataTermino': 'dataTermino'
             })
             
             # Arredonda as horas para uma casa decimal
             dados_modal['horasContratadas'] = dados_modal['horasContratadas'].round(1)
             dados_modal['horasTrabalhadas'] = dados_modal['horasTrabalhadas'].round(1)
+            dados_modal['horasRestantes'] = dados_modal['horasRestantes'].round(1)
             
             # Formata a data de término para o padrão brasileiro
             dados_modal['dataTermino'] = pd.to_datetime(dados_modal['dataTermino']).dt.strftime('%d/%m/%Y')
+            
+            # Formata a data de vencimento para o padrão brasileiro
+            dados_modal['dataPrevEnc'] = pd.to_datetime(dados_modal['dataPrevEnc']).dt.strftime('%d/%m/%Y')
             
             # Calcula métricas adicionais
             metricas = {
