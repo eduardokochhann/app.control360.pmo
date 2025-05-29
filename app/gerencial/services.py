@@ -540,14 +540,20 @@ class GerencialService(BaseService):
         try:
             if dados is None:
                 dados = self.carregar_dados()
-                
-            if dados.empty:
-                return []
-
-            self.validar_dados(dados)
             
-            # Define o mês e ano atual
-            hoje = datetime.now()
+            if dados.empty:
+                logger.warning("Nenhum dado disponível para projetos para faturar")
+                return []
+            
+            # FILTRO: Exclui projetos com especialista CDB DATA SOLUTIONS
+            if 'Especialista' in dados.columns:
+                dados_antes = len(dados)
+                dados = dados[~dados['Especialista'].str.upper().isin(['CDB DATA SOLUTIONS'])]
+                dados_depois = len(dados)
+                logger.info(f"Projetos para faturar - Filtro CDB DATA SOLUTIONS: {dados_antes} → {dados_depois} (excluídos: {dados_antes - dados_depois})")
+            
+            # Obtém data atual para filtros
+            hoje = pd.Timestamp.now()
             mes_atual = hoje.month
             ano_atual = hoje.year
             
@@ -581,9 +587,9 @@ class GerencialService(BaseService):
                 logger.info(f"DEBUG - Exemplos de projetos Resolvidos: {projetos_resolvidos['Projeto'].head(3).tolist()}")
                 logger.info(f"DEBUG - Faturamento dos resolvidos: {projetos_resolvidos['Faturamento'].unique().tolist()}")
             
-            # Condição para faturar no término (TERMINO e ENGAJAMENTO)
+            # Condição para faturar no término - APENAS TERMINO (não ENGAJAMENTO)
             cond_termino = (
-                dados['Faturamento'].isin(['TERMINO', 'ENGAJAMENTO']) &
+                (dados['Faturamento'] == 'TERMINO') &
                 (
                     # Verifica se a data prevista (VencimentoEm) é no mês atual para projetos em andamento
                     ((~dados['Status'].isin(['Fechado', 'Resolvido'])) & 
@@ -596,23 +602,46 @@ class GerencialService(BaseService):
                 )
             )
             
-            projetos_termino = dados[
-                dados['Faturamento'].isin(['TERMINO', 'ENGAJAMENTO']) &
-                (
-                    ((dados['VencimentoEm'].dt.month == mes_atual) & 
-                     (dados['VencimentoEm'].dt.year == ano_atual)) |
-                    ((dados['DataTermino'].dt.month == mes_atual) & 
-                     (dados['DataTermino'].dt.year == ano_atual))
+            # Condição especial para ENGAJAMENTO - VencimentoEm + 30 dias no mês atual
+            # Calcula a data de faturamento (VencimentoEm + 30 dias)
+            dados_engajamento = dados[dados['Faturamento'] == 'ENGAJAMENTO'].copy()
+            if not dados_engajamento.empty:
+                # Adiciona 30 dias à data de vencimento
+                dados_engajamento['DataFaturamentoEngajamento'] = dados_engajamento['VencimentoEm'] + pd.Timedelta(days=30)
+                
+                # Verifica se a data de faturamento está no mês atual
+                cond_engajamento = (
+                    (dados['Faturamento'] == 'ENGAJAMENTO') &
+                    (dados['VencimentoEm'].notna()) &  # Garante que tem data de vencimento
+                    ((dados['VencimentoEm'] + pd.Timedelta(days=30)).dt.month == mes_atual) &
+                    ((dados['VencimentoEm'] + pd.Timedelta(days=30)).dt.year == ano_atual)
                 )
-            ]
+                
+                logger.info(f"Projetos ENGAJAMENTO com VencimentoEm + 30 dias no mês atual: {cond_engajamento.sum()}")
+            else:
+                cond_engajamento = pd.Series([False] * len(dados), index=dados.index)
+                logger.info("Nenhum projeto com faturamento ENGAJAMENTO encontrado")
             
-            logger.info(f"Projetos com faturamento TERMINO/ENGAJAMENTO com datas no mês atual: {len(projetos_termino)}")
+            # Log dos projetos TERMINO
+            projetos_termino = dados[cond_termino]
+            logger.info(f"Projetos com faturamento TERMINO com datas no mês atual: {len(projetos_termino)}")
             if len(projetos_termino) > 0:
-                logger.info(f"Exemplos: {projetos_termino['Projeto'].head(3).tolist()}")
+                logger.info(f"Exemplos TERMINO: {projetos_termino['Projeto'].head(3).tolist()}")
+            
+            # Log dos projetos ENGAJAMENTO
+            projetos_engajamento = dados[cond_engajamento]
+            logger.info(f"Projetos com faturamento ENGAJAMENTO (VencimentoEm + 30 dias): {len(projetos_engajamento)}")
+            if len(projetos_engajamento) > 0:
+                logger.info(f"Exemplos ENGAJAMENTO: {projetos_engajamento['Projeto'].head(3).tolist()}")
+                # Log das datas para debug
+                for _, row in projetos_engajamento.head(3).iterrows():
+                    venc_original = row['VencimentoEm'].strftime('%d/%m/%Y') if pd.notna(row['VencimentoEm']) else 'N/A'
+                    venc_mais_30 = (row['VencimentoEm'] + pd.Timedelta(days=30)).strftime('%d/%m/%Y') if pd.notna(row['VencimentoEm']) else 'N/A'
+                    logger.info(f"  {row['Projeto']}: Vencimento={venc_original}, Faturamento={venc_mais_30}")
             
             # Filtra projetos para faturar (exclui FTOP)
             projetos_para_faturar = dados[
-                (cond_inicio | cond_termino) & 
+                (cond_inicio | cond_termino | cond_engajamento) & 
                 (dados['Faturamento'] != 'FTOP')
             ].copy()
             
@@ -620,8 +649,9 @@ class GerencialService(BaseService):
             
             # Formata as datas para exibição - NOVA LÓGICA:
             # 1. Projetos PRIME/PLUS/INICIO usam DataInicio
-            # 2. Projetos TERMINO/ENGAJAMENTO com status ativo usam VencimentoEm
-            # 3. Projetos TERMINO/ENGAJAMENTO já finalizados usam DataTermino
+            # 2. Projetos TERMINO com status ativo usam VencimentoEm
+            # 3. Projetos TERMINO já finalizados usam DataTermino
+            # 4. Projetos ENGAJAMENTO usam VencimentoEm + 30 dias
             
             # Inicializa a coluna de data formatada
             projetos_para_faturar['DataFaturamento'] = None
@@ -634,27 +664,37 @@ class GerencialService(BaseService):
                     projetos_para_faturar.loc[mask_inicio_valido, 'DataFaturamento'] = projetos_para_faturar.loc[mask_inicio_valido, 'DataInicio'].dt.strftime('%d/%m/%Y')
                     logger.info(f"Projetos de início com data válida: {mask_inicio_valido.sum()}")
             
-            # Caso 2: TERMINO/ENGAJAMENTO com status não concluído usam VencimentoEm
+            # Caso 2: TERMINO com status não concluído usam VencimentoEm
             mask_termino_ativo = (
-                projetos_para_faturar['Faturamento'].isin(['TERMINO', 'ENGAJAMENTO']) & 
+                (projetos_para_faturar['Faturamento'] == 'TERMINO') & 
                 ~projetos_para_faturar['Status'].isin(['Fechado', 'Resolvido'])
             )
             if mask_termino_ativo.any():
                 mask_termino_ativo_valido = mask_termino_ativo & pd.notna(projetos_para_faturar['VencimentoEm'])
                 if mask_termino_ativo_valido.any():
                     projetos_para_faturar.loc[mask_termino_ativo_valido, 'DataFaturamento'] = projetos_para_faturar.loc[mask_termino_ativo_valido, 'VencimentoEm'].dt.strftime('%d/%m/%Y')
-                    logger.info(f"Projetos de término ativos com data de vencimento válida: {mask_termino_ativo_valido.sum()}")
+                    logger.info(f"Projetos TERMINO ativos com data de vencimento válida: {mask_termino_ativo_valido.sum()}")
             
-            # Caso 3: TERMINO/ENGAJAMENTO com status concluído usam DataTermino
+            # Caso 3: TERMINO com status concluído usam DataTermino
             mask_termino_concluido = (
-                projetos_para_faturar['Faturamento'].isin(['TERMINO', 'ENGAJAMENTO']) & 
+                (projetos_para_faturar['Faturamento'] == 'TERMINO') & 
                 projetos_para_faturar['Status'].isin(['Fechado', 'Resolvido'])
             )
             if mask_termino_concluido.any():
                 mask_termino_concluido_valido = mask_termino_concluido & pd.notna(projetos_para_faturar['DataTermino'])
                 if mask_termino_concluido_valido.any():
                     projetos_para_faturar.loc[mask_termino_concluido_valido, 'DataFaturamento'] = projetos_para_faturar.loc[mask_termino_concluido_valido, 'DataTermino'].dt.strftime('%d/%m/%Y')
-                    logger.info(f"Projetos de término concluídos com data de término válida: {mask_termino_concluido_valido.sum()}")
+                    logger.info(f"Projetos TERMINO concluídos com data de término válida: {mask_termino_concluido_valido.sum()}")
+            
+            # Caso 4: ENGAJAMENTO usam VencimentoEm + 30 dias
+            mask_engajamento = projetos_para_faturar['Faturamento'] == 'ENGAJAMENTO'
+            if mask_engajamento.any():
+                mask_engajamento_valido = mask_engajamento & pd.notna(projetos_para_faturar['VencimentoEm'])
+                if mask_engajamento_valido.any():
+                    # Calcula VencimentoEm + 30 dias e formata
+                    data_faturamento_engajamento = (projetos_para_faturar.loc[mask_engajamento_valido, 'VencimentoEm'] + pd.Timedelta(days=30)).dt.strftime('%d/%m/%Y')
+                    projetos_para_faturar.loc[mask_engajamento_valido, 'DataFaturamento'] = data_faturamento_engajamento
+                    logger.info(f"Projetos ENGAJAMENTO com data de vencimento + 30 dias válida: {mask_engajamento_valido.sum()}")
             
             # Atualiza a coluna VencimentoEm para exibição com nossa nova DataFaturamento
             projetos_para_faturar['VencimentoEm'] = projetos_para_faturar['DataFaturamento']
@@ -664,6 +704,7 @@ class GerencialService(BaseService):
             projetos_para_faturar.loc[mask_inicio & pd.notna(projetos_para_faturar['DataFaturamento']), 'TipoData'] = 'Início'
             projetos_para_faturar.loc[mask_termino_ativo & pd.notna(projetos_para_faturar['DataFaturamento']), 'TipoData'] = 'Vencimento'
             projetos_para_faturar.loc[mask_termino_concluido & pd.notna(projetos_para_faturar['DataFaturamento']), 'TipoData'] = 'Término'
+            projetos_para_faturar.loc[mask_engajamento & pd.notna(projetos_para_faturar['DataFaturamento']), 'TipoData'] = 'Engajamento+30'
             
             # Seleciona e renomeia as colunas necessárias
             colunas = ['Projeto', 'Squad', 'Account Manager', 'Faturamento', 'Status', 'VencimentoEm', 'TipoData']
@@ -788,43 +829,67 @@ class GerencialService(BaseService):
 
             # --- Métricas de projetos para faturar (CORRIGIDO INDENTAÇÃO) ---
             hoje_fatura = pd.Timestamp.now()
-            mes_atual_fatura = hoje_fatura.month
-            ano_atual_fatura = hoje_fatura.year # Usar ano de hoje_fatura
+            mes_atual = hoje_fatura.month
+            ano_atual = hoje_fatura.year
+            
+            # FILTRO: Exclui projetos com especialista CDB DATA SOLUTIONS para cálculo do contador
+            dados_faturamento = dados_limpos.copy()
+            if 'Especialista' in dados_faturamento.columns:
+                dados_antes = len(dados_faturamento)
+                dados_faturamento = dados_faturamento[~dados_faturamento['Especialista'].str.upper().isin(['CDB DATA SOLUTIONS'])]
+                dados_depois = len(dados_faturamento)
+                logger.info(f"[Contador] Filtro CDB DATA SOLUTIONS: {dados_antes} → {dados_depois} (excluídos: {dados_antes - dados_depois})")
             
             # NOVA LÓGICA PARA CALCULAR PROJETOS PARA FATURAR
             # Condição para faturar no início (PRIME, PLUS, INICIO)
             cond_inicio = (
-                dados_limpos['Faturamento'].isin(['PRIME', 'PLUS', 'INICIO']) &
-                (dados_limpos['DataInicio'].dt.month == mes_atual_fatura) &
-                (dados_limpos['DataInicio'].dt.year == ano_atual_fatura)
+                dados_faturamento['Faturamento'].isin(['PRIME', 'PLUS', 'INICIO']) &
+                (dados_faturamento['DataInicio'].dt.month == mes_atual) &
+                (dados_faturamento['DataInicio'].dt.year == ano_atual)
             )
             
-            # Condição para faturar no término (TERMINO e ENGAJAMENTO)
+            # Condição para faturar no término - APENAS TERMINO (não ENGAJAMENTO)
             cond_termino = (
-                dados_limpos['Faturamento'].isin(['TERMINO', 'ENGAJAMENTO']) &
+                (dados_faturamento['Faturamento'] == 'TERMINO') &
                 (
                     # Verifica se a data prevista (VencimentoEm) é no mês atual para projetos em andamento
-                    ((~dados_limpos['Status'].isin(['Fechado', 'Resolvido'])) & 
-                     (dados_limpos['VencimentoEm'].dt.month == mes_atual_fatura) & 
-                     (dados_limpos['VencimentoEm'].dt.year == ano_atual_fatura)) |
+                    ((~dados_faturamento['Status'].isin(['Fechado', 'Resolvido'])) & 
+                     (dados_faturamento['VencimentoEm'].dt.month == mes_atual) & 
+                     (dados_faturamento['VencimentoEm'].dt.year == ano_atual)) |
                     # OU se a data de término (DataTermino) é no mês atual para projetos concluídos
-                    ((dados_limpos['Status'].isin(['Fechado', 'Resolvido'])) & 
-                     (dados_limpos['DataTermino'].dt.month == mes_atual_fatura) & 
-                     (dados_limpos['DataTermino'].dt.year == ano_atual_fatura))
+                    ((dados_faturamento['Status'].isin(['Fechado', 'Resolvido'])) & 
+                     (dados_faturamento['DataTermino'].dt.month == mes_atual) & 
+                     (dados_faturamento['DataTermino'].dt.year == ano_atual))
                 )
             )
             
+            # Condição especial para ENGAJAMENTO - VencimentoEm + 30 dias no mês atual
+            dados_engajamento = dados_faturamento[dados_faturamento['Faturamento'] == 'ENGAJAMENTO'].copy()
+            if not dados_engajamento.empty:
+                # Verifica se a data de faturamento está no mês atual
+                cond_engajamento = (
+                    (dados_faturamento['Faturamento'] == 'ENGAJAMENTO') &
+                    (dados_faturamento['VencimentoEm'].notna()) &  # Garante que tem data de vencimento
+                    ((dados_faturamento['VencimentoEm'] + pd.Timedelta(days=30)).dt.month == mes_atual) &
+                    ((dados_faturamento['VencimentoEm'] + pd.Timedelta(days=30)).dt.year == ano_atual)
+                )
+                logger.info(f"[Contador] Projetos ENGAJAMENTO com VencimentoEm + 30 dias no mês atual: {cond_engajamento.sum()}")
+            else:
+                cond_engajamento = pd.Series([False] * len(dados_faturamento), index=dados_faturamento.index)
+                logger.info("[Contador] Nenhum projeto com faturamento ENGAJAMENTO encontrado")
+            
             # Filtra projetos para faturar (exclui FTOP)
-            projetos_para_faturamento_df = dados_limpos[
-                (cond_inicio | cond_termino) & 
-                (dados_limpos['Faturamento'] != 'FTOP')
+            projetos_para_faturamento_df = dados_faturamento[
+                (cond_inicio | cond_termino | cond_engajamento) & 
+                (dados_faturamento['Faturamento'] != 'FTOP')
             ]
             
             # Número de projetos para faturar
             projetos_para_faturar_count = len(projetos_para_faturamento_df)
             
             # Registra no log para debug
-            logger.info(f"Total de projetos para faturar (nova lógica): {projetos_para_faturar_count}")
+            logger.info(f"[Contador Mensal] Total de projetos para faturar (nova lógica com ENGAJAMENTO): {projetos_para_faturar}")
+            logger.info(f"[Contador Mensal] Breakdown: INÍCIO={cond_inicio.sum()}, TERMINO={cond_termino.sum()}, ENGAJAMENTO={cond_engajamento.sum()}")
 
             # Métricas avançadas (Passa dados_limpos originais)
             metricas_avancadas = self.calcular_metricas_avancadas(dados_limpos)
@@ -1907,35 +1972,59 @@ class GerencialService(BaseService):
 
             # Métricas de projetos para faturar (código existente mantido)
             hoje_fatura = pd.Timestamp.now()
-            mes_atual_fatura = hoje_fatura.month
+            mes_atual = hoje_fatura.month
+            ano_atual = hoje_fatura.year
+
+            # FILTRO: Exclui projetos com especialista CDB DATA SOLUTIONS para cálculo do contador
+            dados_faturamento = dados_limpos.copy()
+            if 'Especialista' in dados_faturamento.columns:
+                dados_antes = len(dados_faturamento)
+                dados_faturamento = dados_faturamento[~dados_faturamento['Especialista'].str.upper().isin(['CDB DATA SOLUTIONS'])]
+                dados_depois = len(dados_faturamento)
+                logger.info(f"[Contador Mensal] Filtro CDB DATA SOLUTIONS: {dados_antes} → {dados_depois} (excluídos: {dados_antes - dados_depois})")
 
             # NOVA LÓGICA PARA CALCULAR PROJETOS PARA FATURAR
             # Condição para faturar no início (PRIME, PLUS, INICIO)
             cond_inicio = (
-                dados_limpos['Faturamento'].isin(['PRIME', 'PLUS', 'INICIO']) &
-                (dados_limpos['DataInicio'].dt.month == mes_atual_fatura) &
-                (dados_limpos['DataInicio'].dt.year == hoje_fatura.year)
+                dados_faturamento['Faturamento'].isin(['PRIME', 'PLUS', 'INICIO']) &
+                (dados_faturamento['DataInicio'].dt.month == mes_atual) &
+                (dados_faturamento['DataInicio'].dt.year == ano_atual)
             )
             
-            # Condição para faturar no término (TERMINO e ENGAJAMENTO)
+            # Condição para faturar no término - APENAS TERMINO (não ENGAJAMENTO)
             cond_termino = (
-                dados_limpos['Faturamento'].isin(['TERMINO', 'ENGAJAMENTO']) &
+                (dados_faturamento['Faturamento'] == 'TERMINO') &
                 (
                     # Verifica se a data prevista (VencimentoEm) é no mês atual para projetos em andamento
-                    ((~dados_limpos['Status'].isin(['Fechado', 'Resolvido'])) & 
-                     (dados_limpos['VencimentoEm'].dt.month == mes_atual_fatura) & 
-                     (dados_limpos['VencimentoEm'].dt.year == hoje_fatura.year)) |
+                    ((~dados_faturamento['Status'].isin(['Fechado', 'Resolvido'])) & 
+                     (dados_faturamento['VencimentoEm'].dt.month == mes_atual) & 
+                     (dados_faturamento['VencimentoEm'].dt.year == ano_atual)) |
                     # OU se a data de término (DataTermino) é no mês atual para projetos concluídos
-                    ((dados_limpos['Status'].isin(['Fechado', 'Resolvido'])) & 
-                     (dados_limpos['DataTermino'].dt.month == mes_atual_fatura) & 
-                     (dados_limpos['DataTermino'].dt.year == hoje_fatura.year))
+                    ((dados_faturamento['Status'].isin(['Fechado', 'Resolvido'])) & 
+                     (dados_faturamento['DataTermino'].dt.month == mes_atual) & 
+                     (dados_faturamento['DataTermino'].dt.year == ano_atual))
                 )
             )
             
+            # Condição especial para ENGAJAMENTO - VencimentoEm + 30 dias no mês atual
+            dados_engajamento = dados_faturamento[dados_faturamento['Faturamento'] == 'ENGAJAMENTO'].copy()
+            if not dados_engajamento.empty:
+                # Verifica se a data de faturamento está no mês atual
+                cond_engajamento = (
+                    (dados_faturamento['Faturamento'] == 'ENGAJAMENTO') &
+                    (dados_faturamento['VencimentoEm'].notna()) &  # Garante que tem data de vencimento
+                    ((dados_faturamento['VencimentoEm'] + pd.Timedelta(days=30)).dt.month == mes_atual) &
+                    ((dados_faturamento['VencimentoEm'] + pd.Timedelta(days=30)).dt.year == ano_atual)
+                )
+                logger.info(f"[Contador Mensal] Projetos ENGAJAMENTO com VencimentoEm + 30 dias no mês atual: {cond_engajamento.sum()}")
+            else:
+                cond_engajamento = pd.Series([False] * len(dados_faturamento), index=dados_faturamento.index)
+                logger.info("[Contador Mensal] Nenhum projeto com faturamento ENGAJAMENTO encontrado")
+            
             # Filtra projetos para faturar (exclui FTOP)
-            projetos_para_faturamento = dados_limpos[
-                (cond_inicio | cond_termino) & 
-                (dados_limpos['Faturamento'] != 'FTOP')
+            projetos_para_faturamento = dados_faturamento[
+                (cond_inicio | cond_termino | cond_engajamento) & 
+                (dados_faturamento['Faturamento'] != 'FTOP')
             ]
             
             # Número de projetos para faturar

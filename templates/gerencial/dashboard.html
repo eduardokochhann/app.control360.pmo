@@ -641,8 +641,6 @@
                     <div class="card-body">
                         <div class="small text-muted mb-3">
                             <i class="bi bi-info-circle"></i> Projetos com horas negativas têm suas horas restantes ajustadas para 10% do esforço total.
-                            <br>
-                            <i class="bi bi-info-circle"></i> Squad "Em Planejamento - PMO" possui capacidade de 1 pessoa (180h), enquanto os demais squads possuem 3 pessoas (540h).
                         </div>
                         <div class="table-responsive">
                             <table class="table table-sm">
@@ -968,7 +966,7 @@
                                     <th>Account Manager</th>
                                     <th>Faturamento</th>
                                     <th>Status</th>
-                                    <th>Vencimento Em</th>
+                                    <th>Data Ref.</th>
                                 </tr>
                             </thead>
                             <tbody id="tabela-faturamento">
@@ -1012,7 +1010,7 @@
                                     <th>Status</th>
                                     <th>Conclusão</th>
                                     <th>Horas Restantes</th>
-                                    <th>Vencimento</th>
+                                    <th>Vencimento Em</th>
                                 </tr>
                             </thead>
                             <tbody id="tabela-criticos">
@@ -1094,9 +1092,9 @@
                 'FEOP': 'Faturado em outro projeto',
                 'PRIME': 'PRIME',
                 'PLUS': 'PLUS',
-                'INICIO': 'INICIO',
-                'TERMINO': 'TERMINO',
-                'ENGAJAMENTO': 'ENGAJAMENTO'
+                'INICIO': 'Faturado no início',
+                'TERMINO': 'Faturado no término',
+                'ENGAJAMENTO': 'Engajamento'
             };
             
             // Definição de cores para cada tipo (EAN com cor diferente de FEOP)
@@ -1670,7 +1668,7 @@
         function exportarFaturamento() {
             const data = tabelaFaturamentoDt.data().toArray();
             const csv = [
-                ['Projeto', 'Squad', 'Account Manager', 'Faturamento', 'Status', 'Vencimento Em'],
+                ['Projeto', 'Squad', 'Account Manager', 'Faturamento', 'Status', 'Data Ref.'],
                 ...data.map(row => [
                     row[0].replace(/<[^>]+>/g, ''), // Remove HTML tags
                     row[1],
@@ -1781,7 +1779,7 @@
         function exportarProjetosCriticos() {
             const data = tabelaCriticosDt.data().toArray();
             const csv = [
-                ['Número', 'Projeto', 'Squad', 'Status', 'Conclusão', 'Horas Restantes', 'Vencimento'],
+                ['Número', 'Projeto', 'Squad', 'Status', 'Conclusão', 'Horas Restantes', 'Vencimento Em'],
                 ...data.map(row => [
                     row[0],
                     row[1],
