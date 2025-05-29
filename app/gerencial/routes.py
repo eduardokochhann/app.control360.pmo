@@ -60,7 +60,7 @@ def dashboard():
             dados_filtrados = dados_filtrados[dados_filtrados['Faturamento'] == faturamento]
         
         # Processa dados para o dashboard
-        resultado = gerencial_service.processar_gerencial(dados_filtrados)
+        resultado = gerencial_service.processar_gerencial(dados_filtrados, squad_filtro=squad, faturamento_filtro=faturamento)
         
         # Log detalhado dos projetos críticos
         logger.info(f"[{request_id}] Total de projetos críticos: {len(resultado['projetos_criticos'])}")

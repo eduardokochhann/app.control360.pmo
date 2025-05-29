@@ -757,16 +757,26 @@ class GerencialService(BaseService):
             self.logger.error(f"Erro ao formatar projetos: {str(e)}")
             return []
 
-    def processar_gerencial(self, dados):
-        """Processa dados para la visão gerencial"""
+    def processar_gerencial(self, dados, squad_filtro=None, faturamento_filtro=None):
+        """
+        Processa dados para o dashboard gerencial
+        
+        Args:
+            dados: DataFrame com os dados dos projetos
+            squad_filtro: Filtro de squad aplicado na rota (se houver)
+            faturamento_filtro: Filtro de faturamento aplicado na rota (se houver)
+        """
         try:
-            if dados.empty:
-                logger.warning("DataFrame vazio recebido em processar_gerencial")
-                return self.criar_estrutura_vazia()
+            logger.info(f"[Burn Rate Debug] Parâmetros recebidos - squad_filtro: '{squad_filtro}', faturamento_filtro: '{faturamento_filtro}'")
             
-            # Prepara dados base
-            dados_limpos = dados.copy()
+            # Validação inicial
+            if dados.empty:
+                logger.warning("DataFrame vazio recebido para processamento")
+                return self.criar_estrutura_vazia()
 
+            # Cria cópia dos dados para evitar modificações no original
+            dados_limpos = dados.copy()
+            
             # --- PRÉ-PROCESSAMENTO DO TEMPO TRABALHADO ---
             if 'Tempo trabalhado' in dados_limpos.columns:
                 # Função robusta para conversão de horas
@@ -787,9 +797,10 @@ class GerencialService(BaseService):
                 
                 # Debug: Verifique a conversão
                 logger.debug(f"Total horas convertidas: {dados_limpos['HorasTrabalhadas'].sum():.2f}")
-                logger.debug(f"Exemplo de conversão: {dados_limpos['Tempo trabalhado'].iloc[0]} -> {dados_limpos['HorasTrabalhadas'].iloc[0]:.2f}")
+                if not dados_limpos.empty:
+                    logger.debug(f"Exemplo de conversão: {dados_limpos['Tempo trabalhado'].iloc[0]} -> {dados_limpos['HorasTrabalhadas'].iloc[0]:.2f}")
 
-            # Calcula métricas existentes
+            # Calcula métricas básicas
             projetos_ativos = len(dados_limpos[~dados_limpos['Status'].isin(self.status_concluidos)])
             projetos_em_atendimento = len(dados_limpos[
                 dados_limpos['Status'].isin(['Em Atendimento', 'Novo'])
@@ -800,26 +811,90 @@ class GerencialService(BaseService):
             logger.info(f"DEBUG - Card - Valores únicos na coluna Status: {dados_limpos['Status'].unique().tolist()}")
             logger.info(f"DEBUG - Card - Projetos ativos: {projetos_ativos}")
             logger.info(f"DEBUG - Card - Projetos em atendimento: {projetos_em_atendimento}")
-
-            # --- CÁLCULO DO BURN RATE (Mensalizado) ---
-            # Determina o mês/ano anterior para cálculo
-            hoje = datetime.now()
-            data_mes_anterior = hoje - timedelta(days=hoje.day) # Vai para o último dia do mês anterior
-            ano_calc = data_mes_anterior.year
-            mes_calc = data_mes_anterior.month
+            
+            # --- CÁLCULO DO BURN RATE ---
+            # Determina ano e mês para cálculo
+            hoje = pd.Timestamp.now()
+            ano_calc = hoje.year
+            mes_calc = hoje.month
             
             # Extrai o filtro de squad aplicado na rota (se houver)
             squad_filtro_rota = None
-            # Verifica se dados_limpos não está vazio antes de acessar .unique()
-            if not dados_limpos.empty and 'Squad' in dados_limpos.columns:
-                squads_unicos = dados_limpos['Squad'].unique()
-                if len(squads_unicos) == 1 and squads_unicos[0] != 'Em Planejamento - PMO':
-                    squad_filtro_rota = squads_unicos[0]
-                    logger.info(f"[Burn Rate Mensal] Detectado filtro de squad único: {squad_filtro_rota}")
+            if squad_filtro and squad_filtro.strip() and squad_filtro != 'Todos':
+                squad_filtro_rota = squad_filtro.strip()
+                logger.info(f"[Burn Rate] Detectado filtro de squad da rota: {squad_filtro_rota}")
             
-            # Chama a nova função para obter o burn rate mensal
-            burn_rate = self.calcular_burn_rate_mensal(ano_calc, mes_calc, squad_filtro=squad_filtro_rota)
-            
+            # NOVA LÓGICA: Se há filtro aplicado, calcula Burn Rate baseado nos dados atuais
+            # para ser consistente com a Ocupação por Squad
+            if squad_filtro_rota:
+                logger.info(f"[Burn Rate] Calculando com base nos dados atuais filtrados para squad: {squad_filtro_rota}")
+                
+                # Filtra dados para o squad específico (excluindo CDB DATA SOLUTIONS)
+                dados_burn_atual = dados_limpos[
+                    (dados_limpos['Squad'] == squad_filtro_rota) &
+                    (~dados_limpos['Status'].isin(self.status_concluidos)) &
+                    (~dados_limpos['Especialista'].str.upper().isin(['CDB DATA SOLUTIONS']))
+                ].copy()
+                
+                if not dados_burn_atual.empty and 'HorasRestantes' in dados_burn_atual.columns:
+                    # Ajusta horas restantes negativas para 10% do esforço inicial (mesma lógica da ocupação)
+                    def ajustar_horas_restantes(row):
+                        if row['HorasRestantes'] >= 0:
+                            return row['HorasRestantes']
+                        else:
+                            return 0.10 * row['Horas']
+                    
+                    dados_burn_atual['HorasRestantesAjustadas'] = dados_burn_atual.apply(ajustar_horas_restantes, axis=1)
+                    
+                    # Calcula burn rate baseado nas horas restantes ajustadas vs capacidade mensal
+                    horas_restantes_squad = dados_burn_atual['HorasRestantesAjustadas'].sum()
+                    capacidade_squad = 540  # 540h por squad
+                    
+                    # Calcula o percentual de ocupação (igual ao cálculo da Ocupação por Squad)
+                    burn_rate = round((horas_restantes_squad / capacidade_squad) * 100, 1) if capacidade_squad > 0 else 0.0
+                    
+                    logger.info(f"[Burn Rate] Squad {squad_filtro_rota}: {horas_restantes_squad:.2f}h restantes de {capacidade_squad}h = {burn_rate}%")
+                else:
+                    burn_rate = 0.0
+                    logger.warning(f"[Burn Rate] Nenhum dado encontrado para squad {squad_filtro_rota}")
+            else:
+                # Sem filtro específico: calcula baseado nos dados atuais (consistente com Ocupação por Squad)
+                logger.info("[Burn Rate] Calculando média geral com base nos dados atuais")
+                
+                # Filtra dados ativos (excluindo CDB DATA SOLUTIONS e PMO)
+                dados_burn_geral = dados_limpos[
+                    (~dados_limpos['Status'].isin(self.status_concluidos)) &
+                    (dados_limpos['Squad'] != 'Em Planejamento - PMO') &
+                    (~dados_limpos['Especialista'].str.upper().isin(['CDB DATA SOLUTIONS']))
+                ].copy()
+                
+                if not dados_burn_geral.empty and 'HorasRestantes' in dados_burn_geral.columns:
+                    # Ajusta horas restantes negativas para 10% do esforço inicial (mesma lógica da ocupação)
+                    def ajustar_horas_restantes_geral(row):
+                        if row['HorasRestantes'] >= 0:
+                            return row['HorasRestantes']
+                        else:
+                            return 0.10 * row['Horas']
+                    
+                    dados_burn_geral['HorasRestantesAjustadas'] = dados_burn_geral.apply(ajustar_horas_restantes_geral, axis=1)
+                    
+                    # Calcula burn rate baseado nas horas restantes ajustadas vs capacidade total
+                    horas_restantes_total = dados_burn_geral['HorasRestantesAjustadas'].sum()
+                    
+                    # Calcula capacidade total baseada nos squads presentes (excluindo PMO)
+                    squads_ativos = dados_burn_geral['Squad'].unique()
+                    num_squads_ativos = len(squads_ativos)
+                    capacidade_total = num_squads_ativos * 540  # 540h por squad
+                    
+                    # Calcula o percentual de ocupação geral
+                    burn_rate = round((horas_restantes_total / capacidade_total) * 100, 1) if capacidade_total > 0 else 0.0
+                    
+                    logger.info(f"[Burn Rate] Média geral: {horas_restantes_total:.2f}h restantes de {capacidade_total}h ({num_squads_ativos} squads) = {burn_rate}%")
+                    logger.info(f"[Burn Rate] Squads considerados: {list(squads_ativos)}")
+                else:
+                    burn_rate = 0.0
+                    logger.warning("[Burn Rate] Nenhum dado encontrado para cálculo da média geral")
+
             # Calcula o Burn Rate Projetado usando o valor mensal como base
             burn_rate_projetado = 0.0
             # ... (lógica de projeção removida, como decidido anteriormente) ...
@@ -888,7 +963,7 @@ class GerencialService(BaseService):
             projetos_para_faturar_count = len(projetos_para_faturamento_df)
             
             # Registra no log para debug
-            logger.info(f"[Contador Mensal] Total de projetos para faturar (nova lógica com ENGAJAMENTO): {projetos_para_faturar}")
+            logger.info(f"[Contador Mensal] Total de projetos para faturar (nova lógica com ENGAJAMENTO): {projetos_para_faturar_count}")
             logger.info(f"[Contador Mensal] Breakdown: INÍCIO={cond_inicio.sum()}, TERMINO={cond_termino.sum()}, ENGAJAMENTO={cond_engajamento.sum()}")
 
             # Métricas avançadas (Passa dados_limpos originais)
@@ -1871,197 +1946,6 @@ class GerencialService(BaseService):
         except Exception as e:
             logger.error(f"Erro ao calcular Burn Rate Mensal para {mes:02d}/{ano}: {str(e)}", exc_info=True)
             return 0.0 # Retorna 0 em caso de erro
-
-    def processar_gerencial(self, dados):
-        """Processa dados para la visão gerencial"""
-        try:
-            if dados.empty:
-                logger.warning("DataFrame vazio recebido em processar_gerencial")
-                return self.criar_estrutura_vazia()
-            
-            # Prepara dados base
-            dados_limpos = dados.copy()
-
-            # --- PRÉ-PROCESSAMENTO DO TEMPO TRABALHADO ---
-            if 'Tempo trabalhado' in dados_limpos.columns:
-                # Função robusta para conversão de horas
-                def converter_horas(time_str):
-                    try:
-                        # Remove espaços e divide em componentes
-                        parts = str(time_str).strip().split(':')
-                        # Garante que temos 3 componentes (HH:MM:SS)
-                        if len(parts) == 3:
-                            h, m, s = map(int, parts)
-                            return h + m/60 + s/3600
-                        return 0.0
-                    except (ValueError, AttributeError):
-                        return 0.0
-                
-                # Aplica conversão e verifica resultados
-                dados_limpos['HorasTrabalhadas'] = dados_limpos['Tempo trabalhado'].apply(converter_horas)
-                
-                # Debug: Verifique a conversão
-                logger.debug(f"Total horas convertidas: {dados_limpos['HorasTrabalhadas'].sum():.2f}")
-                logger.debug(f"Exemplo de conversão: {dados_limpos['Tempo trabalhado'].iloc[0]} -> {dados_limpos['HorasTrabalhadas'].iloc[0]:.2f}")
-
-            # Calcula métricas existentes
-            projetos_ativos = len(dados_limpos[~dados_limpos['Status'].isin(self.status_concluidos)])
-            projetos_em_atendimento = len(dados_limpos[
-                dados_limpos['Status'].isin(['Em Atendimento', 'Novo'])
-            ])
-            
-            # Adicione logs para debug
-            logger.info(f"DEBUG - Card - Total de projetos no dataframe: {len(dados_limpos)}")
-            logger.info(f"DEBUG - Card - Valores únicos na coluna Status: {dados_limpos['Status'].unique().tolist()}")
-            logger.info(f"DEBUG - Card - Projetos ativos: {projetos_ativos}")
-            logger.info(f"DEBUG - Card - Projetos em atendimento: {projetos_em_atendimento}")
-
-            # --- CÁLCULO DO BURN RATE (Mensalizado) ---
-            # Determina o mês/ano anterior para cálculo
-            hoje = datetime.now()
-            data_mes_anterior = hoje - timedelta(days=hoje.day) # Vai para o último dia do mês anterior
-            ano_calc = data_mes_anterior.year
-            mes_calc = data_mes_anterior.month
-            
-            # Extrai o filtro de squad aplicado na rota (se houver)
-            squad_filtro_rota = None
-            if len(dados_limpos['Squad'].unique()) == 1 and dados_limpos['Squad'].unique()[0] != 'Em Planejamento - PMO':
-                 squad_filtro_rota = dados_limpos['Squad'].unique()[0]
-                 logger.info(f"[Burn Rate Mensal] Detectado filtro de squad único: {squad_filtro_rota}")
-            
-            # Chama a nova função para obter o burn rate mensal
-            burn_rate = self.calcular_burn_rate_mensal(ano_calc, mes_calc, squad_filtro=squad_filtro_rota)
-            
-            # Calcula o Burn Rate Projetado usando o valor mensal como base
-            burn_rate_projetado = 0.0
-            if burn_rate > 0: # Só projeta se houver burn rate mensal
-                dias_decorridos = hoje.day
-                # Simplificação: Assume 22 dias úteis por mês para projeção
-                # Uma lógica mais precisa consideraria feriados e dias úteis reais do mês.
-                dias_uteis_mes = 22 
-            if dias_decorridos > 0 and dias_decorridos <= dias_uteis_mes:
-                     # Estima o consumo total no mês com base no burn rate até agora
-                     # (Burn Rate Atual / Dias Decorridos) * Dias Uteis Totais
-                     # Nota: Isso é uma APROXIMAÇÃO.
-                     # A capacidade diária é CapacidadeTotal / dias_uteis_mes
-                     # Consumo mensal é (burn_rate/100) * CapacidadeTotal
-                     # Consumo diário médio = Consumo mensal / dias_uteis_mes
-                     # Consumo até agora = Consumo diário médio * dias_decorridos
-                     # O burn_rate já é a % da capacidade total gasta no mês anterior completo.
-                     # A projeção deveria ser baseada no consumo do *mês corrente*.
-                     # REFATORANDO A PROJEÇÃO:
-                     # 1. Precisamos das horas consumidas ATÉ AGORA no mês corrente.
-                     #    Não temos isso diretamente com a abordagem histórica.
-                     # 2. SOLUÇÃO TEMPORÁRIA: Manter a lógica de projeção antiga, mas usando o burn_rate MENSAL como base?
-                     #    Isso não é ideal, pois projeta o mês inteiro com base no ritmo do mês anterior.
-                     # 3. OPÇÃO MELHOR: Remover a projeção por enquanto, já que não temos dados mensais incrementais.
-                     
-                     # **DECISÃO:** Remover a projeção por enquanto, pois não temos dados para calculá-la corretamente
-                     # com a abordagem de snapshots mensais.
-                     logger.warning("[Burn Rate Mensal] Projeção removida. Dados históricos não suportam projeção intra-mês.")
-                     pass # burn_rate_projetado continua 0.0
-            elif dias_decorridos > dias_uteis_mes:
-                      # Se já passou dos dias úteis, a projeção é o próprio burn rate mensal.
-                      # burn_rate_projetado = burn_rate # Comentado pois removemos a projeção.
-                      pass
-            
-            # REMOVIDO: Bloco de cálculo antigo do Burn Rate baseado em HorasTrabalhadas totais
-            # if 'HorasTrabalhadas' in dados_limpos.columns: ... (código antigo)
-
-            # --- FIM CÁLCULO DO BURN RATE ---
-
-            # Métricas de projetos para faturar (código existente mantido)
-            hoje_fatura = pd.Timestamp.now()
-            mes_atual = hoje_fatura.month
-            ano_atual = hoje_fatura.year
-
-            # FILTRO: Exclui projetos com especialista CDB DATA SOLUTIONS para cálculo do contador
-            dados_faturamento = dados_limpos.copy()
-            if 'Especialista' in dados_faturamento.columns:
-                dados_antes = len(dados_faturamento)
-                dados_faturamento = dados_faturamento[~dados_faturamento['Especialista'].str.upper().isin(['CDB DATA SOLUTIONS'])]
-                dados_depois = len(dados_faturamento)
-                logger.info(f"[Contador Mensal] Filtro CDB DATA SOLUTIONS: {dados_antes} → {dados_depois} (excluídos: {dados_antes - dados_depois})")
-
-            # NOVA LÓGICA PARA CALCULAR PROJETOS PARA FATURAR
-            # Condição para faturar no início (PRIME, PLUS, INICIO)
-            cond_inicio = (
-                dados_faturamento['Faturamento'].isin(['PRIME', 'PLUS', 'INICIO']) &
-                (dados_faturamento['DataInicio'].dt.month == mes_atual) &
-                (dados_faturamento['DataInicio'].dt.year == ano_atual)
-            )
-            
-            # Condição para faturar no término - APENAS TERMINO (não ENGAJAMENTO)
-            cond_termino = (
-                (dados_faturamento['Faturamento'] == 'TERMINO') &
-                (
-                    # Verifica se a data prevista (VencimentoEm) é no mês atual para projetos em andamento
-                    ((~dados_faturamento['Status'].isin(['Fechado', 'Resolvido'])) & 
-                     (dados_faturamento['VencimentoEm'].dt.month == mes_atual) & 
-                     (dados_faturamento['VencimentoEm'].dt.year == ano_atual)) |
-                    # OU se a data de término (DataTermino) é no mês atual para projetos concluídos
-                    ((dados_faturamento['Status'].isin(['Fechado', 'Resolvido'])) & 
-                     (dados_faturamento['DataTermino'].dt.month == mes_atual) & 
-                     (dados_faturamento['DataTermino'].dt.year == ano_atual))
-                )
-            )
-            
-            # Condição especial para ENGAJAMENTO - VencimentoEm + 30 dias no mês atual
-            dados_engajamento = dados_faturamento[dados_faturamento['Faturamento'] == 'ENGAJAMENTO'].copy()
-            if not dados_engajamento.empty:
-                # Verifica se a data de faturamento está no mês atual
-                cond_engajamento = (
-                    (dados_faturamento['Faturamento'] == 'ENGAJAMENTO') &
-                    (dados_faturamento['VencimentoEm'].notna()) &  # Garante que tem data de vencimento
-                    ((dados_faturamento['VencimentoEm'] + pd.Timedelta(days=30)).dt.month == mes_atual) &
-                    ((dados_faturamento['VencimentoEm'] + pd.Timedelta(days=30)).dt.year == ano_atual)
-                )
-                logger.info(f"[Contador Mensal] Projetos ENGAJAMENTO com VencimentoEm + 30 dias no mês atual: {cond_engajamento.sum()}")
-            else:
-                cond_engajamento = pd.Series([False] * len(dados_faturamento), index=dados_faturamento.index)
-                logger.info("[Contador Mensal] Nenhum projeto com faturamento ENGAJAMENTO encontrado")
-            
-            # Filtra projetos para faturar (exclui FTOP)
-            projetos_para_faturamento = dados_faturamento[
-                (cond_inicio | cond_termino | cond_engajamento) & 
-                (dados_faturamento['Faturamento'] != 'FTOP')
-            ]
-            
-            # Número de projetos para faturar
-            projetos_para_faturar = len(projetos_para_faturamento)
-            
-            # Registra no log para debug
-            logger.info(f"Total de projetos para faturar (nova lógica): {projetos_para_faturar}")
-
-            # Métricas avançadas
-            metricas = self.calcular_metricas_avancadas(dados_limpos)
-
-            # Prepara resultado final
-            resultado = {
-                'metricas': {
-                    'projetos_ativos': projetos_ativos,
-                    'projetos_em_atendimento': projetos_em_atendimento,
-                    'burn_rate': burn_rate,
-                    'burn_rate_projetado': burn_rate_projetado,
-                    'projetos_para_faturar': projetos_para_faturar,
-                    'projetos_criticos_count': len(self.obter_projetos_criticos(dados_limpos)),
-                    **metricas
-                },
-                'projetos_criticos': self.obter_projetos_criticos(dados_limpos),
-                'projetos_por_squad': dados_limpos[~dados_limpos['Status'].isin(self.status_concluidos)]
-                                    .groupby('Squad').size().to_dict(),
-                'projetos_por_faturamento': dados_limpos[~dados_limpos['Status'].isin(self.status_concluidos)]
-                                        .groupby('Faturamento').size().to_dict(),
-                'squads_disponiveis': sorted(dados_limpos['Squad'].dropna().unique().tolist()),
-                'faturamentos_disponiveis': sorted(dados_limpos['Faturamento'].dropna().unique().tolist())
-            }
-            
-            logger.info(f"Métricas calculadas - Burn Rate (Mensal): {burn_rate}%")
-            return resultado
-            
-        except Exception as e:
-            logger.error(f"Erro no processamento gerencial: {str(e)}", exc_info=True)
-            return self.criar_estrutura_vazia()
 
     def criar_estrutura_vazia(self):
         """Retorna uma estrutura vazia padrão"""
