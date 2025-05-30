@@ -2835,7 +2835,7 @@ class MacroService(BaseService):
             # Total de projetos entregues no mês
             total_mes = len(dados_filtrados)
             
-            # Calcular projetos entregues no prazo e fora do prazo (mesma lógica da função original)
+            # Calcular projetos entregues no prazo e fora do prazo (lógica original que resultava em não classificados)
             no_prazo = 0
             fora_prazo = 0
             if not dados_filtrados.empty and 'VencimentoEm' in dados_filtrados.columns:
@@ -2849,9 +2849,9 @@ class MacroService(BaseService):
                     fora_prazo = (validos_para_prazo['VencimentoEm'] < inicio_mes_ref).sum()
                     projetos_sem_vencimento = total_mes - len(validos_para_prazo)
                     if projetos_sem_vencimento > 0:
-                        logger.warning(f"[Visão Atual] {projetos_sem_vencimento} projetos concluídos não possuem data de vencimento válida.")
+                        logger.warning(f"[Visão Atual] {projetos_sem_vencimento} projetos concluídos não possuem data de vencimento válida e não foram adicionados a 'fora_prazo' nesta lógica.")
                 else:
-                     logger.warning("[Visão Atual] Nenhum projeto concluído com data de vencimento válida encontrado.")
+                     logger.warning("[Visão Atual] Nenhum projeto concluído com data de vencimento válida encontrado para classificar prazo.")
             else:
                  logger.warning("[Visão Atual] Coluna 'VencimentoEm' não encontrada ou dados filtrados vazios. Cálculo de prazo não realizado.")
 
@@ -2865,7 +2865,7 @@ class MacroService(BaseService):
                 'historico': historico
             }
             
-            logger.info(f"[Visão Atual] Projetos entregues calculados: {total_mes} no total, {no_prazo} no prazo, {fora_prazo} fora do prazo")
+            logger.info(f"[Visão Atual] Projetos entregues calculados (lógica original): {total_mes} no total, {no_prazo} no prazo, {fora_prazo} fora do prazo")
             logger.info(f"[Visão Atual] Histórico dinâmico: {historico}")
             return resultado
             
