@@ -1893,3 +1893,575 @@ def import_tasks_from_excel(backlog_id):
         return jsonify({'message': 'Tipo de arquivo inválido. Apenas .xlsx.'}), 400
 
 # Certifique-se que esta é a última parte adicionada ou que está em uma seção lógica de rotas.
+
+# --- INÍCIO: APIs para Sprint Semanal do Especialista ---
+
+@backlog_bp.route('/api/specialists/<path:specialist_name>/weekly-segments', methods=['GET'])
+def get_specialist_weekly_segments(specialist_name):
+    """
+    Retorna os segmentos de tarefas de um especialista para uma semana específica.
+    Query params:
+    - week: Data de referência da semana (YYYY-MM-DD), padrão é semana atual
+    - view: 'current' (só semana atual) ou 'extended' (atual + 2 próximas)
+    """
+    try:
+        from urllib.parse import unquote
+        from datetime import datetime, timedelta
+        
+        # Decodifica o nome do especialista
+        specialist_name = unquote(specialist_name)
+        current_app.logger.info(f"[Sprint Semanal] Buscando segmentos para especialista: {specialist_name}")
+        
+        # **BUSCA ROBUSTA DO ESPECIALISTA (igual ao debug)**
+        specialist_trimmed = specialist_name.strip()
+        
+        # Busca híbrida (trim + case-insensitive)
+        tasks_for_specialist = Task.query.filter(
+            db.func.lower(db.func.trim(Task.specialist_name)) == specialist_trimmed.lower()
+        ).all()
+        
+        # Se não encontrou com busca híbrida, tenta case-insensitive
+        if not tasks_for_specialist:
+            tasks_for_specialist = Task.query.filter(
+                Task.specialist_name.ilike(f"%{specialist_name}%")
+            ).all()
+        
+        # Se ainda não encontrou, tenta busca exata
+        if not tasks_for_specialist:
+            tasks_for_specialist = Task.query.filter_by(specialist_name=specialist_name).all()
+        
+        current_app.logger.info(f"[Sprint Semanal] Encontradas {len(tasks_for_specialist)} tarefas para o especialista")
+        
+        # Parâmetros da requisição
+        week_param = request.args.get('week')
+        view_mode = request.args.get('view', 'current')  # 'current' ou 'extended'
+        
+        # Define a data de referência da semana
+        if week_param:
+            try:
+                reference_date = datetime.strptime(week_param, '%Y-%m-%d').date()
+                current_app.logger.info(f"[Sprint Semanal] Usando data de referência fornecida: {reference_date}")
+            except ValueError:
+                current_app.logger.error(f"[Sprint Semanal] Formato de data inválido: {week_param}")
+                return jsonify({'error': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
+        else:
+            reference_date = datetime.now().date()
+            current_app.logger.info(f"[Sprint Semanal] Usando data atual como referência: {reference_date}")
+        
+        # Calcula o início da semana (segunda-feira)
+        days_since_monday = reference_date.weekday()
+        week_start = reference_date - timedelta(days=days_since_monday)
+        
+        # Define quantas semanas buscar
+        weeks_to_fetch = 3 if view_mode == 'extended' else 1
+        current_app.logger.info(f"[Sprint Semanal] Buscando {weeks_to_fetch} semanas a partir de {week_start}")
+        
+        # Busca segmentos para as semanas
+        all_weeks_data = []
+        
+        for week_offset in range(weeks_to_fetch):
+            current_week_start = week_start + timedelta(weeks=week_offset)
+            current_week_end = current_week_start + timedelta(days=4)  # Sexta-feira
+            
+            # Converte para datetime para comparação
+            week_start_datetime = datetime.combine(current_week_start, datetime.min.time())
+            week_end_datetime = datetime.combine(current_week_end, datetime.max.time())
+            
+            current_app.logger.info(f"[Sprint Semanal] Semana {week_offset + 1}: {week_start_datetime} - {week_end_datetime}")
+            
+            # **BUSCA SEGMENTOS USANDO AS TAREFAS ENCONTRADAS**
+            task_ids = [task.id for task in tasks_for_specialist]
+            
+            if not task_ids:
+                current_app.logger.info(f"[Sprint Semanal] Nenhuma tarefa encontrada para o especialista, pulando semana")
+                continue
+            
+            # Busca segmentos da semana atual filtrando pelos IDs das tarefas
+            segments = TaskSegment.query.filter(
+                TaskSegment.task_id.in_(task_ids),
+                TaskSegment.segment_start_datetime >= week_start_datetime,
+                TaskSegment.segment_start_datetime <= week_end_datetime
+            )\
+            .order_by(TaskSegment.segment_start_datetime)\
+            .all()
+            
+            current_app.logger.info(f"[Sprint Semanal] Encontrados {len(segments)} segmentos brutos para semana {week_offset + 1}")
+            
+            # Filtra apenas projetos ativos usando MacroService
+            macro_service = MacroService()
+            active_projects_data = macro_service.carregar_dados()
+            active_project_ids = []
+            
+            if not active_projects_data.empty:
+                active_projects = macro_service.obter_projetos_ativos(active_projects_data)
+                active_project_ids = [str(p.get('numero', '')) for p in active_projects]
+                current_app.logger.info(f"[Sprint Semanal] {len(active_project_ids)} projetos ativos encontrados")
+            else:
+                current_app.logger.warning("[Sprint Semanal] Nenhum projeto ativo encontrado no MacroService")
+            
+            # Serializa segmentos da semana
+            week_segments = []
+            for segment in segments:
+                task = segment.task
+                backlog = task.backlog
+                
+                # Verifica se o projeto está ativo
+                if backlog.project_id not in active_project_ids:
+                    current_app.logger.debug(f"[Sprint Semanal] Projeto {backlog.project_id} não está ativo, ignorando segmento")
+                    continue
+                
+                segment_data = {
+                    'id': segment.id,
+                    'task_id': task.id,
+                    'task_title': task.title,
+                    'task_description': task.description,
+                    'project_id': backlog.project_id,
+                    'project_name': f"Projeto {backlog.project_id}",  # Pode ser melhorado com dados do macro
+                    'start_datetime': segment.segment_start_datetime.isoformat(),
+                    'end_datetime': segment.segment_end_datetime.isoformat(),
+                    'segment_description': segment.description,
+                    'estimated_hours': task.estimated_effort or 0,
+                    'logged_time': task.logged_time or 0,
+                    'priority': task.priority,
+                    'status': task.status.value,
+                    'column_id': task.column_id,
+                    'column_name': task.column.name if task.column else None,
+                    'is_completed': task.status == TaskStatus.DONE,
+                    'backlog_id': backlog.id
+                }
+                week_segments.append(segment_data)
+            
+            current_app.logger.info(f"[Sprint Semanal] {len(week_segments)} segmentos válidos após filtro de projetos ativos")
+            
+            # Dados da semana (formato PT-BR para exibição)
+            week_data = {
+                'week_start': current_week_start.strftime('%Y-%m-%d'),
+                'week_end': current_week_end.strftime('%Y-%m-%d'),
+                'week_label': f"{current_week_start.strftime('%d/%m')} - {current_week_end.strftime('%d/%m')}",
+                'week_label_full': f"{current_week_start.strftime('%d/%m/%Y')} - {current_week_end.strftime('%d/%m/%Y')}",
+                'is_current_week': week_offset == 0,
+                'segments': week_segments,
+                'total_hours': sum(s.get('estimated_hours', 0) for s in week_segments)
+            }
+            all_weeks_data.append(week_data)
+        
+        total_segments = sum(len(w['segments']) for w in all_weeks_data)
+        current_app.logger.info(f"[Sprint Semanal] RESULTADO FINAL: {total_segments} segmentos para {specialist_name}")
+        
+        return jsonify({
+            'specialist_name': specialist_name,
+            'view_mode': view_mode,
+            'reference_date': reference_date.strftime('%Y-%m-%d'),
+            'weeks': all_weeks_data,
+            'debug_info': {
+                'total_segments_found': total_segments,
+                'total_tasks_found': len(tasks_for_specialist),
+                'active_projects_count': len(active_project_ids) if active_project_ids else 0,
+                'weeks_searched': weeks_to_fetch
+            }
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"[Sprint Semanal] Erro ao buscar segmentos: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Erro interno do servidor: {str(e)}'}), 500
+
+@backlog_bp.route('/api/tasks/<int:task_id>/auto-segment', methods=['POST'])
+def auto_segment_task(task_id):
+    """
+    Cria segmentos automáticos para uma tarefa baseado no limite de 10h por segmento.
+    """
+    try:
+        task = Task.query.get_or_404(task_id)
+        data = request.get_json()
+        
+        max_hours_per_segment = data.get('max_hours_per_segment', 10)
+        start_date = data.get('start_date')  # YYYY-MM-DD
+        start_time = data.get('start_time', '09:00')  # HH:MM
+        daily_hours = data.get('daily_hours', 8)  # Horas por dia de trabalho
+        
+        if not start_date:
+            return jsonify({'error': 'Data de início é obrigatória'}), 400
+        
+        if not task.estimated_effort or task.estimated_effort <= 0:
+            return jsonify({'error': 'Tarefa deve ter esforço estimado maior que zero'}), 400
+        
+        # Remove segmentos existentes
+        TaskSegment.query.filter_by(task_id=task_id).delete()
+        
+        # Calcula quantos segmentos são necessários
+        total_hours = task.estimated_effort
+        segments_needed = int((total_hours + max_hours_per_segment - 1) // max_hours_per_segment)  # Ceiling division
+        
+        start_datetime = datetime.strptime(f"{start_date} {start_time}", "%Y-%m-%d %H:%M")
+        current_datetime = start_datetime
+        
+        segments_created = []
+        remaining_hours = total_hours
+        
+        for segment_num in range(segments_needed):
+            # Calcula horas deste segmento
+            segment_hours = min(max_hours_per_segment, remaining_hours)
+            remaining_hours -= segment_hours
+            
+            # Calcula data/hora fim do segmento
+            end_datetime = current_datetime + timedelta(hours=segment_hours)
+            
+            # Cria descrição do segmento
+            if segments_needed > 1:
+                description = f"Etapa {segment_num + 1}/{segments_needed} - {segment_hours}h"
+            else:
+                description = f"Execução completa - {segment_hours}h"
+            
+            # Cria o segmento
+            segment = TaskSegment(
+                task_id=task_id,
+                segment_start_datetime=current_datetime,
+                segment_end_datetime=end_datetime,
+                description=description
+            )
+            db.session.add(segment)
+            segments_created.append(segment)
+            
+            # Próximo segmento começa após um intervalo (pode ser customizado)
+            # Por simplicidade, vamos começar no próximo dia útil
+            current_datetime = current_datetime.replace(hour=9, minute=0, second=0, microsecond=0)
+            current_datetime += timedelta(days=1)
+            
+            # Pula fins de semana (sábado=5, domingo=6)
+            while current_datetime.weekday() >= 5:
+                current_datetime += timedelta(days=1)
+        
+        db.session.commit()
+        
+        # Retorna os segmentos criados
+        created_segments = [s.to_dict() for s in segments_created]
+        
+        current_app.logger.info(f"[Auto Segmento] Criados {len(created_segments)} segmentos para tarefa {task_id}")
+        
+        return jsonify({
+            'message': f'{len(created_segments)} segmentos criados automaticamente',
+            'segments': created_segments,
+            'total_hours': total_hours,
+            'max_hours_per_segment': max_hours_per_segment
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"[Auto Segmento] Erro: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Erro ao criar segmentos automáticos'}), 500
+
+@backlog_bp.route('/api/segments/<int:segment_id>/complete', methods=['PUT'])
+def complete_segment(segment_id):
+    """
+    Marca um segmento como concluído e atualiza a tarefa se todos os segmentos estiverem concluídos.
+    """
+    try:
+        segment = TaskSegment.query.get_or_404(segment_id)
+        task = segment.task
+        data = request.get_json()
+        
+        logged_hours = data.get('logged_hours', 0)
+        completion_notes = data.get('completion_notes', '')
+        
+        # Atualiza a descrição do segmento para incluir as notas de conclusão
+        if completion_notes:
+            segment.description = f"{segment.description} - CONCLUÍDO: {completion_notes}"
+        else:
+            segment.description = f"{segment.description} - CONCLUÍDO"
+        
+        # Adiciona horas trabalhadas à tarefa
+        if logged_hours > 0:
+            task.logged_time = (task.logged_time or 0) + logged_hours
+        
+        # Verifica se todos os segmentos da tarefa estão concluídos
+        all_segments = TaskSegment.query.filter_by(task_id=task.id).all()
+        completed_segments = [s for s in all_segments if 'CONCLUÍDO' in (s.description or '')]
+        
+        # Se todos os segmentos estão concluídos, marca a tarefa como concluída
+        if len(completed_segments) == len(all_segments):
+            task.status = TaskStatus.DONE
+            task.completed_at = datetime.utcnow()
+            
+            # Move para coluna "Concluído" se existir
+            done_column = Column.query.filter_by(name='Concluído').first()
+            if done_column:
+                task.column_id = done_column.id
+        
+        db.session.commit()
+        
+        current_app.logger.info(f"[Segmento] Segmento {segment_id} marcado como concluído")
+        
+        return jsonify({
+            'message': 'Segmento marcado como concluído',
+            'task_completed': task.status == TaskStatus.DONE,
+            'segment': segment.to_dict(),
+            'task_logged_time': task.logged_time
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"[Segmento] Erro ao concluir segmento: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Erro ao concluir segmento'}), 500
+
+@backlog_bp.route('/api/segments/<int:segment_id>/move-week', methods=['PUT'])
+def move_segment_to_week(segment_id):
+    """
+    Move um segmento para uma semana diferente.
+    """
+    try:
+        segment = TaskSegment.query.get_or_404(segment_id)
+        data = request.get_json()
+        
+        new_week_start = data.get('new_week_start')  # YYYY-MM-DD
+        new_start_time = data.get('new_start_time', '09:00')  # HH:MM
+        
+        if not new_week_start:
+            return jsonify({'error': 'Nova semana é obrigatória'}), 400
+        
+        # Calcula a duração original do segmento
+        original_duration = segment.segment_end_datetime - segment.segment_start_datetime
+        
+        # Calcula a nova data/hora de início
+        new_start_date = datetime.strptime(new_week_start, '%Y-%m-%d').date()
+        new_start_datetime = datetime.combine(new_start_date, datetime.strptime(new_start_time, '%H:%M').time())
+        
+        # Atualiza o segmento
+        segment.segment_start_datetime = new_start_datetime
+        segment.segment_end_datetime = new_start_datetime + original_duration
+        
+        db.session.commit()
+        
+        current_app.logger.info(f"[Segmento] Segmento {segment_id} movido para semana {new_week_start}")
+        
+        return jsonify({
+            'message': 'Segmento movido com sucesso',
+            'segment': segment.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"[Segmento] Erro ao mover segmento: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Erro ao mover segmento'}), 500
+
+# --- FIM: APIs para Sprint Semanal do Especialista ---
+
+# --- INÍCIO: Debug Sprint Semanal ---
+@backlog_bp.route('/api/debug/sprint/<path:specialist_name>', methods=['GET'])
+def debug_sprint_specialist(specialist_name):
+    """
+    Rota de debug para investigar problemas no Sprint Semanal
+    """
+    try:
+        from urllib.parse import unquote
+        from datetime import datetime, timedelta
+        
+        specialist_name = unquote(specialist_name)
+        current_app.logger.info(f"[DEBUG Sprint] Investigando para especialista: {specialist_name}")
+        
+        debug_info = {
+            'specialist_name': specialist_name,
+            'issues_found': [],
+            'solutions': [],
+            'data': {}
+        }
+        
+        # **INVESTIGAÇÃO MELHORADA: Busca mais robusta**
+        
+        # 1. Primeiro, busca TODOS os especialistas únicos para comparação
+        all_specialists_raw = db.session.query(Task.specialist_name).distinct().all()
+        all_specialists = [row[0] for row in all_specialists_raw if row[0]]
+        
+        debug_info['data']['all_specialists_in_db'] = all_specialists
+        debug_info['data']['specialist_search_term'] = specialist_name
+        
+        # 2. Busca exata (como estava antes)
+        tasks_exact_match = Task.query.filter_by(specialist_name=specialist_name).all()
+        debug_info['data']['tasks_exact_match'] = len(tasks_exact_match)
+        
+        # 3. Busca case-insensitive
+        tasks_case_insensitive = Task.query.filter(
+            Task.specialist_name.ilike(f"%{specialist_name}%")
+        ).all()
+        debug_info['data']['tasks_case_insensitive'] = len(tasks_case_insensitive)
+        
+        # 4. Busca com trim (remove espaços)
+        specialist_trimmed = specialist_name.strip()
+        tasks_trimmed = Task.query.filter(
+            db.func.trim(Task.specialist_name) == specialist_trimmed
+        ).all()
+        debug_info['data']['tasks_trimmed'] = len(tasks_trimmed)
+        
+        # 5. Busca híbrida (trim + case-insensitive)
+        tasks_hybrid = Task.query.filter(
+            db.func.lower(db.func.trim(Task.specialist_name)) == specialist_trimmed.lower()
+        ).all()
+        debug_info['data']['tasks_hybrid'] = len(tasks_hybrid)
+        
+        # 6. Mostra correspondências próximas
+        similar_specialists = []
+        for spec in all_specialists:
+            if spec and specialist_name.lower() in spec.lower():
+                similar_specialists.append(spec)
+        debug_info['data']['similar_specialists'] = similar_specialists
+        
+        # Escolhe o melhor resultado para continuar a análise
+        tasks_for_specialist = tasks_hybrid if tasks_hybrid else tasks_case_insensitive
+        if not tasks_for_specialist:
+            tasks_for_specialist = tasks_exact_match
+            
+        debug_info['data']['total_tasks_for_specialist'] = len(tasks_for_specialist)
+        debug_info['data']['search_method_used'] = 'hybrid' if tasks_hybrid else ('case_insensitive' if tasks_case_insensitive else 'exact')
+        
+        if len(tasks_for_specialist) == 0:
+            debug_info['issues_found'].append("Nenhuma tarefa encontrada para este especialista")
+            debug_info['solutions'].append("Verifique se o nome do especialista está correto nas tarefas")
+            if similar_specialists:
+                debug_info['solutions'].append(f"Especialistas similares encontrados: {', '.join(similar_specialists)}")
+        
+        # **CONTINUAÇÃO DA ANÁLISE (só se encontrou tarefas)**
+        if tasks_for_specialist:
+            # Lista algumas tarefas encontradas para debug
+            sample_tasks = []
+            for task in tasks_for_specialist[:5]:  # Pega só as primeiras 5
+                sample_tasks.append({
+                    'id': task.id,
+                    'title': task.title,
+                    'specialist_name_db': task.specialist_name,
+                    'project_id': task.backlog.project_id if task.backlog else None,
+                    'backlog_id': task.backlog_id
+                })
+            debug_info['data']['sample_tasks'] = sample_tasks
+            
+            # 2. Verificar quantas tarefas têm segmentos
+            tasks_with_segments = []
+            tasks_without_segments = []
+            
+            for task in tasks_for_specialist:
+                segments = TaskSegment.query.filter_by(task_id=task.id).all()
+                if segments:
+                    tasks_with_segments.append({
+                        'task_id': task.id,
+                        'task_title': task.title,
+                        'segments_count': len(segments),
+                        'segments': [s.to_dict() for s in segments]
+                    })
+                else:
+                    tasks_without_segments.append({
+                        'task_id': task.id,
+                        'task_title': task.title,
+                        'project_id': task.backlog.project_id if task.backlog else 'No backlog'
+                    })
+            
+            debug_info['data']['tasks_with_segments'] = len(tasks_with_segments)
+            debug_info['data']['tasks_without_segments'] = len(tasks_without_segments)
+            debug_info['data']['tasks_with_segments_details'] = tasks_with_segments
+            debug_info['data']['tasks_without_segments_details'] = tasks_without_segments
+            
+            if len(tasks_without_segments) > 0:
+                debug_info['issues_found'].append(f"{len(tasks_without_segments)} tarefas não têm segmentos criados")
+                debug_info['solutions'].append("Use o botão 'Auto-Segmentar' ou crie segmentos manualmente para as tarefas")
+        
+        # **RESTO DA FUNÇÃO (projetos ativos, etc.) - mantém igual**
+        # 3. Verificar se os projetos estão ativos
+        macro_service = MacroService()
+        try:
+            active_projects_data = macro_service.carregar_dados()
+            if not active_projects_data.empty:
+                active_projects = macro_service.obter_projetos_ativos(active_projects_data)
+                active_project_ids = [str(p.get('numero', '')) for p in active_projects]
+                debug_info['data']['active_project_ids'] = active_project_ids
+                
+                if tasks_for_specialist:
+                    inactive_projects = []
+                    for task in tasks_for_specialist:
+                        if task.backlog and task.backlog.project_id not in active_project_ids:
+                            inactive_projects.append({
+                                'task_id': task.id,
+                                'task_title': task.title,
+                                'project_id': task.backlog.project_id
+                            })
+                    
+                    debug_info['data']['tasks_in_inactive_projects'] = len(inactive_projects)
+                    debug_info['data']['inactive_projects_details'] = inactive_projects
+                    
+                    if len(inactive_projects) > 0:
+                        debug_info['issues_found'].append(f"{len(inactive_projects)} tarefas estão em projetos inativos")
+                        debug_info['solutions'].append("Verifique se os projetos estão ativos no sistema macro")
+            else:
+                debug_info['issues_found'].append("Não foi possível carregar dados do MacroService")
+                debug_info['solutions'].append("Verifique a configuração do MacroService")
+                
+        except Exception as e:
+            debug_info['issues_found'].append(f"Erro ao verificar projetos ativos: {str(e)}")
+        
+        # 4. Verificar se os segmentos estão no período correto (só se tiver tarefas)
+        if tasks_for_specialist:
+            hoje = datetime.now()
+            week_start = hoje.date() - timedelta(days=hoje.weekday())  # Segunda-feira
+            week_end = week_start + timedelta(days=4)  # Sexta-feira
+            
+            week_start_br = week_start.strftime('%d/%m/%Y')
+            week_end_br = week_end.strftime('%d/%m/%Y')
+            hoje_br = hoje.strftime('%d/%m/%Y %H:%M:%S')
+            
+            segments_in_current_week = []
+            segments_outside_week = []
+            all_segments_with_dates = []
+            
+            for task_info in tasks_with_segments:
+                for segment_data in task_info['segments']:
+                    try:
+                        segment_start_dt = datetime.fromisoformat(segment_data['segment_start_datetime'])
+                        segment_start_date = segment_start_dt.date()
+                        segment_start_br = segment_start_dt.strftime('%d/%m/%Y %H:%M')
+                        
+                        segment_info = {
+                            **segment_data,
+                            'task_title': task_info['task_title'],
+                            'segment_start_formatted': segment_start_br
+                        }
+                        
+                        all_segments_with_dates.append(segment_info)
+                        
+                        if week_start <= segment_start_date <= week_end:
+                            segments_in_current_week.append(segment_info)
+                        else:
+                            segments_outside_week.append(segment_info)
+                            
+                    except Exception as e:
+                        current_app.logger.warning(f"[DEBUG Sprint] Erro ao processar data do segmento: {e}")
+            
+            debug_info['data']['today'] = hoje_br
+            debug_info['data']['current_week'] = f"{week_start_br} - {week_end_br}"
+            debug_info['data']['current_week_iso'] = f"{week_start} - {week_end}"
+            debug_info['data']['segments_in_current_week'] = len(segments_in_current_week)
+            debug_info['data']['segments_outside_week'] = len(segments_outside_week)
+            debug_info['data']['all_segments_with_dates'] = all_segments_with_dates
+            
+            if len(segments_in_current_week) == 0 and len(tasks_with_segments) > 0:
+                debug_info['issues_found'].append("Nenhum segmento está na semana atual")
+                debug_info['solutions'].append("Ajuste as datas dos segmentos para a semana atual ou navegue para outras semanas")
+        
+        # 5. Informações adicionais sobre o banco de dados
+        debug_info['data']['database_info'] = {
+            'total_tasks_in_db': Task.query.count(),
+            'total_segments_in_db': TaskSegment.query.count(),
+            'tasks_with_specialist': Task.query.filter(Task.specialist_name.isnot(None)).count(),
+            'unique_specialists': all_specialists
+        }
+        
+        # 6. Resumo
+        if len(debug_info['issues_found']) == 0:
+            debug_info['status'] = 'OK'
+            debug_info['message'] = 'Tudo parece estar configurado corretamente'
+        else:
+            debug_info['status'] = 'ISSUES_FOUND'
+            debug_info['message'] = f"Encontrados {len(debug_info['issues_found'])} problemas"
+        
+        return jsonify(debug_info)
+        
+    except Exception as e:
+        current_app.logger.error(f"[DEBUG Sprint] Erro: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+# --- FIM: Debug Sprint Semanal ---

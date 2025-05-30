@@ -349,6 +349,9 @@
                         <!-- Conteúdo será preenchido dinamicamente pelo JavaScript -->
                     </div>
                     <div class="modal-footer">
+                        <button type="button" class="btn btn-info" onclick="abrirSprintSemanal()" id="btnSprintSemanal">
+                            <i class="bi bi-calendar-week"></i> Sprint Semanal
+                        </button>
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
                     </div>
                 </div>
@@ -1086,6 +1089,119 @@
 
         </div>
 
+        <!-- Modal Sprint Semanal do Especialista -->
+        <div class="modal fade" id="modalSprintSemanal" tabindex="-1" aria-labelledby="modalSprintSemanalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-fullscreen">
+                <div class="modal-content">
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title" id="modalSprintSemanalLabel">
+                            <i class="bi bi-calendar-week"></i> Sprint Semanal - <span id="especialistaNomeSprint"></span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-0">
+                        <!-- Barra de Navegação de Semanas -->
+                        <div class="bg-light border-bottom p-3">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <div class="btn-group" role="group" id="weekNavigation">
+                                        <!-- Semanas serão adicionadas dinamicamente -->
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <div class="badge bg-info me-2">
+                                        <i class="bi bi-clock"></i> Total: <span id="totalHorasSemana">0</span>h
+                                    </div>
+                                    <button class="btn btn-sm btn-success" onclick="autoSegmentarTarefas()">
+                                        <i class="bi bi-magic"></i> Auto-Segmentar
+                                    </button>
+                                    <button class="btn btn-sm btn-warning" onclick="debugSprint()">
+                                        <i class="bi bi-bug"></i> Debug
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Container das Tarefas da Sprint -->
+                        <div class="container-fluid p-4">
+                            <div id="sprintContainer">
+                                <!-- Tarefas serão exibidas aqui em formato Trello -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para Editar Segmento -->
+        <div class="modal fade" id="modalEditarSegmento" tabindex="-1" aria-labelledby="modalEditarSegmentoLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalEditarSegmentoLabel">
+                            <i class="bi bi-pencil"></i> Editar Segmento
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formEditarSegmento">
+                            <input type="hidden" id="segmentoId" />
+                            
+                            <div class="mb-3">
+                                <label for="segmentoDescricao" class="form-label">Descrição do Segmento</label>
+                                <textarea class="form-control" id="segmentoDescricao" rows="3"></textarea>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label for="segmentoDataInicio" class="form-label">Data de Início</label>
+                                    <input type="date" class="form-control" id="segmentoDataInicio" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="segmentoHoraInicio" class="form-label">Hora de Início</label>
+                                    <input type="time" class="form-control" id="segmentoHoraInicio" />
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <label for="segmentoSemanaDestino" class="form-label">Mover para Semana</label>
+                                <select class="form-select" id="segmentoSemanaDestino">
+                                    <!-- Opções de semanas serão preenchidas dinamicamente -->
+                                </select>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="segmentoConcluido" />
+                                    <label class="form-check-label" for="segmentoConcluido">
+                                        Marcar como concluído
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div id="camposConclusao" style="display: none;">
+                                <div class="mt-3">
+                                    <label for="horasRealizadas" class="form-label">Horas Realizadas</label>
+                                    <input type="number" class="form-control" id="horasRealizadas" step="0.5" min="0" />
+                                </div>
+                                <div class="mt-3">
+                                    <label for="notasConclusao" class="form-label">Notas de Conclusão</label>
+                                    <textarea class="form-control" id="notasConclusao" rows="2"></textarea>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-primary" onclick="salvarSegmento()">Salvar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -1107,6 +1223,16 @@
                         }
 
                         console.log("Clique em especialista:", nomeEspecialista);
+                        
+                        // *** GUARDA O NOME DO ESPECIALISTA PARA O SISTEMA DE SPRINT ***
+                        window.ultimoEspecialistaClicado = nomeEspecialista;
+                        
+                        // *** ATUALIZA O TÍTULO DO MODAL COM O NOME DO ESPECIALISTA ***
+                        const modalTitulo = document.getElementById('modalEspecialistaProjetosLabel');
+                        if (modalTitulo) {
+                            modalTitulo.innerHTML = `<i class="bi bi-person"></i> Projetos Ativos - ${nomeEspecialista}`;
+                        }
+                        
                         const modalEspecialista = new bootstrap.Modal(document.getElementById('modalEspecialistaProjetos'));
                         const modalBody = document.querySelector('#modalEspecialistaProjetos .modal-body');
                         
@@ -2047,6 +2173,578 @@
                 }
             }
         });
+
+        // ==============================
+        // SISTEMA DE SPRINT SEMANAL
+        // ==============================
+        
+        let especialistaAtualSprint = null;
+        let semanaAtualSprint = null;
+        let semanasDisponiveis = [];
+
+        // Função para abrir o modal de Sprint Semanal
+        function abrirSprintSemanal() {
+            // *** MÉTODO MELHORADO: Busca o nome do especialista de múltiplas formas ***
+            let nomeEspecialista = null;
+            
+            // 1. Primeiro, tenta pegar do atributo data guardado no clique
+            if (window.ultimoEspecialistaClicado) {
+                nomeEspecialista = window.ultimoEspecialistaClicado;
+                console.log('[Sprint] Nome via variável global:', nomeEspecialista);
+            }
+            
+            // 2. Se não conseguiu, tenta extrair do título do modal
+            if (!nomeEspecialista) {
+                const titulo = document.getElementById('modalEspecialistaProjetosLabel').textContent;
+                const nomeMatch = titulo.match(/Projetos Ativos - (.+)/);
+                if (nomeMatch) {
+                    nomeEspecialista = nomeMatch[1].trim();
+                    console.log('[Sprint] Nome via título modal:', nomeEspecialista);
+                }
+            }
+            
+            // 3. Validação final
+            if (!nomeEspecialista || nomeEspecialista === 'Especialista') {
+                alert('⚠️ Erro: Nome do especialista não encontrado.\\n\\nTente fechar e abrir novamente o modal do especialista.');
+                return;
+            }
+            
+            especialistaAtualSprint = nomeEspecialista;
+            document.getElementById('especialistaNomeSprint').textContent = especialistaAtualSprint;
+            
+            console.log('[Sprint] Abrindo Sprint Semanal para:', especialistaAtualSprint);
+            
+            // Fecha o modal atual e abre o Sprint
+            bootstrap.Modal.getInstance(document.getElementById('modalEspecialistaProjetos')).hide();
+            
+            const modalSprint = new bootstrap.Modal(document.getElementById('modalSprintSemanal'));
+            modalSprint.show();
+            
+            // Carrega os dados da sprint
+            carregarSprintSemanal();
+        }
+
+        // Função para carregar dados da Sprint Semanal
+        function carregarSprintSemanal() {
+            if (!especialistaAtualSprint) return;
+            
+            document.getElementById('sprintContainer').innerHTML = '<p class="text-center">Carregando sprint...</p>';
+            
+            // Busca segmentos da semana atual + 2 próximas
+            const url = `/backlog/api/specialists/${encodeURIComponent(especialistaAtualSprint)}/weekly-segments?view=extended`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('[Sprint] Dados recebidos:', data);
+                    
+                    if (data.weeks && data.weeks.length > 0) {
+                        semanasDisponiveis = data.weeks;
+                        semanaAtualSprint = data.weeks[0]; // Primeira semana (atual)
+                        
+                        criarNavegacaoSemanas(data.weeks);
+                        exibirSemana(semanaAtualSprint);
+                    } else {
+                        document.getElementById('sprintContainer').innerHTML = 
+                            '<p class="text-center text-muted">Nenhuma tarefa encontrada para este especialista</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('[Sprint] Erro ao carregar:', error);
+                    document.getElementById('sprintContainer').innerHTML = 
+                        '<p class="text-center text-danger">Erro ao carregar dados da sprint</p>';
+                });
+        }
+
+        // Função para criar navegação entre semanas
+        function criarNavegacaoSemanas(weeks) {
+            const navigation = document.getElementById('weekNavigation');
+            navigation.innerHTML = '';
+            
+            weeks.forEach((week, index) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `btn btn-outline-info ${week.is_current_week ? 'active' : ''}`;
+                btn.innerHTML = `
+                    <div class="d-flex flex-column">
+                        <small>${week.week_label}</small>
+                        <span class="badge bg-light text-dark">${week.total_hours}h</span>
+                    </div>
+                `;
+                btn.onclick = () => selecionarSemana(week, btn);
+                navigation.appendChild(btn);
+            });
+        }
+
+        // Função para selecionar uma semana
+        function selecionarSemana(week, btnElement) {
+            // Remove active de todos os botões
+            document.querySelectorAll('#weekNavigation .btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Adiciona active no botão clicado
+            btnElement.classList.add('active');
+            
+            semanaAtualSprint = week;
+            exibirSemana(week);
+        }
+
+        // Função para exibir tarefas de uma semana
+        function exibirSemana(week) {
+            document.getElementById('totalHorasSemana').textContent = week.total_hours;
+            
+            const container = document.getElementById('sprintContainer');
+            
+            if (!week.segments || week.segments.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center p-5">
+                        <i class="bi bi-calendar-x fs-1 text-muted"></i>
+                        <h5 class="mt-3 text-muted">Nenhuma tarefa para esta semana</h5>
+                        <p class="text-muted">Semana de ${week.week_label}</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Agrupa por projeto
+            const projetosTarefas = {};
+            week.segments.forEach(segment => {
+                if (!projetosTarefas[segment.project_id]) {
+                    projetosTarefas[segment.project_id] = {
+                        name: segment.project_name,
+                        segments: []
+                    };
+                }
+                projetosTarefas[segment.project_id].segments.push(segment);
+            });
+            
+            // Cria HTML em formato de colunas (Trello-like)
+            let html = '<div class="row">';
+            
+            Object.entries(projetosTarefas).forEach(([projectId, data]) => {
+                html += `
+                    <div class="col-md-4 col-lg-3 mb-4">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-folder"></i> ${data.name}
+                                    <span class="badge bg-primary ms-2">${data.segments.length}</span>
+                                </h6>
+                            </div>
+                            <div class="card-body p-2">
+                `;
+                
+                data.segments.forEach(segment => {
+                    const isCompleted = segment.is_completed || segment.segment_description.includes('CONCLUÍDO');
+                    const statusClass = isCompleted ? 'border-success bg-light-success' : 
+                                       (segment.status === 'in_progress' ? 'border-warning' : 'border-info');
+                    
+                    html += `
+                        <div class="card mb-2 ${statusClass}" onclick="editarSegmento(${segment.id})">
+                            <div class="card-body p-2" style="cursor: pointer;">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="card-title mb-1" style="font-size: 0.9rem;">
+                                        ${segment.task_title}
+                                    </h6>
+                                    <span class="badge bg-info">${segment.estimated_hours}h</span>
+                                </div>
+                                
+                                <p class="card-text text-muted mb-2" style="font-size: 0.8rem;">
+                                    ${segment.segment_description || 'Sem descrição'}
+                                </p>
+                                
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        <i class="bi bi-clock"></i> 
+                                        ${new Date(segment.start_datetime).toLocaleDateString('pt-BR')}
+                                    </small>
+                                    ${isCompleted ? 
+                                        '<span class="badge bg-success"><i class="bi bi-check"></i> Concluído</span>' :
+                                        `<span class="badge bg-${segment.status === 'in_progress' ? 'warning' : 'secondary'}">${segment.column_name || 'Pendente'}</span>`
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // Função para editar um segmento
+        function editarSegmento(segmentId) {
+            // Busca dados do segmento
+            const segment = encontrarSegmento(segmentId);
+            if (!segment) {
+                alert('Segmento não encontrado');
+                return;
+            }
+            
+            // Preenche o formulário
+            document.getElementById('segmentoId').value = segment.id;
+            document.getElementById('segmentoDescricao').value = segment.segment_description || '';
+            
+            const startDate = new Date(segment.start_datetime);
+            document.getElementById('segmentoDataInicio').value = startDate.toISOString().split('T')[0];
+            document.getElementById('segmentoHoraInicio').value = startDate.toTimeString().slice(0, 5);
+            
+            // Preenche semanas disponíveis
+            const semanaSelect = document.getElementById('segmentoSemanaDestino');
+            semanaSelect.innerHTML = '';
+            semanasDisponiveis.forEach(week => {
+                const option = document.createElement('option');
+                option.value = week.week_start;
+                option.textContent = week.week_label;
+                if (week === semanaAtualSprint) option.selected = true;
+                semanaSelect.appendChild(option);
+            });
+            
+            // Checkbox de conclusão
+            const isCompleted = segment.is_completed || segment.segment_description.includes('CONCLUÍDO');
+            document.getElementById('segmentoConcluido').checked = isCompleted;
+            document.getElementById('camposConclusao').style.display = isCompleted ? 'block' : 'none';
+            
+            // Event listener para checkbox
+            document.getElementById('segmentoConcluido').onchange = function() {
+                document.getElementById('camposConclusao').style.display = this.checked ? 'block' : 'none';
+            };
+            
+            // Abre o modal
+            const modal = new bootstrap.Modal(document.getElementById('modalEditarSegmento'));
+            modal.show();
+        }
+
+        // Função auxiliar para encontrar segmento
+        function encontrarSegmento(segmentId) {
+            for (const week of semanasDisponiveis) {
+                const segment = week.segments.find(s => s.id === segmentId);
+                if (segment) return segment;
+            }
+            return null;
+        }
+
+        // Função para salvar segmento
+        function salvarSegmento() {
+            const segmentId = document.getElementById('segmentoId').value;
+            const isConcluido = document.getElementById('segmentoConcluido').checked;
+            const novaSemana = document.getElementById('segmentoSemanaDestino').value;
+            
+            // Se marcou como concluído
+            if (isConcluido) {
+                const horasRealizadas = parseFloat(document.getElementById('horasRealizadas').value) || 0;
+                const notas = document.getElementById('notasConclusao').value || '';
+                
+                fetch(`/backlog/api/segments/${segmentId}/complete`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        logged_hours: horasRealizadas,
+                        completion_notes: notas
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('[Sprint] Segmento concluído:', data);
+                    bootstrap.Modal.getInstance(document.getElementById('modalEditarSegmento')).hide();
+                    carregarSprintSemanal(); // Recarrega
+                })
+                .catch(error => {
+                    console.error('[Sprint] Erro ao concluir segmento:', error);
+                    alert('Erro ao concluir segmento');
+                });
+                
+                return;
+            }
+            
+            // Se mudou de semana, move o segmento
+            const currentWeek = semanaAtualSprint.week_start;
+            if (novaSemana !== currentWeek) {
+                const novaHora = document.getElementById('segmentoHoraInicio').value || '09:00';
+                
+                fetch(`/backlog/api/segments/${segmentId}/move-week`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        new_week_start: novaSemana,
+                        new_start_time: novaHora
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('[Sprint] Segmento movido:', data);
+                    bootstrap.Modal.getInstance(document.getElementById('modalEditarSegmento')).hide();
+                    carregarSprintSemanal(); // Recarrega
+                })
+                .catch(error => {
+                    console.error('[Sprint] Erro ao mover segmento:', error);
+                    alert('Erro ao mover segmento');
+                });
+            } else {
+                // Apenas atualiza descrição (poderia adicionar API específica)
+                bootstrap.Modal.getInstance(document.getElementById('modalEditarSegmento')).hide();
+            }
+        }
+
+        // Função para auto-segmentar tarefas (exemplo básico)
+        function autoSegmentarTarefas() {
+            alert('Funcionalidade de auto-segmentação em desenvolvimento!\n\nEsta função permitirá:\n- Quebrar tarefas grandes em segmentos de 10h\n- Distribuir automaticamente nas semanas\n- Considerar disponibilidade do especialista');
+        }
+
+        // Função para auto-segmentar tarefas do especialista
+        function autoSegmentarTarefas() {
+            if (!especialistaAtualSprint) {
+                alert('Erro: Nome do especialista não encontrado');
+                return;
+            }
+            
+            const confirmacao = confirm(`🤖 AUTO-SEGMENTAÇÃO\n\nIsto criará segmentos automáticos para todas as tarefas de ${especialistaAtualSprint} que ainda não têm segmentos.\n\nRegras:\n- Máximo 10h por segmento\n- Início a partir de segunda-feira\n- Horário comercial (9h às 18h)\n- Pula fins de semana\n\nContinuar?`);
+            
+            if (!confirmacao) return;
+            
+            console.log('[Auto-Segmentar] Iniciando para:', especialistaAtualSprint);
+            
+            // Primeiro busca tarefas sem segmentos
+            const debugUrl = `/backlog/api/debug/sprint/${encodeURIComponent(especialistaAtualSprint)}`;
+            
+            fetch(debugUrl)
+                .then(response => response.json())
+                .then(debugData => {
+                    const tasksWithoutSegments = debugData.data.tasks_without_segments_details || [];
+                    
+                    if (tasksWithoutSegments.length === 0) {
+                        alert('✅ Todas as tarefas já têm segmentos criados!');
+                        return;
+                    }
+                    
+                    console.log('[Auto-Segmentar] Tarefas sem segmentos:', tasksWithoutSegments);
+                    
+                    // Calcula data de início (próxima segunda-feira)
+                    const hoje = new Date();
+                    const diasParaSegunda = (8 - hoje.getDay()) % 7; // 0 = domingo, 1 = segunda
+                    const proximaSegunda = new Date(hoje);
+                    proximaSegunda.setDate(hoje.getDate() + (diasParaSegunda === 0 ? 1 : diasParaSegunda));
+                    const dataInicio = proximaSegunda.toISOString().split('T')[0]; // YYYY-MM-DD
+                    
+                    console.log('[Auto-Segmentar] Data de início calculada:', dataInicio);
+                    
+                    // Processa cada tarefa
+                    let processadas = 0;
+                    let erros = [];
+                    
+                    const processarProximaTarefa = (index) => {
+                        if (index >= tasksWithoutSegments.length) {
+                            // Terminou o processamento
+                            let mensagem = `✅ Auto-segmentação concluída!\n\n`;
+                            mensagem += `📊 Resumo:\n`;
+                            mensagem += `- Tarefas processadas: ${processadas}/${tasksWithoutSegments.length}\n`;
+                            
+                            if (erros.length > 0) {
+                                mensagem += `- Erros: ${erros.length}\n\n`;
+                                mensagem += `❌ Erros encontrados:\n`;
+                                erros.forEach((erro, i) => {
+                                    mensagem += `${i + 1}. ${erro}\n`;
+                                });
+                            }
+                            
+                            alert(mensagem);
+                            
+                            // Recarrega a sprint
+                            carregarSprintSemanal();
+                            return;
+                        }
+                        
+                        const task = tasksWithoutSegments[index];
+                        console.log(`[Auto-Segmentar] Processando tarefa ${index + 1}/${tasksWithoutSegments.length}:`, task.task_title);
+                        
+                        // Calcula data de início específica para esta tarefa (distribui ao longo dos dias)
+                        const dataInicioTarefa = new Date(proximaSegunda);
+                        dataInicioTarefa.setDate(proximaSegunda.getDate() + Math.floor(index * 0.5)); // Distribui meio dia por tarefa
+                        
+                        // Pula fins de semana
+                        while (dataInicioTarefa.getDay() === 0 || dataInicioTarefa.getDay() === 6) {
+                            dataInicioTarefa.setDate(dataInicioTarefa.getDate() + 1);
+                        }
+                        
+                        const dataInicioFormatada = dataInicioTarefa.toISOString().split('T')[0];
+                        
+                        // Chama API de auto-segmentação
+                        fetch(`/backlog/api/tasks/${task.task_id}/auto-segment`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                start_date: dataInicioFormatada,
+                                start_time: '09:00',
+                                max_hours_per_segment: 10,
+                                daily_hours: 8
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.error) {
+                                console.error(`[Auto-Segmentar] Erro na tarefa ${task.task_title}:`, data.error);
+                                erros.push(`${task.task_title}: ${data.error}`);
+                            } else {
+                                console.log(`[Auto-Segmentar] Tarefa ${task.task_title} segmentada:`, data);
+                                processadas++;
+                            }
+                            
+                            // Processa próxima tarefa
+                            setTimeout(() => processarProximaTarefa(index + 1), 500); // Pequeno delay entre requisições
+                        })
+                        .catch(error => {
+                            console.error(`[Auto-Segmentar] Erro de rede na tarefa ${task.task_title}:`, error);
+                            erros.push(`${task.task_title}: Erro de rede - ${error.message}`);
+                            
+                            // Processa próxima tarefa mesmo com erro
+                            setTimeout(() => processarProximaTarefa(index + 1), 500);
+                        });
+                    };
+                    
+                    // Inicia o processamento
+                    processarProximaTarefa(0);
+                })
+                .catch(error => {
+                    console.error('[Auto-Segmentar] Erro ao buscar tarefas:', error);
+                    alert('Erro ao buscar tarefas sem segmentos: ' + error.message);
+                });
+        }
+
+        // Função para debug do Sprint Semanal
+        function debugSprint() {
+            // *** USA A MESMA LÓGICA ROBUSTA DO abrirSprintSemanal ***
+            let nomeEspecialista = null;
+            
+            if (window.ultimoEspecialistaClicado) {
+                nomeEspecialista = window.ultimoEspecialistaClicado;
+            } else if (especialistaAtualSprint) {
+                nomeEspecialista = especialistaAtualSprint;
+            }
+            
+            if (!nomeEspecialista || nomeEspecialista === 'Especialista') {
+                alert('⚠️ Erro: Nome do especialista não encontrado para debug.\\n\\nTente fechar e abrir novamente o modal do especialista.');
+                return;
+            }
+            
+            console.log('[DEBUG Sprint] Iniciando debug para:', nomeEspecialista);
+            
+            const url = `/backlog/api/debug/sprint/${encodeURIComponent(nomeEspecialista)}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('[DEBUG Sprint] Resposta completa:', data);
+                    
+                    // **FORMATA RESULTADO DO DEBUG DE FORMA MAIS CLARA**
+                    let debugMessage = `🔍 DEBUG SPRINT SEMANAL\\n`;
+                    debugMessage += `👤 Especialista: ${data.specialist_name}\\n\\n`;
+                    
+                    // Informações de busca
+                    debugMessage += `🔎 ANÁLISE DE BUSCA:\\n`;
+                    debugMessage += `- Termo buscado: "${data.data.specialist_search_term}"\\n`;
+                    debugMessage += `- Busca exata: ${data.data.tasks_exact_match} tarefas\\n`;
+                    debugMessage += `- Busca case-insensitive: ${data.data.tasks_case_insensitive} tarefas\\n`;
+                    debugMessage += `- Busca com trim: ${data.data.tasks_trimmed} tarefas\\n`;
+                    debugMessage += `- Busca híbrida: ${data.data.tasks_hybrid} tarefas\\n`;
+                    debugMessage += `- Método usado: ${data.data.search_method_used}\\n\\n`;
+                    
+                    // Resumo geral
+                    debugMessage += `📊 RESUMO GERAL:\\n`;
+                    debugMessage += `- Tarefas do especialista: ${data.data.total_tasks_for_specialist}\\n`;
+                    debugMessage += `- Tarefas com segmentos: ${data.data.tasks_with_segments || 0}\\n`;
+                    debugMessage += `- Tarefas sem segmentos: ${data.data.tasks_without_segments || 0}\\n`;
+                    debugMessage += `- Segmentos na semana atual: ${data.data.segments_in_current_week || 0}\\n\\n`;
+                    
+                    // Informações de data (se disponível)
+                    if (data.data.today) {
+                        debugMessage += `📅 INFORMAÇÕES DE DATA:\\n`;
+                        debugMessage += `- Hoje: ${data.data.today}\\n`;
+                        debugMessage += `- Semana atual: ${data.data.current_week}\\n`;
+                        debugMessage += `- Formato ISO: ${data.data.current_week_iso}\\n\\n`;
+                    }
+                    
+                    // Especialistas no banco
+                    if (data.data.all_specialists_in_db) {
+                        debugMessage += `👥 ESPECIALISTAS NO BANCO:\\n`;
+                        debugMessage += `- Total: ${data.data.all_specialists_in_db.length}\\n`;
+                        debugMessage += `  Nomes: ${data.data.all_specialists_in_db.join(', ')}\\n\\n`;
+                    }
+                    
+                    // Especialistas similares
+                    if (data.data.similar_specialists && data.data.similar_specialists.length > 0) {
+                        debugMessage += `🔍 ESPECIALISTAS SIMILARES ENCONTRADOS:\\n`;
+                        debugMessage += `  ${data.data.similar_specialists.join(', ')}\\n\\n`;
+                    }
+                    
+                    // Amostras de tarefas encontradas
+                    if (data.data.sample_tasks && data.data.sample_tasks.length > 0) {
+                        debugMessage += `📋 AMOSTRA DE TAREFAS ENCONTRADAS:\\n`;
+                        data.data.sample_tasks.forEach((task, index) => {
+                            debugMessage += `  ${index + 1}. [${task.id}] ${task.title}\\n`;
+                            debugMessage += `     Especialista no BD: "${task.specialist_name_db}"\\n`;
+                            debugMessage += `     Projeto: ${task.project_id}\\n`;
+                        });
+                        debugMessage += `\\n`;
+                    }
+                    
+                    // Informações do banco de dados
+                    if (data.data.database_info) {
+                        debugMessage += `💾 BANCO DE DADOS:\\n`;
+                        debugMessage += `- Total de tarefas: ${data.data.database_info.total_tasks_in_db}\\n`;
+                        debugMessage += `- Total de segmentos: ${data.data.database_info.total_segments_in_db}\\n`;
+                        debugMessage += `- Tarefas com especialista: ${data.data.database_info.tasks_with_specialist}\\n`;
+                        debugMessage += `- Especialistas únicos: ${data.data.database_info.unique_specialists.length}\\n`;
+                        debugMessage += `  Nomes: ${data.data.database_info.unique_specialists.join(', ')}\\n\\n`;
+                    }
+                    
+                    // Problemas encontrados
+                    if (data.issues_found && data.issues_found.length > 0) {
+                        debugMessage += `⚠️ PROBLEMAS ENCONTRADOS:\\n`;
+                        data.issues_found.forEach((issue, index) => {
+                            debugMessage += `${index + 1}. ${issue}\\n`;
+                        });
+                        debugMessage += `\\n`;
+                    }
+                    
+                    // Soluções sugeridas
+                    if (data.solutions && data.solutions.length > 0) {
+                        debugMessage += `💡 SOLUÇÕES SUGERIDAS:\\n`;
+                        data.solutions.forEach((solution, index) => {
+                            debugMessage += `${index + 1}. ${solution}\\n`;
+                        });
+                        debugMessage += `\\n`;
+                    }
+                    
+                    // Status final
+                    debugMessage += `📊 STATUS: ${data.status}\\n`;
+                    debugMessage += `📝 ${data.message}`;
+                    
+                    alert(debugMessage);
+                })
+                .catch(error => {
+                    console.error('[DEBUG Sprint] Erro:', error);
+                    alert(`❌ Erro ao executar debug:\\n\\n${error.message || error}`);
+                });
+        }
+
+        // Torna a função acessível globalmente
+        window.abrirSprintSemanal = abrirSprintSemanal;
+        window.editarSegmento = editarSegmento;
+        window.salvarSegmento = salvarSegmento;
+        window.autoSegmentarTarefas = autoSegmentarTarefas;
+        window.debugSprint = debugSprint;
+        
+        // ==============================
+        // FIM: SISTEMA DE SPRINT SEMANAL
+        // ==============================
     </script>
 </body>
 </html>
