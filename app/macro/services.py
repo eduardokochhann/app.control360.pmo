@@ -3274,22 +3274,34 @@ class MacroService(BaseService):
             # Calcular progresso
             percentual_concluido = float(projeto_row.get('Conclusao', 0.0))
             data_vencimento = projeto_row.get('VencimentoEm', 'N/A')
+            logger.info(f"Data vencimento bruta: {repr(data_vencimento)} (tipo: {type(data_vencimento)})")
+            
             if pd.notna(data_vencimento):
                 try:
+                    # Usar pandas para conversão como nos outros endpoints
                     data_vencimento_dt = pd.to_datetime(data_vencimento)
                     data_prevista_termino = data_vencimento_dt.strftime('%d/%m/%Y')
-                    # Calcular status do prazo
-                    hoje = datetime.now()
-                    if data_vencimento_dt < hoje:
+                    logger.info(f"Data prevista convertida com sucesso: {data_prevista_termino}")
+                    
+                    # Calcular status do prazo usando pandas Timestamp
+                    from datetime import datetime as dt_module  # Import com alias para evitar conflito
+                    hoje = dt_module.now()
+                    data_vencimento_py = data_vencimento_dt.to_pydatetime()  # Converter para datetime do Python
+                    
+                    if data_vencimento_py < hoje:
                         status_prazo = 'Atrasado'
-                    elif (data_vencimento_dt - hoje).days <= 7:
+                    elif (data_vencimento_py - hoje).days <= 7:
                         status_prazo = 'Próximo do Prazo'
                     else:
                         status_prazo = 'No Prazo'
-                except:
+                        
+                    logger.info(f"Status do prazo calculado: {status_prazo}")
+                except Exception as e:
+                    logger.error(f"Erro ao converter data de vencimento: {str(e)}")
                     data_prevista_termino = 'N/A'
                     status_prazo = 'N/A'
             else:
+                logger.warning(f"Data de vencimento é NaT ou inválida: {data_vencimento}")
                 data_prevista_termino = 'N/A'
                 status_prazo = 'N/A'
             
@@ -3304,13 +3316,27 @@ class MacroService(BaseService):
                 percentual_consumido = 0.0
             
             # Determinar status geral do indicador
-            if percentual_concluido >= 90:
-                status_geral_indicador = 'verde'
+            # Primeiro verificar se o projeto está realmente concluído
+            status_projeto = projeto_row.get('Status', '').upper()
+            status_concluidos = ['FECHADO', 'ENCERRADO', 'RESOLVIDO', 'CANCELADO']
+            
+            if status_projeto in status_concluidos:
+                # Projeto realmente concluído
+                status_geral_indicador = 'azul'  # Azul para concluído
+            elif percentual_concluido >= 90:
+                # Alto percentual de conclusão, mas ainda não finalizado
+                status_geral_indicador = 'verde'  # Verde para quase concluído
             elif percentual_concluido >= 70:
-                status_geral_indicador = 'amarelo'
-            elif percentual_concluido >= 50:
-                status_geral_indicador = 'azul'
+                # Bom progresso
+                status_geral_indicador = 'verde'
+            elif percentual_concluido >= 30:
+                # Progresso moderado - verificar se está atrasado
+                if status_prazo == 'Atrasado':
+                    status_geral_indicador = 'vermelho'
+                else:
+                    status_geral_indicador = 'amarelo'
             else:
+                # Baixo progresso
                 status_geral_indicador = 'vermelho'
             
             # Buscar backlog_id para o projeto
