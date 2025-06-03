@@ -368,7 +368,11 @@ class MacroService(BaseService):
             if dados is None or dados.empty:
                 return []
                 
-            projetos = dados[dados['Especialista'] == nome_especialista]
+            projetos = dados[dados['Especialista'] == nome_especialista].copy()
+            
+            # Adiciona verificação de backlog usando a função auxiliar
+            projetos = self._adicionar_verificacao_backlog(projetos)
+            
             return self._formatar_projetos(projetos)
             
         except Exception as e:
@@ -381,7 +385,11 @@ class MacroService(BaseService):
             if dados is None or dados.empty:
                 return []
                 
-            projetos = dados[dados['Account Manager'] == nome_account]
+            projetos = dados[dados['Account Manager'] == nome_account].copy()
+            
+            # Adiciona verificação de backlog usando a função auxiliar  
+            projetos = self._adicionar_verificacao_backlog(projetos)
+            
             return self._formatar_projetos(projetos)
             
         except Exception as e:
@@ -582,6 +590,10 @@ class MacroService(BaseService):
                 if project_ids:
                      # Consulta o banco para ver quais IDs têm backlog
                     try:
+                        # Importa o modelo Backlog e db localmente para evitar importação circular
+                        from app.models import Backlog
+                        from app import db
+                        
                         backlogs_existentes = db.session.query(Backlog.project_id)\
                                                         .filter(Backlog.project_id.in_(project_ids))\
                                                         .all()
@@ -740,15 +752,18 @@ class MacroService(BaseService):
                 'prazo_vencido': len(projetos_nao_concluidos[prazo_vencido])
             }
             
-            # Prepara dados para o modal
-            colunas_modal = ['Numero', 'Projeto', 'Status', 'Squad', 'Conclusao', 'HorasRestantes', 'VencimentoEm', 'motivo', 'Horas']
-            
             # Certifica-se de que a coluna Numero existe
             if 'Numero' not in projetos_criticos.columns and 'Número' in projetos_criticos.columns:
                 projetos_criticos['Numero'] = projetos_criticos['Número']
             elif 'Numero' not in projetos_criticos.columns:
                 logger.warning("Coluna 'Numero' não encontrada em projetos críticos. Criando coluna vazia.")
                 projetos_criticos['Numero'] = ''
+            
+            # Adiciona verificação de backlog usando a função auxiliar
+            projetos_criticos = self._adicionar_verificacao_backlog(projetos_criticos)
+            
+            # Prepara dados para o modal
+            colunas_modal = ['Numero', 'Projeto', 'Status', 'Squad', 'Conclusao', 'HorasRestantes', 'VencimentoEm', 'motivo', 'Horas', 'backlog_exists']
             
             # Seleciona apenas as colunas que existem
             colunas_existentes = [col for col in colunas_modal if col in projetos_criticos.columns]
@@ -762,7 +777,8 @@ class MacroService(BaseService):
                 'Squad': 'squad',
                 'Conclusao': 'conclusao',
                 'HorasRestantes': 'horasRestantes',
-                'VencimentoEm': 'dataPrevEnc'
+                'VencimentoEm': 'dataPrevEnc',
+                'backlog_exists': 'backlog_exists'  # Mantém o nome
             })
             
             # Formata a data de vencimento
@@ -817,8 +833,11 @@ class MacroService(BaseService):
                 media_horas = 0
                 projetos_por_squad = {}
             
+            # Adiciona verificação de backlog usando a função auxiliar
+            projetos_concluidos = self._adicionar_verificacao_backlog(projetos_concluidos)
+            
             # Prepara dados para o modal
-            colunas_modal = ['Numero', 'Projeto', 'Status', 'Squad', 'Horas', 'HorasTrabalhadas', 'HorasRestantes', 'VencimentoEm', 'DataTermino']
+            colunas_modal = ['Numero', 'Projeto', 'Status', 'Squad', 'Horas', 'HorasTrabalhadas', 'HorasRestantes', 'VencimentoEm', 'DataTermino', 'backlog_exists']
             dados_modal = projetos_concluidos[colunas_modal].copy()
             
             # Renomeia colunas para o formato esperado pelo frontend
@@ -831,7 +850,8 @@ class MacroService(BaseService):
                 'HorasTrabalhadas': 'horasTrabalhadas',
                 'HorasRestantes': 'horasRestantes',
                 'VencimentoEm': 'dataPrevEnc',
-                'DataTermino': 'dataTermino'
+                'DataTermino': 'dataTermino',
+                'backlog_exists': 'backlog_exists'  # Mantém o nome
             })
             
             # Arredonda as horas para uma casa decimal
@@ -1120,18 +1140,33 @@ class MacroService(BaseService):
             else:
                 eficiencia_geral = 0.0
 
+            # Adiciona verificação de backlog usando a função auxiliar
+            projetos_validos = self._adicionar_verificacao_backlog(projetos_validos)
+
             # Prepara dados para o modal
-            colunas_modal = ['Projeto', 'Status', 'Squad', 'Horas', 'HorasTrabalhadas', 'eficiencia']
-            dados_modal = projetos_validos[colunas_modal].copy()
+            colunas_modal = ['Numero', 'Projeto', 'Status', 'Squad', 'Horas', 'HorasTrabalhadas', 'eficiencia', 'backlog_exists']
+            
+            # Certifica-se de que a coluna Numero existe
+            if 'Numero' not in projetos_validos.columns and 'Número' in projetos_validos.columns:
+                projetos_validos['Numero'] = projetos_validos['Número']
+            elif 'Numero' not in projetos_validos.columns:
+                logger.warning("Coluna 'Numero' não encontrada em projetos de eficiência. Criando coluna vazia.")
+                projetos_validos['Numero'] = ''
+                
+            # Seleciona apenas as colunas que existem
+            colunas_existentes = [col for col in colunas_modal if col in projetos_validos.columns]
+            dados_modal = projetos_validos[colunas_existentes].copy()
             
             # Renomeia colunas para o formato esperado pelo frontend
             dados_modal = dados_modal.rename(columns={
+                'Numero': 'numero',
                 'Projeto': 'projeto',
                 'Status': 'status',
                 'Squad': 'squad',
                 'Horas': 'horasContratadas',
                 'HorasTrabalhadas': 'horasTrabalhadas',
-                'eficiencia': 'eficiencia'
+                'eficiencia': 'eficiencia',
+                'backlog_exists': 'backlog_exists'  # Mantém o nome
             })
             
             # Arredonda as horas para uma casa decimal
@@ -3713,6 +3748,51 @@ class MacroService(BaseService):
         except Exception as e:
             logger.exception(f"Erro ao gerar status report para projeto {project_id}: {str(e)}")
             return self._get_empty_status_report_data(project_id, f"Erro ao gerar relatório: {str(e)}")
+
+    def _adicionar_verificacao_backlog(self, dataframe):
+        """
+        Método auxiliar para adicionar a coluna 'backlog_exists' a um DataFrame.
+        Verifica quais projetos têm backlog no banco de dados.
+        """
+        if dataframe.empty or 'Numero' not in dataframe.columns:
+            logger.info("DataFrame vazio ou sem coluna 'Numero'. Pulando verificação de backlog.")
+            if 'Numero' in dataframe.columns:
+                dataframe['backlog_exists'] = False
+            return dataframe
+            
+        # Garante que 'Numero' seja string para a consulta do backlog
+        dataframe['Numero'] = dataframe['Numero'].astype(str)
+        
+        # Pega todos os IDs de projeto (números) únicos e não vazios
+        project_ids = dataframe['Numero'].dropna().unique().tolist()
+        project_ids = [pid for pid in project_ids if pid]  # Remove vazios
+
+        if project_ids:
+            try:
+                # Importa o modelo Backlog e db localmente para evitar importação circular
+                from app.models import Backlog
+                from app import db
+                
+                # Consulta o banco para ver quais IDs têm backlog
+                backlogs_existentes = db.session.query(Backlog.project_id)\
+                                                .filter(Backlog.project_id.in_(project_ids))\
+                                                .all()
+                # Cria um set com os IDs que têm backlog para busca rápida
+                ids_com_backlog = {result[0] for result in backlogs_existentes}
+                logger.info(f"Encontrados {len(ids_com_backlog)} backlogs para {len(project_ids)} projetos ativos verificados.")
+                
+                # Adiciona a coluna 'backlog_exists' ao DataFrame
+                dataframe['backlog_exists'] = dataframe['Numero'].apply(lambda pid: pid in ids_com_backlog if pd.notna(pid) else False)
+
+            except Exception as db_error:
+                logger.error(f"Erro ao consultar backlogs existentes: {db_error}", exc_info=True)
+                # Se der erro no DB, assume que nenhum backlog existe para não quebrar
+                dataframe['backlog_exists'] = False
+        else:
+            logger.info("Nenhum ID de projeto válido encontrado para verificar backlog.")
+            dataframe['backlog_exists'] = False
+            
+        return dataframe
 
 
 # Funções auxiliares fora da classe
