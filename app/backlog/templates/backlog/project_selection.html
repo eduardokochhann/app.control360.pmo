@@ -486,93 +486,100 @@
         if (projectCardContainer) {
             projectCardContainer.addEventListener('click', async function(event) {
                 // Verifica se o clique foi no botão correto usando event delegation
-                if (event.target.matches('.create-backlog-btn, .create-backlog-btn *')) {
-                    const button = event.target.closest('.create-backlog-btn');
-                    if (!button) return;
+                // IMPORTANTE: Só intercepta cliques nos botões de criar backlog, NÃO nos links "Abrir Quadro"
+                const createButton = event.target.closest('.create-backlog-btn');
+                if (!createButton) {
+                    // Se não é um botão de criar backlog, deixa o evento seguir normalmente
+                    // Isso permite que os links "Abrir Quadro" funcionem normalmente
+                    return;
+                }
 
-                    const projectId = button.dataset.projectId;
-                    const projectName = button.dataset.projectName || `Projeto ${projectId}`;
+                // Previne o comportamento padrão APENAS para botões de criar backlog
+                event.preventDefault();
+                event.stopPropagation();
 
-                    if (!projectId) {
-                        console.error("ID do projeto não encontrado no botão.");
-                        alert("Erro: Não foi possível identificar o projeto.");
-                        return;
+                const projectId = createButton.dataset.projectId;
+                const projectName = createButton.dataset.projectName || `Projeto ${projectId}`;
+
+                if (!projectId) {
+                    console.error("ID do projeto não encontrado no botão.");
+                    alert("Erro: Não foi possível identificar o projeto.");
+                    return;
+                }
+
+                console.log(`[Create Backlog] Clicado para Projeto ID: ${projectId} (${projectName})`);
+
+                // Desabilita botão e mostra loading
+                createButton.disabled = true;
+                createButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Criando...';
+
+                try {
+                    const response = await fetch(`/backlog/api/projects/${projectId}/backlog`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({}) // Envia corpo vazio se a API não espera nada
+                    });
+
+                    console.log(`[Create Backlog] Resposta API (${response.status}):`, response);
+
+                    if (!response.ok && response.status !== 409) { // Ignora 409 (conflito, já existe) como erro fatal aqui
+                        let errorMsg = `Erro ${response.status}`;
+                        try {
+                            const errorData = await response.json();
+                            errorMsg = errorData.message || errorMsg;
+                        } catch (e) { /* Ignora erro ao parsear JSON do erro */ }
+                        throw new Error(errorMsg);
                     }
 
-                    console.log(`[Create Backlog] Clicado para Projeto ID: ${projectId} (${projectName})`);
+                    const result = await response.json();
 
-                    // Desabilita botão e mostra loading
-                    button.disabled = true;
-                    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Criando...';
+                    if (response.status === 409) { // Já existia
+                        console.warn(`[Create Backlog] Backlog para ${projectName} já existia (API retornou 409).`);
+                        alert(`O backlog para ${projectName} já existe ou foi criado por outro processo. A página será recarregada.`);
+                    } else { // Criado com sucesso (201)
+                        console.log("[Create Backlog] Backlog criado com sucesso:", result);
+                        alert(`Backlog para ${projectName} criado com sucesso!`);
+                    }
+                    
+                    // --- Atualização Dinâmica do Card --- 
+                    const cardElement = createButton.closest('.project-card');
+                    if (cardElement) {
+                        // Remove indicador "Sem Backlog"
+                        const noBacklogBadge = cardElement.querySelector('.badge.bg-light');
+                        if (noBacklogBadge) noBacklogBadge.remove();
 
-                    try {
-                        const response = await fetch(`/backlog/api/projects/${projectId}/backlog`, {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({}) // Envia corpo vazio se a API não espera nada
-                        });
+                        // Cria o novo botão "Abrir Quadro" (como link <a>)
+                        const newButtonLink = document.createElement('a');
+                        newButtonLink.href = `/backlog/board/${projectId}`; // Constrói a URL
+                        newButtonLink.className = 'btn btn-primary btn-sm'; 
+                        newButtonLink.innerHTML = '<i class="bi bi-kanban me-1"></i> Abrir Quadro';
 
-                        console.log(`[Create Backlog] Resposta API (${response.status}):`, response);
-
-                        if (!response.ok && response.status !== 409) { // Ignora 409 (conflito, já existe) como erro fatal aqui
-                            let errorMsg = `Erro ${response.status}`;
-                            try {
-                                const errorData = await response.json();
-                                errorMsg = errorData.message || errorMsg;
-                            } catch (e) { /* Ignora erro ao parsear JSON do erro */ }
-                            throw new Error(errorMsg);
-                        }
-
-                        const result = await response.json();
-
-                        if (response.status === 409) { // Já existia
-                            console.warn(`[Create Backlog] Backlog para ${projectName} já existia (API retornou 409).`);
-                            alert(`O backlog para ${projectName} já existe ou foi criado por outro processo. A página será recarregada.`);
-                        } else { // Criado com sucesso (201)
-                            console.log("[Create Backlog] Backlog criado com sucesso:", result);
-                            alert(`Backlog para ${projectName} criado com sucesso!`);
+                        // Encontra o container do botão e substitui o botão antigo pelo novo link
+                        const buttonContainer = createButton.parentElement;
+                        if (buttonContainer) {
+                            buttonContainer.replaceChild(newButtonLink, createButton);
+                        } else {
+                            // Fallback: apenas remove o botão antigo se o container não for encontrado
+                            createButton.remove(); 
                         }
                         
-                        // --- Atualização Dinâmica do Card --- 
-                        const cardElement = button.closest('.project-card');
-                        if (cardElement) {
-                            // Remove indicador "Sem Backlog"
-                            const noBacklogBadge = cardElement.querySelector('.badge.bg-light');
-                            if (noBacklogBadge) noBacklogBadge.remove();
+                        // Opcional: Atualizar contagem de tarefas para 0 (ou buscar da API se retornar)
+                        const taskCountSpan = cardElement.querySelector('.mt-2 .fw-bold');
+                        if (taskCountSpan) taskCountSpan.textContent = '0'; 
 
-                            // Cria o novo botão "Abrir Quadro" (como link <a>)
-                            const newButtonLink = document.createElement('a');
-                            newButtonLink.href = `/backlog/board/${projectId}`; // Constrói a URL
-                            newButtonLink.className = 'btn btn-primary btn-sm'; 
-                            newButtonLink.innerHTML = '<i class="bi bi-kanban me-1"></i> Abrir Quadro';
-
-                            // Encontra o container do botão e substitui o botão antigo pelo novo link
-                            const buttonContainer = button.parentElement;
-                            if (buttonContainer) {
-                                buttonContainer.replaceChild(newButtonLink, button);
-                            } else {
-                                // Fallback: apenas remove o botão antigo se o container não for encontrado
-                                button.remove(); 
-                            }
-                            
-                            // Opcional: Atualizar contagem de tarefas para 0 (ou buscar da API se retornar)
-                            const taskCountSpan = cardElement.querySelector('.mt-2 .fw-bold');
-                            if (taskCountSpan) taskCountSpan.textContent = '0'; 
-
-                            console.log(`[Create Backlog UI] Card atualizado dinamicamente para projeto ${projectId}`);
-                        } else {
-                             console.warn("[Create Backlog UI] Não foi possível encontrar o card pai para atualização dinâmica. Recarregando...");
-                             window.location.reload(); // Recarrega se não conseguir atualizar UI
-                        }
-                        // ----------------------------------------
-
-                    } catch (error) {
-                        console.error('[Create Backlog] Erro:', error);
-                        alert(`Erro ao criar backlog para ${projectName}: ${error.message}`);
-                        // Restaura o botão em caso de erro
-                        button.disabled = false;
-                        button.innerHTML = '<i class="bi bi-plus-lg me-1"></i> Criar Backlog';
+                        console.log(`[Create Backlog UI] Card atualizado dinamicamente para projeto ${projectId}`);
+                    } else {
+                         console.warn("[Create Backlog UI] Não foi possível encontrar o card pai para atualização dinâmica. Recarregando...");
+                         window.location.reload(); // Recarrega se não conseguir atualizar UI
                     }
+                    // ----------------------------------------
+
+                } catch (error) {
+                    console.error('[Create Backlog] Erro:', error);
+                    alert(`Erro ao criar backlog para ${projectName}: ${error.message}`);
+                    // Restaura o botão em caso de erro
+                    createButton.disabled = false;
+                    createButton.innerHTML = '<i class="bi bi-plus-lg me-1"></i> Criar Backlog';
                 }
             });
         }

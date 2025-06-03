@@ -318,6 +318,10 @@ class Note(db.Model):
     priority = db.Column(db.String(20), nullable=False, server_default='medium')  # 'low', 'medium', 'high'
     report_status = db.Column(db.String(20), nullable=False, server_default='draft')  # 'draft', 'ready_for_report', 'reported'
     
+    # NOVO: Flag para controlar se a nota aparece no Status Report
+    # Por padrão True (opt-out) - todas as notas aparecem a menos que marcadas como False
+    include_in_status_report = db.Column(db.Boolean, nullable=False, server_default='1')
+    
     # Relacionamentos
     project_id = db.Column(db.String(50), nullable=False)  # ID do projeto (ex: 10237)
     backlog_id = db.Column(db.Integer, db.ForeignKey('backlog.id', ondelete='CASCADE'), nullable=False)  # ID do backlog
@@ -364,6 +368,7 @@ class Note(db.Model):
             'category': self.category,
             'priority': self.priority,
             'report_status': self.report_status,
+            'include_in_status_report': self.include_in_status_report,
             'project_id': self.project_id,
             'backlog_id': self.backlog_id,
             'task_id': self.task_id,

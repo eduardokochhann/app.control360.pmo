@@ -429,39 +429,54 @@
                        Visão Atual
                     </a>
                 </li>
-                <!-- Reordenado para Decrescente -->
-                <li class="nav-item">
-                    {# Link para Abr/2025 #}
-                    {% set is_abr = request.args.get('mes') == '4' and request.args.get('ano') == '2025' %}
-                    <a class="nav-link {{ 'active' if is_abr else '' }}" 
-                       href="{{ url_for('macro.apresentacao', mes=4, ano=2025) }}">
-                       Abr/2025
-                    </a>
-                </li>
-                <li class="nav-item">
-                    {# Link para Mar/2025 #}
-                    {% set is_mar = request.args.get('mes') == '3' and request.args.get('ano') == '2025' %}
-                    <a class="nav-link {{ 'active' if is_mar else '' }}" 
-                       href="{{ url_for('macro.apresentacao', mes=3, ano=2025) }}">
-                       Mar/2025
-                    </a>
-                </li>
-                <li class="nav-item">
-                    {# Link para Fev/2025 #}
-                    {% set is_fev = request.args.get('mes') == '2' and request.args.get('ano') == '2025' %}
-                    <a class="nav-link {{ 'active' if is_fev else '' }}" 
-                       href="{{ url_for('macro.apresentacao', mes=2, ano=2025) }}">
-                       Fev/2025
-                    </a>
-                </li>
-                <li class="nav-item">
-                    {# Link para Jan/2025 #}
-                    {% set is_jan = request.args.get('mes') == '1' and request.args.get('ano') == '2025' %}
-                    <a class="nav-link {{ 'active' if is_jan else '' }}" 
-                       href="{{ url_for('macro.apresentacao', mes=1, ano=2025) }}">
-                       Jan/2025
-                    </a>
-                </li>
+                
+                {# ABAS DINÂMICAS baseadas nas fontes detectadas automaticamente #}
+                {% if fontes_disponiveis %}
+                    {% for fonte in fontes_disponiveis %}
+                        <li class="nav-item">
+                            {% set is_active = request.args.get('mes') == fonte.mes|string and request.args.get('ano') == fonte.ano|string %}
+                            <a class="nav-link {{ 'active' if is_active else '' }}" 
+                               href="{{ url_for('macro.apresentacao', mes=fonte.mes, ano=fonte.ano) }}">
+                               {{ fonte.label }}
+                            </a>
+                        </li>
+                    {% endfor %}
+                {% else %}
+                    {# Fallback para abas fixas caso a detecção automática falhe #}
+                    <!-- Reordenado para Decrescente -->
+                    <li class="nav-item">
+                        {# Link para Abr/2025 #}
+                        {% set is_abr = request.args.get('mes') == '4' and request.args.get('ano') == '2025' %}
+                        <a class="nav-link {{ 'active' if is_abr else '' }}" 
+                           href="{{ url_for('macro.apresentacao', mes=4, ano=2025) }}">
+                           Abr/2025
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        {# Link para Mar/2025 #}
+                        {% set is_mar = request.args.get('mes') == '3' and request.args.get('ano') == '2025' %}
+                        <a class="nav-link {{ 'active' if is_mar else '' }}" 
+                           href="{{ url_for('macro.apresentacao', mes=3, ano=2025) }}">
+                           Mar/2025
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        {# Link para Fev/2025 #}
+                        {% set is_fev = request.args.get('mes') == '2' and request.args.get('ano') == '2025' %}
+                        <a class="nav-link {{ 'active' if is_fev else '' }}" 
+                           href="{{ url_for('macro.apresentacao', mes=2, ano=2025) }}">
+                           Fev/2025
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        {# Link para Jan/2025 #}
+                        {% set is_jan = request.args.get('mes') == '1' and request.args.get('ano') == '2025' %}
+                        <a class="nav-link {{ 'active' if is_jan else '' }}" 
+                           href="{{ url_for('macro.apresentacao', mes=1, ano=2025) }}">
+                           Jan/2025
+                        </a>
+                    </li>
+                {% endif %}
                 <!-- Adicionar mais meses históricos aqui se necessário (manter ordem decrescente) -->
             </ul>
         </div>

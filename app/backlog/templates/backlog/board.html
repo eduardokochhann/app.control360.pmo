@@ -1,6 +1,6 @@
 {% extends 'base.html' %} {# Ou o seu template base principal #}
 
-{% block title %}Quadro de Backlog - {{ current_project.name if current_project else 'Projeto' }} {% endblock %}
+{% block title %}Quadro de Backlog - {{ current_project['Projeto'] if current_project else 'Projeto' }} {% endblock %}
 
 {% block head %}
 {{ super() }}
@@ -572,10 +572,10 @@
                     <i class="bi bi-arrow-left"></i>
                     <span class="d-none d-sm-inline"> Projetos</span>
                 </a>
-                <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="bi bi-kanban me-1"></i>
-                    Quadro: {{ current_project.name if current_project else 'Projeto Inválido' }} (#{{ current_project.id if current_project else '-' }})
-                </h6>
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-kanban me-2"></i> 
+                    Quadro: {{ current_project['Projeto'] if current_project else 'Projeto Inválido' }} (#{{ current_project['Numero'] if current_project else '-' }})
+                </h5>
             </div>
             <div class="d-flex align-items-center gap-2">
                 <button class="btn btn-sm btn-outline-secondary" id="toggleDetailsBtn" title="Mostrar/Ocultar Detalhes do Projeto">
@@ -595,7 +595,7 @@
         <div class="card-body pb-0">
             {# IDs importantes do projeto - NUNCA REMOVER #}
             <input type="hidden" id="currentBacklogId" value="{{ current_backlog_id if current_backlog_id else '' }}">
-            <input type="hidden" id="currentProjectId" value="{{ current_project.id if current_project else '' }}">
+            <input type="hidden" id="currentProjectId" value="{{ current_project['Numero'] if current_project else '' }}">
 
             {# Mensagem de Status #}
             <div id="boardStatus" class="alert d-flex align-items-center mb-3" role="alert" style="display: none;">
@@ -630,28 +630,28 @@
             <div id="projectDetailsHeader" class="row border-bottom pb-2 mb-3 align-items-center">
                 <div class="col-md-auto">
                     <small class="text-muted d-block">Status</small>
-                    <span id="projectStatus" class="fw-bold">{{ current_project.status if current_project else '-' }}</span>
+                    <span id="projectStatus" class="fw-bold">{{ current_project['Status'] if current_project else '-' }}</span>
                 </div>
                 <div class="col-md-auto">
                     <small class="text-muted d-block">Squad</small>
-                    <span id="projectSquad" class="fw-bold">{{ current_project.squad if current_project else '-' }}</span>
+                    <span id="projectSquad" class="fw-bold">{{ current_project['Squad'] if current_project else '-' }}</span>
                 </div>
                 <div class="col-md-auto">
                     <small class="text-muted d-block">Especialista</small>
-                    <span id="projectSpecialist" class="fw-bold">{{ current_project.specialist if current_project else '-' }}</span>
+                    <span id="projectSpecialist" class="fw-bold">{{ current_project['Especialista'] if current_project else '-' }}</span>
                 </div>
                 <div class="col-md-auto ms-md-auto d-flex gap-3">
                     <div>
                         <small class="text-muted d-block">Estimadas</small>
-                        <span id="projectOverallEstimatedHours" class="fw-bold">{{ "%.1f"|format(current_project.estimated_hours) if current_project and current_project.estimated_hours is not none else '-' }}</span>h
+                        <span id="projectOverallEstimatedHours" class="fw-bold">{{ "%.1f"|format(current_project['Horas']) if current_project and current_project['Horas'] is not none else '-' }}</span>h
                     </div>
                     <div>
                         <small class="text-muted d-block">Trabalhadas</small>
-                        <span id="projectOverallLoggedHours" class="fw-bold">{{ "%.1f"|format(current_project.logged_hours) if current_project and current_project.logged_hours is not none else '-' }}</span>h
+                        <span id="projectOverallLoggedHours" class="fw-bold">{{ "%.1f"|format(current_project['HorasTrabalhadas']) if current_project and current_project['HorasTrabalhadas'] is not none else '-' }}</span>h
                     </div>
                     <div>
                         <small class="text-muted d-block">Restantes</small>
-                        <span id="projectOverallRemainingHours" class="fw-bold">{{ "%.1f"|format(current_project.remaining_hours) if current_project and current_project.remaining_hours is not none else '-' }}</span>h
+                        <span id="projectOverallRemainingHours" class="fw-bold">{{ "%.1f"|format(current_project['HorasRestantes']) if current_project and current_project['HorasRestantes'] is not none else '-' }}</span>h
                     </div>
                     <div>
                         <small class="text-muted d-block">Kanban (Rest.)</small>
@@ -1227,7 +1227,7 @@
   // Obtém IDs do Flask
   const initialBacklogId = document.getElementById('currentBacklogId')?.value || '';
   const initialProjectId = document.getElementById('currentProjectId')?.value || '';
-  const projectNameForLogs = "{{ current_project.name if current_project else 'Projeto Desconhecido' }}";
+  const projectNameForLogs = "{{ current_project['Projeto'] if current_project else 'Projeto Desconhecido' }}";
 
   // Elementos do DOM para Marcos (definindo globalmente no topo)
   const addMilestoneBtn = document.getElementById('addMilestoneBtn');
@@ -4199,6 +4199,7 @@
               task_id: document.getElementById('noteTaskId').value || null,
               note_type: document.getElementById('noteType').value,
               event_date: document.getElementById('noteEventDate').value || null, // <<< ADICIONADO
+              include_in_status_report: document.getElementById('noteIncludeInStatusReport')?.checked || true, // <<< NOVO CAMPO COM VERIFICAÇÃO DEFENSIVA
               tags: document.getElementById('noteTags').value
                   .split(',')
                   .map(tag => tag.trim())
@@ -4299,6 +4300,10 @@
                       document.getElementById('notePriority').value = note.priority;
                       document.getElementById('noteTaskId').value = note.task_id || '';
                       document.getElementById('noteEventDate').value = note.event_date || ''; // <<< ADICIONADO
+                      const includeInReportElement = document.getElementById('noteIncludeInStatusReport');
+                      if (includeInReportElement) {
+                          includeInReportElement.checked = note.include_in_status_report !== false; // <<< NOVO CAMPO COM VERIFICAÇÃO
+                      }
                       document.getElementById('noteTags').value = note.tags.join(', ');
               })
               .catch(error => {
@@ -4942,6 +4947,20 @@
                     <div class="mb-3">
                         <label class="form-label">Tags</label>
                         <input type="text" class="form-control" id="noteTags" placeholder="Separe as tags por vírgula">
+                    </div>
+                    
+                    <!-- Incluir no Status Report -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="noteIncludeInStatusReport" checked>
+                            <label class="form-check-label" for="noteIncludeInStatusReport">
+                                <i class="bi bi-file-earmark-text me-1"></i>
+                                Incluir no Status Report
+                            </label>
+                            <small class="form-text text-muted d-block">
+                                Desmarcado: a nota não aparecerá no Status Report do projeto
+                            </small>
+                        </div>
                     </div>
                 </form>
             </div>

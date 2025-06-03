@@ -811,6 +811,16 @@
         background-color: rgba(0,0,0,0.02);
     }
 
+    /* NOVO: Melhores estilos para tabela de riscos */
+    .risk-description {
+        font-weight: 500 !important;
+        color: #495057 !important;
+        text-align: left !important;
+        display: inline-block !important;
+        font-size: 0.9rem !important;
+        line-height: 1.4 !important;
+    }
+
 </style>
 
 {% endblock %}
@@ -954,7 +964,7 @@
                             <div class="kpi-content">
                                 <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">STATUS DO PRAZO</div>
                                 <div class="h5 mb-0 font-weight-bold text-gray-800 editable-field" data-field="status-prazo">{{ report_data.progresso.status_prazo | default('A Definir') }}</div>
-                                <small class="text-muted">Prev: <span class="editable-field" data-field="data-prevista">{{ report_data.progresso.data_prevista_termino | default('N/A', true) }}</span></small>
+                                <small class="text-muted">Prev: <span class="editable-field" data-field="data-prevista">{{ report_data.progresso.data_prevista_termino | default(report_data.info_geral.data_vencimento | default('N/A', true)) }}</span></small>
                             </div>
                         </div>
                     </div>
@@ -1015,8 +1025,8 @@
                                     <thead>
                                         <tr class="table-light">
                                             <th style="width: 50%">Marco</th>
-                                            <th style="width: 25%">Status</th>
-                                            <th style="width: 25%">Data Planejada</th>
+                                            <th style="width: 20%">Status</th>
+                                            <th style="width: 30%">Data Planejada</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1024,19 +1034,19 @@
                                             <tr {% if marco.atrasado %}class="table-danger"{% endif %}>
                                                 <td>
                                                     {% if marco.atrasado %}<span class="badge bg-danger me-1" title="Marco atrasado!">!</span>{% endif %}
-                                                    <span class="milestone-name">{{ marco.nome }}</span>
+                                                    <span class="milestone-name">{{ marco.nome | default(marco.title | default('Marco sem nome')) }}</span>
                                                 </td>
                                                 <td>
                                                     <span class="badge 
-                                                        {% if marco.status == 'Concluído' %}bg-success
-                                                        {% elif marco.status == 'Em Andamento' %}bg-primary
-                                                        {% elif marco.status == 'Atrasado' %}bg-danger
+                                                        {% if marco.status == 'Concluído' or marco.status == 'Completed' %}bg-success
+                                                        {% elif marco.status == 'Em Andamento' or marco.status == 'In Progress' %}bg-primary
+                                                        {% elif marco.status == 'Atrasado' or marco.status == 'Delayed' %}bg-danger
                                                         {% else %}bg-secondary{% endif %}">
-                                                        {{ marco.status }} {# Exibe o status diretamente #}
+                                                        {{ marco.status | default('N/A') }}
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <span class="milestone-date">{{ marco.data_planejada }}</span>
+                                                    <span class="milestone-date">{{ marco.data_planejada | default(marco.due_date | default('N/A')) }}</span>
                                                 </td>
                                             </tr>
                                         {% endfor %}
@@ -1060,7 +1070,7 @@
                         </div>
                         <div class="card shadow-sm h-100">
                             {# Mostrar loading apenas se NÃO for PDF #}
-                            <div id="timeline-loading" class="text-center p-3" {% if for_pdf %}style="display: none;"{% endif %}>
+                            <div id="timeline-loading" class="text-center p-3" style="display: none;">
                                 <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
                                 <span class="text-muted small">Carregando tarefas...</span>
                             </div>
@@ -1077,40 +1087,43 @@
                             
                             <!-- Lista de tarefas -->
                             {# Mostrar conteúdo da timeline: se for PDF, renderiza direto; senão, JS controla #}
-                            <div id="timeline-content" {% if for_pdf %}style="display: block;"{% else %}style="display: none;"{% endif %}>
+                            <div id="timeline-content" style="display: block;">
                                 <!-- Próximas tarefas -->
                                 <div class="timeline-section">
                                     <div class="section-header">
                                         <i class="bi bi-calendar-event text-warning"></i>
                                         <span class="fw-bold">Próximas Tarefas (7 dias)</span>
                                     </div>
-                                    <ul class="list-group list-group-flush" id="upcoming-tasks-list">
-                                        {% if for_pdf %}
-                                            {# Lógica para PDF para próximas tarefas, se houver dados #}
-                                            {% if report_data.tarefas_proximo_prazo and report_data.tarefas_proximo_prazo|length > 0 %}
-                                                <div class="column-headers" style="display: flex; justify-content: space-between; padding: 0.5rem 1rem; background-color: #f8f9fc; border-bottom: 1px solid #e3e6f0; font-weight: bold; font-size: 0.75rem;">
-                                                    <div class="task-column" style="flex-basis: 50%;">Tarefa</div>
-                                                    <div class="status-column" style="flex-basis: 20%; text-align: center;">Prioridade</div>
-                                                    <div class="date-column" style="flex-basis: 30%; text-align: right;">Prazo</div>
-                                                </div>
-                                                {% for task in report_data.tarefas_proximo_prazo %}
-                                                    <li class="list-group-item" title="{{ task.description if task.description else '' }}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 1rem; font-size: 0.8rem;">
-                                                        <span class="timeline-task-name" style="flex-basis: 50%; word-break: break-word;">{{ task.title | default('Tarefa sem título') }}</span>
-                                                        <div class="status-container" style="flex-basis: 20%; text-align: center;">
-                                                            {# Adapte o badge conforme necessário, ex: task.status ou task.priority #}
-                                                            <span class="badge bg-warning text-dark">{{ task.priority | default('N/A') }}</span>
-                                                        </div>
-                                                        <span class="text-muted small" style="flex-basis: 30%; text-align: right;">
-                                                             {{ task.due_date | default('-') }}
-                                                        </span>
-                                                    </li>
-                                                {% endfor %}
-                                            {% else %}
-                                                <li class="list-group-item text-center text-muted small">Nenhuma tarefa com prazo nos próximos 7 dias.</li>
-                                            {% endif %}
-                                        {% endif %}
-                                        {# Para visualização não-PDF, o JS popula aqui #}
-                                    </ul>
+                                    {% if report_data.tarefas_proximo_prazo and report_data.tarefas_proximo_prazo|length > 0 %}
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-hover">
+                                                <thead>
+                                                    <tr class="table-light">
+                                                        <th style="width: 50%">Tarefa</th>
+                                                        <th style="width: 20%">Prioridade</th>
+                                                        <th style="width: 30%">Prazo</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for task in report_data.tarefas_proximo_prazo %}
+                                                        <tr>
+                                                            <td>
+                                                                <span class="timeline-task-name">{{ task.titulo | default('Tarefa sem título') }}</span>
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge bg-warning text-dark">{{ task.prioridade | default('N/A') }}</span>
+                                                            </td>
+                                                            <td>
+                                                                <span class="text-muted small">{{ task.data_vencimento | default('-') }}</span>
+                                                            </td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center text-muted small p-3">Nenhuma tarefa com prazo nos próximos 7 dias.</div>
+                                    {% endif %}
                                 </div>
                                 
                                 <!-- Tarefas em andamento -->
@@ -1119,105 +1132,117 @@
                                         <i class="bi bi-play-circle text-primary"></i>
                                         <span class="fw-bold">Em Andamento</span>
                                     </div>
-                                    <ul class="list-group list-group-flush" id="started-tasks-list">
-                                        {% if for_pdf %}
-                                            {# Lógica para PDF para tarefas em andamento, se houver dados #}
-                                            {% if report_data.tarefas_em_andamento and report_data.tarefas_em_andamento|length > 0 %}
-                                                <div class="column-headers" style="display: flex; justify-content: space-between; padding: 0.5rem 1rem; background-color: #f8f9fc; border-bottom: 1px solid #e3e6f0; font-weight: bold; font-size: 0.75rem;">
-                                                    <div class="task-column" style="flex-basis: 50%;">Tarefa</div>
-                                                    <div class="status-column" style="flex-basis: 20%; text-align: center;">Prioridade</div>
-                                                    <div class="date-column" style="flex-basis: 30%; text-align: right;">Prazo</div>
-                                                </div>
-                                                {% for task in report_data.tarefas_em_andamento %}
-                                                    <li class="list-group-item" title="{{ task.description if task.description else '' }}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 1rem; font-size: 0.8rem;">
-                                                        <span class="timeline-task-name" style="flex-basis: 50%; word-break: break-word;">{{ task.title | default('Tarefa sem título') }}</span>
-                                                        <div class="status-container" style="flex-basis: 20%; text-align: center;">
-                                                            <span class="badge bg-primary">{{ task.priority | default('N/A')}}</span>
-                                                        </div>
-                                                        <span class="text-muted small" style="flex-basis: 30%; text-align: right;">
-                                                            {{ task.due_date | default('-') }}
-                                                        </span>
-                                                    </li>
-                                                {% endfor %}
-                                            {% else %}
-                                                <li class="list-group-item text-center text-muted small">Nenhuma tarefa em andamento.</li>
-                                            {% endif %}
-                                        {% endif %}
-                                        {# Para visualização não-PDF, o JS popula aqui #}
-                                    </ul>
+                                    {% if report_data.tarefas_em_andamento and report_data.tarefas_em_andamento|length > 0 %}
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-hover">
+                                                <thead>
+                                                    <tr class="table-light">
+                                                        <th style="width: 50%">Tarefa</th>
+                                                        <th style="width: 20%">Prioridade</th>
+                                                        <th style="width: 30%">Prazo</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for task in report_data.tarefas_em_andamento %}
+                                                        <tr>
+                                                            <td>
+                                                                <span class="timeline-task-name">{{ task.titulo | default('Tarefa sem título') }}</span>
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge bg-primary">{{ task.prioridade | default('N/A')}}</span>
+                                                            </td>
+                                                            <td>
+                                                                <span class="text-muted small">{{ task.data_vencimento | default('-') }}</span>
+                                                            </td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center text-muted small p-3">Nenhuma tarefa em andamento.</div>
+                                    {% endif %}
                                 </div>
                                 
                                 <!-- NOVA SEÇÃO: Tarefas em Revisão -->
                                 <div class="timeline-section">
                                     <div class="section-header">
-                                        <i class="bi bi-search text-info"></i> {# Ícone para Revisão #}
+                                        <i class="bi bi-search text-info"></i>
                                         <span class="fw-bold">Em Revisão</span>
                                     </div>
-                                    <ul class="list-group list-group-flush" id="review-tasks-list">
-                                        {% if for_pdf %}
-                                            {# Lógica para PDF para tarefas em revisão, se houver dados #}
-                                            {% if report_data.tarefas_em_revisao and report_data.tarefas_em_revisao|length > 0 %}
-                                                <div class="column-headers" style="display: flex; justify-content: space-between; padding: 0.5rem 1rem; background-color: #f8f9fc; border-bottom: 1px solid #e3e6f0; font-weight: bold; font-size: 0.75rem;">
-                                                    <div class="task-column" style="flex-basis: 50%;">Tarefa</div>
-                                                    <div class="status-column" style="flex-basis: 20%; text-align: center;">Prioridade</div>
-                                                    <div class="date-column" style="flex-basis: 30%; text-align: right;">Prazo</div>
-                                                </div>
-                                                {% for task in report_data.tarefas_em_revisao %}
-                                                    <li class="list-group-item" title="{{ task.description if task.description else '' }}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 1rem; font-size: 0.8rem;">
-                                                        <span class="timeline-task-name" style="flex-basis: 50%; word-break: break-word;">{{ task.title | default('Tarefa sem título') }}</span>
-                                                        <div class="status-container" style="flex-basis: 20%; text-align: center;">
-                                                            <span class="badge bg-info">{{ task.priority | default('N/A') }}</span>
-                                                        </div>
-                                                        <span class="text-muted small" style="flex-basis: 30%; text-align: right;">
-                                                            {{ task.due_date | default('-') }}
-                                                        </span>
-                                                    </li>
-                                                {% endfor %}
-                                            {% else %}
-                                                <li class="list-group-item text-center text-muted small">Nenhuma tarefa em revisão.</li>
-                                            {% endif %}
-                                        {% endif %}
-                                        {# Para visualização não-PDF, o JS popula aqui #}
-                                    </ul>
+                                    {% if report_data.tarefas_em_revisao and report_data.tarefas_em_revisao|length > 0 %}
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-hover">
+                                                <thead>
+                                                    <tr class="table-light">
+                                                        <th style="width: 50%">Tarefa</th>
+                                                        <th style="width: 20%">Prioridade</th>
+                                                        <th style="width: 30%">Prazo</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for task in report_data.tarefas_em_revisao %}
+                                                        <tr>
+                                                            <td>
+                                                                <span class="timeline-task-name">{{ task.titulo | default('Tarefa sem título') }}</span>
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge bg-info">{{ task.prioridade | default('N/A') }}</span>
+                                                            </td>
+                                                            <td>
+                                                                <span class="text-muted small">{{ task.data_vencimento | default('-') }}</span>
+                                                            </td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center text-muted small p-3">Nenhuma tarefa em revisão.</div>
+                                    {% endif %}
                                 </div>
                                 
                                 <!-- NOVA SEÇÃO: Tarefas Pendentes -->
                                 <div class="timeline-section">
                                     <div class="section-header">
-                                        <i class="bi bi-pause-circle text-secondary"></i> {# Ícone para Pendente #}
+                                        <i class="bi bi-pause-circle text-secondary"></i>
                                         <span class="fw-bold">Pendente</span>
                                     </div>
-                                    <ul class="list-group list-group-flush" id="pending-tasks-list">
-                                        {% if for_pdf %}
-                                            {# Lógica para PDF para tarefas pendentes, se houver dados #}
-                                            {% if report_data.tarefas_pendentes and report_data.tarefas_pendentes|length > 0 %}
-                                                <div class="column-headers" style="display: flex; justify-content: space-between; padding: 0.5rem 1rem; background-color: #f8f9fc; border-bottom: 1px solid #e3e6f0; font-weight: bold; font-size: 0.75rem;">
-                                                    <div class="task-column" style="flex-basis: 50%;">Tarefa</div>
-                                                    <div class="status-column" style="flex-basis: 20%; text-align: center;">Prioridade</div>
-                                                    <div class="date-column" style="flex-basis: 30%; text-align: right;">Prazo</div>
-                                                </div>
-                                                {% for task in report_data.tarefas_pendentes %}
-                                                    <li class="list-group-item" title="{{ task.description if task.description else '' }}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 1rem; font-size: 0.8rem;">
-                                                        <span class="timeline-task-name" style="flex-basis: 50%; word-break: break-word;">{{ task.title | default('Tarefa sem título') }}</span>
-                                                        <div class="status-container" style="flex-basis: 20%; text-align: center;">
-                                                            {% set priority_class = 'bg-secondary' %}
-                                                            {% if task.priority == 'Alta' %} {% set priority_class = 'bg-warning text-dark' %}
-                                                            {% elif task.priority == 'Urgente' %} {% set priority_class = 'bg-danger' %}
-                                                            {% elif task.priority == 'Média' %} {% set priority_class = 'bg-info' %}
-                                                            {% elif task.priority == 'Baixa' %} {% set priority_class = 'bg-success' %}{% endif %}
-                                                            <span class="badge {{ priority_class }}">{{ task.priority | default('N/A')}}</span>
-                                                        </div>
-                                                        <span class="text-muted small" style="flex-basis: 30%; text-align: right;">
-                                                            {{ task.due_date | default('-') }}
-                                                        </span>
-                                                    </li>
-                                                {% endfor %}
-                                            {% else %}
-                                                <li class="list-group-item text-center text-muted small">Nenhuma tarefa pendente.</li>
-                                            {% endif %}
-                                        {% endif %}
-                                        {# Para visualização não-PDF, o JS popula aqui #}
-                                    </ul>
+                                    {% if report_data.tarefas_pendentes and report_data.tarefas_pendentes|length > 0 %}
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-hover">
+                                                <thead>
+                                                    <tr class="table-light">
+                                                        <th style="width: 50%">Tarefa</th>
+                                                        <th style="width: 20%">Prioridade</th>
+                                                        <th style="width: 30%">Prazo</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for task in report_data.tarefas_pendentes %}
+                                                        <tr>
+                                                            <td>
+                                                                <span class="timeline-task-name">{{ task.titulo | default('Tarefa sem título') }}</span>
+                                                            </td>
+                                                            <td>
+                                                                {% set priority_class = 'bg-secondary' %}
+                                                                {% if task.prioridade == 'Alta' %} {% set priority_class = 'bg-warning text-dark' %}
+                                                                {% elif task.prioridade == 'Urgente' %} {% set priority_class = 'bg-danger' %}
+                                                                {% elif task.prioridade == 'Média' %} {% set priority_class = 'bg-info' %}
+                                                                {% elif task.prioridade == 'Baixa' %} {% set priority_class = 'bg-success' %}{% endif %}
+                                                                <span class="badge {{ priority_class }}">{{ task.prioridade | default('N/A')}}</span>
+                                                            </td>
+                                                            <td>
+                                                                <span class="text-muted small">{{ task.data_vencimento | default('-') }}</span>
+                                                            </td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center text-muted small p-3">Nenhuma tarefa pendente.</div>
+                                    {% endif %}
                                 </div>
                                 
                                 <!-- Tarefas concluídas -->
@@ -1226,904 +1251,376 @@
                                         <i class="bi bi-check-circle text-success"></i>
                                         <span class="fw-bold">Concluídas</span>
                                     </div>
-                                    <ul class="list-group list-group-flush" id="completed-tasks-list">
-                                        {% if for_pdf %}
-                                            <li class="list-group-item text-center text-muted small">Dados de tarefas concluídas não disponíveis para PDF.</li>
-                                        {% endif %}
-                                        {# Para visualização não-PDF, o JS popula aqui #}
-                                    </ul>
+                                    {% if report_data.tarefas_concluidas and report_data.tarefas_concluidas|length > 0 %}
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-hover">
+                                                <thead>
+                                                    <tr class="table-light">
+                                                        <th style="width: 50%">Tarefa</th>
+                                                        <th style="width: 20%">Prioridade</th>
+                                                        <th style="width: 30%">Prazo/Conclusão</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for task in report_data.tarefas_concluidas %}
+                                                        <tr>
+                                                            <td>
+                                                                <span class="timeline-task-name">{{ task.titulo | default('Tarefa sem título') }}</span>
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge bg-success">{{ task.prioridade | default('N/A') }}</span>
+                                                            </td>
+                                                            <td>
+                                                                <span class="text-muted small">{{ task.data_vencimento | default('-') }}</span>
+                                                            </td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center text-muted small p-3">Nenhuma tarefa concluída.</div>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-            
+
             <!-- Riscos e Impedimentos (Linha inteira) -->
             <div class="row mb-4">
                 <div class="col-md-12">
                     <div class="placeholder-section">
                         <div class="d-flex align-items-center mb-2">
-                            <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>
+                            <i class="bi bi-exclamation-triangle text-danger me-2"></i>
                             <h6 class="section-title mb-0">Riscos e Impedimentos</h6>
                         </div>
-                        <div class="card shadow-sm h-100">
-                            <div class="card-body p-0" style="min-height: 180px;">
-                                {% if report_data.riscos_impedimentos and report_data.riscos_impedimentos|length > 0 %}
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-hover table-striped mb-0">
-                                            <thead class="table-light">
-                                                <tr>
-                                                    <th style="width: 50%; padding-left: 1rem;">Descrição</th>
-                                                    <th class="text-center" style="width: 25%;">Severidade</th>
-                                                    <th class="text-center" style="width: 25%; padding-right: 1rem;">Status</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for risco in report_data.riscos_impedimentos %}
-                                                    <tr>
-                                                        <td style="white-space: pre-wrap; word-break: break-word; font-size: 0.75rem; padding-left: 1rem;">{{ risco.description }}</td>
-                                                        <td class="text-center">
-                                                            {% set severity_class = 'badge bg-secondary' %}
-                                                            {% if risco.severity == 'Crítico' %}
-                                                                {% set severity_class = 'badge bg-danger' %}
-                                                            {% elif risco.severity == 'Alto' %}
-                                                                {% set severity_class = 'badge bg-warning text-dark' %}
-                                                            {% elif risco.severity == 'Médio' %}
-                                                                {% set severity_class = 'badge bg-info text-dark' %}
-                                                            {% elif risco.severity == 'Baixo' %}
-                                                                {% set severity_class = 'badge bg-secondary' %}
-                                                            {% endif %}
-                                                            <span class="{{ severity_class }}" style="font-size: 0.65rem;">{{ risco.severity }}</span>
-                                                        </td>
-                                                        <td class="text-center" style="padding-right: 1rem;">
-                                                            {% set status_class = 'badge bg-secondary' %}
-                                                            {% if risco.status == 'Ativo' %}
-                                                                {% set status_class = 'badge bg-warning text-dark' %}
-                                                            {% elif risco.status == 'Mitigado' %}
-                                                                {% set status_class = 'badge bg-info text-dark' %}
-                                                            {% elif risco.status == 'Resolvido' %}
-                                                                {% set status_class = 'badge bg-success' %}
-                                                            {% endif %}
-                                                            <span class="{{ status_class }}" style="font-size: 0.65rem;">{{ risco.status }}</span>
-                                                        </td>
-                                                    </tr>
-                                                {% endfor %}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                {% else %}
-                                    <div class="text-center text-muted small py-3 px-3" style="min-height: 180px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-                                        <i class="bi bi-shield-check" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
-                                        <span>Nenhum risco ou impedimento ativo identificado para este projeto.</span>
-                                    </div>
-                                {% endif %}
+                        {% if report_data and report_data.riscos_impedimentos and report_data.riscos_impedimentos|length > 0 %}
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr class="table-light">
+                                            <th style="width: 50%">Descrição do Risco</th>
+                                            <th style="width: 20%">Severidade</th>
+                                            <th style="width: 30%">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for risco in report_data.riscos_impedimentos %}
+                                            <tr>
+                                                <td>
+                                                    <span class="risk-description">{{ risco.descricao | default('Sem descrição') }}</span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge 
+                                                        {% if risco.severidade == 'Crítico' or risco.severidade == 'Critico' %}bg-danger
+                                                        {% elif risco.severidade == 'Alto' or risco.severidade == 'Alta' %}bg-danger
+                                                        {% elif risco.severidade == 'Médio' or risco.severidade == 'Medio' or risco.severidade == 'Média' %}bg-warning text-dark
+                                                        {% elif risco.severidade == 'Baixo' or risco.severidade == 'Baixa' %}bg-success
+                                                        {% else %}bg-secondary{% endif %}">
+                                                        {{ risco.severidade | default('N/A') }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge 
+                                                        {% if risco.status == 'Ativo' %}bg-warning text-dark
+                                                        {% elif risco.status == 'Resolvido' %}bg-success
+                                                        {% elif risco.status == 'Mitigado' %}bg-info
+                                                        {% elif risco.status == 'Em Monitoramento' %}bg-info
+                                                        {% else %}bg-secondary{% endif %}">
+                                                        {{ risco.status | default('N/A') }}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
                             </div>
-                        </div>
+                        {% else %}
+                            <p class="text-muted">Nenhum risco ou impedimento identificado para este projeto.</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
-            
-            <!-- Notas e Observações -->
+
+            <!-- Notas e Observações (Linha inteira) -->
             <div class="row mb-4">
                 <div class="col-md-12">
                     <div class="placeholder-section">
                         <div class="d-flex align-items-center mb-2">
-                            <i class="bi bi-journal-text text-primary me-2"></i>
+                            <i class="bi bi-journal-text text-info me-2"></i>
                             <h6 class="section-title mb-0">Notas e Observações</h6>
                         </div>
-                        <div class="card shadow-sm h-100">
-                            <div class="card-body">
-                                {% if report_data.notas and report_data.notas|length > 0 %}
-                                    <div class="list-group list-group-flush">
-                                        {% for nota in report_data.notas %}
-                                            <div class="list-group-item border-start-0 border-end-0 py-3">
-                                                <div class="d-flex justify-content-between align-items-start mb-1">
-                                                    <div>
-                                                        {% if nota.task_id and nota.task_title %}
-                                                            <span class="badge bg-info me-2">Tarefa: {{ nota.task_title }}</span>
+                        {% if report_data and report_data.notas and report_data.notas|length > 0 %}
+                            <div class="card">
+                                <div class="list-group list-group-flush note-section">
+                                    {% for nota in report_data.notas %}
+                                        <div class="list-group-item">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
+                                                    <div class="mb-2">
+                                                        <span class="badge 
+                                                            {% if nota.categoria == 'decision' %}bg-primary
+                                                            {% elif nota.categoria == 'impediment' %}bg-danger
+                                                            {% elif nota.categoria == 'general' %}bg-secondary
+                                                            {% else %}bg-info{% endif %} me-1">
+                                                            {% if nota.categoria == 'decision' %}Decisão
+                                                            {% elif nota.categoria == 'impediment' %}Impedimento
+                                                            {% elif nota.categoria == 'general' %}Geral
+                                                            {% else %}{{ nota.categoria | title }}{% endif %}
+                                                        </span>
+                                                        {% if nota.prioridade %}
+                                                            <span class="badge 
+                                                                {% if nota.prioridade == 'Alta' %}bg-danger
+                                                                {% elif nota.prioridade == 'Média' %}bg-warning text-dark
+                                                                {% elif nota.prioridade == 'Baixa' %}bg-success
+                                                                {% else %}bg-secondary{% endif %} me-1">
+                                                                {{ nota.prioridade }}
+                                                            </span>
                                                         {% endif %}
-                                                        <span class="badge bg-{{ nota.category_color }}">{{ nota.category_text }}</span>
-                                                        <span class="badge bg-{{ nota.priority_color }}">{{ nota.priority_text }}</span>
                                                     </div>
-                                                    <small class="text-muted" title="{{ 'Data do Evento' if nota.event_date else 'Data de Criação' }}">{{ nota.event_date if nota.event_date else nota.created_at }}</small>
+                                                    <p class="mb-1">{{ nota.conteudo | default('Nota sem conteúdo') }}</p>
+                                                    {% if nota.data_criacao %}
+                                                        <small class="text-muted">{{ nota.data_criacao }}</small>
+                                                    {% endif %}
                                                 </div>
-                                                <div class="note-content" style="white-space: pre-wrap; font-size: 0.9rem; text-align: left;">{{ nota.content }}</div>
-                                                {% if nota.tags and nota.tags|length > 0 %}
-                                                    <div class="mt-2">
-                                                        {% for tag in nota.tags %}
-                                                            <span class="badge bg-secondary me-1" style="font-size: 0.7rem;">{{ tag }}</span>
-                                                        {% endfor %}
-                                                    </div>
-                                                {% endif %}
                                             </div>
-                                        {% endfor %}
-                                    </div>
-                                {% else %}
-                                    <div class="text-center text-muted small py-3 px-3" style="min-height: 100px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-                                        <i class="bi bi-info-circle" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
-                                        <span>Nenhuma nota registrada para este projeto (ID: {{ project_id }}).</span>
-                                        <small class="text-muted mt-1">As notas criadas no Quadro aparecerão aqui automaticamente.</small>
-                                    </div>
-                                {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
                             </div>
-                        </div>
+                        {% else %}
+                            <p class="text-muted">Nenhuma nota ou observação registrada para este projeto.</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
-            
-            <!-- Rodapé Profissional -->
-            <div class="company-footer pdf-only">
-                <div class="footer-line"> <!-- Nova classe para controle -->
-                    Documento gerado em: {{ data_geracao | default('N/A', true) }}
-                </div>
-                <div class="footer-line"> <!-- Nova classe para controle -->
-                    Este documento é destinado exclusivamente para o cliente.
-                </div>
-                <div class="footer-line"> <!-- Nova classe para controle -->
-                    © 2025 SOU.cloud - Todos os direitos reservados
+
+            <!-- Próximos Passos (Linha inteira) - COMENTADO PARA IMPLEMENTAÇÃO FUTURA -->
+            <!--
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="placeholder-section">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-arrow-right-circle text-success me-2"></i>
+                            <h6 class="section-title mb-0">Próximos Passos</h6>
+                        </div>
+                        {% if report_data and report_data.proximos_passos and report_data.proximos_passos|length > 0 %}
+                            <div class="card">
+                                <div class="list-group list-group-flush">
+                                    {% for passo in report_data.proximos_passos %}
+                                        <div class="list-group-item">
+                                            <div class="d-flex align-items-start">
+                                                <i class="bi bi-arrow-right text-primary me-2 mt-1"></i>
+                                                <div class="flex-grow-1">
+                                                    <h6 class="mb-1">{{ passo.titulo | default('Passo sem título') }}</h6>
+                                                    {% if passo.descricao %}
+                                                        <p class="mb-1">{{ passo.descricao }}</p>
+                                                    {% endif %}
+                                                    {% if passo.prazo %}
+                                                        <small class="text-muted">
+                                                            <i class="bi bi-calendar me-1"></i>Prazo: {{ passo.prazo }}
+                                                        </small>
+                                                    {% endif %}
+                                                    {% if passo.responsavel %}
+                                                        <small class="text-muted ms-3">
+                                                            <i class="bi bi-person me-1"></i>{{ passo.responsavel }}
+                                                        </small>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% else %}
+                            <p class="text-muted">Nenhum próximo passo definido para este projeto.</p>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
-            
-            </div><!-- Fim do container para PDF -->
+            -->
 
-    {% else %}
-         <div class="alert alert-warning" role="alert">
-            Não foi possível carregar os dados para o Status Report do projeto ID {{ project_id }}.
+            <!-- Rodapé da empresa (apenas para PDF) -->
+            <div class="company-footer pdf-only">
+                <div class="footer-line"><strong>Control360.SOU - Project Management Office</strong></div>
+                <div class="footer-line">Relatório gerado automaticamente pelo sistema PMO</div>
+                <div class="footer-line">Data: {{ data_geracao | default('N/A', true) }}</div>
+            </div>
+
+            </div> <!-- Fim do pdfContent -->
         </div>
+    {% else %}
+        <p>Nenhum dado de relatório disponível.</p>
     {% endif %}
 </div>
 
-<!-- Script para passar dados para JS e inicializar gráficos -->
-<script id="report-data-json" type="application/json">
-    {{ report_data | tojson | safe if report_data else '{}' }}
-</script>
-
-{% endblock %}
-
-{% block extra_js %}
-{{ super() }}
-<!-- Importar bibliotecas necessárias para geração de PDF no navegador -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
 <script>
-    let reportData; // Declarar reportData em um escopo mais global
-
-    document.addEventListener('DOMContentLoaded', function() {
-        // --- Variáveis para o modo de edição ---
-        const editModeBtn = document.getElementById('editModeBtn');
-        const pdfContent = document.getElementById('pdfContent');
-        const editableFields = document.querySelectorAll('.editable-field');
-        let editMode = false;
-        let charts = {}; // Armazena referências para os gráficos
-        
-        // --- Código para geração de gráficos ---
-        const reportDataElement = document.getElementById('report-data-json');
-        if (!reportDataElement) {
-            console.error('Elemento com dados do report não encontrado!');
-            // Seta reportData como um objeto vazio para evitar erros subsequentes caso o script da timeline execute.
-            reportData = {}; 
-            return;
-        }
-        
-        // let reportData; // Removida declaração local
-        try {
-            reportData = JSON.parse(reportDataElement.textContent); // Atribui à reportData do escopo superior
-            console.log("Dados do Report para JS (escopo principal):", reportData);
-        } catch (e) {
-            console.error("Erro ao parsear dados JSON do report:", e);
-            reportData = {}; // Garante que reportData seja um objeto em caso de erro
-            return; 
-        }
-
-        // Verifica se os dados necessários existem ANTES de tentar criar os gráficos
-        if (!reportData || !reportData.progresso || !reportData.esforco) {
-            console.warn("Dados incompletos ou não encontrados para gerar gráficos.");
-            // Opcional: Ocultar ou mostrar mensagem nos divs dos gráficos
-             const progressoCanvas = document.getElementById('progressoChart');
-            const esforcoCanvas = document.getElementById('esforcoChart');
-            if (progressoCanvas) progressoCanvas.parentElement.innerHTML = '<p class="text-muted text-center mt-5">Dados de progresso indisponíveis.</p>';
-            if (esforcoCanvas) esforcoCanvas.parentElement.innerHTML = '<p class="text-muted text-center mt-5">Dados de esforço indisponíveis.</p>';
-            return; // Não tenta criar os gráficos
-        }
-        
-        // Somente continua se reportData for válido
-        try {
-            // --- Gráfico de Progresso (Gauge/Doughnut) ---
-            const progressoCtx = document.getElementById('progressoChart')?.getContext('2d');
-            if (progressoCtx) {
-                const percentualConcluido = reportData.progresso.percentual_concluido || 0;
-                const corProgresso = percentualConcluido >= 70 ? '#1cc88a' : (percentualConcluido >= 50 ? '#f6c23e' : '#e74a3b');
-
-                charts.progresso = new Chart(progressoCtx, {
-                    type: 'doughnut',
-                    data: {
-                        datasets: [{
-                            data: [percentualConcluido, 100 - percentualConcluido],
-                            backgroundColor: [corProgresso, '#e9ecef'],
-                            borderColor: [corProgresso, '#e9ecef'],
-                            borderWidth: 1,
-                            circumference: 180,
-                            rotation: 270
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        aspectRatio: 2,
-                        cutout: '75%',
-                        layout: {
-                            padding: {
-                                bottom: 10
-                            }
-                        },
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: { enabled: false },
-                            title: { display: false },
-                            animation: {
-                                onComplete: function(animation) {
-                                    var chartInstance = animation.chart,
-                                        ctx = chartInstance.ctx;
-                                    ctx.textAlign = 'center';
-                                    ctx.textBaseline = 'bottom';
-                                    ctx.font = "bold 24px Inter";
-
-                                    var value = chartInstance.data.datasets[0].data[0];
-                                    var color = chartInstance.data.datasets[0].backgroundColor[0]; 
-                                    ctx.fillStyle = color;
-
-                                    var x = chartInstance.width / 2;
-                                    var y = chartInstance.height / 1.1;
-                                    
-                                    ctx.fillText(value + '%', x, y);
-                                }
-                            }
-                        }
-                    }
-                });
-            } else {
-                console.warn("Elemento canvas 'progressoChart' não encontrado.");
-            }
-
-            // --- Gráfico de Esforço (Barras) ---
-            const esforcoCtx = document.getElementById('esforcoChart')?.getContext('2d');
-            if (esforcoCtx) {
-                const horasPlanejadas = reportData.esforco.horas_planejadas || 0;
-                const horasUtilizadas = reportData.esforco.horas_utilizadas || 0;
-                const corPlanejado = '#adb5bd';
-                const corUtilizado = horasUtilizadas > horasPlanejadas ? '#e74a3b' : '#4e73df';
-
-                charts.esforco = new Chart(esforcoCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Utilizado', 'Planejado'],
-                        datasets: [
-                            {
-                                label: 'Horas',
-                                data: [horasUtilizadas, horasPlanejadas],
-                                backgroundColor: [corUtilizado, corPlanejado],
-                                borderColor: [corUtilizado, corPlanejado],
-                                borderWidth: 1,
-                                barPercentage: 0.5, /* Reduzido de 0.6 */ 
-                                categoryPercentage: 0.6 /* Reduzido de 0.7 */
-                            }
-                        ]
-                    },
-                    options: {
-                        indexAxis: 'y', 
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        aspectRatio: 2.2, 
-                        layout: {
-                            padding: { 
-                                left: 5, /* Revertido de 45 */
-                                right: 10, /* Revertido de 20 */
-                                top: 5,
-                                bottom: 5
-                            }
-                        },
-                        plugins: {
-                            legend: { display: false },
-                            title: { display: false },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        return context.label + ': ' + context.parsed.x.toFixed(1) + 'h';
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            x: {
-                                beginAtZero: true,
-                                title: {
-                                    display: true,
-                                    text: 'Horas',
-                                    font: {
-                                        size: 11
-                                    }
-                                },
-                                grid: {
-                                    display: true,
-                                    drawBorder: true,
-                                    drawOnChartArea: true,
-                                    drawTicks: true,
-                                    color: '#e9ecef'
-                                }
-                            },
-                            y: {
-                                ticks: {
-                                    padding: 5,
-                                    font: { 
-                                        size: 9 /* Reduzir um pouco o tamanho da fonte das legendas Y */ 
-                                    }
-                                },
-                                grid: {
-                                    display: false
-                                },
-                                afterFit: function(scaleInstance) {
-                                    scaleInstance.width = scaleInstance.width + 30; // Adicionar 30px para as legendas do eixo Y
-                                }
-                            }
-                        }
-                    }
-                });
-            } else {
-                console.warn("Elemento canvas 'esforcoChart' não encontrado.");
-            }
-        } catch (chartError) {
-            console.error("Erro ao criar gráficos:", chartError);
-        }
-
-        // --- Função para atualizar os gráficos com novos valores ---
-        function updateCharts(forPdf = false) {
-            // Atualiza gráfico de progresso
-            if (charts.progresso) {
-                const percentualText = document.querySelector('[data-field="percentual-concluido"]').textContent;
-                const percentual = parseFloat(percentualText.replace('%', ''));
-                const corProgresso = percentual >= 70 ? '#1cc88a' : (percentual >= 50 ? '#f6c23e' : '#e74a3b');
-                
-                charts.progresso.data.datasets[0].data[0] = percentual;
-                charts.progresso.data.datasets[0].data[1] = 100 - percentual;
-                charts.progresso.data.datasets[0].backgroundColor[0] = corProgresso;
-                charts.progresso.data.datasets[0].borderColor[0] = corProgresso;
-                
-                // Ajusta fontes para PDF
-                if (forPdf) {
-                    charts.progresso.options.plugins.animation.onComplete = function(animation) {
-                        var chartInstance = animation.chart,
-                            ctx = chartInstance.ctx;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'bottom';
-                        ctx.font = "bold 18px Inter"; // Fonte menor para PDF
-                        
-                        var value = chartInstance.data.datasets[0].data[0];
-                        var color = chartInstance.data.datasets[0].backgroundColor[0]; 
-                        ctx.fillStyle = color;
-                        
-                        var x = chartInstance.width / 2;
-                        var y = chartInstance.height / 1.1;
-                        
-                        ctx.fillText(value + '%', x, y);
-                    };
-                }
-                
-                charts.progresso.update();
-            }
-            
-            // Atualiza gráfico de esforço
-            if (charts.esforco) {
-                const horasUtilizadasText = document.querySelector('[data-field="horas-utilizadas"]').textContent;
-                const horasPlanejadaText = document.querySelector('[data-field="horas-planejadas"]').textContent;
-                
-                const horasUtilizadas = parseFloat(horasUtilizadasText);
-                const horasPlanejadas = parseFloat(horasPlanejadaText);
-                
-                const corUtilizado = horasUtilizadas > horasPlanejadas ? '#e74a3b' : '#4e73df';
-                
-                charts.esforco.data.datasets[0].data[0] = horasUtilizadas;
-                charts.esforco.data.datasets[0].data[1] = horasPlanejadas;
-                charts.esforco.data.datasets[0].backgroundColor[0] = corUtilizado;
-                charts.esforco.data.datasets[0].borderColor[0] = corUtilizado;
-                
-                // Ajusta para PDF
-                if (forPdf) {
-                    charts.esforco.options.scales.x.title.display = false; // Remove título do eixo X
-                    charts.esforco.options.scales.x.ticks.font = { size: 8 }; // Fonte menor nos ticks
-                    charts.esforco.options.scales.y.ticks.font = { size: 8 }; // Fonte menor nos ticks
-                }
-                
-                charts.esforco.update();
-            }
-        }
-
-        // --- Funções para o modo de edição ---
-        // Alternar modo de edição
-        function toggleEditMode() {
-            editMode = !editMode;
-            
-            if (editMode) {
-                // Ativar modo de edição
-                pdfContent.classList.add('edit-mode');
-                editModeBtn.classList.add('active');
-                editModeBtn.querySelector('span').textContent = 'Salvar Alterações';
-                
-                // Tornar editável o seletor de status
-                const statusSelector = document.querySelector('.status-selector');
-                if (statusSelector) {
-                    statusSelector.style.display = 'inline-block';
-                    const statusText = document.querySelector('[data-status-text]');
-                    if (statusText) {
-                        statusText.style.display = 'none';
-                    }
-                    
-                    // Seleciona o valor atual no dropdown
-                    const statusDot = document.querySelector('[data-status-dot]');
-                    const currentStatus = statusDot.className.includes('verde') ? 'verde' : 
-                                          statusDot.className.includes('amarelo') ? 'amarelo' : 
-                                          statusDot.className.includes('vermelho') ? 'vermelho' : 'cinza';
-                    
-                    const selectElement = statusSelector.querySelector('select');
-                    selectElement.value = currentStatus;
-                    
-                    const statusTextMap = {
-                        verde: "No Prazo",
-                        amarelo: "Atenção",
-                        vermelho: "Crítico",
-                        cinza: "Não Iniciado"
-                    };
-                    
-                    // Adiciona listener para mudar a cor do status dot quando o select muda
-                    selectElement.addEventListener('change', function() {
-                        const newStatusColor = selectElement.value;
-                        statusDot.className = 'status-dot status-' + newStatusColor;
-                        statusText.className = 'h5 status-text text-' + newStatusColor + ' editable-field';
-                        statusText.textContent = statusTextMap[newStatusColor] || 'Não Iniciado';
-                    });
-                }
-
-                // Não permite editar a tabela de marcos, apenas os demais campos editáveis
-                const marcosTable = document.querySelector('.col-md-4 .card.shadow .table-responsive');
-                if (marcosTable) {
-                    marcosTable.setAttribute('data-original-state', 'preserved');
-                    console.log("Tabela de marcos preservada no modo de edição");
-                }
-            } else {
-                // Desativar modo de edição
-                pdfContent.classList.remove('edit-mode');
-                editModeBtn.classList.remove('active');
-                editModeBtn.querySelector('span').textContent = 'Editar Relatório';
-                
-                // Desativar e esconder o seletor de status
-                const statusSelector = document.querySelector('.status-selector');
-                if (statusSelector) {
-                    statusSelector.style.display = 'none';
-                    const statusText = document.querySelector('[data-status-text]');
-                    if (statusText) {
-                        statusText.style.display = 'inline';
-                    }
-                }
-                
-                // Remover quaisquer inputs ativos
-                document.querySelectorAll('.edit-input').forEach(input => {
-                    const parent = input.parentElement;
-                    parent.textContent = input.value;
-                    parent.classList.remove('editing');
-                });
-                
-                // Atualizar os gráficos
-                updateCharts();
-            }
-        }
-        
-        // Adicionar listeners para os campos editáveis
-        editableFields.forEach(field => {
-            field.addEventListener('click', function() {
-                // Só edita se estiver no modo de edição
-                if (!editMode || field.classList.contains('editing')) return;
-                
-                // Caso especial para status-geral (que tem select)
-                if (field.dataset.field === 'status-geral') return;
-                
-                // Cria um input para editar o valor
-                const originalText = field.textContent;
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.value = originalText;
-                input.className = 'edit-input';
-                
-                // Para percentuais e horas, forçar números
-                if (field.dataset.field === 'percentual-concluido' || 
-                    field.dataset.field === 'percentual-esforco' ||
-                    field.dataset.field === 'horas-utilizadas' ||
-                    field.dataset.field === 'horas-planejadas') {
-                    input.type = 'number';
-                    input.step = '0.1';
-                    input.min = '0';
-                    input.value = originalText.replace('%', '');
-                }
-                
-                // Para datas
-                if (field.dataset.field === 'data-prevista') {
-                    const dateParts = originalText.split('/');
-                    if (dateParts.length === 3) {
-                        input.type = 'date';
-                        // Formato yyyy-mm-dd para input date
-                        input.value = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
-                    }
-                }
-                
-                field.textContent = '';
-                field.appendChild(input);
-                field.classList.add('editing');
-                input.focus();
-                
-                // Lidar com perda de foco ou Enter para salvar
-                input.addEventListener('blur', saveChanges);
-                input.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        saveChanges();
-                    }
-                });
-                
-                function saveChanges() {
-                    let newValue = input.value;
-                    
-                    // Para percentuais, adicionar % de volta
-                    if (field.dataset.field === 'percentual-concluido' || 
-                        field.dataset.field === 'percentual-esforco') {
-                        newValue += '%';
-                    }
-                    
-                    // Para datas, converter de volta para dd/mm/yyyy
-                    if (field.dataset.field === 'data-prevista' && input.type === 'date') {
-                        const date = new Date(input.value);
-                        if (!isNaN(date.getTime())) {
-                            const day = date.getDate().toString().padStart(2, '0');
-                            const month = (date.getMonth() + 1).toString().padStart(2, '0');
-                            const year = date.getFullYear();
-                            newValue = `${day}/${month}/${year}`;
-                        }
-                    }
-                    
-                    field.textContent = newValue;
-                    field.classList.remove('editing');
-                }
-            });
-        });
-        
-        // Adicionar listener ao botão de modo de edição
-        if (editModeBtn) {
-            editModeBtn.addEventListener('click', toggleEditMode);
-        }
-
-        // --- CONFIGURAÇÃO DE GERAÇÃO DE PDF via html2pdf.js ---
-        const generatePDFBtn = document.getElementById('generatePdfBtn');
-        if (generatePDFBtn) {
-            generatePDFBtn.addEventListener('click', function() {
-                // Se estiver no modo de edição, salvar alterações primeiro
-                if (editMode) {
-                    toggleEditMode(); // Sai do modo de edição e salva alterações
-                }
-                
-                // Mostra um indicador de carregamento para processos longos
-                const loadingOverlay = document.createElement('div');
-                loadingOverlay.style.position = 'fixed';
-                loadingOverlay.style.top = '0';
-                loadingOverlay.style.left = '0';
-                loadingOverlay.style.width = '100%';
-                loadingOverlay.style.height = '100%';
-                loadingOverlay.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
-                loadingOverlay.style.display = 'flex';
-                loadingOverlay.style.justifyContent = 'center';
-                loadingOverlay.style.alignItems = 'center';
-                loadingOverlay.style.zIndex = '9999';
-                loadingOverlay.innerHTML = `
-                    <div style="text-align: center;">
-                        <div class="spinner-border text-primary" role="status"></div>
-                        <p class="mt-2">Gerando PDF, aguarde...</p>
-                    </div>
-                `;
-                document.body.appendChild(loadingOverlay);
-
-                // Obter elemento a ser convertido
-                const element = document.getElementById('pdfContent');
-                
-                // Adiciona uma classe temporária para aplicar estilos de impressão
-                element.classList.add('print-mode');
-                
-                // Mostra elementos que são apenas para PDF
-                const pdfElements = element.querySelectorAll('.pdf-only');
-                pdfElements.forEach(el => {
-                    el.style.display = 'block';
-                });
-                
-                // Esconde elementos que são apenas para tela
-                const screenElements = element.querySelectorAll('.screen-only');
-                screenElements.forEach(el => {
-                    el.style.display = 'none';
-                });
-                
-                // Nome do arquivo a ser gerado
-                const projectName = reportData?.info_geral?.nome || 'status_report';
-                const projectId = reportData?.info_geral?.id || '';
-                const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-                const filename = `status_report_${projectName.toLowerCase().replace(/\s+/g, '_')}_${projectId}_${today}.pdf`;
-                
-                // Primeiro, otimiza os gráficos para o PDF
-                updateCharts(true);
-                
-                // Espera um tempo para que os gráficos sejam renderizados corretamente
-                setTimeout(() => {
-                    try {
-                        // Captura os canvas de gráficos e os converte para imagens para melhor compatibilidade
-                        const chartCanvases = pdfContent.querySelectorAll('canvas');
-                        const chartPromises = Array.from(chartCanvases).map(canvas => {
-                            return new Promise((resolve) => {
-                                const img = new Image();
-                                img.src = canvas.toDataURL('image/png');
-                                img.style.maxWidth = '100%';
-                                img.style.height = 'auto';
-                                img.onload = () => {
-                                    // Substitui o canvas pela imagem
-                                    canvas.parentNode.replaceChild(img, canvas);
-                                    resolve();
-                                };
-                            });
-                        });
-                        
-                        // Quando todas as imagens estiverem carregadas, gera o PDF
-                        Promise.all(chartPromises).then(() => {
-                            // Configuração para PDF profissional 
-                            const pdfOptions = {
-                                margin: [10, 10, 10, 10], // Margens simples e uniformes em mm
-                                filename: filename,
-                                image: { type: 'jpeg', quality: 0.98 },
-                                html2canvas: { 
-                                    scale: 2, // Resolução padrão
-                                    useCORS: true,
-                                    letterRendering: true,
-                                    allowTaint: true,
-                                    backgroundColor: '#ffffff',
-                                    logging: true, // Habilitar logs para diagnóstico
-                                    onclone: function(clonedDocument) {
-                                        // Certifique-se de que os elementos estão visíveis
-                                        const clonedContent = clonedDocument.getElementById('pdfContent');
-                                        if (clonedContent) {
-                                            // Remover classes que podem afetar visibilidade
-                                            clonedContent.classList.add('print-mode');
-                                            
-                                            // Mostrar elementos PDF-only
-                                            const pdfElements = clonedContent.querySelectorAll('.pdf-only');
-                                            pdfElements.forEach(el => el.style.display = 'block');
-                                            
-                                            // Esconder elementos screen-only
-                                            const screenElements = clonedContent.querySelectorAll('.screen-only');
-                                            screenElements.forEach(el => el.style.display = 'none');
-                                        }
-                                    }
-                                },
-                                jsPDF: { 
-                                    unit: 'mm', 
-                                    format: 'a4', 
-                                    orientation: 'portrait',
-                                    compress: true
-                                },
-                                pagebreak: { mode: 'avoid-all' },
-                                // Adicionar callback para numeração de página
-                                didDrawPage: function (data) {
-                                    // Adicionar número da página
-                                    const pageCount = data.doc.internal.getNumberOfPages();
-                                    data.doc.setFontSize(7);
-                                    data.doc.setTextColor(102, 102, 102); // Cor #666
-                                    data.doc.text(
-                                        'Página ' + data.pageNumber + ' de ' + pageCount,
-                                        data.settings.margin.left, // Alinha com a margem esquerda
-                                        data.doc.internal.pageSize.height - 7 // Posição no rodapé
-                                    );
-                                }
-                            };
-                            
-                            // Gerar o PDF com configuração básica
-                            html2pdf().from(element).set(pdfOptions).save().then(() => {
-                                // Restaurar elementos após gerar PDF
-                                pdfElements.forEach(el => el.style.display = 'none');
-                                screenElements.forEach(el => el.style.display = 'block');
-                                element.classList.remove('print-mode');
-                                document.body.removeChild(loadingOverlay);
-                                
-                                // Restaurar os canvas originais
-                                updateCharts();
-
-                                // Limpar a numeração de página manual se existir
-                                const pageNumSpans = pdfContent.querySelectorAll('.pageNumber, .totalPages');
-                                pageNumSpans.forEach(span => span.textContent = '');
-
-                            }).catch(error => {
-                                console.error('Erro ao gerar PDF:', error);
-                                alert('Ocorreu um erro ao gerar o PDF. Por favor, tente novamente.');
-                                document.body.removeChild(loadingOverlay);
-                                
-                                // Restaurar os canvas originais
-                                updateCharts();
-
-                                // Limpar a numeração de página manual se existir
-                                const pageNumSpans = pdfContent.querySelectorAll('.pageNumber, .totalPages');
-                                pageNumSpans.forEach(span => span.textContent = '');
-                            });
-                        });
-                    } catch (error) {
-                        console.error('Erro ao preparar PDF:', error);
-                        alert('Ocorreu um erro ao preparar o PDF. Por favor, tente novamente.');
-                        document.body.removeChild(loadingOverlay);
-                    }
-                }, 300); // Tempo para garantir que os gráficos sejam renderizados
-            });
-        }
-    });
-</script>
-
-<!-- Script para carregar a linha do tempo -->
-<script>
-// Formatação de data
-function formatDateStringSR(dateStr) { // Renomeado para evitar conflito se houver outra formatDateString global
-    if (!dateStr) return "-";
-    // Verifica se a string já está no formato dd/MM/YYYY (pode vir assim do backend)
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
-        return dateStr;
-    }
-    // Se for YYYY-MM-DD (comum de inputs ou algumas APIs)
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-        const parts = dateStr.split('-');
-        return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-    // Tenta parsear como ISO (para datas com hora)
-    try {
-        const date = new Date(dateStr);
-        if (isNaN(date.getTime())) return dateStr; 
-        return date.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'});
-    } catch (e) {
-        console.error("[SR Timeline] Erro ao formatar data:", e, dateStr);
-        return dateStr;
-    }
-}
-
-// Escapa HTML para tooltips seguros
-function escapeHtmlSR(unsafe) { // Renomeado
-    if (!unsafe) return '';
-    return unsafe
-        .toString()
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
+// Função para carregar dados das tarefas quando não é PDF
 document.addEventListener('DOMContentLoaded', function() {
-    // Elementos DOM para manipulação
-    const loadingElement = document.getElementById('timeline-loading');
-    const errorElement = document.getElementById('timeline-error');
-    const errorMessageElement = document.getElementById('timeline-error-message');
-    const emptyElement = document.getElementById('timeline-empty');
-    const contentElement = document.getElementById('timeline-content');
+    console.log('Status Report - DOM carregado');
     
-    const upcomingTasksList = document.getElementById('upcoming-tasks-list');
-    const startedTasksList = document.getElementById('started-tasks-list'); // Para "Em Andamento"
-    const reviewTasksList = document.getElementById('review-tasks-list'); // NOVA LISTA
-    const pendingTasksList = document.getElementById('pending-tasks-list'); // NOVA LISTA PENDENTES
-    const completedTasksList = document.getElementById('completed-tasks-list');
+    // Verificar se não é visualização PDF
+    const isForPdf = {{ 'true' if for_pdf else 'false' }};
     
-    if (!loadingElement || !errorElement || !emptyElement || !contentElement ||
-        !upcomingTasksList || !startedTasksList || !reviewTasksList || !pendingTasksList || !completedTasksList) { // Adicionado pendingTasksList
-        console.error("[SR Timeline] Um ou mais elementos da linha do tempo não encontrados no DOM.");
-        if(loadingElement) loadingElement.style.display = 'none';
-        if(errorElement) {
-            errorElement.style.display = 'block';
-            if(errorMessageElement) errorMessageElement.textContent = 'Erro na configuração da página (elementos faltando).';
-        }
-        return;
-    }
-
-    // Função para mostrar/ocultar elementos de status da timeline
-    function setTimelineDisplayStatus(isLoading, hasError, errorMsg, isEmptyOverall) {
-        loadingElement.style.display = isLoading ? 'block' : 'none';
-        errorElement.style.display = hasError ? 'block' : 'none';
-        if (errorMessageElement && errorMsg) errorMessageElement.textContent = errorMsg;
-        emptyElement.style.display = isEmptyOverall ? 'block' : 'none';
-        contentElement.style.display = (!isLoading && !hasError && !isEmptyOverall) ? 'block' : 'none';
-    }
-
-    // Função auxiliar para renderizar uma lista de tarefas
-    function renderTaskListSR(listElement, tasks, sectionTitle, defaultStatusBadge) {
-        if (!listElement) {
-            console.warn(`[SR Timeline] Elemento de lista para '${sectionTitle}' não encontrado.`);
-            return 0; // Retorna 0 tarefas renderizadas
-        }
-        if (!tasks || tasks.length === 0) {
-            listElement.innerHTML = `<li class="list-group-item text-center text-muted small">Nenhuma tarefa ${sectionTitle.toLowerCase()}.</li>`;
-            return 0;
+    if (!isForPdf) {
+        console.log('Modo não-PDF detectado, mostrando conteúdo das tarefas...');
+        
+        // Ocultar loading e mostrar conteúdo
+        const timelineLoading = document.getElementById('timeline-loading');
+        const timelineContent = document.getElementById('timeline-content');
+        
+        if (timelineLoading) {
+            timelineLoading.style.display = 'none';
         }
         
-        let html = '';
-        // Adicionar cabeçalho padrão para todas as listas
-        html += `
-            <div class="column-headers" style="display: flex; justify-content: space-between; padding: 0.5rem 1rem; background-color: #f8f9fc; border-bottom: 1px solid #e3e6f0; font-weight: bold; font-size: 0.75rem;">
-                <div class="task-column" style="flex-basis: 50%;">Tarefa</div>
-                <div class="status-column" style="flex-basis: 20%; text-align: center;">Prioridade</div>
-                <div class="date-column" style="flex-basis: 30%; text-align: right;">Prazo/Conclusão</div>
-            </div>
-        `;
-
-        tasks.forEach(task => {
-            const title = task.title || task.titulo || 'Tarefa sem título';
-            const priority = task.priority || 'N/A';
-            let dateDisplay = task.due_date ? formatDateStringSR(task.due_date) : 'N/A';
-            if (sectionTitle.toLowerCase().includes('concluída') && task.completed_at) {
-                dateDisplay = formatDateStringSR(task.completed_at.split(' ')[0]); // Pega só a data de completed_at
-            }
-
-            let priorityBadgeClass = 'bg-secondary';
-            if (priority === 'Alta') priorityBadgeClass = 'bg-warning text-dark';
-            else if (priority === 'Urgente') priorityBadgeClass = 'bg-danger';
-            else if (priority === 'Média') priorityBadgeClass = 'bg-info'; // Ajuste para Média ser azul claro
-            else if (priority === 'Baixa') priorityBadgeClass = 'bg-success'; // Ajuste para Baixa ser verde claro
-
-            html += `
-                <li class="list-group-item" title="${escapeHtmlSR(task.description || '')}" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 1rem; font-size: 0.8rem;">
-                    <span class="timeline-task-name" style="flex-basis: 50%; word-break: break-word;">${escapeHtmlSR(title)}</span>
-                    <div class="status-container" style="flex-basis: 20%; text-align: center;">
-                        <span class="badge ${priorityBadgeClass}">${escapeHtmlSR(priority)}</span>
-                    </div>
-                    <span class="text-muted small" style="flex-basis: 30%; text-align: right;">
-                        ${dateDisplay}
-                    </span>
-                </li>
-            `;
-        });
-        listElement.innerHTML = html;
-        return tasks.length;
+        if (timelineContent) {
+            timelineContent.style.display = 'block';
+        }
+        
+        console.log('Timeline content exibido com sucesso');
     }
-
-    // Checa se reportData está disponível (deve ter sido parseado pelo script anterior)
-    if (typeof reportData === 'undefined' || !reportData) {
-        console.error("[SR Timeline] reportData não está definido ou é nulo.");
-        setTimelineDisplayStatus(false, true, "Dados do relatório não puderam ser carregados.", false);
-        return;
-    }
-
-    console.log("[SR Timeline] Usando reportData para popular listas:", reportData);
     
-    // Ocultar loading inicial e mensagem de erro/vazio, pois vamos popular ou mostrar mensagens específicas por lista.
-    loadingElement.style.display = 'none';
-    errorElement.style.display = 'none';
-    emptyElement.style.display = 'none';
-    contentElement.style.display = 'block'; // Garante que o container das listas esteja visível
-
-    let totalTasksRendered = 0;
-
-    // 1. Próximas Tarefas (usa reportData.tarefas_proximo_prazo)
-    totalTasksRendered += renderTaskListSR(upcomingTasksList, reportData.tarefas_proximo_prazo, 'Próximas a Vencer', '<span class="badge bg-warning text-dark">Pendente</span>');
-
-    // 2. Tarefas em Andamento (usa reportData.tarefas_em_andamento)
-    totalTasksRendered += renderTaskListSR(startedTasksList, reportData.tarefas_em_andamento, 'Em Andamento', '<span class="badge bg-primary">Andamento</span>');
-
-    // 3. Tarefas em Revisão (usa reportData.tarefas_em_revisao) - NOVA
-    totalTasksRendered += renderTaskListSR(reviewTasksList, reportData.tarefas_em_revisao, 'Em Revisão', '<span class="badge bg-info">Revisão</span>');
-
-    // X. Tarefas Pendentes (NOVO)
-    totalTasksRendered += renderTaskListSR(pendingTasksList, reportData.tarefas_pendentes, 'Pendentes', '<span class="badge bg-secondary">Pendente</span>');
-
-    // 4. Tarefas Concluídas (usa report_data.tarefas_concluidas)
-    totalTasksRendered += renderTaskListSR(completedTasksList, reportData.tarefas_concluidas, 'Concluídas', '<span class="badge bg-success">Concluído</span>');
-
-    // Se nenhuma tarefa foi renderizada em nenhuma lista, mostra a mensagem geral de "timeline vazia"
-    if (totalTasksRendered === 0) {
-        emptyElement.style.display = 'block';
-        // Opcional: esconder o contentElement se não houver absolutamente nada.
-        // contentElement.style.display = 'none'; 
-    }
+    // Carregar gráficos
+    initCharts();
 });
+
+function initCharts() {
+    // Dados do relatório
+    const reportData = {
+        progresso: {
+            percentual_concluido: {{ report_data.progresso.percentual_concluido | default(0) | round(1) }},
+        },
+        esforco: {
+            horas_utilizadas: {{ report_data.esforco.horas_utilizadas | default(0) | round(1) }},
+            horas_planejadas: {{ report_data.esforco.horas_planejadas | default(0) | round(1) }},
+            percentual_consumido: {{ report_data.esforco.percentual_consumido | default(0) | round(1) }}
+        }
+    };
+    
+    console.log('Dados para gráficos:', reportData);
+    
+    // Gráfico de Progresso (Doughnut)
+    const progressoCtx = document.getElementById('progressoChart');
+    if (progressoCtx) {
+        const percentualConcluido = reportData.progresso.percentual_concluido;
+        const percentualRestante = 100 - percentualConcluido;
+        
+        new Chart(progressoCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Concluído', 'Restante'],
+                datasets: [{
+                    data: [percentualConcluido, percentualRestante],
+                    backgroundColor: [
+                        '#1cc88a', // Verde para concluído
+                        '#e3e6f0'  // Cinza para restante
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '60%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            usePointStyle: true,
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Gráfico de Esforço (Bar)
+    const esforcoCtx = document.getElementById('esforcoChart');
+    if (esforcoCtx) {
+        const horasUtilizadas = reportData.esforco.horas_utilizadas;
+        const horasPlanejadas = reportData.esforco.horas_planejadas;
+        const horasRestantes = Math.max(0, horasPlanejadas - horasUtilizadas);
+        
+        new Chart(esforcoCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Horas'],
+                datasets: [
+                    {
+                        label: 'Utilizadas',
+                        data: [horasUtilizadas],
+                        backgroundColor: '#4e73df',
+                        borderColor: '#4e73df',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Restantes',
+                        data: [horasRestantes],
+                        backgroundColor: '#e3e6f0',
+                        borderColor: '#e3e6f0',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        stacked: true,
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return value + 'h';
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            usePointStyle: true,
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.parsed.y + 'h';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
 </script>
+
+<!-- Carregar Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}

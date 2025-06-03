@@ -17,7 +17,6 @@ from app.utils import (
     COLUNAS_TEXTO
 )
 import unicodedata
-from ..models import Backlog, Note, Tag, Task  # Adicionar Note, Tag e Task
 from .. import db
 
 # Configuração de logging
@@ -265,6 +264,9 @@ class MacroService(BaseService):
         """
         Carrega os dados atuais (dadosr.csv) e determina o mês de referência
         com base na data mais recente da coluna 'UltimaInteracao'.
+        
+        A Visão Atual sempre usa dadosr.csv. Os arquivos dadosr_apt_* são apenas
+        para visões históricas e são criados na virada do mês.
 
         Returns:
             tuple: (pd.DataFrame, datetime.datetime) contendo os dados carregados
@@ -272,18 +274,22 @@ class MacroService(BaseService):
                    se os dados não puderem ser carregados ou a data de referência
                    não puder ser determinada.
         """
-        logger.info("Obtendo dados e mês de referência atuais...")
-        dados_atuais = self.carregar_dados(fonte=None) # Carrega dadosr.csv
+        logger.info("Obtendo dados atuais (dadosr.csv) e mês de referência...")
+        
+        # SEMPRE usa dadosr.csv para a visão atual
+        dados_atuais = self.carregar_dados(fonte=None)  # Carrega dadosr.csv
 
         if dados_atuais.empty:
             logger.warning("Não foi possível carregar dados atuais (dadosr.csv).")
             return pd.DataFrame(), None
 
-        # Verifica se a coluna 'UltimaInteracao' (renomeada de 'Data da última ação') existe
+        # Verifica se a coluna 'UltimaInteracao' existe
         if 'UltimaInteracao' not in dados_atuais.columns:
             logger.error("Coluna 'UltimaInteracao' não encontrada nos dados atuais após renomeação.")
-            # Tentar com o nome original como fallback? Ou retornar erro? Por hora, erro.
-            return dados_atuais, None # Retorna os dados, mas sem referência
+            # Usa o mês atual do sistema como fallback
+            mes_referencia_atual = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            logger.info(f"Usando mês atual do sistema como referência: {mes_referencia_atual.strftime('%B/%Y')}")
+            return dados_atuais, mes_referencia_atual
 
         # Converte para datetime, tratando erros
         datas_interacao = pd.to_datetime(dados_atuais['UltimaInteracao'], errors='coerce')
@@ -293,9 +299,10 @@ class MacroService(BaseService):
 
         if datas_validas.empty:
             logger.warning("Nenhuma data válida encontrada na coluna 'UltimaInteracao' para determinar o mês de referência.")
-            # Definir um padrão? Usar data do sistema? Por hora, retorna None.
-            # Poderia usar: return dados_atuais, datetime.now().replace(day=1)
-            return dados_atuais, None
+            # Usa o mês atual do sistema como fallback
+            mes_referencia_atual = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            logger.info(f"Usando mês atual do sistema como referência: {mes_referencia_atual.strftime('%B/%Y')}")
+            return dados_atuais, mes_referencia_atual
 
         # Encontra a data mais recente
         data_maxima = datas_validas.max()
@@ -2635,7 +2642,9 @@ class MacroService(BaseService):
                     if ano_hist == 2025:
                         if mes_hist == 2: fonte_historico = 'dadosr_apt_fev'
                         if mes_hist == 3: fonte_historico = 'dadosr_apt_mar'
-                        # Adicionar mapeamentos futuros aqui (Abril, Maio, etc.)
+                        if mes_hist == 4: fonte_historico = 'dadosr_apt_abr'  # ADICIONADO: mapeamento para abril
+                        if mes_hist == 5: fonte_historico = 'dadosr_apt_mai'  # ADICIONADO: mapeamento para maio
+                        # Adicionar mapeamentos futuros aqui (Junho, Julho, etc.)
                     
                     if fonte_historico:
                         logger.info(f"    Tentando carregar dados da fonte: {fonte_historico}")
@@ -2937,735 +2946,763 @@ class MacroService(BaseService):
             return resultado_final
 
         except Exception as e:
-            logger.exception(f"Erro ao calcular novos projetos do mês: {str(e)}")
+            logger.error(f"Erro ao calcular novos projetos: {str(e)}")
             return {'por_squad': {}, 'total': 0}
 
     def calcular_novos_projetos_atual(self, dados, mes_referencia):
         """
-        Calcula a quantidade de projetos iniciados no mês de referência para a Visão Atual
-        e compara com o mês anterior, carregando a fonte histórica dinamicamente.
-
+        Calcula os dados de novos projetos para a Visão Atual.
+        Retorna estrutura de comparação com mês atual vs anterior.
+        
         Args:
             dados: DataFrame com os dados dos projetos (geralmente dadosr.csv).
-            mes_referencia: Data (datetime) do mês de referência determinado dinamicamente.
-
+            mes_referencia: Data de referência (datetime) determinada dinamicamente.
+            
         Returns:
-            Dictionary com a comparação: {'por_squad': {...}, 'total': {...}}
+            Dictionary com estrutura de comparação de novos projetos.
         """
         try:
-            logger.info(f"[Visão Atual] Calculando comparação de novos projetos para {mes_referencia.strftime('%m/%Y')}...")
-
-            # 1. Calcula novos projetos para o mês de referência (atual)
-            novos_projetos_atual = self.calcular_novos_projetos_mes(dados, mes_referencia)
-            logger.info(f"  Novos projetos (atual - {mes_referencia.strftime('%m/%Y')}): {novos_projetos_atual['total']}")
-
-            # 2. Calcula o mês anterior
-            primeiro_dia_mes_ref = mes_referencia.replace(day=1)
-            ultimo_dia_mes_anterior = primeiro_dia_mes_ref - timedelta(days=1)
-            mes_comparativo = ultimo_dia_mes_anterior.replace(day=1)
-            logger.info(f"  Mês comparativo determinado: {mes_comparativo.strftime('%m/%Y')}")
-
-            # 3. Tenta carregar dados do mês anterior
-            novos_projetos_anterior = {'por_squad': {}, 'total': 0} # Default
-            fonte_anterior = self._obter_fonte_historica(mes_comparativo.year, mes_comparativo.month)
+            logger.info(f"[Visão Atual] Calculando novos projetos para {mes_referencia.strftime('%m/%Y')}...")
             
-            dados_anterior = pd.DataFrame() # Inicializa vazio
+            # Calcular novos projetos do mês atual
+            resultado_mes_atual = self.calcular_novos_projetos_mes(dados, mes_referencia)
+            
+            # Calcular mês anterior
+            if mes_referencia.month == 1:
+                mes_anterior = mes_referencia.replace(year=mes_referencia.year - 1, month=12)
+            else:
+                mes_anterior = mes_referencia.replace(month=mes_referencia.month - 1)
+            
+            logger.info(f"[Visão Atual] Tentando calcular dados do mês anterior: {mes_anterior.strftime('%m/%Y')}")
+            
+            # Tentar obter dados históricos do mês anterior
+            resultado_mes_anterior = {'por_squad': {}, 'total': 0}
+            
+            # Verifica se existe fonte histórica para o mês anterior
+            fonte_anterior = self._obter_fonte_historica(mes_anterior.year, mes_anterior.month)
             if fonte_anterior:
-                logger.info(f"  Tentando carregar dados da fonte anterior: {fonte_anterior}")
                 try:
                     dados_anterior = self.carregar_dados(fonte=fonte_anterior)
                     if not dados_anterior.empty:
-                        logger.info(f"    Fonte anterior '{fonte_anterior}' carregada com sucesso.")
-                        # Calcula novos projetos para o mês anterior
-                        novos_projetos_anterior = self.calcular_novos_projetos_mes(dados_anterior, mes_comparativo)
-                        logger.info(f"    Novos projetos (anterior - {mes_comparativo.strftime('%m/%Y')}): {novos_projetos_anterior['total']}")
+                        resultado_mes_anterior = self.calcular_novos_projetos_mes(dados_anterior, mes_anterior)
+                        logger.info(f"[Visão Atual] Dados do mês anterior carregados da fonte: {fonte_anterior}")
                     else:
-                        logger.warning(f"    Fonte anterior '{fonte_anterior}' carregada, mas está vazia.")
-                except Exception as e_load_ant:
-                     logger.error(f"    Erro ao carregar ou processar dados da fonte anterior '{fonte_anterior}': {e_load_ant}")                 
+                        logger.warning(f"[Visão Atual] Fonte {fonte_anterior} retornou dados vazios")
+                except Exception as e:
+                    logger.error(f"[Visão Atual] Erro ao carregar dados da fonte {fonte_anterior}: {e}")
             else:
-                 # Tenta usar valores fixos como fallback (se aplicável)
-                 ano_ant = mes_comparativo.year
-                 mes_ant = mes_comparativo.month
-                 if ano_ant == 2024 and mes_ant == 12:
-                      # Exemplo: Definir valores fixos para Dez/24 se a fonte não existir
-                      # novos_projetos_anterior = {'por_squad': {'AZURE': 2, ...}, 'total': 5}
-                      logger.warning(f"  Fonte para {mes_comparativo.strftime('%m/%Y')} não encontrada, usando valores fixos (se definidos).")
-                      # Implementar lógica de valores fixos aqui se necessário
-                      pass # Por enquanto, mantém zerado
-                 elif ano_ant == 2025 and mes_ant == 1:
-                      # Exemplo: Definir valores fixos para Jan/25
-                      # novos_projetos_anterior = {'por_squad': {'M365': 3, ...}, 'total': 6}
-                      logger.warning(f"  Fonte para {mes_comparativo.strftime('%m/%Y')} não encontrada, usando valores fixos (se definidos).")
-                      pass # Por enquanto, mantém zerado
-                 else:
-                      logger.warning(f"  Nenhuma fonte ou valor fixo encontrado para o mês comparativo: {mes_comparativo.strftime('%m/%Y')}")
+                # Fallback: tentar calcular usando os mesmos dados atuais (pode incluir projetos do mês anterior)
+                try:
+                    resultado_mes_anterior = self.calcular_novos_projetos_mes(dados, mes_anterior)
+                    logger.info(f"[Visão Atual] Usando fallback com dados atuais para calcular mês anterior")
+                except Exception as e:
+                    logger.warning(f"[Visão Atual] Fallback falhou: {e}")
             
-            # 4. Calcula a comparação
-            novos_projetos_comparativo = {
+            # Estruturar dados para comparação
+            squads_principais = ['AZURE', 'M365', 'DATA E POWER', 'CDB']
+            comparativo = {
                 'por_squad': {},
                 'total': {
-                    'atual': novos_projetos_atual['total'],
-                    'anterior': novos_projetos_anterior['total'],
-                    'variacao_pct': 0,
-                    'variacao_abs': 0
+                    'atual': resultado_mes_atual['total'],
+                    'anterior': resultado_mes_anterior['total'],
+                    'variacao_abs': 0,
+                    'variacao_pct': 0
                 }
             }
-            # Assume squads principais (pode ser pego do contexto no futuro)
-            squads_para_comparar = ['AZURE', 'M365', 'DATA E POWER', 'CDB'] 
             
-            for squad in squads_para_comparar:
-                qtd_atual = novos_projetos_atual['por_squad'].get(squad, 0) 
-                qtd_anterior = novos_projetos_anterior['por_squad'].get(squad, 0)
+            # Calcular variações por squad
+            for squad in squads_principais:
+                atual = resultado_mes_atual['por_squad'].get(squad, 0)
+                anterior = resultado_mes_anterior['por_squad'].get(squad, 0)
+                variacao_abs = atual - anterior
                 variacao_pct = 0
-                variacao_abs = qtd_atual - qtd_anterior
-                if qtd_anterior > 0:
-                    variacao_pct = round(((qtd_atual - qtd_anterior) / qtd_anterior) * 100, 1)
-                elif qtd_atual > 0:
-                    variacao_pct = 100.0
-                novos_projetos_comparativo['por_squad'][squad] = {
-                    'atual': qtd_atual,
-                    'anterior': qtd_anterior,
-                    'variacao_pct': variacao_pct,
-                    'variacao_abs': variacao_abs
-                }
                 
-            # Calcula variação total
-            total_atual = novos_projetos_comparativo['total']['atual']
-            total_anterior = novos_projetos_comparativo['total']['anterior']
+                if anterior > 0:
+                    variacao_pct = round(((atual - anterior) / anterior) * 100, 1)
+                elif atual > 0:
+                    variacao_pct = 100.0
+                
+                comparativo['por_squad'][squad] = {
+                    'atual': atual,
+                    'anterior': anterior,
+                    'variacao_abs': variacao_abs,
+                    'variacao_pct': variacao_pct
+                }
+            
+            # Calcular variações totais
+            total_atual = comparativo['total']['atual']
+            total_anterior = comparativo['total']['anterior']
             total_variacao_abs = total_atual - total_anterior
             total_variacao_pct = 0
+            
             if total_anterior > 0:
                 total_variacao_pct = round(((total_atual - total_anterior) / total_anterior) * 100, 1)
             elif total_atual > 0:
                 total_variacao_pct = 100.0
-            novos_projetos_comparativo['total']['variacao_pct'] = total_variacao_pct
-            novos_projetos_comparativo['total']['variacao_abs'] = total_variacao_abs
             
-            logger.info(f"  Comparativo de novos projetos calculado. Atual: {total_atual}, Anterior: {total_anterior}, VarAbs: {total_variacao_abs} ({total_variacao_pct}%)")
+            comparativo['total']['variacao_abs'] = total_variacao_abs
+            comparativo['total']['variacao_pct'] = total_variacao_pct
             
-            return novos_projetos_comparativo
-
+            logger.info(f"[Visão Atual] Comparativo calculado. Atual: {total_atual}, Anterior: {total_anterior}, VarAbs: {total_variacao_abs}")
+            
+            return comparativo
+            
         except Exception as e:
-            logger.exception(f"[Visão Atual] Erro ao calcular comparação de novos projetos: {str(e)}")
-            # Retorna estrutura vazia em caso de erro
+            logger.exception(f"[Visão Atual] Erro ao calcular novos projetos: {str(e)}")
+            # Retorna estrutura vazia mas correta
             return {
-                'por_squad': {s: {'atual': 0, 'anterior': 0, 'variacao_pct': 0, 'variacao_abs': 0} for s in ['AZURE', 'M365', 'DATA E POWER', 'CDB']},
-                'total': {'atual': 0, 'anterior': 0, 'variacao_pct': 0, 'variacao_abs': 0}
+                'por_squad': {squad: {'atual': 0, 'anterior': 0, 'variacao_abs': 0, 'variacao_pct': 0} 
+                             for squad in ['AZURE', 'M365', 'DATA E POWER', 'CDB']},
+                'total': {'atual': 0, 'anterior': 0, 'variacao_abs': 0, 'variacao_pct': 0}
             }
 
     def _obter_fonte_historica(self, ano, mes):
         """
-        Determina o nome da fonte de dados histórica esperada para um dado ano e mês,
-        seguindo a convenção 'dadosr_apt_mmm'.
-
+        Obtém o nome da fonte histórica para um determinado mês/ano.
+        
         Args:
-            ano (int): O ano.
-            mes (int): O número do mês (1-12).
-
-        Returns:
-            str or None: O nome da fonte (ex: 'dadosr_apt_jan') ou None se o mês for inválido.
-        """
-        if not 1 <= mes <= 12:
-            logger.warning(f"Mês inválido fornecido para obter fonte histórica: {mes}")
-            return None
+            ano (int): Ano
+            mes (int): Mês (1-12)
             
-        # Mapeamento de número do mês para abreviação de 3 letras minúsculas
-        mes_abbr_map = {
+        Returns:
+            str: Nome da fonte (sem extensão) ou None se não encontrada
+        """
+        # Mapeamento dos meses para abreviações
+        mes_to_abbr = {
             1: 'jan', 2: 'fev', 3: 'mar', 4: 'abr', 5: 'mai', 6: 'jun',
             7: 'jul', 8: 'ago', 9: 'set', 10: 'out', 11: 'nov', 12: 'dez'
         }
         
-        mes_abbr = mes_abbr_map.get(mes)
+        if mes in mes_to_abbr:
+            fonte = f"dadosr_apt_{mes_to_abbr[mes]}"
+            # Verifica se o arquivo existe
+            arquivo_path = self.csv_path.parent / f"{fonte}.csv"
+            if arquivo_path.exists():
+                return fonte
         
-        if mes_abbr:
-            nome_fonte = f"dadosr_apt_{mes_abbr}"
-            logger.info(f"Nome da fonte histórica determinada para {mes}/{ano}: {nome_fonte}")
-            return nome_fonte
-        else:
-            # Isso não deve acontecer com a validação acima, mas por segurança
-            logger.error(f"Não foi possível encontrar a abreviação para o mês {mes}")
-            return None
+        return None
 
-    # --- ADICIONAR NOVO MÉTODO PARA DETALHES DO PROJETO --- 
     def obter_detalhes_projeto(self, project_id):
-        """Busca e retorna os detalhes de um projeto específico pelo seu ID numérico."""
+        """
+        Busca os detalhes de um projeto específico pelo ID.
+        Aceita tanto int quanto string como project_id.
+        """
         self.logger.info(f"Buscando detalhes para project_id: {project_id}")
-        dados_df = self.carregar_dados() 
         
-        if dados_df.empty:
-            self.logger.warning("DataFrame vazio, não foi possível buscar detalhes do projeto.")
+        dados = self.carregar_dados()
+        if dados.empty:
+            self.logger.warning("Dados vazios ao buscar detalhes do projeto")
             return None
-            
-        # Garante que a coluna 'Numero' exista após o carregamento/renomeação
-        if 'Numero' not in dados_df.columns:
-             self.logger.error("Coluna 'Numero' não encontrada no DataFrame após carregar_dados.")
-             return None
-             
+        
+        # Converte project_id para int para garantir compatibilidade
         try:
-            # Converte o project_id (que vem como string da URL) para int para comparação
-            # A coluna 'Numero' no DataFrame foi convertida para Int64
             project_id_int = int(project_id)
         except (ValueError, TypeError):
-            self.logger.error(f"project_id inválido: {project_id}. Esperado um número.")
-            return None
-
-        # Filtra o DataFrame pelo ID do projeto
-        # Usamos .loc para acesso baseado em label/condição
-        projeto_data = dados_df.loc[dados_df['Numero'] == project_id_int]
-
-        if projeto_data.empty:
-            self.logger.warning(f"Nenhum projeto encontrado com Numero = {project_id_int}")
+            self.logger.warning(f"Não foi possível converter project_id '{project_id}' para int")
             return None
         
-        # Pega a primeira linha (deve ser única)
-        # Usamos .iloc[0] para acessar a primeira linha pelo índice posicional
-        details = projeto_data.iloc[0]
+        # Busca o projeto pelo ID (assumindo que a coluna Numero contém o project_id)
+        projeto = dados[dados['Numero'] == project_id_int]
         
-        # Monta o dicionário de retorno com os nomes de campo esperados pelo frontend
-        # Usa .get() para evitar erros se alguma coluna não existir (embora devam existir)
-        result = {
-            'id': project_id, # Mantém o ID original (string)
-            'name': details.get('Projeto', 'N/A'),
-            'squad': details.get('Squad', 'N/A'),
-            'specialist': details.get('Especialista', 'N/A'),
-            'status': details.get('Status', 'N/A'),
-            'estimated_hours': details.get('Horas', 0.0), # Era 'Esforço estimado'
-            'logged_hours': details.get('HorasTrabalhadas', 0.0), # Era 'Tempo trabalhado'
-            'remaining_hours': details.get('HorasRestantes', 0.0) # Calculado no carregar_dados
+        if projeto.empty:
+            self.logger.warning(f"Projeto com ID {project_id_int} não encontrado")
+            return None
+        
+        # Retorna o primeiro resultado como dicionário
+        projeto_dict = projeto.iloc[0].to_dict()
+        self.logger.info(f"Projeto encontrado: {projeto_dict.get('Projeto', 'N/A')}")
+        
+        return projeto_dict
+
+    def obter_fontes_disponiveis(self):
+        """
+        Detecta automaticamente arquivos dadosr_apt_* disponíveis no diretório de dados
+        e retorna uma lista de meses/anos que podem ser usados para criar abas dinamicamente.
+        NÃO inclui dadosr.csv pois este é sempre usado para a Visão Atual.
+        
+        Returns:
+            list: Lista de dicionários com informações sobre fontes disponíveis
+                  Formato: [{'mes': 1, 'ano': 2025, 'nome_arquivo': 'dadosr_apt_jan', 'label': 'Jan/2025'}, ...]
+                  Ordenado do mais recente para o mais antigo
+        """
+        try:
+            logger.info("Detectando fontes de dados dadosr_apt_* disponíveis...")
+            
+            # Obtém o diretório de dados
+            data_dir = self.csv_path.parent
+            
+            # Lista todos os arquivos CSV que seguem o padrão dadosr_apt_*
+            arquivos_apt = list(data_dir.glob("dadosr_apt_*.csv"))
+            
+            fontes = []
+            
+            # Processa cada arquivo encontrado
+            for arquivo in arquivos_apt:
+                nome_arquivo = arquivo.stem  # Remove a extensão .csv
+                
+                # Extrai a abreviação do mês do nome do arquivo
+                # Formato esperado: dadosr_apt_abr, dadosr_apt_jan, etc.
+                if '_' in nome_arquivo:
+                    partes = nome_arquivo.split('_')
+                    if len(partes) >= 3:
+                        abrev_mes = partes[2]  # 'abr', 'jan', etc.
+                        
+                        # Mapeia abreviação para mês/ano
+                        mes_num, ano = self._mapear_abreviacao_para_data(abrev_mes)
+                        
+                        if mes_num and ano:
+                            label = f"{self._obter_nome_mes_pt(mes_num)}/{ano}"
+                            fontes.append({
+                                'mes': mes_num,
+                                'ano': ano,
+                                'nome_arquivo': nome_arquivo,
+                                'label': label
+                            })
+                            logger.info(f"Fonte detectada: {nome_arquivo} -> {label}")
+            
+            # Ordena por ano e mês (mais recente primeiro)
+            fontes.sort(key=lambda x: (x['ano'], x['mes']), reverse=True)
+            
+            logger.info(f"Total de fontes detectadas: {len(fontes)}")
+            return fontes
+            
+        except Exception as e:
+            logger.error(f"Erro ao detectar fontes disponíveis: {e}")
+            return []
+
+    def _mapear_abreviacao_para_data(self, abrev_mes):
+        """
+        Mapeia abreviação do mês para número do mês e ano.
+        
+        Args:
+            abrev_mes (str): Abreviação do mês (ex: 'jan', 'fev', 'mar')
+            
+        Returns:
+            tuple: (mes_num, ano) ou (None, None) se não conseguir mapear
+        """
+        # Mapeamento de abreviações para números de mês
+        mes_abbr_to_num = {
+            'jan': 1, 'fev': 2, 'mar': 3, 'abr': 4, 'mai': 5, 'jun': 6,
+            'jul': 7, 'ago': 8, 'set': 9, 'out': 10, 'nov': 11, 'dez': 12
         }
         
-        self.logger.info(f"Detalhes encontrados para projeto {project_id}: {result}")
-        return result
-    # --------------------------------------------------------
+        if abrev_mes.lower() not in mes_abbr_to_num:
+            logger.warning(f"Abreviação de mês desconhecida: {abrev_mes}")
+            return None, None
+            
+        mes_num = mes_abbr_to_num[abrev_mes.lower()]
+        
+        # Para determinar o ano, vamos usar uma heurística:
+        # Se o mês é maior que o mês atual, provavelmente é do ano passado
+        # Caso contrário, é do ano atual
+        hoje = datetime.now()
+        if mes_num > hoje.month:
+            ano_assumido = hoje.year - 1
+        else:
+            ano_assumido = hoje.year
+            
+        return mes_num, ano_assumido
+    
+    def _obter_nome_mes_pt(self, mes_num):
+        """
+        Obtém o nome do mês em português para o número do mês.
+        
+        Args:
+            mes_num (int): Número do mês (1-12)
+            
+        Returns:
+            str: Nome do mês abreviado em português
+        """
+        mes_num_to_label = {
+            1: 'Jan', 2: 'Fev', 3: 'Mar', 4: 'Abr', 5: 'Mai', 6: 'Jun',
+            7: 'Jul', 8: 'Ago', 9: 'Set', 10: 'Out', 11: 'Nov', 12: 'Dez'
+        }
+        
+        return mes_num_to_label.get(mes_num, f"Mês{mes_num}")
 
-    # <<< INÍCIO: Novo método para obter lista de especialistas >>>
     def get_specialist_list(self):
         """Carrega os dados e retorna uma lista única e ordenada de especialistas."""
         try:
-            # Carrega os dados (padrão ou de fonte específica, se necessário)
-            # Usaremos a fonte padrão (dadosr.csv) por enquanto.
             dados = self.carregar_dados()
-            
-            if dados.empty or 'Especialista' not in dados.columns:
-                self.logger.warning("Não foi possível obter a lista de especialistas: dados vazios ou coluna 'Especialista' ausente.")
+            if dados.empty:
+                self.logger.warning("Dados vazios para listar especialistas")
                 return []
             
-            # Obtém valores únicos, remove vazios/nulos, converte para string, ordena e retorna
-            specialists = dados['Especialista'].dropna().astype(str).unique()
-            specialist_list = sorted([spec for spec in specialists if spec.strip()])
+            if 'Especialista' not in dados.columns:
+                self.logger.error("Coluna 'Especialista' não encontrada no DataFrame")
+                return []
             
-            self.logger.info(f"Lista de {len(specialist_list)} especialistas únicos obtida.")
-            return specialist_list
+            # Remove valores nulos e obtém lista única ordenada
+            especialistas = dados['Especialista'].dropna().unique()
+            especialistas_sorted = sorted(especialistas)
+            
+            self.logger.info(f"Encontrados {len(especialistas_sorted)} especialistas únicos")
+            return especialistas_sorted
             
         except Exception as e:
-            self.logger.error(f"Erro ao obter lista de especialistas: {e}", exc_info=True)
-            return [] # Retorna lista vazia em caso de erro
-    # <<< FIM: Novo método para obter lista de especialistas >>>
+            self.logger.error(f"Erro ao obter lista de especialistas: {str(e)}")
+            return []
 
     def gerar_dados_status_report(self, project_id):
         """
-        Prepara os dados necessários para o Status Report de um projeto,
-        combinando KPIs do projeto com listas de tarefas detalhadas.
+        Gera os dados necessários para o status report de um projeto específico.
         """
         try:
-            self.logger.info(f"[Status Report] Gerando dados para projeto ID: {project_id}")
-
-            # --- Lógica para detalhes do projeto e KPIs (mantida e adaptada) ---
-            dados_todos = self.carregar_dados(fonte=None) # Idealmente, project_id seria usado para buscar dados específicos do projeto mais eficientemente
-            if dados_todos.empty:
-                self.logger.error("[Status Report] Falha ao carregar dados gerais (dados_todos).")
-                return self._get_empty_status_report_data(project_id, "Falha ao carregar dados gerais.")
-
+            logger.info(f"Gerando dados de status report para projeto {project_id}")
+            
+            # Converte project_id para int para garantir compatibilidade
             try:
                 project_id_int = int(project_id)
             except (ValueError, TypeError):
-                self.logger.error(f"[Status Report] project_id inválido: {project_id}")
-                return self._get_empty_status_report_data(project_id, "ID do projeto inválido.")
+                logger.warning(f"Não foi possível converter project_id '{project_id}' para int")
+                return self._get_empty_status_report_data(project_id, f"ID de projeto inválido: {project_id}")
             
-            if 'Numero' not in dados_todos.columns:
-                self.logger.error("[Status Report] Coluna 'Numero' não encontrada nos dados carregados.")
-                return self._get_empty_status_report_data(project_id, "Coluna 'Numero' ausente nos dados.")
+            # Carregar dados do projeto
+            dados = self.carregar_dados()
+            if dados.empty:
+                logger.warning("Dados vazios para gerar status report")
+                return self._get_empty_status_report_data(project_id, "Dados não disponíveis")
             
-            # Certifique-se de que 'Numero' é comparável com project_id_int
-            # Se 'Numero' puder ter NaNs ou valores não numéricos após coerção, filtre-os.
-            dados_todos['Numero'] = pd.to_numeric(dados_todos['Numero'], errors='coerce')
-            dados_projeto_df = dados_todos.dropna(subset=['Numero'])[dados_todos.dropna(subset=['Numero'])['Numero'].astype(int) == project_id_int]
-
-            if dados_projeto_df.empty:
-                self.logger.warning(f"[Status Report] Projeto ID {project_id_int} não encontrado nos dados carregados via 'Numero'.")
-                detalhes_fallback = self.obter_detalhes_projeto(project_id) # obter_detalhes_projeto usa project_id string
-                info_geral_fallback = {
-                    'id': project_id,
-                    'nome': detalhes_fallback.get('name', 'Projeto não encontrado') if detalhes_fallback else 'Projeto não encontrado',
-                    'squad': detalhes_fallback.get('squad', 'N/A') if detalhes_fallback else 'N/A',
-                    'especialista': detalhes_fallback.get('specialist', 'N/A') if detalhes_fallback else 'N/A',
-                    'status_atual': 'N/A'
-                }
-                return self._get_empty_status_report_data(project_id, "Projeto não encontrado nos dados.", info_geral=info_geral_fallback)
-
-            dados_projeto = dados_projeto_df.iloc[0]
-
-            percentual_concluido = float(dados_projeto.get('Conclusao', 0.0))
-            data_prevista_termino_dt = pd.to_datetime(dados_projeto.get('VencimentoEm'), errors='coerce')
-            data_prevista_termino_str = data_prevista_termino_dt.strftime('%d/%m/%Y') if pd.notna(data_prevista_termino_dt) else 'N/A'
-
-            status_prazo = 'A Definir'
-            hoje_data_obj = datetime.now().date() 
-            if pd.notna(data_prevista_termino_dt):
-                data_prevista_termino_data_obj = data_prevista_termino_dt.date()
-                if data_prevista_termino_data_obj < hoje_data_obj and percentual_concluido < 100: # Adicionado percentual_concluido < 100
-                    status_prazo = 'Atrasado'
-                elif data_prevista_termino_data_obj < hoje_data_obj and percentual_concluido >= 100:
-                     status_prazo = 'Concluído (com Atraso)'
-                elif data_prevista_termino_data_obj <= hoje_data_obj + timedelta(days=15):
-                    status_prazo = 'Próximo (15d)'
-                else: 
-                    status_prazo = 'No Prazo'
+            # Buscar projeto específico usando o ID convertido
+            projeto = dados[dados['Numero'] == project_id_int]
+            if projeto.empty:
+                logger.warning(f"Projeto {project_id_int} não encontrado")
+                return self._get_empty_status_report_data(project_id, f"Projeto {project_id_int} não encontrado")
+            
+            projeto_row = projeto.iloc[0]
+            
+            # Calcular progresso
+            percentual_concluido = float(projeto_row.get('Conclusao', 0.0))
+            data_vencimento = projeto_row.get('VencimentoEm', 'N/A')
+            if pd.notna(data_vencimento):
+                try:
+                    data_vencimento_dt = pd.to_datetime(data_vencimento)
+                    data_prevista_termino = data_vencimento_dt.strftime('%d/%m/%Y')
+                    # Calcular status do prazo
+                    hoje = datetime.now()
+                    if data_vencimento_dt < hoje:
+                        status_prazo = 'Atrasado'
+                    elif (data_vencimento_dt - hoje).days <= 7:
+                        status_prazo = 'Próximo do Prazo'
+                    else:
+                        status_prazo = 'No Prazo'
+                except:
+                    data_prevista_termino = 'N/A'
+                    status_prazo = 'N/A'
             else:
-                 status_prazo = 'Sem Prazo Definido'
+                data_prevista_termino = 'N/A'
+                status_prazo = 'N/A'
             
-            if percentual_concluido >= 100 and status_prazo not in ['Concluído (com Atraso)']:
-                 status_prazo = 'Concluído'
-
-
-            horas_planejadas = float(dados_projeto.get('Horas', 0.0))
-            horas_utilizadas = float(dados_projeto.get('HorasTrabalhadas', 0.0))
-            percentual_consumido = 0.0
+            # Calcular esforço
+            horas_trabalhadas = float(projeto_row.get('HorasTrabalhadas', 0))
+            horas_restantes = float(projeto_row.get('HorasRestantes', 0))
+            horas_planejadas = horas_trabalhadas + horas_restantes
+            
             if horas_planejadas > 0:
-                percentual_consumido = round((horas_utilizadas / horas_planejadas) * 100, 1)
-            
-            status_geral_indicador = 'cinza' 
-            horas_estouradas = horas_utilizadas > horas_planejadas and horas_planejadas > 0
-            
-            if status_prazo == 'Atrasado' or (horas_estouradas and percentual_concluido < 100) :
-                status_geral_indicador = 'vermelho'
-            elif status_prazo == 'Próximo (15d)':
-                if percentual_concluido < 70 or (percentual_consumido >= 80 and percentual_concluido < 70): # Regra mantida
-                    status_geral_indicador = 'amarelo' 
-                else:
-                    status_geral_indicador = 'verde' 
-            elif status_prazo == 'No Prazo':
-                status_geral_indicador = 'verde'
-            elif 'Concluído' in status_prazo : # status_prazo pode ser 'Concluído' ou 'Concluído (com Atraso)'
-                status_geral_indicador = 'azul' # Indicador para concluído
-
-
-            info_geral_dict = {
-                'id': project_id,
-                'nome': dados_projeto.get('Projeto', 'N/A'),
-                'squad': dados_projeto.get('Squad', 'N/A'),
-                'especialista': dados_projeto.get('Especialista', 'N/A'),
-                'status_atual': normalize_status(dados_projeto.get('Status', 'N/A'))
-            }
-            progresso_dict = {
-                'percentual_concluido': round(percentual_concluido, 1),
-                'data_prevista_termino': data_prevista_termino_str,
-                'status_prazo': status_prazo 
-            }
-            esforco_dict = {
-                'horas_planejadas': round(horas_planejadas, 1),
-                'horas_utilizadas': round(horas_utilizadas, 1),
-                'percentual_consumido': percentual_consumido
-            }
-            # --- Fim da lógica para KPIs ---
-
-            # --- Busca de Backlog e Tarefas ---
-            from ..models import Backlog, Task, Column, TaskStatus, ProjectMilestone, ProjectRisk, RiskStatus, Note 
-            from sqlalchemy import or_, and_, func, case
-            from datetime import date # REMOVIDO timedelta DESTA LINHA
-
-            backlog = Backlog.query.filter_by(project_id=str(project_id)).first()
-            
-            tarefas_concluidas_list = []
-            tarefas_em_andamento_list = []
-            tarefas_em_revisao_list = []
-            tarefas_proximo_prazo_list = []
-            tarefas_pendentes_list = [] # NOVA LISTA
-
-            if backlog:
-                hoje_date_obj_for_queries = date.today() 
-                proximos_7_dias_date_obj = hoje_date_obj_for_queries + timedelta(days=7)
-
-                # Coletar IDs de tarefas em "Próximas Tarefas" para exclusão posterior de "Pendentes"
-                # Esta linha será movida para DEPOIS da query de tarefas_proximo_prazo_list
-                # ids_tarefas_proximo_prazo = {t['id'] for t in tarefas_proximo_prazo_list if t and 'id' in t}
-
-                def serialize_task_for_report(task, column_name_override=None): # Adicionado column_name_override
-                    if not task: return None
-                    
-                    # Determina o nome da coluna
-                    # Se um nome de coluna for fornecido (override), use-o.
-                    # Caso contrário, tente obter do task.column. Se não disponível, use 'N/A'.
-                    final_column_name = column_name_override if column_name_override else (task.column.name if task.column else 'N/A')
-
-                    return {
-                        'id': task.id,
-                        'title': task.title,
-                        'status': task.status.value if task.status else 'N/A',
-                        'priority': task.priority,
-                        'estimated_effort': task.estimated_effort,
-                        'due_date': task.due_date.strftime('%d/%m/%Y') if task.due_date else 'N/A',
-                        'completed_at': task.completed_at.strftime('%d/%m/%Y %H:%M:%S') if task.completed_at else 'N/A', # Incluindo hora
-                        'column_name': final_column_name, # Usa o nome da coluna determinado
-                        'specialist_name': task.specialist_name if task.specialist_name else 'N/A',
-                        'start_date': task.start_date.strftime('%d/%m/%Y') if task.start_date else None,
-                        'criada_em': task.created_at.strftime('%d/%m/%Y %H:%M') if task.created_at else 'N/A'
-                    }
-
-                # 1. Tarefas Concluídas (todas, sem limite de data)
-                # Considera tarefas com completed_at definido OU na coluna "Concluído" E status DONE
-                tarefas_concluidas_q = Task.query.join(Column, Task.column_id == Column.id).filter(
-                    Task.backlog_id == backlog.id,
-                    or_(
-                        Task.completed_at != None,
-                        and_(
-                            or_(
-                                func.lower(Column.name).like('%concluído%'),
-                                func.lower(Column.name).like('%concluido%')
-                            ),
-                            Task.status == TaskStatus.DONE
-                        )
-                    )
-                ).order_by(Task.completed_at.desc().nullslast(), Task.updated_at.desc()).all()
-                tarefas_concluidas_list = [serialize_task_for_report(t) for t in tarefas_concluidas_q]
-
-                # 2. Tarefas em Andamento
-                # Coluna "Em Andamento" OU status IN_PROGRESS, mas NÃO concluídas ou em revisão
-                tarefas_em_andamento_q = Task.query.join(Column, Task.column_id == Column.id).filter(
-                    Task.backlog_id == backlog.id,
-                    or_(
-                        func.lower(Column.name).like('%em andamento%'),
-                        Task.status == TaskStatus.IN_PROGRESS
-                    ),
-                    Task.completed_at == None, # Explicitamente não concluídas
-                    Task.status != TaskStatus.DONE,
-                    Task.status != TaskStatus.REVIEW 
-                ).order_by(
-                    case((Task.priority == 'Alta', 1), (Task.priority == 'Média', 2), (Task.priority == 'Baixa', 3), else_=4),
-                    Task.due_date.asc().nullslast(), 
-                    Task.created_at.asc()
-                ).all()
-                tarefas_em_andamento_list = [serialize_task_for_report(t) for t in tarefas_em_andamento_q]
-
-                # 3. Tarefas em Revisão
-                # Coluna "Revisão" OU status REVIEW, mas NÃO concluídas
-                tarefas_em_revisao_q = Task.query.join(Column, Task.column_id == Column.id).filter(
-                    Task.backlog_id == backlog.id,
-                    or_(
-                        func.lower(Column.name).like('%revisão%'),
-                        func.lower(Column.name).like('%revisao%'),
-                        Task.status == TaskStatus.REVIEW
-                    ),
-                    Task.completed_at == None, # Explicitamente não concluídas
-                    Task.status != TaskStatus.DONE
-                ).order_by(
-                    case((Task.priority == 'Alta', 1), (Task.priority == 'Média', 2), (Task.priority == 'Baixa', 3), else_=4),
-                    Task.due_date.asc().nullslast(), 
-                    Task.created_at.asc()
-                ).all()
-                tarefas_em_revisao_list = [serialize_task_for_report(t) for t in tarefas_em_revisao_q]
-                
-                # 4. Tarefas com Prazo Próximo (due_date nos próximos 7 dias, não concluídas, não em revisão)
-                tarefas_proximo_prazo_q = Task.query.filter(
-                    Task.backlog_id == backlog.id,
-                    Task.completed_at == None,
-                    Task.status != TaskStatus.DONE, 
-                    Task.status != TaskStatus.REVIEW, # Adicionado para não pegar tarefas em revisão aqui também
-                    Task.due_date != None,
-                    Task.due_date >= hoje_date_obj_for_queries, 
-                    Task.due_date <= proximos_7_dias_date_obj
-                ).order_by(Task.due_date.asc()).all()
-                tarefas_proximo_prazo_list = [serialize_task_for_report(t) for t in tarefas_proximo_prazo_q]
-                
-                # Agora sim, obter os IDs das tarefas que estão em "Próximas Tarefas"
-                ids_tarefas_proximo_prazo = {t['id'] for t in tarefas_proximo_prazo_list if t and 'id' in t}
-                
-                # Log atualizado para incluir espaço para pendentes (que será calculado a seguir)
-                self.logger.info(f"[Status Report - {project_id}] Tarefas DB (antes de pendentes): {len(tarefas_concluidas_list)} concl., {len(tarefas_em_andamento_list)} and., {len(tarefas_em_revisao_list)} rev., {len(tarefas_proximo_prazo_list)} prazo.")
-
-                # 5. Tarefas Pendentes (colunas "A Fazer", não concluídas, não em andamento, não em revisão E NÃO em "Próximas Tarefas")
-                nomes_colunas_a_fazer = ['%a fazer%', '%backlog%', '%to do%', '%pendente%']
-                condicoes_colunas_a_fazer = [func.lower(Column.name).like(nome) for nome in nomes_colunas_a_fazer]
-
-                query_pendentes = Task.query.join(Column, Task.column_id == Column.id).filter(
-                    Task.backlog_id == backlog.id,
-                    or_(*condicoes_colunas_a_fazer),
-                    Task.completed_at == None,
-                    Task.status != TaskStatus.DONE,
-                    Task.status != TaskStatus.IN_PROGRESS,
-                    Task.status != TaskStatus.REVIEW
-                )
-                
-                if ids_tarefas_proximo_prazo:
-                    query_pendentes = query_pendentes.filter(Task.id.notin_(ids_tarefas_proximo_prazo))
-                
-                tarefas_pendentes_q = query_pendentes.order_by(
-                    Task.position.asc(), 
-                    case((Task.priority == 'Urgente', 0),(Task.priority == 'Alta', 1), (Task.priority == 'Média', 2), (Task.priority == 'Baixa', 3), else_=4),
-                    Task.created_at.asc()
-                ).all()
-                
-                tarefas_pendentes_list = [serialize_task_for_report(t) for t in tarefas_pendentes_q]
-                
-                # Log final com todas as contagens
-                self.logger.info(f"[Status Report - {project_id}] Tarefas DB: {len(tarefas_concluidas_list)} concl., {len(tarefas_em_andamento_list)} and., {len(tarefas_em_revisao_list)} rev., {len(tarefas_proximo_prazo_list)} prazo, {len(tarefas_pendentes_list)} pend.")
-
+                percentual_consumido = round((horas_trabalhadas / horas_planejadas) * 100, 1)
             else:
-                self.logger.warning(f"[Status Report] Backlog não encontrado para o projeto {project_id}, listas de tarefas estarão vazias.")
-            # --- Fim da busca de Tarefas ---
-
-            # --- Busca de Marcos, Riscos, Notas (lógica adaptada e mantida) ---
-            marcos_recentes_list = []
-            riscos_do_projeto_list = []
-            notas_do_projeto_list = []
-
-            if backlog:
-                # Marcos
-                try:
-                    # Ordena por data planejada mais recente, depois por status (ativo primeiro), depois por criticidade
-                    milestones = ProjectMilestone.query.filter_by(backlog_id=backlog.id)\
-                        .order_by(
-                            ProjectMilestone.planned_date.desc().nullslast(),
-                            case( (ProjectMilestone.status == 'active', 1), (ProjectMilestone.status == 'on_hold', 2), (ProjectMilestone.status == 'completed', 3), else_=4),
-                            ProjectMilestone.criticality.desc())\
-                        .all() # Mostra todos os marcos, o template pode decidir quantos exibir
-
-                    for m in milestones:
-                        marcos_recentes_list.append({
-                            'id': m.id, 'name': m.name, 'nome': m.name, 
-                            'data_planejada': m.planned_date.strftime('%d/%m/%Y') if m.planned_date else 'N/A',
-                            'data_real': m.actual_date.strftime('%d/%m/%Y') if m.actual_date else 'N/A',
-                            'status': m.status.value if m.status else 'N/A',
-                            'criticidade': m.criticality.value if m.criticality else 'N/A',
-                            'atrasado': m.is_delayed if hasattr(m, 'is_delayed') else False,
-                            'details': m.details if hasattr(m, 'details') else ''
-                        })
-                except Exception as e_m:
-                    self.logger.error(f"[Status Report] Erro ao buscar marcos: {str(e_m)}", exc_info=True)
-
-                # Riscos (ativos e ordenados por criticidade e data)
-                try:
-                    project_risks = ProjectRisk.query.filter_by(backlog_id=backlog.id)\
-                        .order_by(ProjectRisk.impact.desc(), ProjectRisk.probability.desc(), ProjectRisk.created_at.desc()).all() # REMOVIDO FILTRO DE STATUS
-                    riscos_do_projeto_list = [risk.to_dict() for risk in project_risks] 
-                except Exception as e_r:
-                    self.logger.error(f"[Status Report] Erro ao buscar riscos: {str(e_r)}", exc_info=True)
-                
-                # Notas (do projeto, ordenadas por data do evento/criação)
-                try:
-                    project_notes = Note.query.filter(Note.backlog_id == backlog.id)\
-                                        .order_by(Note.event_date.desc().nullslast(), Note.created_at.desc()).all() # Removido Note.task_id == None
-                    
-                    category_colors = {'decision': 'primary', 'risk': 'danger', 'impediment': 'warning', 'status_update': 'info', 'general': 'secondary'}
-                    priority_colors = {'high': 'danger', 'medium': 'warning', 'low': 'success'}
-                    category_texts = {'decision': 'Decisão', 'risk': 'Risco', 'impediment': 'Impedimento', 'status_update': 'Atualização', 'general': 'Geral'}
-                    priority_texts = {'high': 'Alta', 'medium': 'Média', 'low': 'Baixa'}
-
-                    for note in project_notes:
-                        data_exibicao = note.event_date if note.event_date else note.created_at
-                        notas_do_projeto_list.append({
-                            'id': note.id,
-                            'content': note.content,
-                            'category': note.category,
-                            'category_color': category_colors.get(note.category, 'secondary'),
-                            'category_text': category_texts.get(note.category, note.category.capitalize() if note.category else 'Geral'),
-                            'priority': note.priority,
-                            'priority_color': priority_colors.get(note.priority, 'secondary'),
-                            'priority_text': priority_texts.get(note.priority, note.priority.capitalize() if note.priority else 'Normal'),
-                            'task_id': note.task_id, 
-                            'task_title': None, 
-                            'event_date': note.event_date.strftime('%d/%m/%Y') if note.event_date else 'N/A',
-                            'created_at': note.created_at.strftime('%d/%m/%Y %H:%M') if note.created_at else 'N/A',
-                            'date_display_report': data_exibicao.strftime('%d/%m/%Y') if data_exibicao else 'N/A',
-                            'tags': [tag.name for tag in note.tags] if hasattr(note, 'tags') else []
-                        })
-                except Exception as e_n:
-                    self.logger.error(f"[Status Report] Erro ao buscar notas: {str(e_n)}", exc_info=True)
-            # --- Fim da busca de Marcos, Riscos, Notas ---
+                percentual_consumido = 0.0
             
-            dados_ultima_semana_dict = {'concluidas': 0, 'novas': 0, 'horas_registradas': 0} # Placeholder
-
-            report_data = {
-                'info_geral': info_geral_dict,
-                'progresso': progresso_dict,
-                'esforco': esforco_dict,
-                'status_geral_indicador': status_geral_indicador,
+            # Determinar status geral do indicador
+            if percentual_concluido >= 90:
+                status_geral_indicador = 'verde'
+            elif percentual_concluido >= 70:
+                status_geral_indicador = 'amarelo'
+            elif percentual_concluido >= 50:
+                status_geral_indicador = 'azul'
+            else:
+                status_geral_indicador = 'vermelho'
+            
+            # Buscar backlog_id para o projeto
+            backlog_id = self.get_backlog_id_for_project(project_id)
+            
+            # Buscar milestones do backlog
+            milestones = []
+            # Inicializar categorias de tarefas
+            tarefas_proximo_prazo = []
+            tarefas_em_andamento = []
+            tarefas_em_revisao = []
+            tarefas_pendentes = []
+            tarefas_concluidas = []
+            
+            if backlog_id:
+                logger.info(f"Backlog ID encontrado: {backlog_id}")
                 
-                'tarefas_concluidas': tarefas_concluidas_list,
-                'tarefas_em_andamento': tarefas_em_andamento_list,
-                'tarefas_em_revisao': tarefas_em_revisao_list,
-                'tarefas_proximo_prazo': tarefas_proximo_prazo_list,
-                'tarefas_pendentes': tarefas_pendentes_list, # ADICIONADA NOVA LISTA
-                'marcos_recentes': marcos_recentes_list,
-                'riscos_impedimentos': riscos_do_projeto_list,
-                'notas': notas_do_projeto_list,
+                try:
+                    milestones = self.get_milestones_from_backlog(backlog_id)
+                    logger.info(f"Milestones encontrados: {len(milestones) if milestones else 0}")
+                except Exception as e:
+                    logger.error(f"Erro ao buscar milestones: {str(e)}")
+                    milestones = []
                 
-                'dados_ultima_semana': dados_ultima_semana_dict,
-                'data_geracao': datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            }
-
-            self.logger.info(f"[Status Report] Dados gerados com sucesso para projeto ID: {project_id}. {len(tarefas_concluidas_list)} concl., {len(tarefas_em_andamento_list)} em and., {len(tarefas_em_revisao_list)} rev., {len(tarefas_proximo_prazo_list)} prox.")
-            return report_data
-
-        except Exception as e:
-            self.logger.exception(f"[Status Report] Erro CRÍTICO ao gerar dados para projeto ID {project_id}: {str(e)}")
-            # Tenta obter info_geral mesmo em caso de erro crítico, se possível
-            info_geral_critico = None
+                # Carregar tarefas do backlog
+                try:
+                    from app.models import Task, Column
+                    from datetime import datetime, timedelta
+                    
+                    all_tasks = Task.query.filter_by(backlog_id=backlog_id).all()
+                    logger.info(f"Total de tarefas encontradas: {len(all_tasks)}")
+                    
+                    hoje = datetime.now()
+                    sete_dias = hoje + timedelta(days=7)
+                    
+                    for task in all_tasks:
+                        try:
+                            # Determinar o status da tarefa
+                            status_nome = 'N/A'
+                            if task.column_id:
+                                column = Column.query.get(task.column_id)
+                                if column:
+                                    status_nome = column.name
+                            
+                            # Determinar data de vencimento
+                            data_vencimento = None
+                            if task.due_date:
+                                data_vencimento = task.due_date
+                            elif task.start_date:
+                                data_vencimento = task.start_date
+                            
+                            task_data = {
+                                'id': task.id,
+                                'titulo': task.title or 'N/A',
+                                'descricao': task.description or '',
+                                'status': status_nome,
+                                'especialista': task.specialist_name or 'N/A',
+                                'prioridade': task.priority or 'N/A',
+                                'data_criacao': task.created_at.strftime('%d/%m/%Y') if task.created_at else 'N/A',
+                                'data_vencimento': data_vencimento.strftime('%d/%m/%Y') if data_vencimento else 'N/A',
+                                'data_inicio': task.start_date.strftime('%d/%m/%Y') if task.start_date else 'N/A',
+                                'estimativa': task.estimated_effort or 0,
+                                'progresso': 0  # Não há campo progress no modelo, usar 0
+                            }
+                            
+                            # Categorizar tarefa baseado no status da coluna PRIMEIRO
+                            status_lower = status_nome.lower()
+                            
+                            # PRIORIDADE 1: Status da coluna (define o estado atual da tarefa)
+                            if 'concluído' in status_lower or 'concluido' in status_lower or 'done' in status_lower or 'finalizado' in status_lower:
+                                tarefas_concluidas.append(task_data)
+                            elif 'andamento' in status_lower or 'progresso' in status_lower or 'doing' in status_lower or 'em progresso' in status_lower:
+                                tarefas_em_andamento.append(task_data)
+                            elif 'revisão' in status_lower or 'revisao' in status_lower or 'review' in status_lower:
+                                tarefas_em_revisao.append(task_data)
+                            
+                            # PRIORIDADE 2: Para tarefas pendentes (A Fazer, etc), verificar data de vencimento
+                            elif 'fazer' in status_lower or 'todo' in status_lower or 'pendente' in status_lower:
+                                # Verificar se tem data de vencimento e se está próxima (no futuro)
+                                if data_vencimento and data_vencimento > hoje and data_vencimento <= sete_dias:
+                                    # Tarefas com vencimento futuro em até 7 dias
+                                    tarefas_proximo_prazo.append(task_data)
+                                else:
+                                    # Tarefas pendentes sem prazo próximo (incluindo atrasadas)
+                                    tarefas_pendentes.append(task_data)
+                            
+                            # PRIORIDADE 3: Demais tarefas (status não reconhecido)
+                            else:
+                                # Verificar data para categorizar tarefas com status desconhecido
+                                if data_vencimento and data_vencimento > hoje and data_vencimento <= sete_dias:
+                                    tarefas_proximo_prazo.append(task_data)
+                                else:
+                                    tarefas_pendentes.append(task_data)
+                            
+                        except Exception as e:
+                            logger.error(f"Erro ao processar tarefa {task.id}: {str(e)}")
+                            continue
+                    
+                    logger.info(f"Tarefas categorizadas: Próximo prazo: {len(tarefas_proximo_prazo)}, Em andamento: {len(tarefas_em_andamento)}, Em revisão: {len(tarefas_em_revisao)}, Pendentes: {len(tarefas_pendentes)}, Concluídas: {len(tarefas_concluidas)}")
+                    
+                except Exception as e:
+                    logger.error(f"Erro ao carregar tarefas do backlog: {str(e)}")
+            else:
+                logger.warning(f"Backlog não encontrado para projeto {project_id}")
+            
+            # Buscar marcos recentes
             try:
-                detalhes_critico = self.obter_detalhes_projeto(project_id)
-                if detalhes_critico:
-                     info_geral_critico = {
-                        'id': project_id,
-                        'nome': detalhes_critico.get('name', f'Projeto {project_id}'),
-                        'squad': detalhes_critico.get('squad', 'N/A'),
-                        'especialista': detalhes_critico.get('specialist', 'N/A'),
-                        'status_atual': 'Erro na geração de dados'
-                    }
-            except: # noqa
-                pass # ignora erros ao tentar obter detalhes em um cenário de erro crítico
+                marcos_recentes = self.obter_marcos_recentes(project_id)
+                logger.info(f"Marcos recentes encontrados: {len(marcos_recentes) if marcos_recentes else 0}")
+            except Exception as e:
+                logger.error(f"Erro ao buscar marcos recentes: {str(e)}")
+                marcos_recentes = []
 
-            return self._get_empty_status_report_data(project_id, f"Erro crítico na geração do relatório: {str(e)}", info_geral=info_geral_critico)
+            # Buscar riscos e impedimentos do backlog
+            riscos_impedimentos = []
+            notas_observacoes = []
+            
+            if backlog_id:
+                try:
+                    # Buscar riscos
+                    from app.models import ProjectRisk, Note
+                    
+                    project_risks = ProjectRisk.query.filter_by(backlog_id=backlog_id).order_by(ProjectRisk.created_at.desc()).all()
+                    for risk in project_risks:
+                        risco_data = {
+                            'id': risk.id,
+                            'descricao': risk.description,
+                            'impacto': risk.impact.value if risk.impact else 'N/A',
+                            'probabilidade': risk.probability.value if risk.probability else 'N/A',
+                            'status': risk.status.value if risk.status else 'N/A',
+                            'severidade': risk.severity,
+                            'responsavel': risk.responsible or 'N/A',
+                            'plano_mitigacao': risk.mitigation_plan or '',
+                            'plano_contingencia': risk.contingency_plan or '',
+                            'data_identificacao': risk.identified_date.strftime('%d/%m/%Y') if risk.identified_date else 'N/A',
+                            'data_resolucao': risk.resolved_date.strftime('%d/%m/%Y') if risk.resolved_date else None,
+                            'tendencia': risk.trend or 'N/A'
+                        }
+                        riscos_impedimentos.append(risco_data)
+                    
+                    logger.info(f"Riscos encontrados: {len(riscos_impedimentos)}")
+                    
+                    # Buscar notas e observações  
+                    # NOVA ABORDAGEM: Usar flag include_in_status_report (opt-out)
+                    # Por padrão todas as notas aparecem, apenas as marcadas como False são excluídas
+                    project_notes = Note.query.filter_by(
+                        backlog_id=backlog_id, 
+                        include_in_status_report=True
+                    ).order_by(Note.created_at.desc()).all()
+                    
+                    for note in project_notes:
+                        nota_data = {
+                            'id': note.id,
+                            'conteudo': note.content,
+                            'categoria': note.category,
+                            'prioridade': note.priority,
+                            'status_relatorio': note.report_status,
+                            'data_criacao': note.created_at.strftime('%d/%m/%Y %H:%M') if note.created_at else 'N/A',
+                            'data_evento': note.event_date.strftime('%d/%m/%Y') if note.event_date else None,
+                            'tags': [tag.name for tag in note.tags] if note.tags else []
+                        }
+                        notas_observacoes.append(nota_data)
+                    
+                    logger.info(f"Notas encontradas: {len(notas_observacoes)}")
+                    
+                except Exception as e:
+                    logger.error(f"Erro ao buscar riscos e notas: {str(e)}")
+            
+            # Informações gerais do projeto (para compatibilidade)
+            info_geral = {
+                'id': str(project_id),
+                'numero': str(projeto_row.get('Numero', project_id)),
+                'nome': str(projeto_row.get('Projeto', 'N/A')),
+                'squad': str(projeto_row.get('Squad', 'N/A')),
+                'especialista': str(projeto_row.get('Especialista', 'N/A')),
+                'account_manager': str(projeto_row.get('Account Manager', 'N/A')),
+                'data_inicio': projeto_row.get('DataInicio', 'N/A'),
+                'data_vencimento': projeto_row.get('VencimentoEm', 'N/A'),
+                'status': str(projeto_row.get('Status', 'N/A')),
+                'status_atual': str(projeto_row.get('Status', 'N/A')),
+                'conclusao': projeto_row.get('Conclusao', 0),
+                'horas_trabalhadas': projeto_row.get('HorasTrabalhadas', 0),
+                'horas_restantes': projeto_row.get('HorasRestantes', 0)
+            }
+            
+            # Montar resultado final na estrutura esperada pelo template
+            resultado = {
+                'info_geral': info_geral,
+                'progresso': {
+                    'percentual_concluido': round(percentual_concluido, 1),
+                    'data_prevista_termino': data_prevista_termino,
+                    'status_prazo': status_prazo
+                },
+                'esforco': {
+                    'horas_planejadas': round(horas_planejadas, 1),
+                    'horas_utilizadas': round(horas_trabalhadas, 1),
+                    'percentual_consumido': percentual_consumido
+                },
+                'status_geral_indicador': status_geral_indicador,
+                'milestones': milestones or [],
+                # Adicionar as tarefas categorizadas
+                'tarefas_proximo_prazo': tarefas_proximo_prazo,
+                'tarefas_em_andamento': tarefas_em_andamento,
+                'tarefas_em_revisao': tarefas_em_revisao,
+                'tarefas_pendentes': tarefas_pendentes,
+                'tarefas_concluidas': tarefas_concluidas,
+                'marcos_recentes': marcos_recentes or [],
+                'backlog_id': backlog_id,
+                'riscos_impedimentos': riscos_impedimentos,
+                'notas': notas_observacoes,
+                'proximos_passos': []
+            }
+            
+            logger.info(f"Status report gerado com sucesso para projeto {project_id}")
+            logger.info(f"Progresso: {percentual_concluido}%, Status: {status_prazo}, Indicador: {status_geral_indicador}")
+            
+            return resultado
+            
+        except Exception as e:
+            logger.exception(f"Erro ao gerar dados de status report para projeto {project_id}: {str(e)}")
+            return self._get_empty_status_report_data(project_id, f"Erro interno: {str(e)}")
 
     def _get_empty_status_report_data(self, project_id, error_message, info_geral=None):
-        """Retorna uma estrutura de dados vazia para o status report em caso de erro."""
-        self.logger.error(f"[Status Report - ERRO para {project_id}] {error_message}")
-        base_info = {
-            'id': project_id, 'nome': f'Erro ao carregar ({project_id})', 
-            'squad': 'N/A', 'especialista': 'N/A', 'status_atual': 'Erro'
+        """
+        Retorna uma estrutura vazia de status report em caso de erro.
+        """
+        default_info = {
+            'id': str(project_id),
+            'numero': str(project_id),
+            'nome': 'Projeto não encontrado',
+            'squad': 'N/A',
+            'especialista': 'N/A',
+            'account_manager': 'N/A',
+            'data_inicio': 'N/A',
+            'data_vencimento': 'N/A',
+            'status': 'N/A',
+            'status_atual': 'N/A',
+            'conclusao': 0,
+            'horas_trabalhadas': 0,
+            'horas_restantes': 0
         }
-        if info_geral: # Permite passar info_geral mais específica se disponível
-            base_info = info_geral
-            base_info['nome'] = f"{base_info.get('nome', 'N/A')} (informações parciais devido a erro)"
-
-
+        
         return {
-            'info_geral': base_info,
-            'progresso': {'percentual_concluido': 0, 'data_prevista_termino': 'N/A', 'status_prazo': 'Erro'},
-            'esforco': {'horas_planejadas': 0, 'horas_utilizadas': 0, 'percentual_consumido': 0},
+            'info_geral': info_geral or default_info,
+            'progresso': {
+                'percentual_concluido': 0,
+                'data_prevista_termino': 'N/A',
+                'status_prazo': 'N/A'
+            },
+            'esforco': {
+                'horas_planejadas': 0,
+                'horas_utilizadas': 0,
+                'percentual_consumido': 0
+            },
             'status_geral_indicador': 'cinza',
-            'tarefas_concluidas': [],
+            'milestones': [],
+            # Corrigir para usar as categorias de tarefas esperadas pelo template
+            'tarefas_proximo_prazo': [],
             'tarefas_em_andamento': [],
             'tarefas_em_revisao': [],
-            'tarefas_proximo_prazo': [],
-            'tarefas_pendentes': [], # ADICIONADA NOVA LISTA
+            'tarefas_pendentes': [],
+            'tarefas_concluidas': [],
             'marcos_recentes': [],
+            'backlog_id': None,
             'riscos_impedimentos': [],
             'notas': [],
-            'dados_ultima_semana': {'concluidas': 0, 'novas': 0, 'horas_registradas': 0},
-            'data_geracao': datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-            'error_message': error_message # Adiciona a mensagem de erro ao payload
+            'proximos_passos': [],
+            'error': error_message
         }
-
-    # <<< FIM: Nova função para dados do Status Report >>>
 
     def obter_marcos_recentes(self, project_id):
         """
-        Obtém os marcos recentes do projeto.
+        Obtém marcos recentes relacionados ao projeto.
         """
-        logger.debug(f"Obtendo marcos recentes para o projeto ID: {project_id}")
         try:
-            # Inicializar a lista vazia
-            marcos = []
+            logger.info(f"Buscando marcos recentes para projeto {project_id}")
             
-            # Tentar obter do backlog (novo método)
-            try:
-                backlog_id = get_backlog_id_for_project(project_id)
-                if backlog_id:
-                    logger.debug(f"Backlog ID encontrado: {backlog_id}")
-                    marcos = get_milestones_from_backlog(backlog_id)
-                    logger.debug(f"Marcos obtidos do backlog: {len(marcos)}")
-            except Exception as e:
-                logger.error(f"Erro ao obter marcos do backlog: {str(e)}")
+            # Buscar o backlog_id para o projeto
+            backlog_id = self.get_backlog_id_for_project(project_id)
             
-            # DEBUG: logs para entender a estrutura dos marcos
-            if marcos:
-                for m in marcos:
-                    logger.debug(f"Marco do backlog: {m}")
+            if not backlog_id:
+                logger.warning(f"Nenhum backlog encontrado para projeto {project_id}")
+                return []
             
-            # Se não há marcos, retornar uma lista vazia com explicação
-            if not marcos:
-                logger.warning(f"Nenhum marco encontrado para o projeto ID: {project_id}")
-                # Retornar lista vazia
-                marcos = []
-                
-            return marcos
+            # Buscar os milestones do backlog
+            milestones = self.get_milestones_from_backlog(backlog_id)
+            
+            # Converter para formato esperado pelo template (marcos_recentes)
+            marcos_recentes = []
+            for milestone in milestones:
+                marco_data = {
+                    'id': milestone.get('id'),
+                    'nome': milestone.get('titulo', 'N/A'),  # titulo vem do get_milestones_from_backlog
+                    'title': milestone.get('titulo', 'N/A'),  # fallback para compatibilidade
+                    'data_planejada': milestone.get('data_vencimento', 'N/A'),  # data_vencimento vem do get_milestones_from_backlog
+                    'due_date': milestone.get('data_vencimento', 'N/A'),  # fallback para compatibilidade
+                    'status': 'Concluído' if milestone.get('concluido', False) else 'Pendente',
+                    'atrasado': False,  # TODO: Implementar lógica de atraso se necessário
+                    'descricao': milestone.get('descricao', ''),
+                    'data_criacao': milestone.get('data_criacao', 'N/A')
+                }
+                marcos_recentes.append(marco_data)
+            
+            logger.info(f"Convertidos {len(marcos_recentes)} milestones para marcos recentes")
+            return marcos_recentes
+            
         except Exception as e:
-            logger.error(f"Erro ao obter marcos recentes: {str(e)}")
+            logger.error(f"Erro ao buscar marcos recentes: {str(e)}")
             return []
 
     def get_backlog_id_for_project(self, project_id):
         """
-        Obtém o ID do backlog associado ao projeto.
+        Obtém o backlog_id associado a um projeto específico.
         """
         try:
-            # Esta é uma implementação simplificada. Na prática, você precisaria consultar seu banco de dados.
-            # Simulando um backlog ID para o projeto
-            backlog_id = f"backlog_{project_id}"  # Ou qualquer lógica que você tenha para mapear projetos para backlogs
-            logger.debug(f"Backlog ID para projeto {project_id}: {backlog_id}")
-            return backlog_id
+            from app.models import Backlog  # Import local
+            
+            # Buscar backlog pelo project_id
+            backlog = Backlog.query.filter_by(project_id=str(project_id)).first()
+            
+            if backlog:
+                logger.info(f"Backlog encontrado: ID {backlog.id} para projeto {project_id}")
+                return backlog.id
+            else:
+                logger.warning(f"Nenhum backlog encontrado para projeto {project_id}")
+                return None
+                
         except Exception as e:
-            logger.error(f"Erro ao obter backlog ID para o projeto {project_id}: {str(e)}")
+            logger.error(f"Erro ao buscar backlog para projeto {project_id}: {str(e)}")
             return None
 
     def get_milestones_from_backlog(self, backlog_id):
         """
-        Obtém os marcos (milestones) de um backlog específico.
+        Obtém os milestones de um backlog específico.
         """
-        logger.debug(f"Obtendo milestones do backlog ID: {backlog_id}")
         try:
-            # Em uma implementação real, você consultaria seu banco de dados
-            # Para evitar marcos de teste, retornamos uma lista vazia
-            milestones = []
-            logger.debug(f"Retornando {len(milestones)} milestones para o backlog {backlog_id}")
-            return milestones
+            from app.models import ProjectMilestone  # Import local
+            
+            milestones = ProjectMilestone.query.filter_by(backlog_id=backlog_id).all()
+            
+            milestones_data = []
+            for milestone in milestones:
+                milestone_data = {
+                    'id': milestone.id,
+                    'titulo': milestone.name or 'N/A',  # Usar name em vez de title
+                    'descricao': milestone.description or '',
+                    'data_vencimento': milestone.planned_date.strftime('%d/%m/%Y') if milestone.planned_date else 'N/A',  # Usar planned_date em vez de due_date
+                    'concluido': milestone.status.value == 'Concluído' if milestone.status else False,  # Usar status enum
+                    'data_criacao': milestone.created_at.strftime('%d/%m/%Y') if milestone.created_at else 'N/A'
+                }
+                milestones_data.append(milestone_data)
+            
+            logger.info(f"Encontrados {len(milestones_data)} milestones para backlog {backlog_id}")
+            return milestones_data
+            
         except Exception as e:
-            logger.error(f"Erro ao obter milestones do backlog {backlog_id}: {str(e)}")
+            logger.error(f"Erro ao buscar milestones do backlog {backlog_id}: {str(e)}")
             return []
 
     def gerar_status_report(self, project_id):
-        """Gera um status report para o projeto especificado"""
-        logger.debug(f"Gerando status report para o projeto: {project_id}")
-
+        """
+        Gera um status report completo para um projeto.
+        """
         try:
-            # Usar a função gerar_dados_status_report que já tem toda a lógica necessária
-            report_data = self.gerar_dados_status_report(project_id)
-            if not report_data:
-                logger.warning(f"Projeto não encontrado ou erro ao gerar dados: {project_id}")
-                return None
-
-            # Retorna os dados completos que já incluem as notas
-            return report_data
-                
+            logger.info(f"Gerando status report para projeto {project_id}")
+            
+            # Gerar dados do relatório
+            dados_relatorio = self.gerar_dados_status_report(project_id)
+            
+            # Aqui você pode adicionar lógica adicional de formatação se necessário
+            
+            return dados_relatorio
+            
         except Exception as e:
-            logger.error(f"Erro ao gerar status report para projeto {project_id}: {str(e)}")
-            return None
+            logger.exception(f"Erro ao gerar status report para projeto {project_id}: {str(e)}")
+            return self._get_empty_status_report_data(project_id, f"Erro ao gerar relatório: {str(e)}")
 
+
+# Funções auxiliares fora da classe
 def normalize_status(status):
-    if not status:
+    """Normaliza o status para comparação"""
+    if pd.isna(status):
         return ''
-    # Remove acentos e converte para maiúsculas
-    return ''.join(
-        c for c in unicodedata.normalize('NFD', status)
-        if unicodedata.category(c) != 'Mn'
-    ).upper()
+    return str(status).strip().upper()
 
 def map_status_concluido(status):
-    concluidos = ['FECHADO', 'ENCERRADO', 'RESOLVIDO', 'CANCELADO']
-    if status and status.upper() in concluidos:
-        return 'CONCLUIDO'
-    return normalize_status(status)
+    """Mapeia diferentes variações de status concluído"""
+    normalized = normalize_status(status)
+    return normalized in ['CONCLUÍDO', 'CONCLUIDO', 'FINALIZADO', 'DONE', 'COMPLETED']
 
 def format_status_frontend(status):
-    if not status:
-        return ''
-    status = status.upper()
-    if status in ['CONCLUIDO', 'CONCLUÍDO', 'FECHADO', 'ENCERRADO', 'RESOLVIDO', 'CANCELADO']:
-        return 'Concluído'
-    if status == 'PENDENTE':
-        return 'Pendente'
-    if status == 'ATRASADO':
-        return 'Atrasado'
-    if status == 'EM ANDAMENTO':
-        return 'Em Andamento'
-    return status.capitalize()
+    """Formata o status para exibição no frontend"""
+    if pd.isna(status):
+        return 'N/A'
+    return str(status).strip().title()

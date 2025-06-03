@@ -103,6 +103,7 @@ def create_note():
         priority=data.get('priority', 'medium'),
         note_type=note_type,
         event_date=parsed_event_date,
+        include_in_status_report=data.get('include_in_status_report', True),
         tags=tags
     )
     
@@ -135,6 +136,8 @@ def update_note(note_id):
         note.priority = data['priority']
     if 'task_id' in data:
         note.task_id = data['task_id']
+    if 'include_in_status_report' in data:
+        note.include_in_status_report = data['include_in_status_report']
     
     # Atualizar event_date
     if 'event_date' in data:

@@ -712,6 +712,11 @@ def apresentacao():
     try:
         logger.info("Acessando página de apresentação para diretoria")
         
+        # --- INÍCIO: Detectar fontes disponíveis automaticamente ---
+        fontes_disponiveis = macro_service.obter_fontes_disponiveis()
+        logger.info(f"Fontes detectadas automaticamente: {[f['label'] for f in fontes_disponiveis]}")
+        # --- FIM: Detectar fontes disponíveis automaticamente ---
+        
         # Obter parâmetros de consulta para mês e ano
         mes_param = request.args.get('mes', None)
         ano_param = request.args.get('ano', None)
@@ -773,17 +778,27 @@ def apresentacao():
             logger.info(f"Visão Histórica - Mês de Referência: {mes_referencia.strftime('%B/%Y')}, Mês Comparativo: {mes_comparativo.strftime('%B/%Y')}")
 
             # --- Carregamento de dados APENAS para o mês de referência (VISÃO HISTÓRICA) ---
-            # Determina qual fonte de dados usar com base no mês de referência
+            # Agora usa detecção automática de fontes em vez de hardcoded
             fonte_dados_ref = None
-            if mes_referencia.month == 3 and mes_referencia.year == 2025:
-                fonte_dados_ref = 'dadosr_apt_mar'
-            elif mes_referencia.month == 4 and mes_referencia.year == 2025: # <-- Adicionado Abril
-                fonte_dados_ref = 'dadosr_apt_abr'
-            elif mes_referencia.month == 2 and mes_referencia.year == 2025:
-                fonte_dados_ref = 'dadosr_apt_fev'
-            elif mes_referencia.month == 1 and mes_referencia.year == 2025:
-                fonte_dados_ref = 'dadosr_apt_jan'
-            # Adicionar mais fontes históricas aqui
+            
+            # Procura a fonte correspondente nas fontes detectadas
+            for fonte in fontes_disponiveis:
+                if fonte['mes'] == mes_referencia.month and fonte['ano'] == mes_referencia.year:
+                    fonte_dados_ref = fonte['nome_arquivo']
+                    logger.info(f"Fonte detectada automaticamente para {mes_referencia.strftime('%m/%Y')}: {fonte_dados_ref}")
+                    break
+            
+            # Fallback para o método antigo caso não encontre automaticamente
+            if not fonte_dados_ref:
+                logger.warning(f"Fonte não detectada automaticamente para {mes_referencia.strftime('%m/%Y')}, usando método de fallback")
+                if mes_referencia.month == 3 and mes_referencia.year == 2025:
+                    fonte_dados_ref = 'dadosr_apt_mar'
+                elif mes_referencia.month == 4 and mes_referencia.year == 2025:
+                    fonte_dados_ref = 'dadosr_apt_abr'
+                elif mes_referencia.month == 2 and mes_referencia.year == 2025:
+                    fonte_dados_ref = 'dadosr_apt_fev'
+                elif mes_referencia.month == 1 and mes_referencia.year == 2025:
+                    fonte_dados_ref = 'dadosr_apt_jan'
             
             if not fonte_dados_ref:
                 logger.error(f"Fonte de dados histórica não definida para {mes_referencia.strftime('%m/%Y')}. Não é possível carregar dados.")
@@ -801,7 +816,7 @@ def apresentacao():
                 return render_template('macro/erro.html',
                                      error=f"Não foram encontrados dados para o período {mes_referencia.strftime('%B/%Y')} (Fonte: {fonte_dados_ref}).",
                                      titulo="Erro na Apresentação")
-            
+
         # --- CÁLCULOS COMUNS OU TEMPORÁRIOS --- 
         # (Esta seção agora executa APÓS o IF/ELSE, usando dados_ref e mes_referencia definidos)
         
@@ -1268,6 +1283,7 @@ def apresentacao():
             'tempo_medio_vida_variacao_pct': variacao_pct_tmv,
             'faturamento_comparativo': faturamento_comparativo,
             'is_visao_atual': is_visao_atual,
+            'fontes_disponiveis': fontes_disponiveis,  # <-- NOVA: Lista de fontes detectadas automaticamente
             'error': None # Assume sem erro inicialmente
         }
         
@@ -1385,7 +1401,8 @@ def status_report(project_id):
         if 'notas' in report_data:
             logger.info(f"[Status Report] Número de notas: {len(report_data['notas'])}")
             for nota in report_data['notas']:
-                logger.info(f"[Status Report] Nota encontrada: ID={nota.get('id')}, Project_ID={nota.get('project_id')}, Backlog_ID={nota.get('backlog_id')}, Categoria={nota.get('category')}, Conteúdo={nota.get('content')[:50]}...")
+                conteudo = nota.get('conteudo', '') or ''  # Garante que não seja None
+                logger.info(f"[Status Report] Nota encontrada: ID={nota.get('id')}, Project_ID={nota.get('project_id')}, Backlog_ID={nota.get('backlog_id')}, Categoria={nota.get('categoria')}, Conteúdo={conteudo[:50]}...")
         
         # Preparar contexto 
         context = {
@@ -1394,7 +1411,8 @@ def status_report(project_id):
             'titulo_pagina': f"Status Report - {report_data['info_geral'].get('nome', project_id)}",
             'data_geracao': datetime.now().strftime('%d/%m/%Y %H:%M'),
             'pdf_generator_available': pdf_generator_available,
-            'generator_type': 'weasyprint' if weasyprint_installed else ('pdfkit' if pdfkit_installed else 'none')
+            'generator_type': 'weasyprint' if weasyprint_installed else ('pdfkit' if pdfkit_installed else 'none'),
+            'for_pdf': False  # Explicitly set to False for browser view
         }
         
         logger.info(f"[Status Report] Renderizando template com contexto: {context.keys()}")
