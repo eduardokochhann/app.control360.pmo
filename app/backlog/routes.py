@@ -1,4 +1,4 @@
-from flask import render_template, jsonify, request, abort, current_app, redirect, url_for
+from flask import render_template, jsonify, request, abort, current_app, redirect, url_for, Response
 from . import backlog_bp # Importa o blueprint
 from .. import db # Importa a instância do banco de dados
 from ..models import Backlog, Task, Column, Sprint, TaskStatus, ProjectMilestone, ProjectRisk, MilestoneStatus, MilestoneCriticality, RiskImpact, RiskProbability, RiskStatus, TaskSegment, Note, Tag # Importa os modelos
@@ -2615,3 +2615,577 @@ def redistribute_specialist_workload(specialist_name):
         return jsonify({'error': f'Erro interno do servidor: {str(e)}'}), 500
 
 # --- FIM: APIs para Sprint Semanal do Especialista ---
+
+# ===================================
+# ROTAS PARA GERENCIAMENTO DE CAPACIDADE
+# ===================================
+
+@backlog_bp.route('/api/specialists/<path:specialist_name>/capacity', methods=['GET'])
+def get_specialist_capacity(specialist_name):
+    """
+    API para obter informações de capacidade de um especialista
+    
+    Args:
+        specialist_name: Nome do especialista
+        week: Data de início da semana (opcional, formato YYYY-MM-DD)
+        weeks: Número de semanas futuras para analisar (opcional, padrão: 3)
+    """
+    try:
+        from .capacity_service import CapacityService
+        
+        week_param = request.args.get('week')
+        weeks_param = int(request.args.get('weeks', 3))
+        
+        capacity_service = CapacityService()
+        
+        # Define data de referência
+        if week_param:
+            reference_date = datetime.strptime(week_param, '%Y-%m-%d')
+        else:
+            reference_date = datetime.now()
+        
+        # Calcula início da semana (segunda-feira)
+        days_since_monday = reference_date.weekday()
+        week_start = reference_date - timedelta(days=days_since_monday)
+        
+        # Calcula capacidade para múltiplas semanas
+        weeks_capacity = []
+        for week_offset in range(weeks_param):
+            current_week_start = week_start + timedelta(weeks=week_offset)
+            capacity = capacity_service.calcular_capacidade_semana(specialist_name, current_week_start)
+            
+            # Adiciona informações extras para a interface
+            capacity['week_offset'] = week_offset
+            capacity['is_current_week'] = week_offset == 0
+            capacity['week_label'] = f"{current_week_start.strftime('%d/%m')} - {(current_week_start + timedelta(days=4)).strftime('%d/%m')}"
+            
+            weeks_capacity.append(capacity)
+        
+        current_app.logger.info(f"[Capacity] Capacidade calculada para {specialist_name}: {len(weeks_capacity)} semanas")
+        
+        return jsonify({
+            'specialist_name': specialist_name,
+            'reference_date': reference_date.strftime('%Y-%m-%d'),
+            'weeks': weeks_capacity,
+            'summary': {
+                'total_weeks_analyzed': len(weeks_capacity),
+                'overloaded_weeks': sum(1 for w in weeks_capacity if w['resumo']['status_semana'] == 'sobrecarga'),
+                'total_hours_all_weeks': sum(w['resumo']['total_horas_semana'] for w in weeks_capacity),
+                'average_weekly_utilization': round(
+                    sum(w['resumo']['percentual_ocupacao_semana'] for w in weeks_capacity) / len(weeks_capacity), 1
+                ) if weeks_capacity else 0
+            }
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"[Capacity] Erro ao obter capacidade: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Erro interno do servidor: {str(e)}'}), 500
+
+@backlog_bp.route('/api/specialists/<path:specialist_name>/capacity/conflicts', methods=['POST'])
+def check_capacity_conflicts(specialist_name):
+    """
+    API para verificar conflitos de capacidade ao adicionar uma tarefa
+    
+    Body JSON:
+        task_hours: Horas da tarefa
+        target_date: Data alvo (formato YYYY-MM-DD)
+    """
+    try:
+        from .capacity_service import CapacityService
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Dados JSON obrigatórios'}), 400
+        
+        task_hours = float(data.get('task_hours', 0))
+        target_date_str = data.get('target_date')
+        
+        if not target_date_str:
+            return jsonify({'error': 'target_date é obrigatório'}), 400
+        
+        target_date = datetime.strptime(target_date_str, '%Y-%m-%d')
+        capacity_service = CapacityService()
+        
+        conflicts = capacity_service.verificar_conflitos_capacidade(
+            specialist_name, task_hours, target_date
+        )
+        
+        current_app.logger.info(f"[Capacity] Conflitos verificados para {specialist_name}: {conflicts.get('tem_conflito', False)}")
+        
+        return jsonify(conflicts)
+        
+    except Exception as e:
+        current_app.logger.error(f"[Capacity] Erro ao verificar conflitos: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Erro interno do servidor: {str(e)}'}), 500
+
+@backlog_bp.route('/api/specialists/<path:specialist_name>/capacity/suggestions', methods=['POST'])
+def get_capacity_suggestions(specialist_name):
+    """
+    API para obter sugestões de horários baseadas na capacidade
+    
+    Body JSON:
+        task_hours: Horas da tarefa
+        weeks_ahead: Semanas futuras para considerar (opcional, padrão: 4)
+    """
+    try:
+        from .capacity_service import CapacityService
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Dados JSON obrigatórios'}), 400
+        
+        task_hours = float(data.get('task_hours', 0))
+        weeks_ahead = int(data.get('weeks_ahead', 4))
+        
+        capacity_service = CapacityService()
+        suggestions = capacity_service.sugerir_melhor_horario(
+            specialist_name, task_hours, weeks_ahead
+        )
+        
+        current_app.logger.info(f"[Capacity] {len(suggestions)} sugestões geradas para {specialist_name}")
+        
+        return jsonify({
+            'specialist_name': specialist_name,
+            'task_hours': task_hours,
+            'weeks_analyzed': weeks_ahead,
+            'suggestions': suggestions,
+            'total_suggestions': len(suggestions)
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"[Capacity] Erro ao gerar sugestões: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Erro interno do servidor: {str(e)}'}), 500
+
+@backlog_bp.route('/api/specialists/<path:specialist_name>/capacity/auto-balance', methods=['POST'])
+def auto_balance_capacity(specialist_name):
+    """
+    API para balanceamento automático de capacidade
+    
+    Body JSON:
+        max_hours_per_day: Máximo de horas por dia (opcional, padrão: 8)
+        weeks_to_balance: Semanas para balancear (opcional, padrão: 4)
+    """
+    try:
+        from .capacity_service import CapacityService
+        
+        data = request.get_json() or {}
+        max_hours_per_day = float(data.get('max_hours_per_day', 8.0))
+        weeks_to_balance = int(data.get('weeks_to_balance', 4))
+        
+        capacity_service = CapacityService()
+        
+        # Primeiro verifica a capacidade atual
+        hoje = datetime.now()
+        week_start = hoje - timedelta(days=hoje.weekday())
+        
+        balancing_results = []
+        total_moved_hours = 0
+        total_moved_tasks = 0
+        
+        for week_offset in range(weeks_to_balance):
+            current_week_start = week_start + timedelta(weeks=week_offset)
+            capacity = capacity_service.calcular_capacidade_semana(specialist_name, current_week_start)
+            
+            # Verifica se há dias sobrecarregados
+            overloaded_days = [
+                (day, info) for day, info in capacity['capacidade_por_dia'].items()
+                if info['horas_alocadas'] > max_hours_per_day
+            ]
+            
+            if overloaded_days:
+                # Simula redistribuição (aqui você implementaria a lógica real)
+                for day_name, day_info in overloaded_days:
+                    excess_hours = day_info['horas_alocadas'] - max_hours_per_day
+                    
+                    balancing_results.append({
+                        'week_start': current_week_start.strftime('%Y-%m-%d'),
+                        'day': day_name,
+                        'original_hours': day_info['horas_alocadas'],
+                        'excess_hours': round(excess_hours, 1),
+                        'action': 'move_to_next_available_day',
+                        'status': 'simulated'  # Em produção seria 'executed'
+                    })
+                    
+                    total_moved_hours += excess_hours
+                    total_moved_tasks += 1  # Simplificado
+        
+        current_app.logger.info(f"[Capacity] Balanceamento simulado para {specialist_name}: {total_moved_hours}h movidas")
+        
+        return jsonify({
+            'specialist_name': specialist_name,
+            'weeks_analyzed': weeks_to_balance,
+            'max_hours_per_day': max_hours_per_day,
+            'balancing_results': balancing_results,
+            'summary': {
+                'total_moved_hours': round(total_moved_hours, 1),
+                'total_moved_tasks': total_moved_tasks,
+                'weeks_affected': len(set(r['week_start'] for r in balancing_results)),
+                'status': 'simulation_complete'
+            },
+            'note': 'Esta é uma simulação. Para executar o balanceamento real, use o parâmetro execute=true'
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"[Capacity] Erro no balanceamento: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Erro interno do servidor: {str(e)}'}), 500
+
+# ===================================
+# ROTAS PARA ANÁLISES E RELATÓRIOS
+# ===================================
+
+@backlog_bp.route('/api/analytics/specialist/<path:specialist_name>/report', methods=['GET'])
+def get_specialist_analytics_report(specialist_name):
+    """
+    API para gerar relatório completo de análise de um especialista
+    
+    Args:
+        specialist_name: Nome do especialista
+        weeks_back: Semanas passadas para análise (opcional, padrão: 4)
+    """
+    try:
+        from .analytics_service import AnalyticsService
+        
+        weeks_back = int(request.args.get('weeks_back', 4))
+        
+        analytics_service = AnalyticsService()
+        relatorio = analytics_service.gerar_relatorio_especialista(specialist_name, weeks_back)
+        
+        current_app.logger.info(f"[Analytics] Relatório gerado para {specialist_name}: {weeks_back} semanas")
+        
+        return jsonify(relatorio)
+        
+    except Exception as e:
+        current_app.logger.error(f"[Analytics] Erro ao gerar relatório: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Erro interno do servidor: {str(e)}'}), 500
+
+@backlog_bp.route('/api/analytics/team/dashboard', methods=['GET'])
+def get_team_dashboard():
+    """
+    API para gerar dashboard consolidado da equipe
+    
+    Args:
+        weeks_back: Semanas passadas para análise (opcional, padrão: 4)
+    """
+    try:
+        from .analytics_service import AnalyticsService
+        
+        weeks_back = int(request.args.get('weeks_back', 4))
+        
+        analytics_service = AnalyticsService()
+        dashboard = analytics_service.gerar_dashboard_equipe(weeks_back)
+        
+        current_app.logger.info(f"[Analytics] Dashboard da equipe gerado: {weeks_back} semanas")
+        
+        return jsonify(dashboard)
+        
+    except Exception as e:
+        current_app.logger.error(f"[Analytics] Erro ao gerar dashboard: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Erro interno do servidor: {str(e)}'}), 500
+
+@backlog_bp.route('/api/analytics/sprint-optimization', methods=['POST'])
+def analyze_sprint_optimization():
+    """
+    API para análise de otimização de sprints da equipe
+    
+    Body JSON:
+        team_members: Lista de nomes dos membros da equipe
+        weeks_ahead: Semanas futuras para análise (opcional, padrão: 4)
+    """
+    try:
+        from .analytics_service import AnalyticsService
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Dados JSON obrigatórios'}), 400
+        
+        team_members = data.get('team_members', [])
+        weeks_ahead = int(data.get('weeks_ahead', 4))
+        
+        if not team_members:
+            return jsonify({'error': 'Lista de membros da equipe é obrigatória'}), 400
+        
+        analytics_service = AnalyticsService()
+        otimizacoes = analytics_service.analisar_otimizacao_sprints(team_members, weeks_ahead)
+        
+        current_app.logger.info(f"[Analytics] Otimização analisada para {len(team_members)} membros")
+        
+        return jsonify(otimizacoes)
+        
+    except Exception as e:
+        current_app.logger.error(f"[Analytics] Erro na análise de otimização: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Erro interno do servidor: {str(e)}'}), 500
+
+@backlog_bp.route('/api/analytics/export/<path:specialist_name>', methods=['GET'])
+def export_specialist_data(specialist_name):
+    """
+    API para exportar dados de um especialista em diferentes formatos
+    
+    Args:
+        specialist_name: Nome do especialista
+        format: Formato de exportação (json, csv, excel) - padrão: json
+        weeks_back: Semanas para exportar (opcional, padrão: 4)
+    """
+    try:
+        from .analytics_service import AnalyticsService
+        import csv
+        import io
+        
+        formato = request.args.get('format', 'json').lower()
+        weeks_back = int(request.args.get('weeks_back', 4))
+        
+        analytics_service = AnalyticsService()
+        relatorio = analytics_service.gerar_relatorio_especialista(specialist_name, weeks_back)
+        
+        if formato == 'json':
+            return jsonify(relatorio)
+        
+        elif formato == 'csv':
+            # Cria CSV com dados resumidos
+            output = io.StringIO()
+            writer = csv.writer(output)
+            
+            # Header
+            writer.writerow(['Métrica', 'Valor'])
+            
+            # Dados das métricas
+            metricas = relatorio.get('metricas_produtividade', {})
+            for key, value in metricas.items():
+                writer.writerow([key.replace('_', ' ').title(), value])
+            
+            # Adiciona linha em branco
+            writer.writerow([])
+            
+            # Dados de capacidade
+            capacidade = relatorio.get('capacidade_historica', {})
+            writer.writerow(['CAPACIDADE HISTÓRICA', ''])
+            for key, value in capacidade.items():
+                writer.writerow([key.replace('_', ' ').title(), value])
+            
+            # Recomendações
+            writer.writerow([])
+            writer.writerow(['RECOMENDAÇÕES', ''])
+            for i, recomendacao in enumerate(relatorio.get('recomendacoes', []), 1):
+                writer.writerow([f'Recomendação {i}', recomendacao])
+            
+            output.seek(0)
+            return Response(
+                output.getvalue(),
+                mimetype='text/csv',
+                headers={'Content-Disposition': f'attachment;filename={specialist_name}_relatorio.csv'}
+            )
+        
+        else:
+            return jsonify({'error': 'Formato não suportado. Use: json, csv'}), 400
+        
+    except Exception as e:
+        current_app.logger.error(f"[Analytics] Erro na exportação: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Erro interno do servidor: {str(e)}'}), 500
+
+@backlog_bp.route('/api/analytics/predictions/<path:specialist_name>', methods=['GET'])
+def get_specialist_predictions(specialist_name):
+    """
+    API para obter predições de performance de um especialista
+    
+    Args:
+        specialist_name: Nome do especialista
+        prediction_weeks: Semanas futuras para predição (opcional, padrão: 2)
+    """
+    try:
+        from .analytics_service import AnalyticsService
+        
+        prediction_weeks = int(request.args.get('prediction_weeks', 2))
+        
+        analytics_service = AnalyticsService()
+        
+        # Primeiro gera o relatório para ter dados históricos
+        relatorio = analytics_service.gerar_relatorio_especialista(specialist_name, 4)
+        
+        if 'error' in relatorio:
+            return jsonify(relatorio), 500
+        
+        # Extrai predições e expande com mais detalhes
+        predicoes = relatorio.get('predicoes', {})
+        metricas = relatorio.get('metricas_produtividade', {})
+        tendencias = relatorio.get('tendencias', {})
+        
+        # Calcula predições mais detalhadas
+        predictions_detail = {
+            'specialist_name': specialist_name,
+            'prediction_weeks': prediction_weeks,
+            'base_data': {
+                'current_productivity': metricas.get('percentual_conclusao', 0),
+                'current_velocity': metricas.get('velocidade_semanal', 0),
+                'trend': tendencias.get('tendencia_produtividade', 'estavel')
+            },
+            'predictions': [],
+            'confidence_factors': {
+                'data_consistency': min(100, len(tendencias.get('metricas_semanais', [])) * 25),
+                'trend_stability': 75,  # Simulado
+                'external_factors': 80   # Simulado
+            },
+            'recommendations': predicoes.get('recomendacao_carga', 'normal'),
+            'risk_assessment': _assess_prediction_risks(metricas, tendencias)
+        }
+        
+        # Gera predições para cada semana
+        base_productivity = metricas.get('percentual_conclusao', 0)
+        trend_variation = tendencias.get('variacao', 0)
+        
+        for week in range(1, prediction_weeks + 1):
+            # Aplica tendência com decay
+            predicted_productivity = base_productivity + (trend_variation * week * 0.8)
+            predicted_productivity = max(0, min(100, predicted_productivity))
+            
+            # Calcula variabilidade
+            confidence = max(50, 95 - (week * 10))  # Confiança diminui com o tempo
+            
+            predictions_detail['predictions'].append({
+                'week': week,
+                'predicted_productivity': round(predicted_productivity, 1),
+                'confidence_level': confidence,
+                'expected_velocity': round(metricas.get('velocidade_semanal', 0) * (predicted_productivity / 100), 1),
+                'risk_level': 'baixo' if predicted_productivity > 70 else 'medio' if predicted_productivity > 50 else 'alto'
+            })
+        
+        current_app.logger.info(f"[Analytics] Predições geradas para {specialist_name}: {prediction_weeks} semanas")
+        
+        return jsonify(predictions_detail)
+        
+    except Exception as e:
+        current_app.logger.error(f"[Analytics] Erro nas predições: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Erro interno do servidor: {str(e)}'}), 500
+
+@backlog_bp.route('/api/analytics/team/optimization-score', methods=['POST'])
+def calculate_team_optimization_score():
+    """
+    API para calcular score de otimização da equipe
+    
+    Body JSON:
+        team_members: Lista de nomes dos membros
+        target_utilization: Utilização alvo (opcional, padrão: 80)
+    """
+    try:
+        from .analytics_service import AnalyticsService
+        from .capacity_service import CapacityService
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Dados JSON obrigatórios'}), 400
+        
+        team_members = data.get('team_members', [])
+        target_utilization = float(data.get('target_utilization', 80.0))
+        
+        if not team_members:
+            return jsonify({'error': 'Lista de membros da equipe é obrigatória'}), 400
+        
+        capacity_service = CapacityService()
+        analytics_service = AnalyticsService()
+        
+        hoje = datetime.now()
+        week_start = hoje - timedelta(days=hoje.weekday())
+        
+        # Calcula métricas de otimização
+        utilizacoes = []
+        sobrecargas = 0
+        total_capacity = 0
+        
+        for member in team_members:
+            capacity = capacity_service.calcular_capacidade_semana(member, week_start)
+            utilization = capacity['resumo']['percentual_ocupacao_semana']
+            utilizacoes.append(utilization)
+            
+            if capacity['resumo']['dias_sobrecarregados'] > 0:
+                sobrecargas += 1
+            
+            total_capacity += capacity['resumo']['total_horas_semana']
+        
+        # Calcula score baseado em diferentes fatores
+        score_components = {}
+        
+        # 1. Utilização média vs. target
+        avg_utilization = sum(utilizacoes) / len(utilizacoes) if utilizacoes else 0
+        utilization_score = max(0, 100 - abs(avg_utilization - target_utilization))
+        score_components['utilization_alignment'] = round(utilization_score, 1)
+        
+        # 2. Distribuição equilibrada (baixo desvio padrão)
+        import statistics
+        std_dev = statistics.stdev(utilizacoes) if len(utilizacoes) > 1 else 0
+        balance_score = max(0, 100 - (std_dev * 2))
+        score_components['workload_balance'] = round(balance_score, 1)
+        
+        # 3. Ausência de sobrecargas
+        overload_score = max(0, 100 - (sobrecargas * 20))
+        score_components['overload_prevention'] = round(overload_score, 1)
+        
+        # 4. Eficiência de capacidade
+        max_possible_capacity = len(team_members) * 40  # 40h por semana por pessoa
+        capacity_efficiency = (total_capacity / max_possible_capacity) * 100 if max_possible_capacity > 0 else 0
+        score_components['capacity_efficiency'] = round(capacity_efficiency, 1)
+        
+        # Score final ponderado
+        final_score = (
+            utilization_score * 0.3 +
+            balance_score * 0.25 +
+            overload_score * 0.25 +
+            capacity_efficiency * 0.2
+        )
+        
+        # Classificação do score
+        if final_score >= 85:
+            classification = 'Excelente'
+            recommendations = ['Manter configuração atual', 'Monitorar tendências']
+        elif final_score >= 70:
+            classification = 'Boa'
+            recommendations = ['Pequenos ajustes podem melhorar eficiência', 'Revisar distribuição em caso de sobrecarga']
+        elif final_score >= 50:
+            classification = 'Aceitável'
+            recommendations = ['Redistribuir carga de trabalho', 'Revisar planejamento de capacidade']
+        else:
+            classification = 'Necessita Atenção'
+            recommendations = ['Urgente: redistribuir tarefas', 'Revisar processo de alocação', 'Considerar recursos adicionais']
+        
+        result = {
+            'team_members': team_members,
+            'target_utilization': target_utilization,
+            'optimization_score': round(final_score, 1),
+            'classification': classification,
+            'score_components': score_components,
+            'team_metrics': {
+                'average_utilization': round(avg_utilization, 1),
+                'utilization_std_dev': round(std_dev, 1),
+                'overloaded_members': sobrecargas,
+                'total_team_capacity': round(total_capacity, 1),
+                'capacity_efficiency': round(capacity_efficiency, 1)
+            },
+            'member_utilizations': [
+                {'member': member, 'utilization': util}
+                for member, util in zip(team_members, utilizacoes)
+            ],
+            'recommendations': recommendations
+        }
+        
+        current_app.logger.info(f"[Analytics] Score de otimização calculado: {final_score:.1f} para {len(team_members)} membros")
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        current_app.logger.error(f"[Analytics] Erro no cálculo do score: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Erro interno do servidor: {str(e)}'}), 500
+
+def _assess_prediction_risks(metricas: dict, tendencias: dict) -> dict:
+    """Avalia riscos nas predições"""
+    risks = []
+    
+    if metricas.get('percentual_conclusao', 0) < 60:
+        risks.append('Baixa produtividade histórica pode afetar predições')
+    
+    if tendencias.get('tendencia_produtividade') == 'declinio':
+        risks.append('Tendência de declínio pode continuar')
+    
+    if len(tendencias.get('metricas_semanais', [])) < 3:
+        risks.append('Poucos dados históricos reduzem confiabilidade')
+    
+    return {
+        'level': 'alto' if len(risks) > 2 else 'medio' if len(risks) > 0 else 'baixo',
+        'factors': risks
+    }
