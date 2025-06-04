@@ -428,6 +428,21 @@
     color: var(--sprint-secondary);
   }
 
+  /* Task Project Info - NOVO */
+  .task-project-info {
+    font-size: 0.7rem !important;
+    color: var(--sprint-secondary) !important;
+    opacity: 0.8;
+    padding: 0.2rem 0;
+    border-left: 2px solid var(--sprint-border);
+    padding-left: 0.5rem;
+    margin-left: 0.2rem;
+  }
+
+  .task-project-info i {
+    opacity: 0.6;
+  }
+
   /* Badges */
   .project-badge {
     font-size: 0.75rem;
@@ -875,6 +890,9 @@
                                         return `
                                         <div class="backlog-task-card sprint-task-card ${isCompleted ? 'task-completed' : ''}" data-task-id="${task.id}" draggable="true" data-estimated-hours="${task.estimated_hours || 0}" data-specialist-name="${escapeHtml(task.specialist_name || '')}" data-is-generic="${task.is_generic || false}">
                                             <div class="task-title">${escapeHtml(task.name)}</div>
+                                            ${task.project_id && !task.is_generic ? `<div class="task-project-info small text-muted mb-2">
+                                                <i class="bi bi-folder2 me-1"></i>${task.project_id}${task.project_name ? ` - ${escapeHtml(task.project_name.length > 20 ? task.project_name.substring(0, 20) + '...' : task.project_name)}` : ''}
+                                            </div>` : ''}
                                             <div class="task-meta">
                                                 <div class="task-meta-left">
                                                     <span class="badge rounded-pill task-priority-badge">${escapeHtml(task.priority || 'Média')}</span>
@@ -963,11 +981,32 @@
     function renderBacklogProject(backlog) {
         const projectBoardUrl = `/backlog/board/${backlog.project_id}`; // URL de destino para o quadro do projeto
         
-        // Limita o nome do projeto até "MSM SOLUCOES PARA"
+        // NOVO: Limita o nome do projeto para evitar quebras de linha
         let displayName = backlog.project_name || 'Sem Nome';
-        const msmIndex = displayName.indexOf('MSM SOLUCOES PARA');
-        if (msmIndex >= 0) {
-            displayName = displayName.substring(0, msmIndex + 'MSM SOLUCOES PARA'.length);
+        
+        // Estratégia inteligente de truncamento:
+        // 1. Sempre mantém o número do projeto se estiver no início
+        // 2. Limita por palavras (primeiras 2-3 palavras após o número)
+        // 3. Backup: limita por caracteres se ainda for muito longo
+        
+        const palavras = displayName.split(' ');
+        
+        // Se começar com número (ID do projeto), mantém ele + próximas 2 palavras
+        if (palavras.length > 1 && /^\d+$/.test(palavras[0])) {
+            // Exemplo: "11362 PLANALTO SOLUÇÕES IMOBILIÁRIAS" -> "11362 PLANALTO SOLUÇÕES"
+            if (palavras.length > 3) {
+                displayName = palavras.slice(0, 3).join(' ');
+            }
+        } else {
+            // Se não começar com número, limita a 2-3 palavras
+            if (palavras.length > 2) {
+                displayName = palavras.slice(0, 2).join(' ');
+            }
+        }
+        
+        // Backup: Se ainda for muito longo, corta por caracteres
+        if (displayName.length > 30) {
+            displayName = displayName.substring(0, 27) + '...';
         }
 
         return `

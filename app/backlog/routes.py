@@ -84,6 +84,19 @@ def serialize_task(task):
             'is_unplanned': task.is_unplanned if hasattr(task, 'is_unplanned') else False # NOVO CAMPO
         }
 
+        # NOVO: Busca o nome do projeto se não for tarefa genérica e tiver project_id
+        if not (task.is_generic if hasattr(task, 'is_generic') else False) and backlog and backlog.project_id:
+            try:
+                from ..macro.services import MacroService
+                macro_service = MacroService()
+                project_details = macro_service.obter_detalhes_projeto(backlog.project_id)
+                task_data['project_name'] = project_details.get('Projeto', 'Projeto Desconhecido') if project_details else 'Projeto Desconhecido'
+            except Exception as proj_ex:
+                current_app.logger.warning(f"Erro ao buscar nome do projeto {backlog.project_id}: {proj_ex}")
+                task_data['project_name'] = 'Projeto Desconhecido'
+        else:
+            task_data['project_name'] = None
+
         # --- INÍCIO: Adicionar resumo dos segmentos da tarefa ---
         task_segments_summary = []
         if hasattr(task, 'segments'):
@@ -848,14 +861,22 @@ def get_unassigned_tasks():
                 backlog = backlog_details_map.get(backlog_id)
                 if backlog:
                     project_details = project_details_map.get(backlog.project_id)
+                    
+                    # Debug: Log dos detalhes do projeto
+                    current_app.logger.info(f"[Debug] Projeto ID: {backlog.project_id}, Project Details: {project_details}")
+                    
                     # Pega o NOME DO PROJETO, usa 'Nome Indisponível' se não encontrar
-                    project_name = project_details.get('name', 'Nome Indisponível') if project_details else 'Nome Indisponível'
+                    # CORRIGIDO: Chave 'Projeto' é a correta retornada pelo MacroService, não 'name'
+                    project_name = project_details.get('Projeto', 'Nome Indisponível') if project_details else 'Nome Indisponível'
+                    
+                    # Debug: Log do nome encontrado
+                    current_app.logger.info(f"[Debug] Nome do projeto encontrado: {project_name}")
 
                     result.append({
                         'backlog_id': backlog.id,
                         'backlog_name': backlog.name, # Nome do Backlog (Ex: Backlog Principal)
                         'project_id': backlog.project_id, # ID do Projeto associado
-                        'project_name': project_name, # << NOME DO PROJETO
+                        'project_name': project_name, # << NOME DO PROJETO CORRIGIDO
                         'tasks': tasks
                     })
                 else:
