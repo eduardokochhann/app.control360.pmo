@@ -506,6 +506,22 @@
   .popover-body {
     padding: 0.5rem;
   }
+  
+  /* Estados de Sortable para melhor feedback visual */
+  .sortable-dragging {
+    opacity: 0.6;
+    transform: rotate(2deg);
+    z-index: 9999;
+  }
+
+  .sortable-ghost-task {
+    opacity: 0.3;
+    background-color: #e9ecef !important;
+  }
+
+  .sortable-chosen-task {
+    cursor: grabbing !important;
+  }
 </style>
 {% endblock %}
 
@@ -1230,7 +1246,13 @@
 
     function initializeSortable() {
         // Destroi instâncias antigas se existirem (útil se recarregar dinamicamente)
-        sortableInstances.forEach(instance => instance.destroy());
+        sortableInstances.forEach(instance => {
+            try {
+                instance.destroy();
+            } catch (e) {
+                console.warn("Erro ao destruir instância sortable:", e);
+            }
+        });
         sortableInstances = [];
 
         console.log("[Sprint Mgmt] Inicializando SortableJS...");
@@ -1245,6 +1267,20 @@
                 ghostClass: 'sortable-ghost-task', // Classe CSS para o fantasma
                 chosenClass: 'sortable-chosen-task', // Classe CSS para o item escolhido
                 draggable: '.backlog-task-card, .generic-task', // Itens arrastáveis
+                forceFallback: true, // Força o uso do fallback para evitar conflitos
+                fallbackTolerance: 5, // Tolerância para iniciar o drag
+                delay: 100, // Atraso antes de iniciar o drag para evitar conflitos com cliques
+                delayOnTouchStart: 100, // Atraso no touch
+                touchStartThreshold: 10, // Threshold para touch
+                
+                onStart: function (evt) {
+                    console.log("[Sortable] Iniciando drag da tarefa:", evt.item.dataset.taskId);
+                    // Desabilita eventos de clique temporariamente para evitar conflitos
+                    evt.item.style.pointerEvents = 'none';
+                    evt.item.style.userSelect = 'none';
+                    // Adiciona classe visual durante o drag
+                    evt.item.classList.add('sortable-dragging');
+                },
                 
                 onEnd: function (evt) {
                     const item = evt.item; // O elemento da tarefa movida
@@ -1253,41 +1289,27 @@
                     const toList = evt.to;     // Lista de destino
                     const newIndex = evt.newIndex; // Nova posição na lista de destino
 
+                    console.log(`[Sortable] Drag finalizado - Tarefa ${taskId} de ${fromList.className} para ${toList.className}`);
+                    
+                    // Reabilita eventos de clique após um pequeno delay e limpa classes
+                    setTimeout(() => {
+                        item.style.pointerEvents = '';
+                        item.style.userSelect = '';
+                        item.classList.remove('sortable-dragging');
+                        
+                        // Força reflow para garantir que as mudanças sejam aplicadas
+                        item.offsetHeight;
+                    }, 150);
+
+                    // Se não houve mudança real, não faz nada
+                    if (fromList === toList && evt.oldIndex === evt.newIndex) {
+                        console.log("[Sortable] Sem mudança real, ignorando.");
+                        return;
+                    }
+
                     // Atualiza horas estimadas na UI
                     const taskHours = parseFloat(item.dataset.estimatedHours) || 0;
                     const taskSpecialist = item.dataset.specialistName || 'Não Atribuído';
-
-                    // Função auxiliar para atualizar o display de horas de uma sprint
-                    function updateSprintHoursDisplay(sprintListElement, hoursDelta) {
-                        const sprintCard = sprintListElement.closest('.sprint-card');
-                        if (!sprintCard) return;
-                        const hoursSpan = sprintCard.querySelector('.sprint-total-hours');
-                        if (!hoursSpan) return;
-
-                        try {
-                            const currentHoursText = hoursSpan.textContent.match(/([\d\.]+)/);
-                            let currentHours = currentHoursText ? parseFloat(currentHoursText[1]) : 0;
-                            if (isNaN(currentHours)) currentHours = 0;
-                            
-                            const newTotalHours = currentHours + hoursDelta;
-                            
-                            hoursSpan.innerHTML = `<i class="bi bi-stopwatch me-1"></i>${newTotalHours.toFixed(1)}h`;
-                        } catch (e) {
-                            console.error("Erro ao atualizar display de horas da sprint:", e);
-                        }
-                    }
-
-                    // Atualiza horas da sprint de ORIGEM (se for uma sprint)
-                    if (fromList.classList.contains('sprint-tasks')) {
-                        updateSprintHoursDisplay(fromList, -taskHours);
-                        updateSpecialistPopover(fromList);
-                    }
-
-                    // Atualiza horas da sprint de DESTINO (se for uma sprint)
-                    if (toList.classList.contains('sprint-tasks')) {
-                        updateSprintHoursDisplay(toList, taskHours);
-                        updateSpecialistPopover(toList);
-                    }
 
                     // Identifica o destino (para a API)
                     let targetSprintId = null;
@@ -1295,54 +1317,219 @@
                         targetSprintId = toList.dataset.sprintId;
                     }
 
-                    // Se a tarefa foi movida para uma sprint, atualiza o sprint_id
+                    // Processa a movimentação
                     if (targetSprintId) {
-                        updateTaskSprintAssignment(taskId, targetSprintId, newIndex);
+                        // Movendo PARA uma sprint
+                        console.log(`[Sortable] Movendo tarefa ${taskId} para sprint ${targetSprintId}`);
+                        updateTaskSprintAssignmentOptimized(taskId, targetSprintId, newIndex, item, fromList, toList, taskHours);
                     } else {
-                        // Se a tarefa foi movida para fora de uma sprint (para Backlog ou Tarefas Genéricas na UI)
-                        // chamar a API de "move-to-backlog".
-                        console.log(`[Sortable onEnd] Tarefa ${taskId} movida para fora da sprint (destino não é uma sprint). Chamando API /move-to-backlog.`);
-                        fetch(`/sprints/api/sprints/tasks/${taskId}/move-to-backlog`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                // Adicionar CSRF token se necessário
-                                // {% raw %}'X-CSRFToken': '{{ csrf_token() }}'{% endraw %} 
-                            }
-                        })
-                        .then(response => {
-                            if (!response.ok) {
-                                return response.json().then(err => { throw new Error(err.message || `Erro ${response.status}`); });
-                            }
-                            return response.json();
-                        })
-                        .then(updatedTask => {
-                            console.log(`[Sortable onEnd] Tarefa ${taskId} movida para backlog via API. Dados:`, updatedTask);
-                            // O elemento já foi movido pelo SortableJS.
-                            // A sprint de origem precisa ser atualizada (contagem de horas).
-                            // As listas de backlog/genéricas precisam ser atualizadas para refletir a tarefa devolvida corretamente.
-                            if (updatedTask.is_generic) {
-                                console.log(`[Sortable onEnd] Tarefa ${taskId} (genérica) devolvida. Recarregando tarefas genéricas.`);
-                                loadGenericTasks();
-                            } else {
-                                console.log(`[Sortable onEnd] Tarefa ${taskId} (de projeto) devolvida. Recarregando backlog de projetos.`);
-                                loadBacklogTasks();
-                            }
-                            loadSprints(); // Atualiza a sprint de origem e outras para consistência
-                        })
-                        .catch(error => {
-                            console.error(`[Sortable onEnd] Erro ao mover tarefa ${taskId} para o backlog via API:`, error);
-                            alert(`Erro ao tentar mover tarefa para o backlog: ${error.message}. A interface pode estar dessincronizada. Por favor, atualize a página.`);
-                            // Para garantir, recarregar tudo para tentar sincronizar
-                            loadSprints();
-                            loadBacklogTasks();
-                            loadGenericTasks();
-                        });
+                        // Movendo PARA FORA de uma sprint (para Backlog ou Tarefas Genéricas)
+                        console.log(`[Sortable] Movendo tarefa ${taskId} para fora da sprint`);
+                        moveTaskToBacklogOptimized(taskId, item, fromList, toList, taskHours);
                     }
                 }
             });
             sortableInstances.push(instance);
         });
+    }
+
+    // Versão otimizada da função de atualização que não recarrega tudo
+    async function updateTaskSprintAssignmentOptimized(taskId, sprintId, newPosition, taskElement, fromList, toList, taskHours) {
+        const apiUrl = `/backlog/api/tasks/${taskId}/assign`;
+        const payload = {
+            sprint_id: sprintId,
+            position: newPosition 
+        };
+
+        console.log(`[API Call] Chamando ${apiUrl} com payload:`, payload);
+
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                let errorMsg = `Erro ${response.status}`; 
+                try { 
+                    const errorData = await response.json();
+                    errorMsg = errorData.message || errorData.description || errorMsg; 
+                } catch(e) {}
+                throw new Error(errorMsg);
+            }
+
+            const updatedTask = await response.json();
+            console.log("[API Call] Tarefa atualizada com sucesso:", updatedTask);
+            
+            // Atualiza apenas os elementos visuais necessários sem recarregar tudo
+            updateSprintHoursDisplayOptimized(fromList, toList, taskHours);
+            updateSpecialistPopoverOptimized(fromList, toList);
+
+        } catch (error) {
+            console.error("[API Call] Erro ao atualizar sprint da tarefa:", error);
+            
+            // Reverte a mudança visual em caso de erro
+            console.log("[API Call] Revertendo mudança visual devido ao erro...");
+            fromList.insertBefore(taskElement, fromList.children[newPosition] || null);
+            
+            alert(`Erro ao mover tarefa: ${error.message}`);
+        }
+    }
+
+    // Versão otimizada para mover tarefa para backlog
+    async function moveTaskToBacklogOptimized(taskId, taskElement, fromList, toList, taskHours) {
+        try {
+            const response = await fetch(`/sprints/api/sprints/tasks/${taskId}/move-to-backlog`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Erro ${response.status}`);
+            }
+            
+            const updatedTask = await response.json();
+            console.log(`[API Call] Tarefa ${taskId} movida para backlog via API:`, updatedTask);
+            
+            // Atualiza apenas os elementos visuais necessários
+            updateSprintHoursDisplayOptimized(fromList, null, taskHours);
+            updateSpecialistPopoverOptimized(fromList, null);
+            
+            // Remove o elemento da lista atual e recarrega apenas a lista de destino
+            taskElement.remove();
+            
+            if (updatedTask.is_generic) {
+                loadGenericTasks();
+            } else {
+                loadBacklogTasks();
+            }
+            
+        } catch (error) {
+            console.error(`[API Call] Erro ao mover tarefa para backlog:`, error);
+            
+            // Reverte a mudança visual
+            fromList.appendChild(taskElement);
+            
+            alert(`Erro ao mover tarefa: ${error.message}`);
+        }
+    }
+
+    // Função otimizada para atualizar display de horas sem recarregar
+    function updateSprintHoursDisplayOptimized(fromList, toList, taskHours) {
+        // Atualiza sprint de origem
+        if (fromList && fromList.classList.contains('sprint-tasks')) {
+            updateSingleSprintHours(fromList, -taskHours);
+        }
+        
+        // Atualiza sprint de destino
+        if (toList && toList.classList.contains('sprint-tasks')) {
+            updateSingleSprintHours(toList, taskHours);
+        }
+    }
+
+    // Função para atualizar horas de uma única sprint
+    function updateSingleSprintHours(sprintList, hoursDelta) {
+        const sprintCard = sprintList.closest('.sprint-card');
+        if (!sprintCard) return;
+        
+        const hoursSpan = sprintCard.querySelector('.sprint-badge i.bi-stopwatch').parentElement;
+        if (!hoursSpan) return;
+
+        try {
+            const currentHoursText = hoursSpan.textContent.match(/([\d\.]+)/);
+            let currentHours = currentHoursText ? parseFloat(currentHoursText[1]) : 0;
+            if (isNaN(currentHours)) currentHours = 0;
+            
+            const newTotalHours = Math.max(0, currentHours + hoursDelta);
+            hoursSpan.innerHTML = `<i class="bi bi-stopwatch"></i>${newTotalHours.toFixed(1)}h`;
+        } catch (e) {
+            console.error("Erro ao atualizar display de horas da sprint:", e);
+        }
+    }
+
+    // Função otimizada para atualizar popovers
+    function updateSpecialistPopoverOptimized(fromList, toList) {
+        if (fromList && fromList.classList.contains('sprint-tasks')) {
+            updateSingleSprintPopover(fromList);
+        }
+        
+        if (toList && toList.classList.contains('sprint-tasks')) {
+            updateSingleSprintPopover(toList);
+        }
+    }
+
+    // Função para atualizar popover de uma única sprint
+    function updateSingleSprintPopover(sprintList) {
+        try {
+            const sprintCard = sprintList.closest('.sprint-card');
+            if (!sprintCard) return;
+
+            // Recalcula horas por especialista
+            const tasks = sprintList.querySelectorAll('.backlog-task-card');
+            let hoursBySpecialist = {};
+
+            tasks.forEach(task => {
+                const specialist = task.dataset.specialistName;
+                if (specialist && specialist.trim() && specialist !== 'Não Atribuído') {
+                    const hours = parseFloat(task.dataset.estimatedHours) || 0;
+                    hoursBySpecialist[specialist] = (hoursBySpecialist[specialist] || 0) + hours;
+                }
+            });
+
+            // Atualiza o popover
+            const popoverButton = sprintCard.querySelector('.specialist-hours-popover');
+            if (!popoverButton) return;
+
+            // Destrói popover existente
+            const existingPopover = bootstrap.Popover.getInstance(popoverButton);
+            if (existingPopover) {
+                existingPopover.dispose();
+            }
+
+            if (Object.keys(hoursBySpecialist).length > 0) {
+                // Gera novo conteúdo
+                let popoverContent = '';
+                Object.entries(hoursBySpecialist).forEach(([specialist, hours]) => {
+                    const capacidadeTotal = 80; // Valor padrão, idealmente vir da API
+                    const horasRestantes = capacidadeTotal - hours;
+                    const percentualUtilizado = Math.round((hours / capacidadeTotal) * 100);
+                    
+                    let badgeClass = 'success';
+                    if (percentualUtilizado > 100) {
+                        badgeClass = 'danger';
+                    } else if (percentualUtilizado > 80) {
+                        badgeClass = 'warning';
+                    }
+                    
+                    popoverContent += `
+                        <div class="mb-2">
+                            <strong>${escapeHtml(specialist)}</strong><br>
+                            <small>
+                                ${hours.toFixed(1)}h utilizadas / ${capacidadeTotal}h disponíveis<br>
+                                Saldo: ${horasRestantes.toFixed(1)}h 
+                                <span class="badge bg-${badgeClass} ms-1">${percentualUtilizado}%</span>
+                            </small>
+                        </div>
+                    `;
+                });
+
+                // Cria novo popover
+                new bootstrap.Popover(popoverButton, {
+                    content: popoverContent,
+                    html: true,
+                    placement: 'bottom',
+                    trigger: 'hover focus',
+                    title: 'Especialistas'
+                });
+                
+                popoverButton.style.display = 'inline-flex';
+            } else {
+                popoverButton.style.display = 'none';
+            }
+        } catch (e) {
+            console.error("Erro ao atualizar popover:", e);
+        }
     }
 
     // <<< INÍCIO: Função para inicializar todos os popovers >>>
