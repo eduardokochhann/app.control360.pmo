@@ -1633,7 +1633,6 @@ def import_tasks_from_excel(backlog_id):
 
     # Obter detalhes do projeto para pegar o especialista padrão
     macro_service = MacroService()
-    # Assumindo que backlog.project_id é o ID que o macro_service espera
     project_details = macro_service.obter_detalhes_projeto(str(backlog.project_id))
     default_specialist = project_details.get('especialista') if project_details else None
     current_app.logger.info(f"[Import Excel API] Projeto ID: {backlog.project_id}, Especialista Padrão do Projeto: {default_specialist}")
@@ -1702,11 +1701,9 @@ def import_tasks_from_excel(backlog_id):
                 'concluido': 'concluído', # Sem acento
                 'concluído': 'concluído',
                 'completed': 'concluído',
-                # Adicione mais aliases conforme necessário para outras colunas
             }
             # Nomes canônicos válidos (em minúsculas, como estão no BD) para referência
             valid_canonical_column_names = list(db_column_name_to_id_map.keys())
-
 
             for index, row in df.iterrows():
                 try:
@@ -1739,17 +1736,18 @@ def import_tasks_from_excel(backlog_id):
                     if not target_column_id:
                         errors.append(f"Linha {index + 2}: Coluna Kanban '{coluna_kanban_name_excel}' não reconhecida ou mapeada. Válidas (ou aliases para): {', '.join(valid_canonical_column_names)}")
                         continue
-                        
+
+                    # Processamento de horas estimadas com suporte a sufixos
                     horas_estimadas_raw = row.get('HorasEstimadas')
                     horas_estimadas = None # Garante que se houver erro ou valor vazio, será None
                     if horas_estimadas_raw and not pd.isna(horas_estimadas_raw):
                         valor_processar = str(horas_estimadas_raw).strip()
                         
-                        # Remove 'hrs' ou 'hr' (case-insensitive) e espaços ao redor
-                        if valor_processar.lower().endswith('hrs'):
-                            valor_processar = valor_processar[:-3].strip()
-                        elif valor_processar.lower().endswith('hr'):
-                            valor_processar = valor_processar[:-2].strip()
+                        # Remove 'hrs', 'hr', 'h' (case-insensitive) e espaços ao redor
+                        for sufixo in ['hrs', 'hr', 'h']:
+                            if valor_processar.lower().endswith(sufixo):
+                                valor_processar = valor_processar[:-len(sufixo)].strip()
+                                break
                         
                         # Substitui vírgula por ponto para aceitar decimais como 7,5
                         valor_processar = valor_processar.replace(',', '.')
@@ -1763,55 +1761,44 @@ def import_tasks_from_excel(backlog_id):
                                     errors.append(f"Linha {index + 2}: HorasEstimadas ('{horas_estimadas_raw}') resultou em valor negativo ({horas_convertidas}) para '{titulo_str}'. Será importado sem horas.")
                             except ValueError:
                                 errors.append(f"Linha {index + 2}: HorasEstimadas ('{horas_estimadas_raw}') não pôde ser convertido para número para '{titulo_str}'. Será importado sem horas.")
-                        # Se valor_processar ficou vazio (ex: celula continha apenas 'hrs'), horas_estimadas permanece None
-                                
+
                     def parse_date_from_excel(date_input, field_name):
                         if date_input is None or pd.isna(date_input): return None
                         if isinstance(date_input, datetime): return date_input.date()
                         
                         full_str = str(date_input).strip()
-                        date_str_to_parse = full_str # Default to the full string
                         
-                        # Verifica se há um prefixo textual antes da data (ex: "Qua 14/05/25")
-                        # Se a string tiver um espaço, e a parte após o *último* espaço contiver '/' ou '-',
-                        # é provável que seja o formato "TEXTO DATA"
-                        last_space_index = full_str.rfind(' ')
-                        if last_space_index != -1:
-                            potential_date_candidate = full_str[last_space_index+1:]
-                            # Verifica se o candidato realmente parece uma data
-                            is_candidate_like_dd_mm_yy = '/' in potential_date_candidate
-                            is_candidate_like_yyyy_mm_dd = potential_date_candidate.count('-') == 2
-                            
-                            if is_candidate_like_dd_mm_yy or is_candidate_like_yyyy_mm_dd:
-                                date_str_to_parse = potential_date_candidate
-                            else:
-                                # Se a última parte não parece data (ex: "HH:MM:SS" de "YYYY-MM-DD HH:MM:SS"),
-                                # ou o espaço não era para separar dia da semana.
-                                # Nesse caso, a lógica de pegar a primeira parte antes do espaço é melhor.
-                                date_str_to_parse = full_str.split(' ')[0]
+                        # Se a data já está no formato datetime, converte diretamente
+                        if isinstance(date_input, (datetime, date)):
+                            return date_input if isinstance(date_input, date) else date_input.date()
+                        
+                        # Remove qualquer prefixo de dia da semana (ex: "Qua 28/05/25" -> "28/05/25")
+                        # Procura pelo último espaço e pega tudo depois dele se houver uma data válida
+                        if ' ' in full_str:
+                            parts = full_str.split()
+                            # Pega a última parte que deve ser a data
+                            date_str_to_parse = parts[-1]
                         else:
-                            # Sem espaços, usa a string inteira (ex: "14/05/25" ou "2023-10-26")
-                            # date_str_to_parse já é full_str, então não precisa de ação aqui.
-                            pass
+                            date_str_to_parse = full_str
 
-                        # Tenta formato YYYY-MM-DD primeiro
-                        try:
-                            return datetime.strptime(date_str_to_parse, '%Y-%m-%d').date()
-                        except ValueError:
-                            # Tenta formato dd/mm/yy ou dd/mm/yyyy
+                        # Lista de formatos de data aceitos
+                        date_formats = [
+                            '%Y-%m-%d',    # YYYY-MM-DD
+                            '%d/%m/%Y',    # DD/MM/YYYY
+                            '%d/%m/%y',    # DD/MM/YY
+                            '%Y/%m/%d',    # YYYY/MM/DD
+                            '%d-%m-%Y',    # DD-MM-YYYY
+                            '%d-%m-%y'     # DD-MM-YY
+                        ]
+
+                        for date_format in date_formats:
                             try:
-                                # Tenta dd/mm/yyyy primeiro
-                                return datetime.strptime(date_str_to_parse, '%d/%m/%Y').date()
+                                return datetime.strptime(date_str_to_parse, date_format).date()
                             except ValueError:
-                                try:
-                                    # Depois tenta dd/mm/yy
-                                    dt_obj = datetime.strptime(date_str_to_parse, '%d/%m/%y')
-                                    # Python's strptime %y handles 00-68 as 2000-2068 and 69-99 as 1969-1999.
-                                    current_app.logger.debug(f"Data '{date_str_to_parse}' com formato '%d/%m/%y' resultou em ano {dt_obj.year}")
-                                    return dt_obj.date()
-                                except ValueError:
-                                    errors.append(f"Linha {index + 2}: Formato de {field_name} ('{date_input}') inválido para '{titulo_str}'. Use YYYY-MM-DD ou dd/mm/aa(aaaa), opcionalmente precedido por dia da semana (ex: Qua dd/mm/aa).")
-                                    return 'PARSE_ERROR'
+                                continue
+
+                        errors.append(f"Linha {index + 2}: Formato de {field_name} ('{date_input}') inválido para '{titulo_str}'. Use YYYY-MM-DD ou dd/mm/aa(aaaa).")
+                        return None
 
                     data_inicio = parse_date_from_excel(row.get('DataInicio'), 'DataInicio')
                     if data_inicio == 'PARSE_ERROR': continue
@@ -1819,15 +1806,12 @@ def import_tasks_from_excel(backlog_id):
                     if data_fim == 'PARSE_ERROR': continue
                     
                     # Define a posição inicial como 0 (topo da coluna)
-                    # Tarefas existentes serão deslocadas automaticamente pela lógica de `move_task` se essa API for chamada depois,
-                    # ou se a ordenação no frontend/banco for baseada em `position`.
-                    next_position = 0 
+                    next_position = 0
 
                     new_task = Task(
                         title=titulo_str,
                         backlog_id=backlog.id,
                         column_id=target_column_id,
-                        # project_id=backlog.project_id, # Task não tem project_id direto, é via backlog
                         priority='Média', 
                         specialist_name=default_specialist,
                         estimated_effort=horas_estimadas,
@@ -1991,10 +1975,18 @@ def get_specialist_weekly_segments(specialist_name):
             macro_service = MacroService()
             active_projects_data = macro_service.carregar_dados()
             active_project_ids = []
+            project_names = {}  # Mapeamento ID -> Nome
             
             if not active_projects_data.empty:
                 active_projects = macro_service.obter_projetos_ativos(active_projects_data)
                 active_project_ids = [str(p.get('numero', '')) for p in active_projects]
+                
+                # Cria mapeamento de ID para nome do projeto
+                for project in active_projects:
+                    project_id = str(project.get('numero', ''))
+                    project_name = project.get('projeto', f'Projeto {project_id}')
+                    project_names[project_id] = project_name
+                    
                 current_app.logger.info(f"[Sprint Semanal] {len(active_project_ids)} projetos ativos encontrados")
             else:
                 current_app.logger.warning("[Sprint Semanal] Nenhum projeto ativo encontrado no MacroService")
@@ -2010,13 +2002,16 @@ def get_specialist_weekly_segments(specialist_name):
                     current_app.logger.debug(f"[Sprint Semanal] Projeto {backlog.project_id} não está ativo, ignorando segmento")
                     continue
                 
+                # Busca o nome real do projeto
+                project_name = project_names.get(backlog.project_id, f"Projeto {backlog.project_id}")
+                
                 segment_data = {
                     'id': segment.id,
                     'task_id': task.id,
                     'task_title': task.title,
                     'task_description': task.description,
                     'project_id': backlog.project_id,
-                    'project_name': f"Projeto {backlog.project_id}",  # Pode ser melhorado com dados do macro
+                    'project_name': project_name,  # Agora usa o nome real
                     'start_datetime': segment.segment_start_datetime.isoformat(),
                     'end_datetime': segment.segment_end_datetime.isoformat(),
                     'segment_description': segment.description,
@@ -2465,3 +2460,158 @@ def debug_sprint_specialist(specialist_name):
         return jsonify({'error': str(e)}), 500
 
 # --- FIM: Debug Sprint Semanal ---
+
+@backlog_bp.route('/api/specialists/<path:specialist_name>/redistribute-workload', methods=['POST'])
+def redistribute_specialist_workload(specialist_name):
+    """
+    Redistribui a carga de trabalho de um especialista quando há sobrecarga.
+    Analisa semanas futuras e redistribui tarefas automaticamente.
+    """
+    try:
+        from urllib.parse import unquote
+        from datetime import datetime, timedelta
+        
+        specialist_name = unquote(specialist_name)
+        data = request.get_json()
+        
+        max_hours_per_week = data.get('max_hours_per_week', 40)
+        weeks_to_analyze = data.get('weeks_to_analyze', 4)
+        
+        current_app.logger.info(f"[Redistribuir] Iniciando redistribuição para {specialist_name}")
+        
+        # Busca tarefas do especialista
+        tasks_for_specialist = Task.query.filter(
+            db.func.lower(db.func.trim(Task.specialist_name)) == specialist_name.strip().lower()
+        ).all()
+        
+        if not tasks_for_specialist:
+            return jsonify({'error': 'Nenhuma tarefa encontrada para este especialista'}), 404
+        
+        # Analisa carga por semana nas próximas semanas
+        hoje = datetime.now().date()
+        semana_atual = hoje - timedelta(days=hoje.weekday())
+        
+        semanas_carga = []
+        task_ids = [task.id for task in tasks_for_specialist]
+        
+        for week_offset in range(weeks_to_analyze):
+            week_start = semana_atual + timedelta(weeks=week_offset)
+            week_end = week_start + timedelta(days=4)
+            
+            week_start_dt = datetime.combine(week_start, datetime.min.time())
+            week_end_dt = datetime.combine(week_end, datetime.max.time())
+            
+            # Busca segmentos da semana
+            segments = TaskSegment.query.filter(
+                TaskSegment.task_id.in_(task_ids),
+                TaskSegment.segment_start_datetime >= week_start_dt,
+                TaskSegment.segment_start_datetime <= week_end_dt
+            ).all()
+            
+            total_hours = sum(s.task.estimated_effort or 0 for s in segments)
+            
+            semana_info = {
+                'week_offset': week_offset,
+                'week_start': week_start.strftime('%Y-%m-%d'),
+                'week_label': f"{week_start.strftime('%d/%m')} - {week_end.strftime('%d/%m')}",
+                'segments': segments,
+                'total_hours': total_hours,
+                'is_overloaded': total_hours > max_hours_per_week,
+                'overload_hours': max(0, total_hours - max_hours_per_week)
+            }
+            
+            semanas_carga.append(semana_info)
+        
+        # Identifica semanas sobrecarregadas
+        semanas_sobrecarregadas = [s for s in semanas_carga if s['is_overloaded']]
+        
+        if not semanas_sobrecarregadas:
+            return jsonify({
+                'message': 'Nenhuma sobrecarga detectada',
+                'specialist_name': specialist_name,
+                'weeks_analyzed': semanas_carga,
+                'redistributions': []
+            })
+        
+        # Executa redistribuição
+        redistribuicoes = []
+        
+        for semana_sobrecarregada in semanas_sobrecarregadas:
+            horas_excesso = semana_sobrecarregada['overload_hours']
+            segments_para_mover = []
+            
+            # Seleciona segmentos para mover (começando pelos menores)
+            segments_ordenados = sorted(semana_sobrecarregada['segments'], 
+                                      key=lambda s: s.task.estimated_effort or 0)
+            
+            horas_acumuladas = 0
+            for segment in segments_ordenados:
+                if horas_acumuladas >= horas_excesso:
+                    break
+                    
+                segments_para_mover.append(segment)
+                horas_acumuladas += segment.task.estimated_effort or 0
+            
+            # Encontra semana de destino (com menor carga)
+            semanas_destino = [s for s in semanas_carga 
+                             if s['week_offset'] > semana_sobrecarregada['week_offset'] 
+                             and not s['is_overloaded']]
+            
+            if not semanas_destino:
+                # Cria nova semana se necessário
+                nova_semana_offset = semanas_carga[-1]['week_offset'] + 1
+                nova_week_start = semana_atual + timedelta(weeks=nova_semana_offset)
+                
+                semanas_destino = [{
+                    'week_offset': nova_semana_offset,
+                    'week_start': nova_week_start.strftime('%Y-%m-%d'),
+                    'total_hours': 0
+                }]
+            
+            semana_destino = min(semanas_destino, key=lambda s: s['total_hours'])
+            
+            # Move os segmentos
+            for segment in segments_para_mover:
+                # Calcula nova data (segunda-feira da semana destino + hora original)
+                nova_data = datetime.strptime(semana_destino['week_start'], '%Y-%m-%d')
+                hora_original = segment.segment_start_datetime.time()
+                nova_datetime = datetime.combine(nova_data.date(), hora_original)
+                
+                # Atualiza o segmento
+                segment.segment_start_datetime = nova_datetime
+                # Mantém a duração original
+                duracao = segment.segment_end_datetime - segment.segment_start_datetime
+                segment.segment_end_datetime = nova_datetime + duracao
+                
+                redistribuicoes.append({
+                    'segment_id': segment.id,
+                    'task_title': segment.task.title,
+                    'hours': segment.task.estimated_effort or 0,
+                    'from_week': semana_sobrecarregada['week_label'],
+                    'to_week': f"{nova_data.strftime('%d/%m')} - {(nova_data + timedelta(days=4)).strftime('%d/%m')}",
+                    'new_start_date': nova_datetime.strftime('%Y-%m-%d %H:%M')
+                })
+        
+        # Salva as mudanças
+        if redistribuicoes:
+            db.session.commit()
+            current_app.logger.info(f"[Redistribuir] {len(redistribuicoes)} segmentos redistribuídos para {specialist_name}")
+        
+        return jsonify({
+            'message': f'{len(redistribuicoes)} tarefas redistribuídas com sucesso',
+            'specialist_name': specialist_name,
+            'max_hours_per_week': max_hours_per_week,
+            'weeks_analyzed': len(semanas_carga),
+            'overloaded_weeks': len(semanas_sobrecarregadas),
+            'redistributions': redistribuicoes,
+            'summary': {
+                'total_redistributed_hours': sum(r['hours'] for r in redistribuicoes),
+                'weeks_affected': len(set(r['from_week'] for r in redistribuicoes))
+            }
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"[Redistribuir] Erro: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Erro interno do servidor: {str(e)}'}), 500
+
+# --- FIM: APIs para Sprint Semanal do Especialista ---

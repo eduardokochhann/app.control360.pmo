@@ -281,6 +281,29 @@
         }
         /* <<< FIM: Estilos Tabela Gerencial >>> */
 
+        .modal-sprint-custom {
+            max-width: 98%;
+            max-height: 95vh;
+        }
+        
+        .modal-sprint-custom .modal-content {
+            height: 90vh;
+        }
+        
+        .modal-sprint-custom .modal-body {
+            max-height: calc(90vh - 180px);
+            overflow-y: auto;
+        }
+        
+        #sprintContainer {
+            min-height: 500px;
+        }
+        
+        #sprintContainer .card {
+            min-width: 280px;
+        }
+        
+        /* <<< FIM: Estilos Tabela Gerencial >>> */
     </style>
 </head>
 <body style="padding-top: 70px;">
@@ -1091,45 +1114,117 @@
 
         <!-- Modal Sprint Semanal do Especialista -->
         <div class="modal fade" id="modalSprintSemanal" tabindex="-1" aria-labelledby="modalSprintSemanalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-fullscreen">
+            <div class="modal-dialog modal-sprint-custom">
                 <div class="modal-content">
                     <div class="modal-header bg-info text-white">
                         <h5 class="modal-title" id="modalSprintSemanalLabel">
                             <i class="bi bi-calendar-week"></i> Sprint Semanal - <span id="especialistaNomeSprint"></span>
                         </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <div class="d-flex align-items-center">
+                            <!-- NOVO: Indicadores de Performance -->
+                            <div class="me-3">
+                                <span class="badge bg-light text-dark me-2">
+                                    <i class="bi bi-target"></i> Produtividade: <span id="indicadorProdutividade">-</span>%
+                                </span>
+                                <span class="badge bg-light text-dark">
+                                    <i class="bi bi-clock-history"></i> Cumprimento: <span id="indicadorCumprimento">-</span>%
+                                </span>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
                     </div>
                     <div class="modal-body p-0">
-                        <!-- Barra de Navegação de Semanas -->
+                        <!-- MELHORADA: Barra de Controles mais Rica -->
                         <div class="bg-light border-bottom p-3">
                             <div class="row align-items-center">
-                                <div class="col-md-8">
+                                <div class="col-md-6">
                                     <div class="btn-group" role="group" id="weekNavigation">
                                         <!-- Semanas serão adicionadas dinamicamente -->
                                     </div>
                                 </div>
-                                <div class="col-md-4 text-end">
-                                    <div class="badge bg-info me-2">
-                                        <i class="bi bi-clock"></i> Total: <span id="totalHorasSemana">0</span>h
+                                <div class="col-md-6">
+                                    <div class="d-flex justify-content-end align-items-center">
+                                        <!-- NOVO: Filtros Rápidos -->
+                                        <div class="btn-group me-2" role="group">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary active" onclick="filtrarTarefas('todas')" id="btnFiltroTodas">
+                                                <i class="bi bi-list"></i> Todas
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-warning" onclick="filtrarTarefas('pendentes')" id="btnFiltroPendentes">
+                                                <i class="bi bi-clock"></i> Pendentes
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-success" onclick="filtrarTarefas('concluidas')" id="btnFiltroConcluidas">
+                                                <i class="bi bi-check-circle"></i> Concluídas
+                                            </button>
+                                        </div>
+
+                                        <!-- MELHORADO: Indicadores e Ações -->
+                                        <div class="badge bg-info me-2">
+                                            <i class="bi bi-clock"></i> Total: <span id="totalHorasSemana">0</span>h
+                                        </div>
+                                        
+                                        <!-- NOVO: Dropdown de Ações -->
+                                        <div class="dropdown me-2">
+                                            <button class="btn btn-sm btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                <i class="bi bi-magic"></i> Ações
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="#" onclick="autoSegmentarTarefas()">
+                                                    <i class="bi bi-magic"></i> Auto-Segmentar Tarefas
+                                                </a></li>
+                                                <li><a class="dropdown-item" href="#" onclick="redistribuirCarga()">
+                                                    <i class="bi bi-distribute-horizontal"></i> Redistribuir Carga
+                                                </a></li>
+                                                <li><a class="dropdown-item" href="#" onclick="exportarSprint()">
+                                                    <i class="bi bi-download"></i> Exportar Sprint
+                                                </a></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item" href="#" onclick="debugSprint()">
+                                                    <i class="bi bi-bug"></i> Debug Técnico
+                                                </a></li>
+                                            </ul>
+                                        </div>
+                                        
+                                        <!-- NOVO: Toggle de Visualização -->
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-sm btn-outline-info active" onclick="alterarVisualizacao('kanban')" id="btnVisuKanban">
+                                                <i class="bi bi-kanban"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-info" onclick="alterarVisualizacao('timeline')" id="btnVisuTimeline">
+                                                <i class="bi bi-calendar3"></i>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <button class="btn btn-sm btn-success" onclick="autoSegmentarTarefas()">
-                                        <i class="bi bi-magic"></i> Auto-Segmentar
-                                    </button>
-                                    <button class="btn btn-sm btn-warning" onclick="debugSprint()">
-                                        <i class="bi bi-bug"></i> Debug
-                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- NOVO: Barra de Progresso da Semana -->
+                            <div class="mt-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <small class="text-muted">Progresso da Semana</small>
+                                    <small class="text-muted"><span id="horasConcluidas">0</span>h / <span id="horasTotal">0</span>h</small>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-success" role="progressbar" id="progressoSemana" style="width: 0%"></div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Container das Tarefas da Sprint -->
-                        <div class="container-fluid p-4">
+                        <div class="container-fluid p-3">
                             <div id="sprintContainer">
-                                <!-- Tarefas serão exibidas aqui em formato Trello -->
+                                <!-- Tarefas serão exibidas aqui em formato Trello ou Timeline -->
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer">
+                    <div class="modal-footer bg-light">
+                        <!-- NOVO: Resumo de Estatísticas -->
+                        <div class="me-auto">
+                            <small class="text-muted">
+                                <i class="bi bi-list-task"></i> <span id="totalTarefas">0</span> tarefas • 
+                                <i class="bi bi-check-circle text-success"></i> <span id="totalConcluidas">0</span> concluídas • 
+                                <i class="bi bi-clock text-warning"></i> <span id="totalPendentes">0</span> pendentes
+                            </small>
+                        </div>
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
                     </div>
                 </div>
@@ -2182,6 +2277,33 @@
         let semanaAtualSprint = null;
         let semanasDisponiveis = [];
 
+        // Função para truncar nome do projeto de forma inteligente
+        function truncarNomeProjeto(nomeCompleto) {
+            if (!nomeCompleto) return 'Projeto';
+            
+            // Se for um número (ID), retorna como estava
+            if (!isNaN(nomeCompleto)) return `Projeto ${nomeCompleto}`;
+            
+            // Limita a 25 caracteres
+            if (nomeCompleto.length <= 25) return nomeCompleto;
+            
+            // Trunca de forma inteligente
+            const palavras = nomeCompleto.split(' ');
+            let resultado = '';
+            
+            for (let palavra of palavras) {
+                if ((resultado + palavra).length > 25) break;
+                resultado += (resultado ? ' ' : '') + palavra;
+            }
+            
+            // Se não conseguiu nem uma palavra, pega os primeiros 22 chars + "..."
+            if (!resultado) {
+                resultado = nomeCompleto.substring(0, 22) + '...';
+            }
+            
+            return resultado;
+        }
+
         // Função para abrir o modal de Sprint Semanal
         function abrirSprintSemanal() {
             // *** MÉTODO MELHORADO: Busca o nome do especialista de múltiplas formas ***
@@ -2294,6 +2416,10 @@
         function exibirSemana(week) {
             document.getElementById('totalHorasSemana').textContent = week.total_hours;
             
+            // NOVO: Atualiza indicadores e estatísticas
+            calcularIndicadores(week);
+            atualizarEstatisticas(week);
+            
             const container = document.getElementById('sprintContainer');
             
             if (!week.segments || week.segments.length === 0) {
@@ -2307,9 +2433,44 @@
                 return;
             }
             
+            // NOVO: Aplica filtros
+            let segmentosFiltrados = week.segments;
+            
+            if (filtroAtivo === 'pendentes') {
+                segmentosFiltrados = week.segments.filter(s => !s.is_completed);
+            } else if (filtroAtivo === 'concluidas') {
+                segmentosFiltrados = week.segments.filter(s => s.is_completed);
+            }
+            
+            // NOVO: Escolhe visualização
+            let html;
+            if (visualizacaoAtiva === 'timeline') {
+                // Cria uma cópia da semana com segmentos filtrados para timeline
+                const weekFiltrada = { ...week, segments: segmentosFiltrados };
+                html = criarVisualizacaoTimeline(weekFiltrada);
+            } else {
+                // Visualização Kanban (padrão)
+                html = criarVisualizacaoKanban(segmentosFiltrados);
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        // NOVA: Função para criar visualização Kanban (separada da exibirSemana)
+        function criarVisualizacaoKanban(segments) {
+            if (segments.length === 0) {
+                return `
+                    <div class="text-center p-5">
+                        <i class="bi bi-filter-circle fs-1 text-muted"></i>
+                        <h5 class="mt-3 text-muted">Nenhuma tarefa corresponde ao filtro</h5>
+                        <p class="text-muted">Tente alterar o filtro ou adicionar mais tarefas</p>
+                    </div>
+                `;
+            }
+            
             // Agrupa por projeto
             const projetosTarefas = {};
-            week.segments.forEach(segment => {
+            segments.forEach(segment => {
                 if (!projetosTarefas[segment.project_id]) {
                     projetosTarefas[segment.project_id] = {
                         name: segment.project_name,
@@ -2323,31 +2484,59 @@
             let html = '<div class="row">';
             
             Object.entries(projetosTarefas).forEach(([projectId, data]) => {
+                const horasProjeto = data.segments.reduce((acc, s) => acc + (s.estimated_hours || 0), 0);
+                const tarefasConcluidas = data.segments.filter(s => s.is_completed).length;
+                const progressoProjeto = data.segments.length > 0 ? Math.round((tarefasConcluidas / data.segments.length) * 100) : 0;
+                
                 html += `
                     <div class="col-md-4 col-lg-3 mb-4">
                         <div class="card">
                             <div class="card-header bg-light">
-                                <h6 class="mb-0">
-                                    <i class="bi bi-folder"></i> ${data.name}
-                                    <span class="badge bg-primary ms-2">${data.segments.length}</span>
-                                </h6>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">
+                                        <i class="bi bi-folder"></i> ${data.name}
+                                    </h6>
+                                    <div>
+                                        <span class="badge bg-primary">${data.segments.length}</span>
+                                        <span class="badge bg-info">${horasProjeto.toFixed(1)}h</span>
+                                    </div>
+                                </div>
+                                <!-- NOVO: Barra de progresso do projeto -->
+                                <div class="mt-2">
+                                    <div class="progress" style="height: 4px;">
+                                        <div class="progress-bar bg-success" style="width: ${progressoProjeto}%"></div>
+                                    </div>
+                                    <small class="text-muted">${progressoProjeto}% concluído</small>
+                                </div>
                             </div>
                             <div class="card-body p-2">
                 `;
                 
                 data.segments.forEach(segment => {
                     const isCompleted = segment.is_completed || segment.segment_description.includes('CONCLUÍDO');
-                    const statusClass = isCompleted ? 'border-success bg-light-success' : 
+                    const statusClass = isCompleted ? 'border-success bg-light' : 
                                        (segment.status === 'in_progress' ? 'border-warning' : 'border-info');
                     
+                    // MELHORADO: Card de tarefa mais rico com identificação do projeto
                     html += `
                         <div class="card mb-2 ${statusClass}" onclick="editarSegmento(${segment.id})">
                             <div class="card-body p-2" style="cursor: pointer;">
+                                <!-- NOVO: Cabeçalho com projeto e ID -->
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <small class="text-primary fw-bold" style="font-size: 0.7rem;">
+                                        <i class="bi bi-folder2"></i> ${truncarNomeProjeto(data.name)}
+                                    </small>
+                                    <small class="text-muted" style="font-size: 0.7rem;">
+                                        ID: ${segment.project_id}
+                                    </small>
+                                </div>
+                                
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <h6 class="card-title mb-1" style="font-size: 0.9rem;">
+                                        ${isCompleted ? '<i class="bi bi-check-circle text-success me-1"></i>' : '<i class="bi bi-circle text-muted me-1"></i>'}
                                         ${segment.task_title}
                                     </h6>
-                                    <span class="badge bg-info">${segment.estimated_hours}h</span>
+                                    <span class="badge ${isCompleted ? 'bg-success' : 'bg-info'}">${segment.estimated_hours}h</span>
                                 </div>
                                 
                                 <p class="card-text text-muted mb-2" style="font-size: 0.8rem;">
@@ -2358,12 +2547,22 @@
                                     <small class="text-muted">
                                         <i class="bi bi-clock"></i> 
                                         ${new Date(segment.start_datetime).toLocaleDateString('pt-BR')}
+                                        ${new Date(segment.start_datetime).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}
                                     </small>
                                     ${isCompleted ? 
                                         '<span class="badge bg-success"><i class="bi bi-check"></i> Concluído</span>' :
                                         `<span class="badge bg-${segment.status === 'in_progress' ? 'warning' : 'secondary'}">${segment.column_name || 'Pendente'}</span>`
                                     }
                                 </div>
+                                
+                                <!-- NOVO: Indicador de prioridade -->
+                                ${segment.priority && segment.priority !== 'Média' ? 
+                                    `<div class="mt-1">
+                                        <span class="badge ${segment.priority === 'Alta' ? 'bg-danger' : segment.priority === 'Baixa' ? 'bg-secondary' : 'bg-warning'}" style="font-size: 0.7rem;">
+                                            ${segment.priority} Prioridade
+                                        </span>
+                                    </div>` : ''
+                                }
                             </div>
                         </div>
                     `;
@@ -2377,7 +2576,7 @@
             });
             
             html += '</div>';
-            container.innerHTML = html;
+            return html;
         }
 
         // Função para editar um segmento
@@ -2741,6 +2940,293 @@
         window.salvarSegmento = salvarSegmento;
         window.autoSegmentarTarefas = autoSegmentarTarefas;
         window.debugSprint = debugSprint;
+        
+        // ==============================
+        // NOVAS FUNCIONALIDADES MELHORADAS
+        // ==============================
+        
+        let filtroAtivo = 'todas';
+        let visualizacaoAtiva = 'kanban';
+        
+        // Função para filtrar tarefas
+        function filtrarTarefas(tipo) {
+            filtroAtivo = tipo;
+            
+            // Atualiza botões de filtro
+            document.querySelectorAll('[id^="btnFiltro"]').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btnFiltro${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`).classList.add('active');
+            
+            // Reexibe a semana com o filtro aplicado
+            exibirSemana(semanaAtualSprint);
+        }
+        
+        // Função para alterar visualização
+        function alterarVisualizacao(tipo) {
+            visualizacaoAtiva = tipo;
+            
+            // Atualiza botões de visualização
+            document.querySelectorAll('[id^="btnVisu"]').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btnVisu${tipo.charAt(0).toUpperCase() + tipo.slice(1)}`).classList.add('active');
+            
+            // Reexibe a semana com a visualização alterada
+            exibirSemana(semanaAtualSprint);
+        }
+        
+        // Função para redistribuir carga de trabalho
+        function redistribuirCarga() {
+            if (!especialistaAtualSprint || !semanaAtualSprint) {
+                alert('⚠️ Erro: Dados da sprint não carregados.');
+                return;
+            }
+            
+            const confirmacao = confirm(`🔄 REDISTRIBUIR CARGA DE TRABALHO\n\nEsta função irá:\n\n✓ Analisar a carga de trabalho atual\n✓ Identificar sobrecarga (>40h/semana)\n✓ Redistribuir tarefas para semanas futuras\n✓ Otimizar cronograma\n\nContinuar?`);
+            
+            if (!confirmacao) return;
+            
+            console.log('[Redistribuir] Iniciando redistribuição para:', especialistaAtualSprint);
+            
+            // Chama a API de redistribuição
+            fetch(`/backlog/api/specialists/${encodeURIComponent(especialistaAtualSprint)}/redistribute-workload`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    max_hours_per_week: 40,
+                    weeks_to_analyze: 4
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('[Redistribuir] Resultado:', data);
+                
+                if (data.error) {
+                    alert(`❌ Erro na redistribuição:\n\n${data.error}`);
+                    return;
+                }
+                
+                // Formata resultado para o usuário
+                let mensagem = `✅ REDISTRIBUIÇÃO CONCLUÍDA!\n\n`;
+                mensagem += `👤 Especialista: ${data.specialist_name}\n`;
+                mensagem += `📊 Análise: ${data.weeks_analyzed} semanas\n`;
+                mensagem += `⚠️ Semanas sobrecarregadas: ${data.overloaded_weeks}\n`;
+                mensagem += `📦 Tarefas redistribuídas: ${data.redistributions.length}\n\n`;
+                
+                if (data.redistributions.length > 0) {
+                    mensagem += `📋 RESUMO DAS MUDANÇAS:\n`;
+                    mensagem += `- Total de horas movidas: ${data.summary.total_redistributed_hours}h\n`;
+                    mensagem += `- Semanas afetadas: ${data.summary.weeks_affected}\n\n`;
+                    
+                    mensagem += `🔄 DETALHES:\n`;
+                    data.redistributions.forEach((redistrib, index) => {
+                        mensagem += `${index + 1}. ${redistrib.task_title} (${redistrib.hours}h)\n`;
+                        mensagem += `   De: ${redistrib.from_week} → Para: ${redistrib.to_week}\n`;
+                    });
+                } else {
+                    mensagem += `ℹ️ ${data.message}`;
+                }
+                
+                alert(mensagem);
+                
+                // Recarrega a sprint para mostrar as mudanças
+                carregarSprintSemanal();
+            })
+            .catch(error => {
+                console.error('[Redistribuir] Erro:', error);
+                alert(`❌ Erro na redistribuição:\n\n${error.message || 'Erro de conexão'}`);
+            });
+        }
+        
+        // Função para exportar sprint
+        function exportarSprint() {
+            if (!especialistaAtualSprint || !semanaAtualSprint) {
+                alert('⚠️ Erro: Dados da sprint não carregados.');
+                return;
+            }
+            
+            // Gera dados para exportação
+            const dadosExport = {
+                especialista: especialistaAtualSprint,
+                semana: semanaAtualSprint.week_label,
+                total_horas: semanaAtualSprint.total_hours,
+                tarefas: semanaAtualSprint.segments.map(s => ({
+                    projeto: s.project_name,
+                    tarefa: s.task_title,
+                    horas: s.estimated_hours,
+                    status: s.column_name || 'Pendente',
+                    data_inicio: new Date(s.start_datetime).toLocaleDateString('pt-BR')
+                }))
+            };
+            
+            // Cria e baixa arquivo JSON (pode ser expandido para Excel/PDF)
+            const blob = new Blob([JSON.stringify(dadosExport, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Sprint_${especialistaAtualSprint}_${semanaAtualSprint.week_start}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            // Feedback para o usuário
+            alert(`📁 Sprint exportada com sucesso!\n\nArquivo: Sprint_${especialistaAtualSprint}_${semanaAtualSprint.week_start}.json\n\n💡 Dica: Em breve também disponível em Excel e PDF!`);
+        }
+        
+        // Função para calcular indicadores de performance
+        function calcularIndicadores(semana) {
+            if (!semana || !semana.segments || semana.segments.length === 0) {
+                document.getElementById('indicadorProdutividade').textContent = '-';
+                document.getElementById('indicadorCumprimento').textContent = '-';
+                return;
+            }
+            
+            const totalTarefas = semana.segments.length;
+            const tarefasConcluidas = semana.segments.filter(s => s.is_completed).length;
+            const horasEstimadas = semana.segments.reduce((acc, s) => acc + (s.estimated_hours || 0), 0);
+            const horasRealizadas = semana.segments.reduce((acc, s) => acc + (s.logged_time || 0), 0);
+            
+            // Calcula produtividade (% de tarefas concluídas)
+            const produtividade = totalTarefas > 0 ? Math.round((tarefasConcluidas / totalTarefas) * 100) : 0;
+            
+            // Calcula cumprimento (% de horas realizadas vs estimadas)
+            const cumprimento = horasEstimadas > 0 ? Math.round((horasRealizadas / horasEstimadas) * 100) : 0;
+            
+            document.getElementById('indicadorProdutividade').textContent = produtividade;
+            document.getElementById('indicadorCumprimento').textContent = cumprimento;
+        }
+        
+        // Função para atualizar estatísticas do footer
+        function atualizarEstatisticas(semana) {
+            if (!semana || !semana.segments) {
+                document.getElementById('totalTarefas').textContent = '0';
+                document.getElementById('totalConcluidas').textContent = '0';
+                document.getElementById('totalPendentes').textContent = '0';
+                document.getElementById('horasConcluidas').textContent = '0';
+                document.getElementById('horasTotal').textContent = '0';
+                document.getElementById('progressoSemana').style.width = '0%';
+                return;
+            }
+            
+            const totalTarefas = semana.segments.length;
+            const tarefasConcluidas = semana.segments.filter(s => s.is_completed).length;
+            const tarefasPendentes = totalTarefas - tarefasConcluidas;
+            const horasEstimadas = semana.segments.reduce((acc, s) => acc + (s.estimated_hours || 0), 0);
+            const horasRealizadas = semana.segments.filter(s => s.is_completed).reduce((acc, s) => acc + (s.estimated_hours || 0), 0);
+            
+            document.getElementById('totalTarefas').textContent = totalTarefas;
+            document.getElementById('totalConcluidas').textContent = tarefasConcluidas;
+            document.getElementById('totalPendentes').textContent = tarefasPendentes;
+            document.getElementById('horasConcluidas').textContent = horasRealizadas.toFixed(1);
+            document.getElementById('horasTotal').textContent = horasEstimadas.toFixed(1);
+            
+            // Atualiza barra de progresso
+            const progresso = horasEstimadas > 0 ? (horasRealizadas / horasEstimadas) * 100 : 0;
+            document.getElementById('progressoSemana').style.width = `${Math.min(progresso, 100)}%`;
+        }
+        
+        // Função para criar visualização timeline
+        function criarVisualizacaoTimeline(semana) {
+            if (!semana.segments || semana.segments.length === 0) {
+                return `
+                    <div class="text-center p-5">
+                        <i class="bi bi-calendar-x fs-1 text-muted"></i>
+                        <h5 class="mt-3 text-muted">Nenhuma tarefa para esta semana</h5>
+                        <p class="text-muted">Semana de ${semana.week_label}</p>
+                    </div>
+                `;
+            }
+            
+            // Agrupa por dia da semana
+            const dias = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
+            const tarefasPorDia = {};
+            
+            // Inicializa dias
+            dias.forEach((dia, index) => {
+                tarefasPorDia[dia] = [];
+            });
+            
+            // Distribui tarefas por dia
+            semana.segments.forEach(segment => {
+                const dataInicio = new Date(segment.start_datetime);
+                const diaSemana = dataInicio.getDay(); // 0=domingo, 1=segunda...
+                
+                if (diaSemana >= 1 && diaSemana <= 5) { // Segunda a sexta
+                    const nomeDay = dias[diaSemana - 1];
+                    tarefasPorDia[nomeDay].push(segment);
+                }
+            });
+            
+            // Cria HTML timeline
+            let html = '<div class="row">';
+            
+            dias.forEach(dia => {
+                const tarefasDia = tarefasPorDia[dia];
+                const horasDia = tarefasDia.reduce((acc, s) => acc + (s.estimated_hours || 0), 0);
+                
+                html += `
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-light text-center">
+                                <h6 class="mb-0">${dia}</h6>
+                                <small class="text-muted">${horasDia.toFixed(1)}h</small>
+                            </div>
+                            <div class="card-body p-2" style="min-height: 300px;">
+                `;
+                
+                if (tarefasDia.length === 0) {
+                    html += '<p class="text-muted text-center mt-3"><small>Sem tarefas</small></p>';
+                } else {
+                    tarefasDia.forEach(segment => {
+                        const isCompleted = segment.is_completed;
+                        const cardClass = isCompleted ? 'bg-light border-success' : 'border-info';
+                        
+                        html += `
+                            <div class="card mb-2 ${cardClass}" onclick="editarSegmento(${segment.id})" style="cursor: pointer;">
+                                <div class="card-body p-2">
+                                    <!-- NOVO: Cabeçalho com projeto e ID na timeline -->
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <small class="text-primary fw-bold" style="font-size: 0.65rem;">
+                                            <i class="bi bi-folder2"></i> ${truncarNomeProjeto(segment.project_name)}
+                                        </small>
+                                        <small class="text-muted" style="font-size: 0.65rem;">
+                                            ID: ${segment.project_id}
+                                        </small>
+                                    </div>
+                                    
+                                    <h6 class="card-title mb-1" style="font-size: 0.8rem;">
+                                        ${isCompleted ? '<i class="bi bi-check-circle text-success me-1"></i>' : '<i class="bi bi-circle text-muted me-1"></i>'}
+                                        ${segment.task_title}
+                                    </h6>
+                                    
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="badge ${isCompleted ? 'bg-success' : 'bg-info'}">${segment.estimated_hours}h</span>
+                                        <small class="text-muted">${new Date(segment.start_datetime).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                
+                html += `
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            return html;
+        }
+        
+        // Torna as novas funções acessíveis globalmente
+        window.filtrarTarefas = filtrarTarefas;
+        window.alterarVisualizacao = alterarVisualizacao;
+        window.redistribuirCarga = redistribuirCarga;
+        window.exportarSprint = exportarSprint;
+        
+        // ==============================
+        // FIM: NOVAS FUNCIONALIDADES
+        // ==============================
         
         // ==============================
         // FIM: SISTEMA DE SPRINT SEMANAL

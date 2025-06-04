@@ -1,0 +1,5 @@
+Titulo,HorasEstimadas,DataInicio,DataFim,ColunaKanban
+Implementar login,8,01/04/24,10/04/24,A Fazer
+Corrigir bug no cadastro,4.5,02/04/24,05/04/24,Em Andamento
+Revisar documentação,2,03/04/24,03/04/24,Revisão
+Atualizar dependências,1.5,01/04/24,01/04/24,Concluído 
