@@ -4,7 +4,7 @@ from typing import Dict, List, Tuple
 import logging
 from flask import current_app
 
-from ..models import Task, TaskSegment, TaskStatus
+from ..models import Task, TaskSegment, TaskStatus, Sprint
 from ..macro.services import MacroService
 
 logger = logging.getLogger(__name__)
@@ -320,4 +320,121 @@ class CapacityService:
                 'status_semana': 'vazia'
             },
             'erro': True
-        } 
+        }
+    
+    def calcular_capacidade_sprint(self, sprint_id: int, specialist_name: str = None) -> Dict:
+        """
+        Calcula a capacidade total disponível para uma sprint baseada na sua duração
+        
+        Args:
+            sprint_id: ID da sprint
+            specialist_name: Nome do especialista (opcional, para cálculo individual)
+            
+        Returns:
+            Dict com informações de capacidade da sprint
+        """
+        try:
+            # Busca a sprint
+            sprint = Sprint.query.get(sprint_id)
+            if not sprint:
+                return {'erro': 'Sprint não encontrada'}
+            
+            # Calcula duração em semanas
+            if sprint.start_date and sprint.end_date:
+                duration_days = (sprint.end_date - sprint.start_date).days + 1
+                weeks = max(1, duration_days // 7)  # Mínimo de 1 semana, divide por 7 dias
+                if duration_days % 7 > 0:  # Se sobrar dias, conta como semana extra
+                    weeks += 1
+            else:
+                weeks = 1  # Default 1 semana se não tiver datas
+            
+            # Capacidade total por especialista para esta sprint
+            capacidade_total_por_especialista = self.HORAS_POR_SEMANA * weeks
+            
+            result = {
+                'sprint_id': sprint_id,
+                'sprint_name': sprint.name,
+                'start_date': sprint.start_date.strftime('%Y-%m-%d') if sprint.start_date else None,
+                'end_date': sprint.end_date.strftime('%Y-%m-%d') if sprint.end_date else None,
+                'duration_weeks': weeks,
+                'duration_days': duration_days if sprint.start_date and sprint.end_date else 7,
+                'capacidade_semanal': self.HORAS_POR_SEMANA,
+                'capacidade_total_por_especialista': capacidade_total_por_especialista
+            }
+            
+            if specialist_name:
+                # Cálculo para um especialista específico
+                tasks_specialist = Task.query.filter(
+                    Task.sprint_id == sprint_id,
+                    Task.specialist_name.ilike(f'%{specialist_name}%')
+                ).all()
+                
+                horas_alocadas = sum(task.estimated_effort or 0 for task in tasks_specialist)
+                horas_restantes = capacidade_total_por_especialista - horas_alocadas
+                percentual_utilizacao = (horas_alocadas / capacidade_total_por_especialista) * 100
+                
+                result.update({
+                    'specialist_name': specialist_name,
+                    'horas_alocadas': round(horas_alocadas, 1),
+                    'horas_restantes': round(horas_restantes, 1),
+                    'percentual_utilizacao': round(percentual_utilizacao, 1),
+                    'status': self._get_status_capacidade_sprint(percentual_utilizacao),
+                    'sobrecarga': percentual_utilizacao > 100
+                })
+            else:
+                # Cálculo geral da sprint
+                all_tasks = Task.query.filter(Task.sprint_id == sprint_id).all()
+                specialists = {}
+                
+                for task in all_tasks:
+                    specialist = task.specialist_name or 'Não Atribuído'
+                    if specialist not in specialists:
+                        specialists[specialist] = {
+                            'horas_alocadas': 0,
+                            'total_tasks': 0
+                        }
+                    
+                    specialists[specialist]['horas_alocadas'] += task.estimated_effort or 0
+                    specialists[specialist]['total_tasks'] += 1
+                
+                # Calcula métricas para cada especialista
+                specialist_details = {}
+                for spec_name, data in specialists.items():
+                    if spec_name != 'Não Atribuído':
+                        horas_alocadas = data['horas_alocadas']
+                        horas_restantes = capacidade_total_por_especialista - horas_alocadas
+                        percentual_utilizacao = (horas_alocadas / capacidade_total_por_especialista) * 100
+                        
+                        specialist_details[spec_name] = {
+                            'horas_alocadas': round(horas_alocadas, 1),
+                            'horas_restantes': round(horas_restantes, 1),
+                            'percentual_utilizacao': round(percentual_utilizacao, 1),
+                            'total_tasks': data['total_tasks'],
+                            'status': self._get_status_capacidade_sprint(percentual_utilizacao),
+                            'sobrecarga': percentual_utilizacao > 100
+                        }
+                
+                result.update({
+                    'total_specialists': len([s for s in specialists.keys() if s != 'Não Atribuído']),
+                    'total_tasks': len(all_tasks),
+                    'specialist_details': specialist_details
+                })
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Erro ao calcular capacidade da sprint: {str(e)}")
+            return {'erro': str(e)}
+    
+    def _get_status_capacidade_sprint(self, percentual_utilizacao: float) -> str:
+        """Retorna status baseado no percentual de utilização da capacidade"""
+        if percentual_utilizacao > 100:
+            return 'Sobrecarga'
+        elif percentual_utilizacao > 90:
+            return 'Limite'
+        elif percentual_utilizacao > 70:
+            return 'Ideal'
+        elif percentual_utilizacao > 40:
+            return 'Confortável'
+        else:
+            return 'Subutilizado' 

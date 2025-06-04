@@ -2885,6 +2885,32 @@ def auto_balance_capacity(specialist_name):
         current_app.logger.error(f"[Capacity] Erro no balanceamento: {str(e)}", exc_info=True)
         return jsonify({'error': f'Erro interno do servidor: {str(e)}'}), 500
 
+@backlog_bp.route('/api/sprints/<int:sprint_id>/capacity', methods=['GET'])
+def get_sprint_capacity(sprint_id):
+    """
+    API para obter informações de capacidade de uma sprint baseada na sua duração
+    
+    Args:
+        sprint_id: ID da sprint
+        specialist: Nome do especialista (opcional, via query param)
+    """
+    try:
+        from .capacity_service import CapacityService
+        
+        specialist_name = request.args.get('specialist')
+        capacity_service = CapacityService()
+        
+        capacity_data = capacity_service.calcular_capacidade_sprint(sprint_id, specialist_name)
+        
+        if 'erro' in capacity_data:
+            return jsonify({'error': capacity_data['erro']}), 404
+        
+        return jsonify(capacity_data)
+        
+    except Exception as e:
+        logger.error(f"Erro ao calcular capacidade da sprint {sprint_id}: {str(e)}")
+        return jsonify({'error': 'Erro interno do servidor'}), 500
+
 # ===================================
 # ROTAS PARA ANÁLISES E RELATÓRIOS
 # ===================================

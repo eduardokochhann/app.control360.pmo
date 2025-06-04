@@ -835,7 +835,7 @@
             if (!sprintsApiResponse || sprintsApiResponse.length === 0) {
                 sprintBoard.innerHTML = '<div class="text-center text-muted p-5">Nenhuma sprint encontrada. Crie uma nova!</div>';
             } else {
-                sprintsApiResponse.forEach(sprint => {
+                for (const sprint of sprintsApiResponse) {
                     // INÍCIO DA NOVA VERIFICAÇÃO DE ERRO
                     if (sprint.error) {
                         console.warn(`[Sprint Mgmt] Sprint ID ${sprint.id || 'N/A'} retornou com erro da API: ${sprint.error}`);
@@ -853,7 +853,7 @@
                             </div>
                         `;
                         sprintBoard.appendChild(errorCard);
-                        return; // Pula para a próxima sprint
+                        continue; // Pula para a próxima sprint
                     }
                     // FIM DA NOVA VERIFICAÇÃO DE ERRO
 
@@ -884,31 +884,74 @@
                         }, {});
                     }
                     
+                    // <<< INÍCIO: Buscar Capacidade Dinâmica da API >>>
+                    function calcularSemanasDoSprint(startDate, endDate) {
+                        if (!startDate || !endDate) return 1; // Default para 1 semana se não tiver datas
+                        
+                        const start = new Date(startDate);
+                        const end = new Date(endDate);
+                        const diffTime = Math.abs(end - start);
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        const weeks = Math.ceil(diffDays / 7); // Arredonda para cima
+                        
+                        return Math.max(weeks, 1); // Mínimo de 1 semana
+                    }
+                    
+                    async function buscarCapacidadeDinamica(sprintId) {
+                        try {
+                            const response = await fetch(`/backlog/api/sprints/${sprintId}/capacity`);
+                            if (response.ok) {
+                                return await response.json();
+                            }
+                            return null;
+                        } catch (error) {
+                            console.error('Erro ao buscar capacidade dinâmica:', error);
+                            return null;
+                        }
+                    }
+                    
+                    // Busca dados de capacidade da API
+                    const capacidadeDinamica = await buscarCapacidadeDinamica(sprint.id);
+                    const semanasSprint = capacidadeDinamica ? capacidadeDinamica.duration_weeks : calcularSemanasDoSprint(sprint.start_date, sprint.end_date);
+                    const capacidadeSemanalPorEspecialista = 40; // 40h por semana
+                    const capacidadeTotalPorEspecialista = capacidadeDinamica ? capacidadeDinamica.capacidade_total_por_especialista : (capacidadeSemanalPorEspecialista * semanasSprint);
+                    // <<< FIM: Buscar Capacidade Dinâmica da API >>>
+                    
                     // Formata o conteúdo do popover com informações básicas
-                    let popoverContent = Object.entries(hoursBySpecialist)
-                        .map(([name, allocatedHours]) => {
-                            const remainingHours = Math.max(0, 40 - allocatedHours);
-                            const utilizationPercent = (allocatedHours / 40) * 100;
+                    let popoverContent = '';
+                    Object.entries(hoursBySpecialist).forEach(([specialist, hours]) => {
+                        if (specialist !== 'Não Atribuído') {
+                            const capacidadeTotal = capacidadeTotalPorEspecialista;
+                            const horasRestantes = capacidadeTotal - hours;
+                            const percentualUtilizado = Math.round((hours / capacidadeTotal) * 100);
                             
-                            // Badge de alerta simples
-                            let alertBadge = '';
-                            if (utilizationPercent > 100) {
-                                alertBadge = '<span class="badge bg-danger ms-2">⚠️ Sobrecarga</span>';
-                            } else if (utilizationPercent > 80) {
-                                alertBadge = '<span class="badge bg-warning ms-2">⚠️ Limite</span>';
-                            } else {
-                                alertBadge = '<span class="badge bg-success ms-2">✅ OK</span>';
+                            // Se temos dados da API, usa informações mais precisas
+                            let statusInfo = '';
+                            if (capacidadeDinamica && capacidadeDinamica.specialist_details && capacidadeDinamica.specialist_details[specialist]) {
+                                const apiData = capacidadeDinamica.specialist_details[specialist];
+                                statusInfo = ` | Status: ${apiData.status}`;
                             }
                             
-                            return `
-                                <div class="mb-1">
-                                    <strong>${escapeHtml(name)}</strong><br>
-                                    <small>Consumo: ${allocatedHours.toFixed(1)}h | Saldo: ${remainingHours.toFixed(1)}h</small>
-                                    ${alertBadge}
+                            // Define cor do badge baseado na utilização
+                            let badgeClass = 'success';
+                            if (percentualUtilizado > 100) {
+                                badgeClass = 'danger';
+                            } else if (percentualUtilizado > 80) {
+                                badgeClass = 'warning';
+                            }
+                            
+                            popoverContent += `
+                                <div class="mb-2">
+                                    <strong>${escapeHtml(specialist)}</strong><br>
+                                    <small>
+                                        ${hours.toFixed(1)}h utilizadas / ${capacidadeTotal}h disponíveis (${semanasSprint} sem.)${statusInfo}<br>
+                                        Saldo: ${horasRestantes.toFixed(1)}h 
+                                        <span class="badge bg-${badgeClass} ms-1">${percentualUtilizado}%</span>
+                                    </small>
                                 </div>
                             `;
-                        })
-                        .join('');
+                        }
+                    });
                     
                     if (!popoverContent) {
                         popoverContent = '<small class="text-muted">Nenhum especialista alocado</small>';
@@ -1016,7 +1059,7 @@
                             }
                         }
                     });
-                });
+                }
                 initializeSortable(); // Inicializa Sortable DEPOIS de renderizar sprints
                 initializePopovers(); // <<< INICIALIZA Popovers DEPOIS de renderizar sprints >>>
             }
@@ -1842,30 +1885,33 @@
         });
 
         // Formata o conteúdo do popover com informações básicas
-        let popoverContent = Object.entries(hoursBySpecialist)
-            .map(([name, allocatedHours]) => {
-                const remainingHours = Math.max(0, 40 - allocatedHours);
-                const utilizationPercent = (allocatedHours / 40) * 100;
+        let popoverContent = '';
+        Object.entries(hoursBySpecialist).forEach(([specialist, hours]) => {
+            if (specialist !== 'Não Atribuído') {
+                const capacidadeTotal = capacidadeTotalPorEspecialista;
+                const horasRestantes = capacidadeTotal - hours;
+                const percentualUtilizado = Math.round((hours / capacidadeTotal) * 100);
                 
-                // Badge de alerta simples
-                let alertBadge = '';
-                if (utilizationPercent > 100) {
-                    alertBadge = '<span class="badge bg-danger ms-2">⚠️ Sobrecarga</span>';
-                } else if (utilizationPercent > 80) {
-                    alertBadge = '<span class="badge bg-warning ms-2">⚠️ Limite</span>';
-                } else {
-                    alertBadge = '<span class="badge bg-success ms-2">✅ OK</span>';
+                // Define cor do badge baseado na utilização
+                let badgeClass = 'success';
+                if (percentualUtilizado > 100) {
+                    badgeClass = 'danger';
+                } else if (percentualUtilizado > 80) {
+                    badgeClass = 'warning';
                 }
                 
-                return `
-                    <div class="mb-1">
-                        <strong>${escapeHtml(name)}</strong><br>
-                        <small>Consumo: ${allocatedHours.toFixed(1)}h | Saldo: ${remainingHours.toFixed(1)}h</small>
-                        ${alertBadge}
+                popoverContent += `
+                    <div class="mb-2">
+                        <strong>${escapeHtml(specialist)}</strong><br>
+                        <small>
+                            ${hours.toFixed(1)}h utilizadas / ${capacidadeTotal}h disponíveis (${semanasSprint} sem.)<br>
+                            Saldo: ${horasRestantes.toFixed(1)}h 
+                            <span class="badge bg-${badgeClass} ms-1">${percentualUtilizado}%</span>
+                        </small>
                     </div>
                 `;
-            })
-            .join('');
+            }
+        });
         
         if (!popoverContent) {
             popoverContent = '<small class="text-muted">Nenhum especialista alocado</small>';
