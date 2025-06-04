@@ -10,6 +10,7 @@ from . import sprints_bp
 from .. import db
 from ..models import Sprint, Task, Column, TaskStatus, Backlog
 from ..backlog.routes import serialize_task
+from ..utils.serializers import serialize_task_for_sprints
 
 # --- Rotas de Frontend --- 
 
@@ -21,37 +22,100 @@ def sprint_management_page():
 
 # --- API Endpoints para Sprints --- 
 
-# GET /api/sprints - Listar todas as Sprints
+# GET /api/sprints - Listar todas as Sprints (VERSÃO SIMPLIFICADA PARA DEBUG)
 @sprints_bp.route('/api/sprints', methods=['GET'])
 def get_sprints():
-    current_app.logger.info("Acessando rota /api/sprints (GET)")
     try:
+        # VERSÃO SIMPLIFICADA: Buscar sprints sem otimizações complexas
         sprints = Sprint.query.order_by(Sprint.start_date).all()
+        
         sprints_data = []
         for sprint in sprints:
             try:
-                sprint_dict = sprint.to_dict()
-                tasks_in_sprint = Task.query.filter_by(sprint_id=sprint.id).order_by(Task.position).all()
-                serialized_tasks = []
-                for task in tasks_in_sprint:
-                    try:
-                        serialized_tasks.append(serialize_task(task))
-                    except Exception as task_e:
-                        current_app.logger.error(f"Erro ao serializar tarefa ID {getattr(task, 'id', 'N/A')} para sprint ID {sprint.id}: {task_e}", exc_info=True)
-                        # Adiciona um placeholder ou omite a tarefa problemática
-                        serialized_tasks.append({'id': getattr(task, 'id', 'N/A'), 'title': 'Erro ao carregar tarefa', 'error': str(task_e)})
-                sprint_dict['tasks'] = serialized_tasks
+                # Dados básicos da sprint
+                sprint_dict = {
+                    'id': sprint.id,
+                    'name': sprint.name or 'Sprint sem nome',
+                    'start_date': sprint.start_date.isoformat() if sprint.start_date else None,
+                    'end_date': sprint.end_date.isoformat() if sprint.end_date else None,
+                    'goal': sprint.goal or '',
+                    'criticality': getattr(sprint, 'criticality', 'Normal'),
+                    'tasks': []  # Por enquanto, lista vazia para evitar erros
+                }
+                
+                # Buscar tarefas da sprint de forma simples
+                try:
+                    sprint_tasks = Task.query.filter_by(sprint_id=sprint.id).order_by(Task.position).all()
+                    for task in sprint_tasks:
+                        try:
+                            # Buscar informações do projeto de forma otimizada
+                            project_id = None
+                            project_name = 'Projeto não identificado'
+                            
+                            if task.backlog_id:
+                                try:
+                                    from app.models import Backlog
+                                    backlog = Backlog.query.get(task.backlog_id)
+                                    if backlog and backlog.project_id:
+                                        project_id = backlog.project_id
+                                        # Tentar obter o nome do projeto
+                                        try:
+                                            from app.macro.services import MacroService
+                                            macro_service = MacroService()
+                                            project_details = macro_service.obter_detalhes_projeto(backlog.project_id)
+                                            if project_details:
+                                                project_name = project_details.get('Projeto', f'Projeto {project_id}')
+                                            else:
+                                                project_name = f'Projeto {project_id}'
+                                        except:
+                                            project_name = f'Projeto {project_id}'
+                                except:
+                                    pass
+                            
+                            task_simple = {
+                                'id': task.id,
+                                'title': task.title or 'Tarefa sem título',
+                                'description': task.description or '',
+                                'priority': task.priority or 'Média',
+                                'specialist_name': task.specialist_name or 'Não atribuído',
+                                'estimated_effort': task.estimated_effort or 0,
+                                'position': task.position or 0,
+                                'status': str(task.status) if task.status else 'TODO',
+                                # Novas informações para o card
+                                'project_id': project_id,
+                                'project_name': project_name,
+                                'backlog_id': task.backlog_id
+                            }
+                            sprint_dict['tasks'].append(task_simple)
+                        except Exception as task_error:
+                            # Pula tarefas com erro
+                            current_app.logger.warning(f"Erro ao processar tarefa {task.id}: {task_error}")
+                            continue
+                except Exception as tasks_error:
+                    current_app.logger.warning(f"Erro ao buscar tarefas da sprint {sprint.id}: {tasks_error}")
+                    sprint_dict['tasks'] = []
+                
                 sprints_data.append(sprint_dict)
-            except Exception as sprint_e:
-                current_app.logger.error(f"Erro ao processar sprint ID {sprint.id} ({getattr(sprint, 'name', 'N/A')}): {sprint_e}", exc_info=True)
-                # Adiciona um placeholder ou omite a sprint problemática
-                sprints_data.append({'id': sprint.id, 'name': f"Erro ao carregar sprint {sprint.id}", 'error': str(sprint_e), 'tasks': []})
+                
+            except Exception as sprint_error:
+                current_app.logger.error(f"Erro ao processar sprint {sprint.id}: {sprint_error}")
+                # Adiciona sprint com erro básico
+                sprints_data.append({
+                    'id': getattr(sprint, 'id', 'unknown'),
+                    'name': f"Erro ao carregar sprint",
+                    'start_date': None,
+                    'end_date': None,
+                    'goal': '',
+                    'criticality': 'Normal',
+                    'tasks': []
+                })
         
-        current_app.logger.info(f"Retornando {len(sprints_data)} sprints.")
+        current_app.logger.info(f"Retornando {len(sprints_data)} sprints")
         return jsonify(sprints_data)
+        
     except Exception as e:
-        current_app.logger.error(f"Erro GERAL ao buscar sprints: {e}", exc_info=True)
-        return jsonify({"message": f"Erro interno geral ao buscar sprints: {str(e)}"}), 500
+        current_app.logger.error(f"Erro crítico ao buscar sprints: {str(e)}", exc_info=True)
+        return jsonify({"message": f"Erro interno: {str(e)}"}), 500
 
 # GET /api/sprints/<int:sprint_id> - Obter detalhes de uma Sprint
 @sprints_bp.route('/api/sprints/<int:sprint_id>', methods=['GET'])
@@ -145,12 +209,69 @@ def delete_sprint(sprint_id):
 
 # --- Rotas API ---
 
-# GET /sprints/api/generic-tasks - Lista todas as tarefas genéricas
+# GET /sprints/api/generic-tasks - Lista todas as tarefas genéricas (SIMPLIFICADA)
 @sprints_bp.route('/api/generic-tasks', methods=['GET'])
 def get_generic_tasks_for_sprint_view():
-    # Busca tarefas genéricas que NÃO estão em nenhuma sprint
-    tasks = Task.query.filter(Task.is_generic == True, Task.sprint_id == None).order_by(Task.position).all()
-    return jsonify([serialize_task(t) for t in tasks])
+    try:
+        # VERSÃO SIMPLIFICADA: Query básica sem otimizações
+        tasks = Task.query.filter(
+            Task.is_generic == True, 
+            Task.sprint_id == None
+        ).order_by(Task.position).all()
+        
+        result = []
+        for task in tasks:
+            try:
+                # Buscar informações do projeto de forma otimizada
+                project_id = None
+                project_name = 'Projeto não identificado'
+                
+                if task.backlog_id:
+                    try:
+                        from app.models import Backlog
+                        backlog = Backlog.query.get(task.backlog_id)
+                        if backlog and backlog.project_id:
+                            project_id = backlog.project_id
+                            # Tentar obter o nome do projeto
+                            try:
+                                from app.macro.services import MacroService
+                                macro_service = MacroService()
+                                project_details = macro_service.obter_detalhes_projeto(backlog.project_id)
+                                if project_details:
+                                    project_name = project_details.get('Projeto', f'Projeto {project_id}')
+                                else:
+                                    project_name = f'Projeto {project_id}'
+                            except:
+                                project_name = f'Projeto {project_id}'
+                    except:
+                        pass
+                
+                task_simple = {
+                    'id': task.id,
+                    'title': task.title or 'Tarefa sem título',
+                    'description': task.description or '',
+                    'priority': task.priority or 'Média',
+                    'specialist_name': task.specialist_name or 'Não atribuído',
+                    'estimated_effort': task.estimated_effort or 0,
+                    'position': task.position or 0,
+                    'status': str(task.status) if task.status else 'TODO',
+                    'is_generic': True,
+                    # Novas informações para o card
+                    'project_id': project_id,
+                    'project_name': project_name,
+                    'backlog_id': task.backlog_id
+                }
+                result.append(task_simple)
+            except Exception as task_error:
+                current_app.logger.warning(f"Erro ao processar tarefa genérica {task.id}: {task_error}")
+                continue
+        
+        current_app.logger.info(f"Retornando {len(result)} tarefas genéricas")
+        return jsonify(result)
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao buscar tarefas genéricas: {str(e)}", exc_info=True)
+        return jsonify([]), 500
 
 # POST /sprints/api/generic-tasks - Cria uma nova tarefa genérica
 @sprints_bp.route('/api/generic-tasks', methods=['POST'])

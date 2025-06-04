@@ -43,6 +43,91 @@
     overflow: hidden; /* Previne scroll não intencional */
   }
 
+  /* NOVO: Toolbar de Controles */
+  .sprint-controls-toolbar {
+    background-color: var(--sprint-light);
+    border: 1px solid var(--sprint-border);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .sprint-view-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .sprint-bulk-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .view-toggle-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--sprint-border);
+    background-color: #ffffff;
+    color: var(--sprint-secondary);
+    border-radius: 0.375rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+
+  .view-toggle-btn.active {
+    background-color: var(--sprint-primary);
+    color: #ffffff;
+    border-color: var(--sprint-primary);
+  }
+
+  .view-toggle-btn:hover:not(.active) {
+    background-color: var(--sprint-hover);
+  }
+
+  /* NOVO: Estilos para Sprints Arquivadas */
+  .sprint-card.archived {
+    opacity: 0.7;
+    background-color: #f8f9fa;
+    border-style: dashed;
+  }
+
+  .sprint-card.archived .sprint-card-header {
+    background-color: #e9ecef !important;
+  }
+
+  .sprint-card.archived .archived-badge {
+    background-color: var(--sprint-secondary);
+    color: #ffffff;
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Checkbox para Seleção Múltipla */
+  .sprint-checkbox {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 10;
+    transform: scale(1.2);
+  }
+
+  .sprint-card.selectable {
+    position: relative;
+    padding-left: 2rem;
+  }
+
+  .sprint-card.selected {
+    border-color: var(--sprint-primary);
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+  }
+
   /* Sprint Board */
   .sprint-board {
     flex-grow: 1;
@@ -207,13 +292,12 @@
 
   /* Task Cards */
   .backlog-task-card {
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 8px;
-    background: white;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    cursor: pointer;
+    background-color: #ffffff;
+    border: 1px solid var(--sprint-border);
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    cursor: grab;
     transition: all 0.2s ease;
   }
 
@@ -221,75 +305,47 @@
     margin-bottom: 0;
   }
 
-  .backlog-task-card:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    transform: translateY(-1px);
-  }
-
-  /* Task Title */
   .task-title {
+    font-size: 0.875rem;
     font-weight: 600;
-    margin-bottom: 8px;
-    color: #333;
-    font-size: 14px;
-    line-height: 1.3;
+    margin-bottom: 0.5rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  /* Task Project Info */
-  .task-project-info {
-    background: #f8f9fa;
-    padding: 4px 8px;
-    border-radius: 4px;
-    border-left: 3px solid #6c757d;
-  }
-
-  /* Task Meta */
   .task-meta {
-    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   .task-priority-badge {
-    font-size: 11px;
-    font-weight: 500;
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 1rem;
+    white-space: nowrap;
   }
 
-  /* Task Specialist */
-  .task-specialist {
-    font-weight: 500;
+  .task-hours {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--sprint-secondary);
+    white-space: nowrap;
   }
 
-  /* Generic Tasks */
-  .generic-task {
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 8px;
-    background: white;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .generic-task:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    transform: translateY(-1px);
-  }
-
-  .generic-task-title {
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: #333;
-    font-size: 14px;
-    line-height: 1.3;
-  }
-
-  .generic-task-meta {
-    margin-bottom: 8px;
-  }
-
-  .priority-badge {
-    font-size: 11px;
-    font-weight: 500;
+  .task-full-id {
+    font-family: monospace;
+    font-size: 0.7rem;
+    padding: 0.1rem 0.3rem;
+    background-color: var(--sprint-light);
+    border-radius: 0.2rem;
+    color: var(--sprint-secondary);
   }
 
   /* Responsividade */
@@ -506,6 +562,47 @@
       </div>
     </div>
     <div class="card-body">
+      {# NOVO: Toolbar de Controles para Arquivamento #}
+      <div class="sprint-controls-toolbar" id="sprintControlsToolbar">
+        <div class="sprint-view-controls">
+          <label class="form-label mb-0 me-2"><strong>Visualizar:</strong></label>
+          <button type="button" class="view-toggle-btn active" id="viewActiveBtn" data-view="active">
+            <i class="bi bi-play-circle me-1"></i>Sprints Ativas
+          </button>
+          <button type="button" class="view-toggle-btn" id="viewArchivedBtn" data-view="archived">
+            <i class="bi bi-archive me-1"></i>Sprints Arquivadas
+          </button>
+          <button type="button" class="view-toggle-btn" id="viewAllBtn" data-view="all">
+            <i class="bi bi-collection me-1"></i>Todas as Sprints
+          </button>
+        </div>
+        
+        <div class="sprint-bulk-actions" id="sprintBulkActions" style="display: none;">
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="enableSelectModeBtn">
+            <i class="bi bi-check2-square me-1"></i>Selecionar Múltiplas
+          </button>
+          <button type="button" class="btn btn-sm btn-warning" id="archiveSelectedBtn" style="display: none;">
+            <i class="bi bi-archive me-1"></i>Arquivar Selecionadas
+          </button>
+          <button type="button" class="btn btn-sm btn-info" id="unarchiveSelectedBtn" style="display: none;">
+            <i class="bi bi-box-arrow-up me-1"></i>Desarquivar Selecionadas
+          </button>
+          <button type="button" class="btn btn-sm btn-secondary" id="cancelSelectModeBtn" style="display: none;">
+            <i class="bi bi-x-circle me-1"></i>Cancelar
+          </button>
+        </div>
+
+        <div class="sprint-search-controls">
+          <div class="input-group input-group-sm" style="width: 250px;">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control" id="sprintSearchInput" placeholder="Buscar sprint...">
+            <button class="btn btn-outline-secondary" type="button" id="clearSprintSearchBtn">
+              <i class="bi bi-x"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      
       {# Área do Quadro de Sprints #}
       <div class="sprint-board-container" id="sprintBoardContainer"> {# Novo container geral #}
           {# Coluna do Backlog #}
@@ -761,16 +858,44 @@
     const apiSprintsBaseUrl = '/sprints/api/sprints'; // API Sprints
     const apiBacklogTasksUrl = '/backlog/api/backlogs/unassigned-tasks'; // API Backlog Tasks
 
-    // Função para mostrar feedback de loading no modal
-    function showModalLoading(isLoading) {
-        const overlay = sprintForm.querySelector('.loading-overlay');
-        const submitButton = sprintForm.querySelector('button[type="submit"]');
-        const cancelButton = sprintForm.querySelector('button[data-bs-dismiss="modal"]');
-        if (overlay) overlay.style.display = isLoading ? 'flex' : 'none';
-        if (modalDeleteBtn) modalDeleteBtn.disabled = isLoading;
-        if (submitButton) submitButton.disabled = isLoading;
-        if (cancelButton) cancelButton.disabled = isLoading;
+    // Verifica se os elementos necessários existem antes de tentar usá-los
+    if (!sprintBoard) {
+        console.error('[Sprint Mgmt] Elemento sprintBoard não encontrado');
+        return;
     }
+
+    // ========================================
+    // NOVO: SISTEMA DE ARQUIVAMENTO DE SPRINTS - VARIÁVEIS GLOBAIS
+    // ========================================
+    let currentView = 'active'; // 'active', 'archived', 'all'
+    let selectMode = false;
+    let selectedSprints = new Set();
+
+    // Variáveis de controle
+    const viewActiveBtn = document.getElementById('viewActiveBtn');
+    const viewArchivedBtn = document.getElementById('viewArchivedBtn');
+    const viewAllBtn = document.getElementById('viewAllBtn');
+    const enableSelectModeBtn = document.getElementById('enableSelectModeBtn');
+    const archiveSelectedBtn = document.getElementById('archiveSelectedBtn');
+    const unarchiveSelectedBtn = document.getElementById('unarchiveSelectedBtn');
+    const cancelSelectModeBtn = document.getElementById('cancelSelectModeBtn');
+    const sprintSearchInput = document.getElementById('sprintSearchInput');
+    const clearSprintSearchBtn = document.getElementById('clearSprintSearchBtn');
+
+    // Event Listeners para controles de view
+    if (viewActiveBtn) viewActiveBtn.addEventListener('click', () => changeView('active'));
+    if (viewArchivedBtn) viewArchivedBtn.addEventListener('click', () => changeView('archived'));
+    if (viewAllBtn) viewAllBtn.addEventListener('click', () => changeView('all'));
+
+    // Event Listeners para modo de seleção
+    if (enableSelectModeBtn) enableSelectModeBtn.addEventListener('click', enableSelectMode);
+    if (cancelSelectModeBtn) cancelSelectModeBtn.addEventListener('click', disableSelectMode);
+    if (archiveSelectedBtn) archiveSelectedBtn.addEventListener('click', archiveSelectedSprints);
+    if (unarchiveSelectedBtn) unarchiveSelectedBtn.addEventListener('click', unarchiveSelectedSprints);
+
+    // Event Listeners para busca
+    if (sprintSearchInput) sprintSearchInput.addEventListener('input', filterSprints);
+    if (clearSprintSearchBtn) clearSprintSearchBtn.addEventListener('click', clearSearch);
 
     // Função para formatar data (DD/MM/YYYY)
     function formatDate(isoDateString) {
@@ -796,6 +921,12 @@
 
     // Função para carregar e renderizar sprints
     async function loadSprints() {
+        // SUBSTITUÍDO COMPLETAMENTE: Agora usa o sistema de arquivamento
+        return await loadSprintsWithView();
+    }
+
+    // Função original de renderização que será sobrescrita depois
+    async function originalLoadSprintsFunction() {
         console.log("[Sprint Mgmt] loadSprints() chamado.");
         sprintBoard.innerHTML = '<div class="text-center text-muted p-5"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Carregando...</span></div> Carregando sprints...</div>';
         try {
@@ -809,6 +940,7 @@
             sprintBoard.innerHTML = ''; // Limpa o quadro
             if (!sprintsApiResponse || sprintsApiResponse.length === 0) {
                 sprintBoard.innerHTML = '<div class="text-center text-muted p-5">Nenhuma sprint encontrada. Crie uma nova!</div>';
+                return;
             } else {
                 sprintsApiResponse.forEach(sprint => {
                     // INÍCIO DA NOVA VERIFICAÇÃO DE ERRO
@@ -840,7 +972,7 @@
                     let totalSprintHours = 0;
                     if (sprint.tasks && sprint.tasks.length > 0) {
                         totalSprintHours = sprint.tasks.reduce((sum, task) => {
-                            const hours = parseFloat(task.estimated_effort);
+                            const hours = parseFloat(task.estimated_hours);
                             return sum + (isNaN(hours) ? 0 : hours);
                         }, 0);
                     }
@@ -851,7 +983,7 @@
                     if (sprint.tasks && sprint.tasks.length > 0) {
                         hoursBySpecialist = sprint.tasks.reduce((acc, task) => {
                             const specialist = task.specialist_name || 'Não Atribuído';
-                            const hours = parseFloat(task.estimated_effort);
+                            const hours = parseFloat(task.estimated_hours);
                             if (!isNaN(hours)) {
                                 acc[specialist] = (acc[specialist] || 0) + hours;
                             }
@@ -917,26 +1049,20 @@
                                         const isCompleted = task.column_identifier === 'concluido';
                                         const fullTaskId = `${projectPart}-${columnPart}-${task.id}`;
                                         return `
-                                        <div class="backlog-task-card sprint-task-card ${isCompleted ? 'task-completed' : ''}" data-task-id="${task.id}" draggable="true" data-estimated-hours="${task.estimated_effort || 0}" data-specialist-name="${escapeHtml(task.specialist_name || '')}" data-is-generic="${task.is_generic || false}">
-                                            <div class="task-title">${escapeHtml(task.title)}</div>
-                                            
+                                        <div class="backlog-task-card sprint-task-card ${isCompleted ? 'task-completed' : ''}" data-task-id="${task.id}" draggable="true" data-estimated-hours="${task.estimated_hours || 0}" data-specialist-name="${escapeHtml(task.specialist_name || '')}" data-is-generic="${task.is_generic || false}">
+                                            <div class="task-title">${escapeHtml(task.name)}</div>
                                             ${task.project_id && !task.is_generic ? `<div class="task-project-info small text-muted mb-2">
-                                                <i class="bi bi-folder2 me-1"></i><strong>${task.project_id}</strong>${task.project_name ? ` - ${escapeHtml(task.project_name.length > 25 ? task.project_name.substring(0, 25) + '...' : task.project_name)}` : ''}
+                                                <i class="bi bi-folder2 me-1"></i>${task.project_id}${task.project_name ? ` - ${escapeHtml(task.project_name.length > 20 ? task.project_name.substring(0, 20) + '...' : task.project_name)}` : ''}
                                             </div>` : ''}
-                                            
-                                            <div class="task-meta d-flex justify-content-between align-items-center mb-2">
+                                            <div class="task-meta">
                                                 <div class="task-meta-left">
                                                     <span class="badge rounded-pill task-priority-badge">${escapeHtml(task.priority || 'Média')}</span>
                                                 </div>
-                                                <div class="task-meta-right d-flex align-items-center gap-2">
-                                                    ${task.estimated_effort ? `<span class="text-muted small"><i class="bi bi-clock me-1"></i>${task.estimated_effort}h</span>` : ''}
+                                                <div class="task-meta-right text-muted task-hours">
+                                                    ${task.estimated_hours ? `<i class="bi bi-clock"></i> ${task.estimated_hours}h` : ''}
                                                 </div>
                                             </div>
-                                            
-                                            ${task.specialist_name ? `<div class="task-specialist small text-primary">
-                                                <i class="bi bi-person-fill me-1"></i>${escapeHtml(task.specialist_name)}
-                                            </div>` : '<div class="task-specialist small text-muted"><i class="bi bi-person me-1"></i>Não atribuído</div>'}
-                                            
+                                            ${task.specialist_name ? `<div class="task-specialist"><i class="bi bi-person-fill"></i> ${escapeHtml(task.specialist_name)}</div>` : ''}
                                             <div class="task-actions">
                                                 {# REMOVIDO BOTÃO DEVOLVER DAQUI #}
                                             </div>
@@ -985,15 +1111,15 @@
             <div class="backlog-task-card ${isCompleted ? 'task-completed' : ''}" 
                  data-task-id="${task.id}" 
                  draggable="true" 
-                 data-estimated-hours="${task.estimated_effort || 0}" 
+                 data-estimated-hours="${task.estimated_hours || 0}" 
                  data-specialist-name="${escapeHtml(task.specialist_name || '')}">
-                <div class="task-title">${escapeHtml(task.title)}</div>
+                <div class="task-title">${escapeHtml(task.name)}</div>
                 <div class="task-meta">
                     <div class="task-meta-left">
                         <span class="badge rounded-pill task-priority-badge ${getPriorityClass(task.priority)}">${escapeHtml(task.priority || 'Média')}</span>
                     </div>
                     <div class="task-meta-right text-muted task-hours">
-                        <span title="Estimado"><i class="bi bi-clock-history me-1"></i>${task.estimated_effort != null ? task.estimated_effort.toFixed(1) : '-'}h</span>
+                        <span title="Estimado"><i class="bi bi-clock-history me-1"></i>${task.estimated_hours != null ? task.estimated_hours.toFixed(1) : '-'}h</span>
                         <code class="task-full-id">${fullTaskId}</code>
                     </div>
                 </div>
@@ -1618,19 +1744,9 @@
                 
                 taskCard.innerHTML = `
                     <div class="generic-task-title">${escapeHtml(task.title)}</div>
-                    
-                    ${task.project_id ? `<div class="task-project-info small text-muted mb-2">
-                        <i class="bi bi-folder2 me-1"></i><strong>${task.project_id}</strong>${task.project_name ? ` - ${escapeHtml(task.project_name.length > 20 ? task.project_name.substring(0, 20) + '...' : task.project_name)}` : ''}
-                    </div>` : ''}
-                    
-                    <div class="generic-task-meta d-flex justify-content-between align-items-center mb-2">
-                        <span class="badge rounded-pill priority-badge">${escapeHtml(task.priority)}</span>
-                        ${task.estimated_effort ? `<span class="text-muted small"><i class="bi bi-clock me-1"></i>${task.estimated_effort}h</span>` : ''}
+                    <div class="generic-task-meta">
+                        <span class="project-badge">${escapeHtml(task.priority)}</span>
                     </div>
-                    
-                    ${task.specialist_name ? `<div class="task-specialist small text-primary">
-                        <i class="bi bi-person-fill me-1"></i>${escapeHtml(task.specialist_name)}
-                    </div>` : '<div class="task-specialist small text-muted"><i class="bi bi-person me-1"></i>Não atribuído</div>'}
                 `;
                 
                 // Adiciona evento de clique para edição
@@ -1639,7 +1755,7 @@
                 genericTasksBody.appendChild(taskCard);
                 
                 // Aplica classe de cor ao badge de prioridade
-                const badgeElement = taskCard.querySelector('.priority-badge');
+                const badgeElement = taskCard.querySelector('.project-badge');
                 if (badgeElement) {
                     const priorityLower = (task.priority || '').toLowerCase();
                     let badgeClass = 'text-bg-primary'; // Default: Média
@@ -1674,7 +1790,7 @@
             document.getElementById('genericTaskTitle').value = task.title;
             document.getElementById('genericTaskDescription').value = task.description || '';
             document.getElementById('genericTaskPriority').value = task.priority || 'Média';
-            document.getElementById('genericTaskEffort').value = task.estimated_effort || '';
+            document.getElementById('genericTaskEffort').value = task.estimated_hours || '';
             document.getElementById('genericTaskSpecialist').value = task.specialist_name || '';
             deleteBtn.style.display = 'block';
             editingGenericTaskId = task.id;
@@ -1833,7 +1949,7 @@
                 document.getElementById('taskTitle').value = task.name || '';
                 document.getElementById('taskPriority').value = task.priority || 'Média';
                 document.getElementById('taskSpecialist').value = task.specialist_name || '';
-                document.getElementById('taskEstimatedHours').value = task.estimated_effort || '';
+                document.getElementById('taskEstimatedHours').value = task.estimated_hours || '';
                 document.getElementById('taskDescription').value = task.description || '';
                 document.getElementById('taskStatus').value = task.status || 'pendente';
 
@@ -1938,6 +2054,7 @@
     sprintBoard.addEventListener('click', function(event) {
         const editButton = event.target.closest('.edit-btn');
         const deleteButton = event.target.closest('.delete-btn');
+        const unarchiveButton = event.target.closest('.unarchive-btn');
 
         if (editButton) {
             const sprintId = editButton.dataset.id;
@@ -1946,6 +2063,10 @@
             const sprintId = deleteButton.dataset.id;
             const sprintName = deleteButton.dataset.name;
             deleteSprint(sprintId, sprintName);
+        } else if (unarchiveButton) {
+            const sprintId = unarchiveButton.dataset.id;
+            const sprintName = unarchiveButton.dataset.name;
+            openUnarchiveModal(sprintId, sprintName);
         }
     });
 
@@ -1963,8 +2084,757 @@
     // }
     // <<< FIM: Event Listeners para Coluna de Tarefas Genéricas >>>
 
+    // ========================================
+    // NOVO: SISTEMA DE ARQUIVAMENTO DE SPRINTS
+    // ========================================
+
+    // Função para alternar view
+    function changeView(view) {
+        currentView = view;
+        
+        // Atualiza botões
+        document.querySelectorAll('.view-toggle-btn').forEach(btn => btn.classList.remove('active'));
+        const targetBtn = document.getElementById(`view${view.charAt(0).toUpperCase() + view.slice(1)}Btn`);
+        if (targetBtn) targetBtn.classList.add('active');
+        
+        // Atualiza controles de ações em lote
+        const bulkActions = document.getElementById('sprintBulkActions');
+        if (bulkActions) {
+            if (view === 'active') {
+                bulkActions.style.display = 'flex';
+                if (archiveSelectedBtn) archiveSelectedBtn.style.display = selectMode ? 'inline-block' : 'none';
+                if (unarchiveSelectedBtn) unarchiveSelectedBtn.style.display = 'none';
+            } else if (view === 'archived') {
+                bulkActions.style.display = 'flex';
+                if (archiveSelectedBtn) archiveSelectedBtn.style.display = 'none';
+                if (unarchiveSelectedBtn) unarchiveSelectedBtn.style.display = selectMode ? 'inline-block' : 'none';
+            } else {
+                bulkActions.style.display = 'none';
+            }
+        }
+        
+        // Recarrega sprints
+        loadSprintsWithView();
+    }
+
+    // Função para carregar sprints baseada na view atual
+    async function loadSprintsWithView() {
+        try {
+            let url;
+            if (currentView === 'active') {
+                // TEMPORÁRIO: Usar API original para teste
+                url = '/sprints/api/sprints';
+            } else if (currentView === 'archived') {
+                url = '/backlog/api/sprints/archived';
+            } else {
+                // Para 'all', carrega ambas e combina
+                const [activeResponse, archivedResponse] = await Promise.all([
+                    fetch('/sprints/api/sprints'),
+                    fetch('/backlog/api/sprints/archived')
+                ]);
+                
+                const activeData = await activeResponse.json();
+                const archivedData = await archivedResponse.json();
+                
+                // A API original retorna array direto, não objeto com 'sprints'
+                const activeSprints = Array.isArray(activeData) ? activeData : activeData.sprints || [];
+                const archivedSprints = Array.isArray(archivedData) ? archivedData : archivedData.sprints || [];
+                
+                const combinedSprints = [
+                    ...activeSprints,
+                    ...archivedSprints
+                ];
+                
+                renderSprints(combinedSprints);
+                return;
+            }
+            
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Erro ${response.status}`);
+            const data = await response.json();
+            
+            // A API original retorna array direto
+            const sprints = Array.isArray(data) ? data : data.sprints || [];
+            renderSprints(sprints);
+            
+        } catch (error) {
+            console.error('Erro ao carregar sprints:', error);
+            if (sprintBoard) {
+                sprintBoard.innerHTML = `
+                    <div class="text-center text-danger p-5">
+                        <i class="bi bi-exclamation-triangle fs-1"></i>
+                        <p>Erro ao carregar sprints. Tente novamente.</p>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    // Funções vazias para os elementos de arquivamento que não existem na interface atual
+    function enableSelectMode() { console.log('enableSelectMode - não implementado'); }
+    function disableSelectMode() { console.log('disableSelectMode - não implementado'); }
+    function archiveSelectedSprints() { console.log('archiveSelectedSprints - não implementado'); }
+    function unarchiveSelectedSprints() { console.log('unarchiveSelectedSprints - não implementado'); }
+    function filterSprints() { console.log('filterSprints - não implementado'); }
+    function clearSearch() { console.log('clearSearch - não implementado'); }
+
+    // Função para habilitar modo de seleção
+    function enableSelectMode() {
+        selectMode = true;
+        selectedSprints.clear();
+        
+        // Atualiza interface
+        enableSelectModeBtn.style.display = 'none';
+        cancelSelectModeBtn.style.display = 'inline-block';
+        
+        if (currentView === 'active') {
+            archiveSelectedBtn.style.display = 'inline-block';
+        } else if (currentView === 'archived') {
+            unarchiveSelectedBtn.style.display = 'inline-block';
+        }
+        
+        // Adiciona checkboxes
+        addCheckboxesToSprints();
+    }
+
+    // Função para desabilitar modo de seleção
+    function disableSelectMode() {
+        selectMode = false;
+        selectedSprints.clear();
+        
+        // Atualiza interface
+        enableSelectModeBtn.style.display = 'inline-block';
+        cancelSelectModeBtn.style.display = 'none';
+        archiveSelectedBtn.style.display = 'none';
+        unarchiveSelectedBtn.style.display = 'none';
+        
+        // Remove checkboxes
+        removeCheckboxesFromSprints();
+    }
+
+    // Função para adicionar checkboxes às sprints
+    function addCheckboxesToSprints() {
+        document.querySelectorAll('.sprint-card').forEach(card => {
+            if (!card.querySelector('.sprint-checkbox')) {
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'form-check-input sprint-checkbox';
+                checkbox.addEventListener('change', handleSprintSelection);
+                
+                card.classList.add('selectable');
+                card.appendChild(checkbox);
+            }
+        });
+    }
+
+    // Função para remover checkboxes das sprints
+    function removeCheckboxesFromSprints() {
+        document.querySelectorAll('.sprint-card').forEach(card => {
+            const checkbox = card.querySelector('.sprint-checkbox');
+            if (checkbox) {
+                checkbox.remove();
+                card.classList.remove('selectable', 'selected');
+            }
+        });
+    }
+
+    // Handler para seleção de sprint
+    function handleSprintSelection(event) {
+        const checkbox = event.target;
+        const sprintCard = checkbox.closest('.sprint-card');
+        const sprintId = sprintCard.dataset.sprintId;
+        
+        if (checkbox.checked) {
+            selectedSprints.add(sprintId);
+            sprintCard.classList.add('selected');
+        } else {
+            selectedSprints.delete(sprintId);
+            sprintCard.classList.remove('selected');
+        }
+        
+        // Atualiza estado dos botões
+        updateBulkActionButtons();
+    }
+
+    // Função para atualizar botões de ação em lote
+    function updateBulkActionButtons() {
+        const hasSelection = selectedSprints.size > 0;
+        
+        if (currentView === 'active') {
+            archiveSelectedBtn.disabled = !hasSelection;
+        } else if (currentView === 'archived') {
+            unarchiveSelectedBtn.disabled = !hasSelection;
+        }
+    }
+
+    // Função para arquivar sprints selecionadas
+    async function archiveSelectedSprints() {
+        if (selectedSprints.size === 0) return;
+        
+        // Mostra modal de confirmação em lote
+        const selectedSprintsList = document.getElementById('selectedSprintsList');
+        selectedSprintsList.innerHTML = '';
+        
+        selectedSprints.forEach(sprintId => {
+            const sprintCard = document.querySelector(`[data-sprint-id="${sprintId}"]`);
+            const sprintName = sprintCard.querySelector('.sprint-card-title')?.textContent || `Sprint ${sprintId}`;
+            
+            const sprintItem = document.createElement('div');
+            sprintItem.className = 'mb-1 p-2 bg-white border rounded';
+            sprintItem.innerHTML = `<i class="bi bi-calendar3 me-2"></i>${sprintName}`;
+            selectedSprintsList.appendChild(sprintItem);
+        });
+        
+        const bulkArchiveModal = new bootstrap.Modal(document.getElementById('bulkArchiveModal'));
+        bulkArchiveModal.show();
+    }
+
+    // Função para desarquivar sprints selecionadas
+    async function unarchiveSelectedSprints() {
+        if (selectedSprints.size === 0) return;
+        
+        if (!confirm(`Desarquivar ${selectedSprints.size} sprint(s) selecionada(s)?`)) return;
+        
+        try {
+            const sprintIds = Array.from(selectedSprints);
+            const response = await fetch('/backlog/api/sprints/archive-bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sprint_ids: sprintIds,
+                    archived_by: 'Sistema',
+                    reason: 'Desarquivamento em lote'
+                })
+            });
+            
+            if (!response.ok) throw new Error(`Erro ${response.status}`);
+            
+            disableSelectMode();
+            loadSprintsWithView();
+            
+            showNotification('Sprints desarquivadas com sucesso!', 'success');
+            
+        } catch (error) {
+            console.error('Erro ao desarquivar sprints:', error);
+            showNotification('Erro ao desarquivar sprints', 'error');
+        }
+    }
+
+    // Função para filtrar sprints
+    function filterSprints() {
+        const searchTerm = sprintSearchInput.value.toLowerCase();
+        
+        document.querySelectorAll('.sprint-card').forEach(card => {
+            const sprintName = card.querySelector('.sprint-card-title')?.textContent?.toLowerCase() || '';
+            const sprintGoal = card.querySelector('.sprint-goal')?.textContent?.toLowerCase() || '';
+            
+            const matches = sprintName.includes(searchTerm) || sprintGoal.includes(searchTerm);
+            card.style.display = matches ? 'flex' : 'none';
+        });
+    }
+
+    // Função para limpar busca
+    function clearSearch() {
+        sprintSearchInput.value = '';
+        filterSprints();
+    }
+
+    // Event Listeners para modais de arquivamento
+    document.getElementById('confirmArchiveBtn').addEventListener('click', confirmArchiveSprint);
+    document.getElementById('confirmUnarchiveBtn').addEventListener('click', confirmUnarchiveSprint);
+    document.getElementById('confirmBulkArchiveBtn').addEventListener('click', confirmBulkArchive);
+
+    // Função para confirmar arquivamento individual
+    async function confirmArchiveSprint() {
+        const sprintId = document.getElementById('archiveSprintModal').dataset.sprintId;
+        const archivedBy = document.getElementById('archivedBy').value || 'Sistema';
+        const reason = document.getElementById('archiveReason').value;
+        
+        try {
+            const response = await fetch(`/backlog/api/sprints/${sprintId}/archive`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ archived_by: archivedBy, reason })
+            });
+            
+            if (!response.ok) throw new Error(`Erro ${response.status}`);
+            
+            bootstrap.Modal.getInstance(document.getElementById('archiveSprintModal')).hide();
+            loadSprintsWithView();
+            
+            showNotification('Sprint arquivada com sucesso!', 'success');
+            
+        } catch (error) {
+            console.error('Erro ao arquivar sprint:', error);
+            showNotification('Erro ao arquivar sprint', 'error');
+        }
+    }
+
+    // Função para confirmar desarquivamento individual
+    async function confirmUnarchiveSprint() {
+        const sprintId = document.getElementById('unarchiveSprintModal').dataset.sprintId;
+        const unarchivedBy = document.getElementById('unarchivedBy').value || 'Sistema';
+        const reason = document.getElementById('unarchiveReason').value;
+        
+        try {
+            const response = await fetch(`/backlog/api/sprints/${sprintId}/unarchive`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ unarchived_by: unarchivedBy, reason })
+            });
+            
+            if (!response.ok) throw new Error(`Erro ${response.status}`);
+            
+            bootstrap.Modal.getInstance(document.getElementById('unarchiveSprintModal')).hide();
+            loadSprintsWithView();
+            
+            showNotification('Sprint desarquivada com sucesso!', 'success');
+            
+        } catch (error) {
+            console.error('Erro ao desarquivar sprint:', error);
+            showNotification('Erro ao desarquivar sprint', 'error');
+        }
+    }
+
+    // Função para confirmar arquivamento em lote
+    async function confirmBulkArchive() {
+        const sprintIds = Array.from(selectedSprints);
+        const archivedBy = document.getElementById('bulkArchivedBy').value || 'Sistema';
+        const reason = document.getElementById('bulkArchiveReason').value || 'Arquivamento em lote';
+        
+        try {
+            const response = await fetch('/backlog/api/sprints/archive-bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sprint_ids: sprintIds,
+                    archived_by: archivedBy,
+                    reason
+                })
+            });
+            
+            if (!response.ok) throw new Error(`Erro ${response.status}`);
+            
+            bootstrap.Modal.getInstance(document.getElementById('bulkArchiveModal')).hide();
+            disableSelectMode();
+            loadSprintsWithView();
+            
+            showNotification(`${sprintIds.length} sprints arquivadas com sucesso!`, 'success');
+            
+        } catch (error) {
+            console.error('Erro ao arquivar sprints em lote:', error);
+            showNotification('Erro ao arquivar sprints', 'error');
+        }
+    }
+
+    // Função para mostrar notificações
+    function showNotification(message, type = 'info') {
+        // Implementação simples com alert - pode ser melhorada com toast
+        if (type === 'success') {
+            alert('✅ ' + message);
+        } else if (type === 'error') {
+            alert('❌ ' + message);
+        } else {
+            alert('ℹ️ ' + message);
+        }
+    }
+
+    // Inicializa funcionalidades após renderizar
+    initializeSortable();
+    initializePopovers();
+
+    // Função para renderizar sprints (VERSÃO FINAL CORRIGIDA)
+    window.renderSprints = function(sprints) {
+        console.log("[Sprint Mgmt] renderSprints() chamado com", sprints.length, "sprints");
+        sprintBoard.innerHTML = ''; // Limpa o quadro
+        
+        if (!sprints || sprints.length === 0) {
+            sprintBoard.innerHTML = '<div class="text-center text-muted p-5">Nenhuma sprint encontrada.</div>';
+            return;
+        }
+
+        sprints.forEach(sprint => {
+            // INÍCIO DA NOVA VERIFICAÇÃO DE ERRO
+            if (sprint.error) {
+                console.warn(`[Sprint Mgmt] Sprint ID ${sprint.id || 'N/A'} retornou com erro da API: ${sprint.error}`);
+                const errorCard = document.createElement('div');
+                errorCard.className = 'sprint-card'; 
+                errorCard.style.border = '2px solid red';
+                errorCard.innerHTML = `
+                    <div class="sprint-card-header" style="background-color: #f8d7da; color: #721c24;">
+                        <h6 class="sprint-card-title">Erro ao carregar Sprint ${sprint.id || '(ID Desconhecido)'}</h6>
+                    </div>
+                    <div class="sprint-card-body">
+                        <p><strong>Detalhe do erro:</strong> ${escapeHtml(sprint.error)}</p>
+                        <p class="text-muted small">Verifique os logs do servidor para mais informações.</p>
+                    </div>
+                `;
+                sprintBoard.appendChild(errorCard);
+                return; // Pula para a próxima sprint
+            }
+            // FIM DA NOVA VERIFICAÇÃO DE ERRO
+
+            const sprintCard = document.createElement('div');
+            sprintCard.className = 'sprint-card';
+            sprintCard.dataset.sprintId = sprint.id;
+
+            // Adiciona classe de arquivada se necessário
+            if (sprint.is_archived) {
+                sprintCard.classList.add('archived');
+            }
+
+            // <<< INÍCIO: Calcular Total de Horas Estimadas da Sprint >>>
+            let totalSprintHours = 0.0;
+            if (sprint.tasks && sprint.tasks.length > 0) {
+                totalSprintHours = sprint.tasks.reduce((sum, task) => {
+                    const taskHours = parseFloat(task.estimated_hours);
+                    return sum + (isNaN(taskHours) ? 0 : taskHours);
+                }, 0.0);
+            }
+            // <<< FIM: Calcular Total de Horas Estimadas da Sprint >>>
+
+            // <<< INÍCIO: Calcular Horas por Especialista >>>
+            let hoursBySpecialist = {};
+            if (sprint.tasks && sprint.tasks.length > 0) {
+                hoursBySpecialist = sprint.tasks.reduce((acc, task) => {
+                    const specialist = task.specialist_name || 'Não Atribuído';
+                    const hours = parseFloat(task.estimated_hours);
+                    if (!isNaN(hours)) {
+                        acc[specialist] = (acc[specialist] || 0) + hours;
+                    }
+                    return acc;
+                }, {});
+            }
+            // Formata o conteúdo do popover
+            let popoverContent = Object.entries(hoursBySpecialist)
+                .map(([name, hours]) => `<div>${escapeHtml(name)}: <strong>${hours.toFixed(1)}h</strong></div>`)
+                .join('');
+            if (!popoverContent) {
+                popoverContent = '<div class="text-muted small">Nenhum especialista</div>';
+            }
+            // <<< FIM: Calcular Horas por Especialista >>>
+
+            // Determina botões de ação baseado no status de arquivamento
+            let actionButtons = '';
+            if (sprint.is_archived) {
+                actionButtons = `
+                    <button class="btn btn-sm btn-info unarchive-btn" data-id="${sprint.id}" data-name="${escapeHtml(sprint.name)}" title="Desarquivar Sprint">
+                        <i class="bi bi-box-arrow-up"></i>
+                    </button>
+                `;
+            } else {
+                actionButtons = `
+                    <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="${sprint.id}" title="Editar Sprint">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${sprint.id}" data-name="${escapeHtml(sprint.name)}" title="Excluir Sprint">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                `;
+            }
+
+            sprintCard.innerHTML = `
+                <div class="sprint-card-header criticality-${(sprint.criticality || 'normal').toLowerCase()}">
+                    ${sprint.is_archived ? '<span class="archived-badge"><i class="bi bi-archive me-1"></i>Arquivada</span>' : ''}
+                    <div class="sprint-header-top">
+                        <div class="sprint-title-area">
+                            <h6 class="sprint-card-title">${escapeHtml(sprint.name)}</h6>
+                            <div class="sprint-meta">
+                                <span class="sprint-badge">
+                                    <i class="bi bi-stopwatch"></i>${totalSprintHours.toFixed(1)}h
+                                </span>
+                                ${Object.keys(hoursBySpecialist).length > 0 ? `
+                                <button type="button" class="sprint-badge specialist-hours-popover" 
+                                        data-bs-toggle="popover" 
+                                        data-bs-placement="bottom"
+                                        data-bs-trigger="hover focus"
+                                        data-bs-html="true" 
+                                        title="Horas por Especialista"
+                                        data-bs-content="${popoverContent}">
+                                    <i class="bi bi-people"></i>Especialistas
+                                </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="sprint-card-actions">
+                            ${actionButtons}
+                        </div>
+                    </div>
+                    <div class="sprint-header-bottom">
+                        <div class="sprint-dates">
+                            <i class="bi bi-calendar-range"></i>
+                            ${formatDate(sprint.start_date)} - ${formatDate(sprint.end_date)}
+                        </div>
+                        <div class="sprint-goal">
+                            ${escapeHtml(sprint.goal || 'Sem objetivo definido.')}
+                        </div>
+                    </div>
+                </div>
+                <div class="sprint-card-body">
+                    <div class="sprint-tasks" data-sprint-id="${sprint.id}">
+                        ${sprint.tasks && sprint.tasks.length > 0 ? 
+                            sprint.tasks.map(task => {
+                                const projectPart = task.project_id || 'PROJ';
+                                const columnPart = (task.column_identifier || 'UNK').substring(0, 3).toUpperCase(); 
+                                const isCompleted = task.column_identifier === 'concluido';
+                                const fullTaskId = `${projectPart}-${columnPart}-${task.id}`;
+                                return `
+                                <div class="backlog-task-card sprint-task-card ${isCompleted ? 'task-completed' : ''}" data-task-id="${task.id}" draggable="true" data-estimated-hours="${task.estimated_hours || 0}" data-specialist-name="${escapeHtml(task.specialist_name || '')}" data-is-generic="${task.is_generic || false}">
+                                    <div class="task-title">${escapeHtml(task.name)}</div>
+                                    ${task.project_id && !task.is_generic ? `<div class="task-project-info small text-muted mb-2">
+                                        <i class="bi bi-folder2 me-1"></i>${task.project_id}${task.project_name ? ` - ${escapeHtml(task.project_name.length > 20 ? task.project_name.substring(0, 20) + '...' : task.project_name)}` : ''}
+                                    </div>` : ''}
+                                    <div class="task-meta">
+                                        <div class="task-meta-left">
+                                            <span class="badge rounded-pill task-priority-badge">${escapeHtml(task.priority || 'Média')}</span>
+                                        </div>
+                                        <div class="task-meta-right text-muted task-hours">
+                                            ${task.estimated_hours ? `<i class="bi bi-clock"></i> ${task.estimated_hours}h` : ''}
+                                        </div>
+                                    </div>
+                                    ${task.specialist_name ? `<div class="task-specialist"><i class="bi bi-person-fill"></i> ${escapeHtml(task.specialist_name)}</div>` : ''}
+                                    <div class="task-actions">
+                                        {# REMOVIDO BOTÃO DEVOLVER DAQUI #}
+                                    </div>
+                                </div>`;
+                            }).join('') 
+                            : '<small class="text-muted fst-italic ps-2">Nenhuma tarefa alocada.</small>' 
+                        } 
+                    </div>
+                </div>
+            `;
+            sprintBoard.appendChild(sprintCard);
+
+            // Aplica classe de cor ao badge de prioridade APÓS adicionar ao DOM
+            if (sprint.tasks) {
+                sprint.tasks.forEach(task => {
+                    const cardElement = sprintBoard.querySelector(`.sprint-task-card[data-task-id="${task.id}"]`);
+                    if (cardElement) {
+                        const badgeElement = cardElement.querySelector('.task-priority-badge');
+                        if (badgeElement) {
+                            const priorityLower = (task.priority || '').toLowerCase();
+                            let badgeClass = 'text-bg-primary'; // Default: Média
+                            if (priorityLower === 'urgente') badgeClass = 'text-bg-danger';
+                            else if (priorityLower === 'alta') badgeClass = 'text-bg-warning';
+                            else if (priorityLower === 'baixa') badgeClass = 'text-bg-secondary';
+                            badgeElement.classList.add(...badgeClass.split(' '));
+                        }
+                    }
+                });
+            }
+        });
+        
+        // Adiciona checkboxes se em modo de seleção
+        if (selectMode) {
+            addCheckboxesToSprints();
+        }
+        
+        // Inicializa funcionalidades após renderizar
+        initializeSortable();
+        initializePopovers();
+    };
+
+    // Funções para abrir modais
+    window.openArchiveModal = function(sprintId, sprintName) {
+        document.getElementById('archiveSprintName').textContent = sprintName;
+        document.getElementById('archiveSprintModal').dataset.sprintId = sprintId;
+        
+        // Reset form
+        document.getElementById('archiveReason').value = '';
+        document.getElementById('archivedBy').value = 'Sistema';
+        
+        const modal = new bootstrap.Modal(document.getElementById('archiveSprintModal'));
+        modal.show();
+    };
+
+    window.openUnarchiveModal = function(sprintId, sprintName) {
+        document.getElementById('unarchiveSprintName').textContent = sprintName;
+        document.getElementById('unarchiveSprintModal').dataset.sprintId = sprintId;
+        
+        // Reset form
+        document.getElementById('unarchiveReason').value = '';
+        document.getElementById('unarchivedBy').value = 'Sistema';
+        
+        const modal = new bootstrap.Modal(document.getElementById('unarchiveSprintModal'));
+        modal.show();
+    };
+
+    // Substitui loadSprints original para usar a nova função
+    const originalLoadSprints = window.loadSprints;
+    window.loadSprints = loadSprintsWithView;
+
+    // ========================================
+    // FIM: SISTEMA DE ARQUIVAMENTO DE SPRINTS
+    // ========================================
+
+    // Carrega os dados iniciais
+    Promise.all([
+        loadSprintsWithView(), // Usa o novo sistema de arquivamento
+        loadBacklogTasks(),
+        loadGenericTasks()
+    ]).then(() => {
+        console.log('[Sprint Mgmt] Todos os dados carregados com sucesso.');
+    }).catch(error => {
+        console.error('[Sprint Mgmt] Erro ao carregar dados iniciais:', error);
+    });
+
+    // ========================================
+    // FUNÇÕES AUXILIARES E MODAIS
+    // ========================================
+
+    // Event Listeners para modais de arquivamento (se existirem)
+    const confirmArchiveBtn = document.getElementById('confirmArchiveBtn');
+    const confirmUnarchiveBtn = document.getElementById('confirmUnarchiveBtn');
+    const confirmBulkArchiveBtn = document.getElementById('confirmBulkArchiveBtn');
+    
+    if (confirmArchiveBtn) confirmArchiveBtn.addEventListener('click', confirmArchiveSprint);
+    if (confirmUnarchiveBtn) confirmUnarchiveBtn.addEventListener('click', confirmUnarchiveSprint);
+    if (confirmBulkArchiveBtn) confirmBulkArchiveBtn.addEventListener('click', confirmBulkArchive);
+
+    // Funções para modais (implementações básicas)
+    async function confirmArchiveSprint() { console.log('confirmArchiveSprint - não implementado'); }
+    async function confirmUnarchiveSprint() { console.log('confirmUnarchiveSprint - não implementado'); } 
+    async function confirmBulkArchive() { console.log('confirmBulkArchive - não implementado'); }
+    function openUnarchiveModal(sprintId, sprintName) { console.log('openUnarchiveModal - não implementado'); }
+    function showNotification(message, type) { console.log(`Notificação [${type}]: ${message}`); }
   }); // Fim DOMContentLoaded
 </script>
 {# Adiciona SortableJS #}
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+{# NOVO: Modais para Arquivamento de Sprints #}
+<!-- Modal para Arquivar Sprint Individual -->
+<div class="modal fade" id="archiveSprintModal" tabindex="-1" aria-labelledby="archiveSprintModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-warning text-dark">
+        <h5 class="modal-title" id="archiveSprintModalLabel">
+          <i class="bi bi-archive me-2"></i>Arquivar Sprint
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          <i class="bi bi-info-circle me-2"></i>
+          <strong>Arquivar sprint:</strong> A sprint será movida para o arquivo, mas poderá ser revisitada quando necessário.
+        </div>
+        <p>Tem certeza que deseja arquivar a sprint <strong id="archiveSprintName"></strong>?</p>
+        <div class="mb-3">
+          <label for="archiveReason" class="form-label">Motivo (opcional):</label>
+          <textarea class="form-control" id="archiveReason" rows="2" placeholder="Motivo do arquivamento..."></textarea>
+        </div>
+        <div class="mb-3">
+          <label for="archivedBy" class="form-label">Arquivado por:</label>
+          <input type="text" class="form-control" id="archivedBy" placeholder="Seu nome" value="Sistema">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-warning" id="confirmArchiveBtn">
+          <i class="bi bi-archive me-1"></i>Arquivar Sprint
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para Desarquivar Sprint -->
+<div class="modal fade" id="unarchiveSprintModal" tabindex="-1" aria-labelledby="unarchiveSprintModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-info text-white">
+        <h5 class="modal-title" id="unarchiveSprintModalLabel">
+          <i class="bi bi-box-arrow-up me-2"></i>Desarquivar Sprint
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          <strong>Desarquivar sprint:</strong> A sprint voltará para a lista de sprints ativas.
+        </div>
+        <p>Tem certeza que deseja desarquivar a sprint <strong id="unarchiveSprintName"></strong>?</p>
+        <div class="mb-3">
+          <label for="unarchiveReason" class="form-label">Motivo (opcional):</label>
+          <textarea class="form-control" id="unarchiveReason" rows="2" placeholder="Motivo do desarquivamento..."></textarea>
+        </div>
+        <div class="mb-3">
+          <label for="unarchivedBy" class="form-label">Desarquivado por:</label>
+          <input type="text" class="form-control" id="unarchivedBy" placeholder="Seu nome" value="Sistema">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-info" id="confirmUnarchiveBtn">
+          <i class="bi bi-box-arrow-up me-1"></i>Desarquivar Sprint
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para Arquivamento em Lote -->
+<div class="modal fade" id="bulkArchiveModal" tabindex="-1" aria-labelledby="bulkArchiveModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-warning text-dark">
+        <h5 class="modal-title" id="bulkArchiveModalLabel">
+          <i class="bi bi-archive me-2"></i>Arquivar Múltiplas Sprints
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info">
+          <i class="bi bi-info-circle me-2"></i>
+          <strong>Arquivamento em lote:</strong> As sprints selecionadas serão movidas para o arquivo.
+        </div>
+        <div class="mb-3">
+          <label class="form-label"><strong>Sprints selecionadas para arquivamento:</strong></label>
+          <div id="selectedSprintsList" class="border rounded p-2 bg-light" style="min-height: 100px;">
+            <!-- Lista será preenchida via JavaScript -->
+          </div>
+        </div>
+        <div class="mb-3">
+          <label for="bulkArchiveReason" class="form-label">Motivo (opcional):</label>
+          <textarea class="form-control" id="bulkArchiveReason" rows="2" placeholder="Motivo do arquivamento em lote..."></textarea>
+        </div>
+        <div class="mb-3">
+          <label for="bulkArchivedBy" class="form-label">Arquivado por:</label>
+          <input type="text" class="form-control" id="bulkArchivedBy" placeholder="Seu nome" value="Sistema">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-warning" id="confirmBulkArchiveBtn">
+          <i class="bi bi-archive me-1"></i>Arquivar Selecionadas
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Detalhes de Sprint Arquivada -->
+<div class="modal fade" id="archivedSprintDetailsModal" tabindex="-1" aria-labelledby="archivedSprintDetailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header bg-secondary text-white">
+        <h5 class="modal-title" id="archivedSprintDetailsModalLabel">
+          <i class="bi bi-archive me-2"></i>Detalhes da Sprint Arquivada
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="archivedSprintDetailsContent">
+          <!-- Conteúdo será carregado via JavaScript -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-info" id="modalUnarchiveBtn" style="display: none;">
+          <i class="bi bi-box-arrow-up me-1"></i>Desarquivar
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %} 

@@ -1,4 +1,4 @@
-from flask import render_template, jsonify, request, abort, current_app, redirect, url_for, Response
+from flask import render_template, jsonify, request, abort, current_app, redirect, url_for, Response, send_file
 from . import backlog_bp # Importa o blueprint
 from .. import db # Importa a instância do banco de dados
 from ..models import Backlog, Task, Column, Sprint, TaskStatus, ProjectMilestone, ProjectRisk, MilestoneStatus, MilestoneCriticality, RiskImpact, RiskProbability, RiskStatus, TaskSegment, Note, Tag # Importa os modelos
@@ -6,9 +6,15 @@ from ..macro.services import MacroService # Importa o serviço Macro
 import pandas as pd
 from datetime import datetime, timedelta, date
 import pytz # <<< ADICIONADO
+from sqlalchemy import and_
+from sqlalchemy.orm import joinedload
+from io import BytesIO
 
 # Define o fuso horário de Brasília
 br_timezone = pytz.timezone('America/Sao_Paulo') # <<< ADICIONADO
+
+# Importa a versão otimizada da função de serialização
+from ..utils.serializers import serialize_task_for_sprints
 
 # Função auxiliar para serializar uma tarefa
 def serialize_task(task):
@@ -16,8 +22,8 @@ def serialize_task(task):
     if not task:
         return None
     
-    # Adicionando log para depuração
-    current_app.logger.info(f"[serialize_task] Serializando tarefa ID: {task.id}, Título: {task.title}, is_generic: {task.is_generic}")
+    # OTIMIZAÇÃO: Removido log excessivo que estava causando lentidão
+    # current_app.logger.info(f"[serialize_task] Serializando tarefa ID: {task.id}, Título: {task.title}, is_generic: {task.is_generic}")
 
     try:
         # Calcula horas restantes (se possível)
@@ -63,7 +69,7 @@ def serialize_task(task):
             'description': task.description if hasattr(task, 'description') else "",
             'status': task.status.value if hasattr(task, 'status') and task.status else None,
             'priority': task.priority if hasattr(task, 'priority') else "Média",
-            'estimated_hours': task.estimated_effort if hasattr(task, 'estimated_effort') else None,
+            'estimated_effort': task.estimated_effort if hasattr(task, 'estimated_effort') else None,
             'logged_time': task.logged_time if hasattr(task, 'logged_time') else 0,
             'remaining_hours': remaining_hours,
             'position': task.position if hasattr(task, 'position') else 0,
@@ -133,7 +139,7 @@ def serialize_task(task):
 @backlog_bp.route('/')
 def index():
     # Redireciona para a nova página de seleção de projetos
-    return redirect(url_for('.project_selection')) 
+    return redirect(url_for('.project_selection'))
 
 # NOVA ROTA - Página de Seleção de Projetos
 @backlog_bp.route('/projetos')
@@ -555,31 +561,41 @@ def update_task_details(task_id):
         current_app.logger.error(f"Erro ao atualizar tarefa {task_id}: {str(e)}", exc_info=True)
         return jsonify({'error': f'Erro ao salvar alterações: {str(e)}'}), 500
 
-# API para excluir uma tarefa
+# API para excluir uma tarefa (VERSÃO OTIMIZADA)
 @backlog_bp.route('/api/tasks/<int:task_id>', methods=['DELETE'])
 def delete_task(task_id):
     task = Task.query.get_or_404(task_id)
     
     try:
-        # Lógica para reajustar posições na coluna da tarefa excluída
+        # OTIMIZAÇÃO: Captura informações antes da exclusão
         old_column_id = task.column_id
         old_position = task.position
+        old_sprint_id = task.sprint_id
         
-        # Decrementa posição das tarefas na coluna antiga que estavam depois da tarefa excluída
-        Task.query.filter(
-            Task.column_id == old_column_id,
-            Task.position > old_position
-        ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
+        # OTIMIZAÇÃO: Executa updates em batch sem logs excessivos
+        if old_sprint_id:
+            # Para tarefas em sprints, ajusta posições apenas dentro da sprint
+            Task.query.filter(
+                Task.sprint_id == old_sprint_id,
+                Task.position > old_position
+            ).update({Task.position: Task.position - 1}, synchronize_session=False)
+        else:
+            # Para tarefas fora de sprints, ajusta posições na coluna
+            Task.query.filter(
+                Task.column_id == old_column_id,
+                Task.position > old_position
+            ).update({Task.position: Task.position - 1}, synchronize_session=False)
         
-        # Exclui a tarefa
+        # OTIMIZAÇÃO: Exclusão da tarefa sem logs desnecessários
         db.session.delete(task)
         db.session.commit()
-        current_app.logger.info(f"Tarefa {task_id} excluída com sucesso.")
-        # Retorna 204 No Content, padrão para DELETE bem-sucedido sem corpo
+        
+        # OTIMIZAÇÃO: Log mínimo apenas
         return '', 204 
+        
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Erro ao excluir tarefa {task_id}: {e}", exc_info=True)
+        current_app.logger.error(f"Erro ao excluir tarefa {task_id}: {str(e)}")
         abort(500, description="Erro interno ao excluir a tarefa.")
 
 # API para criar uma nova tarefa em um backlog específico
@@ -855,22 +871,35 @@ def get_unassigned_tasks():
 
             # Re-adiciona busca de detalhes dos projetos
             project_ids = list(set(b.project_id for b in backlogs)) # Evita buscar o mesmo ID várias vezes
-            project_details_map = {pid: macro_service.obter_detalhes_projeto(pid) for pid in project_ids}
+            
+            # OTIMIZAÇÃO: Instanciar macro_service uma vez e usar cache interno
+            if project_ids:
+                macro_service = MacroService()
+                # Cache otimizado: O MacroService agora usa cache interno de 30-60 segundos
+                # Isso elimina os 155 logs por projeto e melhora drasticamente a performance
+                project_details_map = {}
+                for pid in project_ids:
+                    try:
+                        # OTIMIZAÇÃO: obter_detalhes_projeto agora usa cache e logs mínimos
+                        details = macro_service.obter_detalhes_projeto(pid)
+                        project_details_map[pid] = details
+                    except Exception as e:
+                        # Log apenas em caso de erro real
+                        current_app.logger.warning(f"Erro ao buscar detalhes do projeto {pid}: {e}")
+                        project_details_map[pid] = None
+            else:
+                project_details_map = {}
 
             for backlog_id, tasks in tasks_by_backlog.items():
                 backlog = backlog_details_map.get(backlog_id)
                 if backlog:
                     project_details = project_details_map.get(backlog.project_id)
                     
-                    # Debug: Log dos detalhes do projeto
-                    current_app.logger.info(f"[Debug] Projeto ID: {backlog.project_id}, Project Details: {project_details}")
-                    
+                    # OTIMIZAÇÃO: Removido log excessivo de project details
                     # Pega o NOME DO PROJETO, usa 'Nome Indisponível' se não encontrar
-                    # CORRIGIDO: Chave 'Projeto' é a correta retornada pelo MacroService, não 'name'
                     project_name = project_details.get('Projeto', 'Nome Indisponível') if project_details else 'Nome Indisponível'
                     
-                    # Debug: Log do nome encontrado
-                    current_app.logger.info(f"[Debug] Nome do projeto encontrado: {project_name}")
+                    # OTIMIZAÇÃO: Removido log excessivo de nome do projeto
 
                     result.append({
                         'backlog_id': backlog.id,
@@ -880,8 +909,8 @@ def get_unassigned_tasks():
                         'tasks': tasks
                     })
                 else:
-                    # Caso raro: tarefas órfãs? Logar isso.
-                    current_app.logger.warning(f"Tarefas encontradas para backlog_id {backlog_id} que não existe mais.")
+                    # OTIMIZAÇÃO: Log apenas em WARNING para casos raros
+                    current_app.logger.warning(f"Tarefas órfãs encontradas para backlog_id {backlog_id}")
 
         # Opcional: Ordenar a lista de backlogs/projetos resultantes
         result.sort(key=lambda x: (x.get('project_id', '')))
@@ -919,7 +948,8 @@ def assign_task_to_sprint(task_id):
     old_sprint_id = task.sprint_id
     old_position = task.position
 
-    current_app.logger.info(f"[AssignTask] Iniciando. TaskID: {task_id}, OldSprint: {old_sprint_id}, OldPos: {old_position}, NewSprint: {new_sprint_id}, NewPos: {new_position}")
+    # OTIMIZAÇÃO: Log mínimo apenas para debugging crítico se necessário
+    # current_app.logger.info(f"[AssignTask] Iniciando. TaskID: {task_id}, OldSprint: {old_sprint_id}, OldPos: {old_position}, NewSprint: {new_sprint_id}, NewPos: {new_position}")
 
     try:
         # 1. Ajusta posições na lista de ORIGEM (se diferente da destino)
@@ -931,19 +961,19 @@ def assign_task_to_sprint(task_id):
                         Task.is_generic == True,
                         Task.sprint_id == None,
                         Task.position > old_position
-                    ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
+                    ).update({Task.position: Task.position - 1}, synchronize_session=False)
                 else:
                     # Para tarefas do backlog, mantém o comportamento original
                     Task.query.filter(
                         Task.backlog_id == task.backlog_id,
                         Task.sprint_id == None,
                         Task.position > old_position
-                    ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
+                    ).update({Task.position: Task.position - 1}, synchronize_session=False)
             else:
                 Task.query.filter(
                     Task.sprint_id == old_sprint_id,
                     Task.position > old_position
-                ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
+                ).update({Task.position: Task.position - 1}, synchronize_session=False)
         
         # 2. Ajusta posições na lista de DESTINO
         if old_sprint_id != new_sprint_id:
@@ -954,19 +984,19 @@ def assign_task_to_sprint(task_id):
                         Task.is_generic == True,
                         Task.sprint_id == None,
                         Task.position >= new_position
-                    ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
+                    ).update({Task.position: Task.position + 1}, synchronize_session=False)
                 else:
                     # Para tarefas do backlog, mantém o comportamento original
                     Task.query.filter(
                         Task.backlog_id == task.backlog_id,
                         Task.sprint_id == None,
                         Task.position >= new_position
-                    ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
+                    ).update({Task.position: Task.position + 1}, synchronize_session=False)
             else:
                 Task.query.filter(
                     Task.sprint_id == new_sprint_id,
                     Task.position >= new_position
-                ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
+                ).update({Task.position: Task.position + 1}, synchronize_session=False)
         else:
             if new_position > old_position:
                 if new_sprint_id is not None:
@@ -974,7 +1004,7 @@ def assign_task_to_sprint(task_id):
                         Task.sprint_id == new_sprint_id,
                         Task.position > old_position,
                         Task.position <= new_position
-                    ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
+                    ).update({Task.position: Task.position - 1}, synchronize_session=False)
                 else:
                     if task.is_generic:
                         Task.query.filter(
@@ -982,21 +1012,21 @@ def assign_task_to_sprint(task_id):
                             Task.sprint_id == None,
                             Task.position > old_position,
                             Task.position <= new_position
-                        ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
+                        ).update({Task.position: Task.position - 1}, synchronize_session=False)
                     else:
                         Task.query.filter(
                             Task.backlog_id == task.backlog_id,
                             Task.sprint_id == None,
                             Task.position > old_position,
                             Task.position <= new_position
-                        ).update({Task.position: Task.position - 1}, synchronize_session='fetch')
+                        ).update({Task.position: Task.position - 1}, synchronize_session=False)
             elif new_position < old_position:
                 if new_sprint_id is not None:
                     Task.query.filter(
                         Task.sprint_id == new_sprint_id,
                         Task.position >= new_position,
                         Task.position < old_position
-                    ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
+                    ).update({Task.position: Task.position + 1}, synchronize_session=False)
                 else:
                     if task.is_generic:
                         Task.query.filter(
@@ -1004,21 +1034,26 @@ def assign_task_to_sprint(task_id):
                             Task.sprint_id == None,
                             Task.position >= new_position,
                             Task.position < old_position
-                        ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
+                        ).update({Task.position: Task.position + 1}, synchronize_session=False)
                     else:
                         Task.query.filter(
                             Task.backlog_id == task.backlog_id,
                             Task.sprint_id == None,
                             Task.position >= new_position,
                             Task.position < old_position
-                        ).update({Task.position: Task.position + 1}, synchronize_session='fetch')
+                        ).update({Task.position: Task.position + 1}, synchronize_session=False)
 
         task.sprint_id = new_sprint_id
         task.position = new_position
 
         db.session.commit()
         db.session.refresh(task)
-        return jsonify(serialize_task(task))
+        
+        # OTIMIZAÇÃO: Usar função otimizada se a tarefa está em uma sprint
+        if new_sprint_id:
+            return jsonify(serialize_task_for_sprints(task))
+        else:
+            return jsonify(serialize_task(task))
 
     except Exception as e:
         db.session.rollback()

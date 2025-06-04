@@ -18,6 +18,8 @@ from app.utils import (
 )
 import unicodedata
 from .. import db
+import time
+from typing import Dict, Any, Optional
 
 # Configuração de logging
 logging.basicConfig(level=logging.INFO)
@@ -28,6 +30,59 @@ STATUS_NAO_ATIVOS = ['FECHADO', 'ENCERRADO', 'RESOLVIDO', 'CANCELADO']
 STATUS_EM_ANDAMENTO = ['NOVO', 'AGUARDANDO', 'BLOQUEADO', 'EM ATENDIMENTO']
 STATUS_ATRASADO = ['ATRASADO']
 STATUS_ATIVO = ['ATIVO']
+
+# OTIMIZAÇÃO: Cache global para MacroService (SEM LOGS EXCESSIVOS)
+_MACRO_CACHE = {
+    'dados': None,
+    'timestamp': None,
+    'ttl_seconds': 30,  # Cache de 30 segundos para performance
+    'project_details_cache': {},  # Cache específico para detalhes de projetos
+    'project_cache_ttl': 60  # Cache de projetos dura 60 segundos
+}
+
+def _is_cache_valid():
+    """Verifica se o cache de dados está válido."""
+    if _MACRO_CACHE['dados'] is None or _MACRO_CACHE['timestamp'] is None:
+        return False
+    
+    elapsed = time.time() - _MACRO_CACHE['timestamp']
+    return elapsed < _MACRO_CACHE['ttl_seconds']
+
+def _get_cached_dados():
+    """Retorna dados do cache se válido, senão None."""
+    if _is_cache_valid():
+        return _MACRO_CACHE['dados']
+    return None
+
+def _set_cached_dados(dados):
+    """Define dados no cache com timestamp atual."""
+    _MACRO_CACHE['dados'] = dados.copy() if dados is not None and not dados.empty else pd.DataFrame()
+    _MACRO_CACHE['timestamp'] = time.time()
+
+def _get_cached_project_details(project_id):
+    """Retorna detalhes do projeto do cache se válido."""
+    cache_key = str(project_id)
+    cache_data = _MACRO_CACHE['project_details_cache'].get(cache_key)
+    
+    if cache_data is None:
+        return None
+    
+    # Verifica se o cache do projeto ainda é válido
+    elapsed = time.time() - cache_data['timestamp']
+    if elapsed < _MACRO_CACHE['project_cache_ttl']:
+        return cache_data['details']
+    else:
+        # Remove cache expirado
+        del _MACRO_CACHE['project_details_cache'][cache_key]
+        return None
+
+def _set_cached_project_details(project_id, details):
+    """Cacheia detalhes específicos de um projeto."""
+    cache_key = str(project_id)
+    _MACRO_CACHE['project_details_cache'][cache_key] = {
+        'details': details,
+        'timestamp': time.time()
+    }
 
 class MacroService(BaseService):
     def __init__(self):
@@ -54,38 +109,39 @@ class MacroService(BaseService):
 
     def carregar_dados(self, fonte=None):
         """
-        Carrega e processa os dados do CSV, permitindo especificar uma fonte alternativa.
+        Carrega dados da fonte especificada (arquivo CSV) ou usa dados em cache.
+        OTIMIZADO: Usa cache de 30 segundos e reduz logs para melhorar performance.
         
         Args:
-            fonte: Nome do arquivo de dados alternativo (opcional)
-                  Se None, usa a fonte padrão 'dadosr.csv'
+            fonte (str, optional): Nome específico do arquivo (ex: 'dadosr.csv' ou 'dadosr_apt_jan.csv')
         
         Returns:
-            DataFrame pandas com os dados processados
+            pd.DataFrame: DataFrame com os dados processados, ou DataFrame vazio em caso de erro
         """
+        # OTIMIZAÇÃO: Verificar cache primeiro (SEM LOGS se usar cache)
+        if fonte is None:  # Apenas dados padrão usam cache
+            cached_dados = _get_cached_dados()
+            if cached_dados is not None:
+                # SEM LOGS para evitar spam - dados já estão processados
+                return cached_dados
+        
+        # Cache miss ou fonte específica - carregar dados
         try:
-            # Determina qual arquivo deve ser carregado
+            # Determina o arquivo a ser carregado
             if fonte:
-                arquivo_nome = f"{fonte}.csv"
                 # Obtém o diretório data (mesmo local do dadosr.csv)
                 data_dir = self.csv_path.parent
-                csv_path = data_dir / arquivo_nome
-                logger.info(f"Tentando carregar dados da fonte alternativa: {csv_path}")
+                csv_path = data_dir / fonte
+                # OTIMIZAÇÃO: Log reduzido apenas para fontes específicas
+                if fonte != 'dadosr.csv':
+                    logger.info(f"Carregando fonte específica: {csv_path}")
             else:
-                logger.info(f"Tentando carregar dados da fonte padrão: {self.csv_path}")
+                # OTIMIZAÇÃO: Log silenciado para carregamento padrão (evita spam)
                 csv_path = self.csv_path
             
             # Verifica se o arquivo existe
             if not csv_path.is_file():
-                arquivo_esperado = str(csv_path)
-                mensagem_erro = f"Arquivo CSV não encontrado: {arquivo_esperado}"
-                logger.error(mensagem_erro)
-                
-                # Verifica quais arquivos estão disponíveis no diretório
-                data_dir = csv_path.parent
-                arquivos_disponiveis = [f.name for f in data_dir.glob("*.csv")]
-                logger.info(f"Arquivos disponíveis no diretório: {arquivos_disponiveis}")
-                
+                logger.error(f"Arquivo CSV não encontrado: {csv_path}")
                 return pd.DataFrame()
             
             # Lê o CSV com parâmetros corretos
@@ -95,64 +151,55 @@ class MacroService(BaseService):
                 sep=';',
                 encoding='latin1',
             )
-            logger.info(f"Arquivo {csv_path} carregado com {len(dados)} linhas.")
+            # OTIMIZAÇÃO: Log reduzido para evitar spam
             
-            # Log das colunas originais para depuração
-            logger.info(f"Colunas originais no arquivo {os.path.basename(csv_path)}: {dados.columns.tolist()}")
+            # OTIMIZAÇÃO: Processar dados sem logs excessivos
+            dados_processados = self._processar_dados_otimizado(dados, csv_path)
             
-            # --- Passo 1.2: Tratamento Inicial (Usando Nomes de dadosr.csv) ---
+            # OTIMIZAÇÃO: Cachear apenas dados padrão
+            if fonte is None:
+                _set_cached_dados(dados_processados)
             
-            # 1.2.1 Conversão de Datas
+            return dados_processados
+            
+        except Exception as e:
+            logger.error(f"Erro ao carregar dados: {str(e)}")
+            return pd.DataFrame()
+
+    def _processar_dados_otimizado(self, dados, csv_path):
+        """
+        Processa dados com logs mínimos para evitar spam.
+        OTIMIZAÇÃO: Versão silenciosa do processamento original.
+        """
+        try:
+            # --- Passo 1.2: Tratamento Inicial (SEM LOGS EXCESSIVOS) ---
+            
+            # 1.2.1 Conversão de Datas (silenciosa)
             colunas_data_simples = ['Aberto em', 'Resolvido em', 'Data da última ação']
             for col in colunas_data_simples:
                 if col in dados.columns:
                     original_col = dados[col].copy()
                     dados[col] = pd.to_datetime(original_col, format='%d/%m/%Y', errors='coerce')
-                    # Log de erros na conversão de datas simples
-                    mask_nat_simple = dados[col].isna()
-                    if mask_nat_simple.any():
-                        problematic_values = original_col[mask_nat_simple].unique().tolist()
-                        logger.warning(f"Falha ao converter {mask_nat_simple.sum()} valores para data na coluna '{col}' (formato esperado dd/mm/yyyy). Valores originais problemáticos: {problematic_values}")
-                else:
-                    logger.warning(f"Coluna de data esperada não encontrada: {col}")
-            
-            # Tratamento especial para 'Vencimento em' (pode ter hora)
+                    # OTIMIZAÇÃO: Logs removidos para evitar spam
+
+            # Tratamento especial para 'Vencimento em' (silencioso)
             if 'Vencimento em' in dados.columns:
                 col_vencimento = 'Vencimento em'
-                # Guarda a coluna original para a segunda tentativa de parse
                 original_vencimento = dados[col_vencimento].copy()
-                
-                # Tentativa 1: Formato com hora
                 dados[col_vencimento] = pd.to_datetime(original_vencimento, format='%d/%m/%Y %H:%M', errors='coerce')
-                
-                # Identifica as linhas que falharam (viraram NaT)
                 mask_nat = dados[col_vencimento].isna()
-                
-                # Tentativa 2: Formato sem hora (APENAS para as que falharam E não eram originalmente vazias)
                 mask_retry = mask_nat & original_vencimento.notna() & (original_vencimento != '')
                 if mask_retry.any():
-                    logger.info(f"Tentando formato %d/%m/%Y para {mask_retry.sum()} valores de '{col_vencimento}' que falharam no formato com hora.")
-                    # Usa a string ORIGINAL guardada para a segunda tentativa
                     dados.loc[mask_retry, col_vencimento] = pd.to_datetime(original_vencimento[mask_retry], format='%d/%m/%Y', errors='coerce')
-                    
-                    # Log de erros na segunda tentativa (se houver)
-                    mask_failed_again = dados.loc[mask_retry, col_vencimento].isna()
-                    if mask_failed_again.any():
-                        logger.warning(f"{mask_failed_again.sum()} valores de '{col_vencimento}' falharam em AMBOS os formatos (dd/mm/yyyy HH:MM e dd/mm/yyyy). Valores originais problemáticos: {original_vencimento[mask_retry][mask_failed_again].unique().tolist()}")
-            else:
-                logger.warning("Coluna de data esperada não encontrada: Vencimento em")
 
-            # 1.2.2 Conversão Numérica
+            # 1.2.2 Conversão Numérica (silenciosa)
             if 'Número' in dados.columns:
                 dados['Número'] = pd.to_numeric(dados['Número'], errors='coerce').astype('Int64')
-            else:
-                logger.warning("Coluna numérica esperada não encontrada: Número")
 
             if 'Esforço estimado' in dados.columns:
                 dados['Esforço estimado'] = dados['Esforço estimado'].str.replace(',', '.', regex=False)
                 dados['Esforço estimado'] = pd.to_numeric(dados['Esforço estimado'], errors='coerce').fillna(0.0)
             else:
-                logger.warning("Coluna numérica esperada não encontrada: Esforço estimado")
                 dados['Esforço estimado'] = 0.0
 
             if 'Andamento' in dados.columns:
@@ -160,19 +207,15 @@ class MacroService(BaseService):
                 dados['Andamento'] = pd.to_numeric(dados['Andamento'], errors='coerce').fillna(0.0)
                 dados['Andamento'] = dados['Andamento'].clip(lower=0, upper=100)
             else:
-                logger.warning("Coluna numérica esperada não encontrada: Andamento")
                 dados['Andamento'] = 0.0
             
-            # 1.2.3 Conversão de Tempo para Horas Decimais
+            # 1.2.3 Conversão de Tempo para Horas Decimais (silenciosa)
             if 'Tempo trabalhado' in dados.columns:
                 dados['Tempo trabalhado'] = dados['Tempo trabalhado'].apply(self.converter_tempo_para_horas)
             else:
-                logger.warning("Coluna de tempo esperada não encontrada: Tempo trabalhado")
                 dados['Tempo trabalhado'] = 0.0
 
-            # --- Passo 1.3: Renomeação (Novos Nomes -> Nomes Antigos/Apelidos) ---
-            
-            # 1.3.1 Renomeação de colunas
+            # --- Passo 1.3: Renomeação (SEM LOGS EXCESSIVOS) ---
             rename_map_new_to_old = {
                 'Número': 'Numero',
                 'Cliente (Completo)': 'Projeto',
@@ -190,74 +233,53 @@ class MacroService(BaseService):
                 'Vencimento em': 'VencimentoEm'
             }
             
-            # Log dos valores únicos de Squad antes da renomeação
-            if 'Serviço (2º Nível)' in dados.columns:
-                logger.info(f"Valores únicos em 'Serviço (2º Nível)' (Squad) antes da renomeação: {dados['Serviço (2º Nível)'].unique().tolist()}")
-            
             colunas_para_renomear = {k: v for k, v in rename_map_new_to_old.items() if k in dados.columns}
             dados.rename(columns=colunas_para_renomear, inplace=True)
-            logger.info(f"Colunas renomeadas para nomes antigos/apelidos: {list(colunas_para_renomear.values())}")
+            # OTIMIZAÇÃO: Log removido para evitar spam
 
-            # --- Passo 1.4: Padronização Final (Usando Nomes Antigos/Apelidos) ---
+            # --- Passo 1.4: Padronização Final (SEM LOGS EXCESSIVOS) ---
             
-            # 1.4.1 Padronização de Status (para UPPERCASE)
+            # 1.4.1 Padronização de Status (silenciosa)
             if 'Status' in dados.columns:
                 dados['Status'] = dados['Status'].astype(str).str.strip().str.upper()
-                logger.info(f"Coluna 'Status' padronizada para UPPERCASE. Valores únicos: {dados['Status'].unique().tolist()}")
-            else:
-                logger.warning("Coluna 'Status' não encontrada para padronização final.")
 
-            # 1.4.2 Padronização de Faturamento
+            # 1.4.2 Padronização de Faturamento (silenciosa)
             faturamento_map = {
                 "PRIME": "PRIME",
                 "Descontar do PLUS no inicio do projeto": "PLUS",
                 "Faturar no inicio do projeto": "INICIO",
                 "Faturar no final do projeto": "TERMINO",
-                "Faturado em outro projeto": "FEOP", # Chave sem o ponto
+                "Faturado em outro projeto": "FEOP",
                 "Engajamento": "ENGAJAMENTO"
             }
             if 'Faturamento' in dados.columns:
                 dados['Faturamento'] = dados['Faturamento'].astype(str).str.strip()
-                # --- INÍCIO ADIÇÃO: Remover ponto final (e outros espaços) --- 
-                dados['Faturamento'] = dados['Faturamento'].str.rstrip('. ').str.strip() # Remove . ou espaço do final e strip de novo
-                # --- FIM ADIÇÃO ---
-                dados['Faturamento_Original'] = dados['Faturamento'] # Guarda após limpeza
+                dados['Faturamento'] = dados['Faturamento'].str.rstrip('. ').str.strip()
+                dados['Faturamento_Original'] = dados['Faturamento']
                 dados['Faturamento'] = dados['Faturamento'].map(faturamento_map)
                 nao_mapeados = dados['Faturamento'].isna()
                 if nao_mapeados.any():
-                    # Agora Faturamento_Original já está limpo, o log mostrará o valor limpo que falhou
-                    logger.warning(f"Valores de faturamento não mapeados encontrados (após limpeza): {dados.loc[nao_mapeados, 'Faturamento_Original'].unique().tolist()}")
                     dados['Faturamento'] = dados['Faturamento'].fillna('NAO_MAPEADO')
-                logger.info(f"Coluna 'Faturamento' mapeada para códigos curtos. Valores únicos: {dados['Faturamento'].unique().tolist()}")
-            else:
-                logger.warning("Coluna 'Faturamento' não encontrada para padronização final.")
 
-            # 1.4.3 Padronização de outras colunas de texto
+            # 1.4.3 Padronização de outras colunas de texto (silenciosa)
             colunas_texto_padrao = ['Projeto', 'Squad', 'Especialista', 'Account Manager']
             for col in colunas_texto_padrao:
                 if col in dados.columns:
                     dados[col] = dados[col].astype(str).str.strip()
                     dados[col] = dados[col].fillna('')
-                else:
-                    logger.warning(f"Coluna de texto '{col}' não encontrada para padronização final.")
             
-            # Log dos valores únicos de Squad após padronização
-            if 'Squad' in dados.columns:
-                logger.info(f"Valores únicos em 'Squad' após padronização: {dados['Squad'].unique().tolist()}")
-            
-            # Cálculo de HorasRestantes
+            # Cálculo de HorasRestantes (silencioso)
             if 'Horas' in dados.columns and 'HorasTrabalhadas' in dados.columns:
                 dados['HorasRestantes'] = (dados['Horas'] - dados['HorasTrabalhadas']).round(1)
-                logger.info("Coluna 'HorasRestantes' calculada.")
             else:
-                logger.warning("Não foi possível calcular 'HorasRestantes': colunas 'Horas' ou 'HorasTrabalhadas' ausentes após renomeação.")
                 dados['HorasRestantes'] = 0.0
 
-            logger.info(f"Dados processados com sucesso: {len(dados)} registros")
+            # OTIMIZAÇÃO: Log mínimo apenas quando necessário
+            # logger.info(f"Dados processados: {len(dados)} registros")
             return dados
             
         except Exception as e:
-            logger.error(f"Erro ao carregar dados: {str(e)}", exc_info=True)
+            logger.error(f"Erro ao processar dados: {str(e)}")
             return pd.DataFrame()
 
     def obter_dados_e_referencia_atual(self):
@@ -3120,32 +3142,49 @@ class MacroService(BaseService):
     def obter_detalhes_projeto(self, project_id):
         """
         Busca os detalhes de um projeto específico pelo ID.
-        Aceita tanto int quanto string como project_id.
-        """
-        self.logger.info(f"Buscando detalhes para project_id: {project_id}")
+        OTIMIZADO: Usa cache de 60 segundos para projetos e reduz logs.
         
+        Args:
+            project_id: ID do projeto (int ou string)
+            
+        Returns:
+            dict: Detalhes do projeto ou None se não encontrado
+        """
+        # OTIMIZAÇÃO: Verificar cache de projeto primeiro (SEM LOGS)
+        cached_details = _get_cached_project_details(project_id)
+        if cached_details is not None:
+            # SEM LOGS para evitar spam - detalhes já estão no cache
+            return cached_details
+        
+        # Cache miss - buscar projeto
         dados = self.carregar_dados()
         if dados.empty:
-            self.logger.warning("Dados vazios ao buscar detalhes do projeto")
             return None
         
         # Converte project_id para int para garantir compatibilidade
         try:
             project_id_int = int(project_id)
         except (ValueError, TypeError):
-            self.logger.warning(f"Não foi possível converter project_id '{project_id}' para int")
+            # OTIMIZAÇÃO: Log apenas em caso de erro real
+            logger.warning(f"Não foi possível converter project_id '{project_id}' para int")
             return None
         
-        # Busca o projeto pelo ID (assumindo que a coluna Numero contém o project_id)
+        # Busca o projeto pelo ID
         projeto = dados[dados['Numero'] == project_id_int]
         
         if projeto.empty:
-            self.logger.warning(f"Projeto com ID {project_id_int} não encontrado")
+            # OTIMIZAÇÃO: Log silenciado para projetos não encontrados (muito comum)
+            # logger.warning(f"Projeto com ID {project_id_int} não encontrado")
             return None
         
         # Retorna o primeiro resultado como dicionário
         projeto_dict = projeto.iloc[0].to_dict()
-        self.logger.info(f"Projeto encontrado: {projeto_dict.get('Projeto', 'N/A')}")
+        
+        # OTIMIZAÇÃO: Cache o resultado para futuras consultas
+        _set_cached_project_details(project_id, projeto_dict)
+        
+        # OTIMIZAÇÃO: Log silenciado para evitar spam (projeto encontrado é comum)
+        # self.logger.info(f"Projeto encontrado: {projeto_dict.get('Projeto', 'N/A')}")
         
         return projeto_dict
 
