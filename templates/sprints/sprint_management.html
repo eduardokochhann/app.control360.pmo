@@ -1004,6 +1004,9 @@
                                     <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="${sprint.id}" title="Editar Sprint">
                                         <i class="bi bi-pencil"></i>
                                     </button>
+                                    <button class="btn btn-sm btn-outline-primary test-update-btn" data-id="${sprint.id}" title="Teste: Atualizar Contadores" style="display: none;">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
                                     <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${sprint.id}" data-name="${escapeHtml(sprint.name)}" title="Excluir Sprint">
                                         <i class="bi bi-trash"></i>
                                     </button>
@@ -1362,9 +1365,16 @@
             const updatedTask = await response.json();
             console.log("[API Call] Tarefa atualizada com sucesso:", updatedTask);
             
-            // Atualiza apenas os elementos visuais necessários sem recarregar tudo
-            updateSprintHoursDisplayOptimized(fromList, toList, taskHours);
-            updateSpecialistPopoverOptimized(fromList, toList);
+            // Usa os novos métodos globais para atualização automática
+            if (fromList && fromList.classList.contains('sprint-tasks')) {
+                const fromSprintId = fromList.dataset.sprintId;
+                window.updateSprintHourCounters(fromSprintId);
+            }
+            
+            if (toList && toList.classList.contains('sprint-tasks')) {
+                const toSprintId = toList.dataset.sprintId;
+                window.updateSprintHourCounters(toSprintId);
+            }
 
         } catch (error) {
             console.error("[API Call] Erro ao atualizar sprint da tarefa:", error);
@@ -1392,18 +1402,14 @@
             const updatedTask = await response.json();
             console.log(`[API Call] Tarefa ${taskId} movida para backlog via API:`, updatedTask);
             
-            // Atualiza apenas os elementos visuais necessários
-            updateSprintHoursDisplayOptimized(fromList, null, taskHours);
-            updateSpecialistPopoverOptimized(fromList, null);
+            // Usa os novos métodos globais para atualização automática
+            if (fromList && fromList.classList.contains('sprint-tasks')) {
+                const fromSprintId = fromList.dataset.sprintId;
+                window.updateSprintHourCounters(fromSprintId);
+            }
             
             // Remove o elemento da lista atual e recarrega apenas a lista de destino
             taskElement.remove();
-            
-            if (updatedTask.is_generic) {
-                loadGenericTasks();
-            } else {
-                loadBacklogTasks();
-            }
             
         } catch (error) {
             console.error(`[API Call] Erro ao mover tarefa para backlog:`, error);
@@ -1515,12 +1521,31 @@
                 });
 
                 // Cria novo popover
-                new bootstrap.Popover(popoverButton, {
+                const popoverInstance = new bootstrap.Popover(popoverButton, {
                     content: popoverContent,
                     html: true,
                     placement: 'bottom',
-                    trigger: 'hover focus',
-                    title: 'Especialistas'
+                    trigger: 'hover', // Apenas hover, remove focus para evitar problemas
+                    title: 'Especialistas',
+                    delay: { show: 300, hide: 100 }, // Adiciona delays para melhor UX
+                    container: 'body' // Anexa ao body para evitar conflitos de z-index
+                });
+
+                // Adiciona listeners manuais para melhor controle
+                let hideTimeout;
+                
+                popoverButton.addEventListener('mouseenter', () => {
+                    if (hideTimeout) {
+                        clearTimeout(hideTimeout);
+                    }
+                });
+                
+                popoverButton.addEventListener('mouseleave', () => {
+                    hideTimeout = setTimeout(() => {
+                        if (popoverInstance) {
+                            popoverInstance.hide();
+                        }
+                    }, 200); // Delay de 200ms antes de esconder
                 });
                 
                 popoverButton.style.display = 'inline-flex';
@@ -1543,22 +1568,43 @@
             }
             
             // Para popovers de especialistas, usa o conteúdo do div oculto
-            let popoverOptions = {};
+            let popoverOptions = {
+                html: true,
+                placement: 'bottom',
+                trigger: 'hover', // Apenas hover, remove focus para evitar problemas
+                title: 'Especialistas',
+                delay: { show: 300, hide: 100 }, // Adiciona delays para melhor UX
+                container: 'body' // Anexa ao body para evitar conflitos de z-index
+            };
+            
             if (popoverTriggerEl.hasAttribute('data-popover-content-id')) {
                 const contentId = popoverTriggerEl.getAttribute('data-popover-content-id');
                 const contentDiv = document.getElementById(contentId);
                 if (contentDiv) {
                     popoverOptions.content = contentDiv.innerHTML;
-                    popoverOptions.html = true;
-                    popoverOptions.placement = 'bottom';
-                    popoverOptions.trigger = 'hover focus';
-                    popoverOptions.title = 'Especialistas';
                 }
             }
             
             // Cria e armazena a instância
             const instance = new bootstrap.Popover(popoverTriggerEl, popoverOptions);
             popoverInstances[popoverTriggerEl.id] = instance;
+
+            // Adiciona listeners manuais para melhor controle
+            let hideTimeout;
+            
+            popoverTriggerEl.addEventListener('mouseenter', () => {
+                if (hideTimeout) {
+                    clearTimeout(hideTimeout);
+                }
+            });
+            
+            popoverTriggerEl.addEventListener('mouseleave', () => {
+                hideTimeout = setTimeout(() => {
+                    if (instance) {
+                        instance.hide();
+                    }
+                }, 200); // Delay de 200ms antes de esconder
+            });
         });
         console.log(`[Sprint Mgmt] ${Object.keys(popoverInstances).length} instâncias Popover inicializadas.`);
     }
@@ -1773,6 +1819,29 @@
         else if (target.classList.contains('delete-btn')) {
             const sprintName = target.dataset.name || `Sprint ${sprintId}`; // Pega nome do data attribute
             deleteSprint(sprintId, sprintName);
+        }
+        else if (target.classList.contains('test-update-btn')) {
+            // Botão de teste para desenvolvedores
+            console.log(`[TESTE] Atualizando contadores da sprint ${sprintId}`);
+            window.updateSprintHourCounters(sprintId);
+            
+            // Exemplo de como adicionar uma tarefa de teste
+            if (confirm('Deseja adicionar uma tarefa de teste?')) {
+                const taskData = {
+                    id: Date.now(), // ID temporário
+                    title: `Tarefa de Teste ${new Date().getHours()}:${new Date().getMinutes()}`,
+                    estimated_effort: Math.floor(Math.random() * 8) + 1, // 1-8 horas
+                    specialist_name: 'Desenvolvedor Teste',
+                    priority: 'Média',
+                    project_id: 'TEST',
+                    is_generic: false
+                };
+                
+                const success = window.addTaskToSprintVisually(sprintId, taskData);
+                if (success) {
+                    alert('Tarefa de teste adicionada com sucesso! Observe como o contador foi atualizado automaticamente.');
+                }
+            }
         }
         // Adicionar else if para 'allocate-btn' futuramente
     });
@@ -2297,6 +2366,368 @@
     // }
     // <<< FIM: Event Listeners para Coluna de Tarefas Genéricas >>>
 
+    // <<< INÍCIO: Funções Globais para Atualização Automática de Contadores >>>
+    
+    // Função global para recalcular e atualizar horas de uma sprint específica
+    window.updateSprintHourCounters = function(sprintId) {
+        console.log(`[Sprint Update] Atualizando contadores da sprint ${sprintId}`);
+        
+        const sprintCard = document.querySelector(`.sprint-card[data-sprint-id="${sprintId}"]`);
+        if (!sprintCard) {
+            console.warn(`[Sprint Update] Sprint card ${sprintId} não encontrado`);
+            return;
+        }
+
+        const sprintTasksContainer = sprintCard.querySelector('.sprint-tasks');
+        if (!sprintTasksContainer) {
+            console.warn(`[Sprint Update] Container de tarefas da sprint ${sprintId} não encontrado`);
+            return;
+        }
+
+        // Recalcula total de horas da sprint
+        const tasks = sprintTasksContainer.querySelectorAll('.backlog-task-card');
+        let totalSprintHours = 0;
+        let hoursBySpecialist = {};
+
+        tasks.forEach(task => {
+            const hours = parseFloat(task.dataset.estimatedHours) || 0;
+            totalSprintHours += hours;
+
+            // Calcula horas por especialista para o popover
+            const specialist = task.dataset.specialistName;
+            if (specialist && specialist.trim() && specialist !== 'Não Atribuído') {
+                hoursBySpecialist[specialist] = (hoursBySpecialist[specialist] || 0) + hours;
+            }
+        });
+
+        // Busca o badge de horas totais de forma mais robusta
+        let hoursSpan = sprintCard.querySelector('.sprint-badge:has(i.bi-stopwatch)');
+        if (!hoursSpan) {
+            // Fallback: procura por qualquer elemento que contenha o ícone stopwatch
+            hoursSpan = sprintCard.querySelector('.sprint-badge i.bi-stopwatch');
+            if (hoursSpan) {
+                hoursSpan = hoursSpan.parentElement;
+            }
+        }
+        
+        // Terceiro fallback: procura pelo padrão de texto das horas
+        if (!hoursSpan) {
+            const allBadges = sprintCard.querySelectorAll('.sprint-badge');
+            allBadges.forEach(badge => {
+                if (badge.textContent.includes('h') && badge.querySelector('i.bi-stopwatch')) {
+                    hoursSpan = badge;
+                }
+            });
+        }
+
+        if (hoursSpan) {
+            hoursSpan.innerHTML = `<i class="bi bi-stopwatch"></i>${totalSprintHours.toFixed(1)}h`;
+            console.log(`[Sprint Update] Horas atualizadas para ${totalSprintHours.toFixed(1)}h na sprint ${sprintId}`);
+        } else {
+            console.warn(`[Sprint Update] Elemento de horas não encontrado na sprint ${sprintId}`);
+            console.log('[Sprint Update] Elementos encontrados:', sprintCard.querySelectorAll('.sprint-badge'));
+        }
+
+        // Atualiza popover de especialistas
+        updateSpecialistPopoverForSprint(sprintCard, hoursBySpecialist);
+    };
+
+    // Função para atualizar popover de especialistas de uma sprint específica
+    function updateSpecialistPopoverForSprint(sprintCard, hoursBySpecialist) {
+        const popoverButton = sprintCard.querySelector('.specialist-hours-popover');
+        if (!popoverButton) return;
+
+        // Destrói popover existente para evitar conflitos
+        const existingPopover = bootstrap.Popover.getInstance(popoverButton);
+        if (existingPopover) {
+            existingPopover.dispose();
+        }
+
+        if (Object.keys(hoursBySpecialist).length > 0) {
+            // Gera novo conteúdo
+            let popoverContent = '';
+            Object.entries(hoursBySpecialist).forEach(([specialist, hours]) => {
+                const capacidadeTotal = 80; // Valor padrão, idealmente vir da API
+                const horasRestantes = capacidadeTotal - hours;
+                const percentualUtilizado = Math.round((hours / capacidadeTotal) * 100);
+                
+                let badgeClass = 'success';
+                if (percentualUtilizado > 100) {
+                    badgeClass = 'danger';
+                } else if (percentualUtilizado > 80) {
+                    badgeClass = 'warning';
+                }
+                
+                popoverContent += `
+                    <div class="mb-2">
+                        <strong>${escapeHtml(specialist)}</strong><br>
+                        <small>
+                            ${hours.toFixed(1)}h utilizadas / ${capacidadeTotal}h disponíveis<br>
+                            Saldo: ${horasRestantes.toFixed(1)}h 
+                            <span class="badge bg-${badgeClass} ms-1">${percentualUtilizado}%</span>
+                        </small>
+                    </div>
+                `;
+            });
+
+            // Cria novo popover com configuração melhorada
+            const popoverInstance = new bootstrap.Popover(popoverButton, {
+                content: popoverContent,
+                html: true,
+                placement: 'bottom',
+                trigger: 'hover', // Apenas hover, remove focus para evitar problemas
+                title: 'Especialistas',
+                delay: { show: 300, hide: 100 }, // Adiciona delays para melhor UX
+                container: 'body' // Anexa ao body para evitar conflitos de z-index
+            });
+
+            // Adiciona listeners manuais para melhor controle
+            let hideTimeout;
+            
+            popoverButton.addEventListener('mouseenter', () => {
+                if (hideTimeout) {
+                    clearTimeout(hideTimeout);
+                }
+            });
+            
+            popoverButton.addEventListener('mouseleave', () => {
+                hideTimeout = setTimeout(() => {
+                    if (popoverInstance) {
+                        popoverInstance.hide();
+                    }
+                }, 200); // Delay de 200ms antes de esconder
+            });
+            
+            popoverButton.style.display = 'inline-flex';
+        } else {
+            popoverButton.style.display = 'none';
+        }
+    }
+
+    // Função global para adicionar uma tarefa visualmente a uma sprint (sem API)
+    window.addTaskToSprintVisually = function(sprintId, taskData) {
+        console.log(`[Sprint Update] Adicionando tarefa ${taskData.id} visualmente à sprint ${sprintId}`);
+        
+        const sprintCard = document.querySelector(`.sprint-card[data-sprint-id="${sprintId}"]`);
+        if (!sprintCard) {
+            console.warn(`[Sprint Update] Sprint card ${sprintId} não encontrado`);
+            return false;
+        }
+
+        const sprintTasksContainer = sprintCard.querySelector('.sprint-tasks');
+        if (!sprintTasksContainer) {
+            console.warn(`[Sprint Update] Container de tarefas da sprint ${sprintId} não encontrado`);
+            return false;
+        }
+
+        // Remove mensagem de "nenhuma tarefa" se existir
+        const emptyMessage = sprintTasksContainer.querySelector('.text-muted.fst-italic');
+        if (emptyMessage) {
+            emptyMessage.remove();
+        }
+
+        // Cria o elemento HTML da tarefa
+        const taskCard = document.createElement('div');
+        taskCard.className = `backlog-task-card sprint-task-card ${taskData.status === 'concluido' ? 'task-completed' : ''}`;
+        taskCard.dataset.taskId = taskData.id;
+        taskCard.dataset.estimatedHours = taskData.estimated_effort || 0;
+        taskCard.dataset.specialistName = taskData.specialist_name || '';
+        taskCard.dataset.isGeneric = taskData.is_generic || false;
+        taskCard.draggable = true;
+
+        const projectPart = taskData.project_id || 'PROJ';
+        const columnPart = (taskData.column_identifier || 'UNK').substring(0, 3).toUpperCase();
+
+        taskCard.innerHTML = `
+            <div class="task-title">${escapeHtml(taskData.title || taskData.name)}</div>
+            
+            ${taskData.project_id && !taskData.is_generic ? `<div class="task-project-info small text-muted mb-2">
+                <i class="bi bi-folder2 me-1"></i><strong>${taskData.project_id}</strong>${taskData.project_name ? ` - ${escapeHtml(taskData.project_name.length > 25 ? taskData.project_name.substring(0, 25) + '...' : taskData.project_name)}` : ''}
+            </div>` : ''}
+            
+            <div class="task-meta d-flex justify-content-between align-items-center mb-2">
+                <div class="task-meta-left">
+                    <span class="badge rounded-pill task-priority-badge">${escapeHtml(taskData.priority || 'Média')}</span>
+                </div>
+                <div class="task-meta-right d-flex align-items-center gap-2">
+                    ${taskData.estimated_effort ? `<span class="text-muted small"><i class="bi bi-clock me-1"></i>${taskData.estimated_effort}h</span>` : ''}
+                </div>
+            </div>
+            
+            ${taskData.specialist_name ? `<div class="task-specialist small text-primary">
+                <i class="bi bi-person-fill me-1"></i>${escapeHtml(taskData.specialist_name)}
+            </div>` : '<div class="task-specialist small text-muted"><i class="bi bi-person me-1"></i>Não atribuído</div>'}
+        `;
+
+        // Adiciona classe de cor ao badge de prioridade
+        const badgeElement = taskCard.querySelector('.task-priority-badge');
+        if (badgeElement) {
+            const priorityLower = (taskData.priority || '').toLowerCase();
+            let badgeClass = 'text-bg-primary'; // Default: Média
+            if (priorityLower === 'urgente') badgeClass = 'text-bg-danger';
+            else if (priorityLower === 'alta') badgeClass = 'text-bg-warning';
+            else if (priorityLower === 'baixa') badgeClass = 'text-bg-secondary';
+            badgeElement.classList.add(...badgeClass.split(' '));
+        }
+
+        // Adiciona a tarefa ao container
+        sprintTasksContainer.appendChild(taskCard);
+
+        // Atualiza contadores automaticamente
+        window.updateSprintHourCounters(sprintId);
+
+        // Reinicializa sortable para incluir a nova tarefa
+        initializeSortable();
+
+        console.log(`[Sprint Update] Tarefa ${taskData.id} adicionada com sucesso à sprint ${sprintId}`);
+        return true;
+    };
+
+    // Função global para remover uma tarefa visualmente de uma sprint
+    window.removeTaskFromSprintVisually = function(sprintId, taskId) {
+        console.log(`[Sprint Update] Removendo tarefa ${taskId} visualmente da sprint ${sprintId}`);
+        
+        const sprintCard = document.querySelector(`.sprint-card[data-sprint-id="${sprintId}"]`);
+        if (!sprintCard) {
+            console.warn(`[Sprint Update] Sprint card ${sprintId} não encontrado`);
+            return false;
+        }
+
+        const taskCard = sprintCard.querySelector(`.sprint-task-card[data-task-id="${taskId}"]`);
+        if (!taskCard) {
+            console.warn(`[Sprint Update] Tarefa ${taskId} não encontrada na sprint ${sprintId}`);
+            return false;
+        }
+
+        // Remove a tarefa
+        taskCard.remove();
+
+        // Verifica se precisa adicionar mensagem de "nenhuma tarefa"
+        const sprintTasksContainer = sprintCard.querySelector('.sprint-tasks');
+        const remainingTasks = sprintTasksContainer.querySelectorAll('.backlog-task-card');
+        if (remainingTasks.length === 0) {
+            sprintTasksContainer.innerHTML = '<small class="text-muted fst-italic ps-2">Nenhuma tarefa alocada.</small>';
+        }
+
+        // Atualiza contadores automaticamente
+        window.updateSprintHourCounters(sprintId);
+
+        console.log(`[Sprint Update] Tarefa ${taskId} removida com sucesso da sprint ${sprintId}`);
+        return true;
+    };
+
+    // Função global para atualizar dados de uma tarefa existente em uma sprint
+    window.updateTaskInSprintVisually = function(sprintId, taskId, updatedTaskData) {
+        console.log(`[Sprint Update] Atualizando tarefa ${taskId} na sprint ${sprintId}`);
+        
+        const sprintCard = document.querySelector(`.sprint-card[data-sprint-id="${sprintId}"]`);
+        if (!sprintCard) {
+            console.warn(`[Sprint Update] Sprint card ${sprintId} não encontrado`);
+            return false;
+        }
+
+        const taskCard = sprintCard.querySelector(`.sprint-task-card[data-task-id="${taskId}"]`);
+        if (!taskCard) {
+            console.warn(`[Sprint Update] Tarefa ${taskId} não encontrada na sprint ${sprintId}`);
+            return false;
+        }
+
+        // Atualiza datasets
+        if (updatedTaskData.estimated_effort !== undefined) {
+            taskCard.dataset.estimatedHours = updatedTaskData.estimated_effort || 0;
+        }
+        if (updatedTaskData.specialist_name !== undefined) {
+            taskCard.dataset.specialistName = updatedTaskData.specialist_name || '';
+        }
+
+        // Atualiza contadores automaticamente
+        window.updateSprintHourCounters(sprintId);
+
+        console.log(`[Sprint Update] Tarefa ${taskId} atualizada com sucesso na sprint ${sprintId}`);
+        return true;
+    };
+
+    // <<< FIM: Funções Globais para Atualização Automática de Contadores >>>
+
+    // <<< INÍCIO: Exemplo de Integração com APIs Externas >>>
+    
+    // Exemplo de como integrar com outras partes do sistema:
+    // 
+    // 1. Quando uma tarefa é criada e associada a uma sprint:
+    //    window.addTaskToSprintVisually(sprintId, taskData);
+    //
+    // 2. Quando uma tarefa é editada e suas horas mudam:
+    //    window.updateTaskInSprintVisually(sprintId, taskId, {estimated_effort: newHours});
+    //
+    // 3. Quando uma tarefa é removida de uma sprint:
+    //    window.removeTaskFromSprintVisually(sprintId, taskId);
+    //
+    // 4. Para forçar recálculo de uma sprint específica:
+    //    window.updateSprintHourCounters(sprintId);
+    
+    // Hook global que pode ser usado por outras páginas/modais
+    window.sprintManagementHooks = {
+        onTaskCreated: function(taskData, sprintId) {
+            if (sprintId && taskData) {
+                return window.addTaskToSprintVisually(sprintId, taskData);
+            }
+            return false;
+        },
+        
+        onTaskUpdated: function(taskId, updatedData, sprintId) {
+            if (sprintId && taskId) {
+                return window.updateTaskInSprintVisually(sprintId, taskId, updatedData);
+            }
+            return false;
+        },
+        
+        onTaskDeleted: function(taskId, sprintId) {
+            if (sprintId && taskId) {
+                return window.removeTaskFromSprintVisually(sprintId, taskId);
+            }
+            return false;
+        },
+        
+        refreshSprint: function(sprintId) {
+            if (sprintId) {
+                window.updateSprintHourCounters(sprintId);
+                return true;
+            }
+            return false;
+        }
+    };
+    
+    // Expõe o hook globalmente para uso em console ou outras páginas
+    console.log("[Sprint Management] Hooks globais disponíveis em window.sprintManagementHooks");
+    console.log("[Sprint Management] Funções diretas disponíveis:");
+    console.log("  - window.updateSprintHourCounters(sprintId)");
+    console.log("  - window.addTaskToSprintVisually(sprintId, taskData)");
+    console.log("  - window.removeTaskFromSprintVisually(sprintId, taskId)");
+    console.log("  - window.updateTaskInSprintVisually(sprintId, taskId, updatedData)");
+    
+    // Função para habilitar modo de teste (para desenvolvedores)
+    window.enableSprintTestMode = function() {
+        const testButtons = document.querySelectorAll('.test-update-btn');
+        testButtons.forEach(btn => {
+            btn.style.display = 'inline-block';
+        });
+        console.log("[Sprint Management] Modo de teste habilitado! Botões de teste aparecem nos cards das sprints.");
+        console.log("Execute window.disableSprintTestMode() para ocultar.");
+    };
+    
+    window.disableSprintTestMode = function() {
+        const testButtons = document.querySelectorAll('.test-update-btn');
+        testButtons.forEach(btn => {
+            btn.style.display = 'none';
+        });
+        console.log("[Sprint Management] Modo de teste desabilitado.");
+    };
+    
+    console.log("[Sprint Management] Para testar: execute window.enableSprintTestMode() no console");
+    
+    // <<< FIM: Exemplo de Integração com APIs Externas >>>
+
+    // Função para inicializar todos os popovers
   }); // Fim DOMContentLoaded
 </script>
 {# Adiciona SortableJS #}

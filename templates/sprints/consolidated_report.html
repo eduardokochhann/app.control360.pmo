@@ -4,196 +4,977 @@
 
 {% block extra_css %}
 <style>
+    /* ===== DESIGN PROFISSIONAL SOU.CLOUD - RELATÓRIO DE SPRINTS ===== */
+    
+    /* Importa fonte elegante do Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    /* Classes para controlar visibilidade na tela e no PDF */
+    .pdf-only {
+        display: none; /* Oculta elementos que devem aparecer apenas no PDF */
+    }
+    
+    .screen-only {
+        display: block; /* Elementos que só aparecem na tela */
+    }
+    
+    /* Ocultar navbar/header do sistema */
+    .navbar,
+    .navbar-brand,
+    .navbar-nav,
+    .topbar,
+    .sidebar,
+    nav,
+    header,
+    .main-header,
+    .top-nav,
+    .navigation,
+    #topbar,
+    #navbar,
+    #header,
+    .header,
+    .nav-header,
+    .app-header {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        overflow: hidden !important;
+    }
+    
+    /* Resetar body para remover qualquer padding/margin do navbar */
+    body {
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+    }
+    
+    /* Garantir que o conteúdo ocupe toda a tela */
+    .content-wrapper,
+    .main-content,
+    .page-content,
+    .wrapper {
+        margin-left: 0 !important;
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+    }
+    
+    /* Variáveis de design SOU.Cloud */
+    :root {
+        --sou-rosa: #FF2D5F;
+        --sou-azul: #07304F;
+        --sou-rosa-light: #ff4d7a;
+        --sou-azul-light: #0a4a78;
+        --sou-rosa-gradient: linear-gradient(135deg, #FF2D5F 0%, #ff4d7a 100%);
+        --sou-azul-gradient: linear-gradient(135deg, #07304F 0%, #0a4a78 100%);
+        --primary-gradient: linear-gradient(135deg, #07304F 0%, #FF2D5F 100%);
+        --light-shadow: 0 2px 12px rgba(7, 48, 79, 0.1);
+        --premium-shadow: 0 4px 24px rgba(7, 48, 79, 0.15);
+        --text-primary: #2d3748;
+        --text-secondary: #4a5568;
+        --text-muted: #718096;
+        --bg-light: #f8fafc;
+        --bg-white: #ffffff;
+        --border-light: #e2e8f0;
+    }
+    
+    /* Reset e base typography */
+    * {
+        box-sizing: border-box;
+    }
+    
+    html, body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-weight: 400;
+        color: var(--text-primary);
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        background-attachment: fixed;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100%;
+        height: 100vh;
+        overflow-x: auto;
+    }
+    
+    /* Container principal otimizado */
+    .container-fluid {
+        background: var(--bg-white);
+        border-radius: 12px;
+        box-shadow: var(--light-shadow);
+        margin: 1rem auto;
+        max-width: 1400px;
+        padding: 0;
+        overflow: hidden;
+        position: relative;
+        z-index: 100;
+        width: calc(100% - 2rem);
+    }
+    
+    /* Card principal limpo */
+    .card {
+        background: var(--bg-white);
+        border: 1px solid var(--border-light);
+        border-radius: 12px;
+        box-shadow: var(--light-shadow);
+        overflow: visible;
+        margin-bottom: 0;
+        position: relative;
+        z-index: 101;
+    }
+    
+    /* Cabeçalho do relatório */
+    .card-header {
+        background: var(--sou-azul-gradient);
+        color: white;
+        padding: 1.5rem 2rem;
+        border: none;
+        margin: 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        position: relative;
+        z-index: 1000;
+    }
+    
+    .card-header h6 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 0;
+        color: white;
+        flex: 1;
+        min-width: 250px;
+    }
+    
+    /* Container dos botões */
+    .header-buttons {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+        position: relative;
+        z-index: 1001;
+    }
+    
+    /* Botões funcionais */
+    .btn {
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+        border: none;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        white-space: nowrap;
+        cursor: pointer;
+        position: relative;
+        z-index: 1002;
+    }
+    
+    .btn-outline-success {
+        background: var(--sou-rosa);
+        color: white;
+        border: 1px solid var(--sou-rosa);
+    }
+    
+    .btn-outline-success:hover {
+        background: var(--sou-rosa-light);
+        color: white;
+        border-color: var(--sou-rosa-light);
+        transform: translateY(-1px);
+    }
+    
+    .btn-outline-secondary {
+        background: #6c757d;
+        color: white;
+        border: 1px solid #6c757d;
+    }
+    
+    .btn-outline-secondary:hover {
+        background: #5a6268;
+        color: white;
+        border-color: #5a6268;
+        transform: translateY(-1px);
+    }
+    
+    .btn-secondary {
+        background: var(--sou-azul);
+        color: white;
+        border: 1px solid var(--sou-azul);
+    }
+    
+    .btn-secondary:hover {
+        background: var(--sou-azul-light);
+        color: white;
+        border-color: var(--sou-azul-light);
+        transform: translateY(-1px);
+    }
+    
+    /* Conteúdo do card com padding otimizado */
+    .card-body {
+        padding: 2rem;
+        background: var(--bg-white);
+    }
+    
+    /* Títulos das seções */
+    h5 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--sou-azul);
+        margin-bottom: 1.5rem;
+        position: relative;
+        padding-left: 1rem;
+    }
+    
+    h5::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0.2rem;
+        width: 4px;
+        height: 1.2rem;
+        background: var(--sou-rosa);
+        border-radius: 2px;
+    }
+    
+    /* Cards das sprints clean */
+    .sprint-section {
+        margin-bottom: 2rem;
+        page-break-inside: avoid;
+    }
+    
+    .sprint-section .card {
+        background: var(--bg-white);
+        border: 1px solid var(--border-light);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    /* Cabeçalho das sprints profissional */
+    .sprint-header {
+        background: var(--sou-azul);
+        color: white;
+        padding: 1rem 1.5rem;
+        border: none;
+    }
+    
+    .sprint-header h6 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0;
+        color: white;
+    }
+    
+    .sprint-header small {
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 400;
+        font-size: 0.875rem;
+    }
+    
+    /* Badges limpos */
+    .badge {
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        border: none;
+    }
+    
+    .bg-primary {
+        background: var(--sou-azul) !important;
+        color: white;
+    }
+    
+    .bg-secondary {
+        background: #6c757d !important;
+        color: white;
+    }
+    
+    .bg-success {
+        background: #28a745 !important;
+        color: white;
+    }
+    
+    .bg-warning {
+        background: #ffc107 !important;
+        color: #212529;
+    }
+    
+    .bg-info {
+        background: var(--sou-rosa) !important;
+        color: white;
+    }
+    
+    /* Tabelas limpas e profissionais */
+    .table-responsive {
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: var(--light-shadow);
+        background: var(--bg-white);
+        margin: 0;
+    }
+    
+    .table {
+        margin: 0;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+        width: 100%;
+    }
+    
+    .table th {
+        background: var(--bg-light);
+        color: var(--sou-azul);
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+        padding: 1rem 0.75rem;
+        border: none;
+        border-bottom: 2px solid var(--border-light);
+    }
+    
+    .table td {
+        padding: 0.875rem 0.75rem;
+        border-color: var(--border-light);
+        vertical-align: middle;
+        font-weight: 400;
+    }
+    
+    .table tbody tr:hover {
+        background: var(--bg-light);
+    }
+    
+    .table tfoot {
+        background: var(--bg-light);
+    }
+    
+    .table tfoot th {
+        font-weight: 600;
+        color: var(--sou-azul);
+        border-top: 2px solid var(--border-light);
+        font-size: 0.875rem;
+    }
+    
+    /* Resumo por especialista */
+    .specialist-summary {
+        background: var(--bg-light);
+        padding: 1.5rem;
+        border-radius: 8px;
+        border: 1px solid var(--border-light);
+        margin-bottom: 2rem;
+    }
+    
+    /* Larguras das colunas otimizadas */
+    .task-name {
+        width: 45%;
+        min-width: 300px;
+        white-space: normal;
+        word-wrap: break-word;
+        line-height: 1.4;
+    }
+    
+    .specialist-name {
+        width: 25%;
+        min-width: 150px;
+        white-space: normal;
+    }
+    
+    .hours-column {
+        width: 15%;
+        text-align: center;
+        font-weight: 500;
+    }
+    
+    .status-column {
+        width: 15%;
+        text-align: center;
+    }
+    
+    /* Responsividade */
+    @media (max-width: 768px) {
+        .container-fluid {
+            margin: 1rem;
+            border-radius: 8px;
+        }
+        
+        .card-header {
+            padding: 1rem;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 1rem;
+        }
+        
+        .card-header h6 {
+            text-align: center;
+            min-width: auto;
+        }
+        
+        .header-buttons {
+            justify-content: center;
+        }
+        
+        .btn {
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        .card-body {
+            padding: 1rem;
+        }
+        
+        .sprint-header {
+            padding: 0.75rem 1rem;
+        }
+        
+        .table th, .table td {
+            padding: 0.75rem 0.5rem;
+            font-size: 0.8rem;
+        }
+        
+        .task-name {
+            min-width: 200px;
+        }
+        
+        .specialist-name {
+            min-width: 120px;
+        }
+    }
+    
+    /* Garantir visibilidade dos botões */
+    .header-buttons .btn {
+        min-height: 38px;
+        z-index: 1002;
+        position: relative;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    
+    .no-print {
+        display: flex !important;
+        z-index: 1001 !important;
+        position: relative !important;
+    }
+    
+    /* Sobrepor qualquer navbar do sistema */
+    .card-header {
+        position: relative !important;
+        z-index: 1000 !important;
+    }
+    
+    .header-buttons {
+        position: relative !important;
+        z-index: 1001 !important;
+    }
+    
+    .header-buttons .btn {
+        position: relative !important;
+        z-index: 1002 !important;
+        background-color: var(--sou-rosa) !important;
+        border: 1px solid var(--sou-rosa) !important;
+        color: white !important;
+    }
+    
+    .header-buttons .btn.btn-outline-secondary {
+        background-color: #6c757d !important;
+        border-color: #6c757d !important;
+    }
+    
+    .header-buttons .btn.btn-secondary {
+        background-color: var(--sou-azul) !important;
+        border-color: var(--sou-azul) !important;
+    }
+    
+    /* Garantir que nada do sistema interfira */
+    .report-container {
+        position: relative;
+        z-index: 9999;
+        background: white;
+        min-height: 100vh;
+        width: 100%;
+    }
+    
+    /* ===== ESTILOS DE IMPRESSÃO USANDO ABORDAGEM DO STATUS REPORT ===== */
     @media print {
-        .no-print {
+        @page {
+            size: A4 portrait;
+            margin: 8mm !important;
+        }
+
+        html, body {
+            height: auto !important;
+            overflow: visible !important;
+            background-color: #fff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        /* Controle de Visibilidade Essencial para Impressão do Navegador */
+        .screen-only,
+        .navbar, 
+        #accordionSidebar, 
+        footer.sticky-footer, 
+        .scroll-to-top,
+        .no-print,
+        .header-buttons,
+        .btn
+        {
             display: none !important;
         }
+
+        .pdf-only {
+            display: block !important; 
+        }
+
+        /* Garantir que containers não limitem altura */
+        .report-container,
+        .container-fluid,
+        .card,
+        .card-body {
+            height: auto !important;
+            min-height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            position: static !important;
+        }
+
+        /* Evitar quebras indesejadas DENTRO de seções importantes */
+        .sprint-section {
+            page-break-inside: avoid !important;
+            margin: 0.8cm 0 !important;
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 4px !important;
+            overflow: visible !important;
+        }
+
+        .card, .table-responsive > table {
+            page-break-inside: auto !important;
+            overflow: visible !important;
+        }
+
+        /* Cabeçalho principal mantém cores */
+        .card-header {
+            background: #07304F !important;
+            color: white !important;
+            padding: 1rem 1.5rem !important;
+            margin: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            page-break-after: avoid !important;
+        }
+
+        .card-header h6 {
+            color: white !important;
+            font-size: 14pt !important;
+            font-weight: bold !important;
+            margin: 0 !important;
+        }
+
+        /* Container principal */
+        .container-fluid {
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            box-shadow: none !important;
+            border: none !important;
+        }
+
         .card {
             border: none !important;
             box-shadow: none !important;
+            background: white !important;
         }
+
+        .card-body {
+            padding: 0.5cm !important;
+        }
+
+        /* Títulos das seções */
+        h5 {
+            font-size: 12pt !important;
+            color: #07304F !important;
+            margin: 0.5cm 0 0.3cm 0 !important;
+            padding-left: 0.5cm !important;
+            border-left: 3px solid #FF2D5F !important;
+            background: #f8fafc !important;
+            padding-top: 0.2cm !important;
+            padding-bottom: 0.2cm !important;
+            -webkit-print-color-adjust: exact !important;
+            page-break-after: avoid !important;
+        }
+
+        /* Sprints mantém layout original */
+        .sprint-header {
+            background: #07304F !important;
+            color: white !important;
+            padding: 0.8cm 1cm !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            page-break-after: avoid !important;
+        }
+
+        .sprint-header h6 {
+            color: white !important;
+            font-size: 11pt !important;
+            font-weight: bold !important;
+            margin: 0 0 0.2cm 0 !important;
+        }
+
+        .sprint-header small {
+            color: rgba(255, 255, 255, 0.9) !important;
+            font-size: 9pt !important;
+        }
+
+        /* Badges mantém cores */
+        .badge {
+            padding: 0.1cm 0.3cm !important;
+            font-size: 8pt !important;
+            border-radius: 3px !important;
+            -webkit-print-color-adjust: exact !important;
+        }
+
+        .badge.bg-primary {
+            background: #07304F !important;
+            color: white !important;
+        }
+
+        .badge.bg-secondary {
+            background: #6c757d !important;
+            color: white !important;
+        }
+
+        .badge.bg-success {
+            background: #28a745 !important;
+            color: white !important;
+        }
+
+        .badge.bg-warning {
+            background: #ffc107 !important;
+            color: #000 !important;
+        }
+
+        .badge.bg-info {
+            background: #FF2D5F !important;
+            color: white !important;
+        }
+
+        /* Tabelas - permitir quebras quando necessário */
+        .table-responsive {
+            overflow: visible !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+
         .table {
-            font-size: 12px;
+            font-size: 9pt !important;
+            page-break-inside: auto !important;
         }
-    }
-    .sprint-section {
-        page-break-inside: avoid;
-    }
-    .specialist-summary {
-        page-break-inside: avoid;
-    }
-    /* Estilos para alinhamento e larguras fixas */
-    .w-50px {
-        width: 50px !important;
-    }
-    .w-100px {
-        width: 100px !important;
-    }
-    .w-150px {
-        width: 150px !important;
-    }
-    .w-200px {
-        width: 200px !important;
-    }
-    .w-250px {
-        width: 250px !important;
-    }
-    .w-300px {
-        width: 300px !important;
-    }
-    .task-name {
-        min-width: 500px;
-        max-width: 500px;
-        white-space: normal;
-        word-wrap: break-word;
-    }
-    .specialist-name {
-        min-width: 200px;
-        max-width: 200px;
-        white-space: normal;
-    }
-    .hours-column {
-        width: 100px !important;
-        text-align: right !important;
-    }
-    .status-column {
-        width: 120px !important;
-        text-align: center !important;
-    }
-    /* Ajuste para tabelas responsivas */
-    .table-fixed {
-        table-layout: fixed;
-    }
-    .table td {
-        vertical-align: middle;
+
+        .table th {
+            background: #f8fafc !important;
+            color: #07304F !important;
+            font-size: 8pt !important;
+            padding: 0.3cm 0.2cm !important;
+            -webkit-print-color-adjust: exact !important;
+        }
+
+        .table td {
+            padding: 0.3cm 0.2cm !important;
+            font-size: 9pt !important;
+        }
+
+        .table tbody tr:nth-child(even) {
+            background: #f8fafc !important;
+            -webkit-print-color-adjust: exact !important;
+        }
+
+        .table tbody tr {
+            page-break-inside: avoid !important;
+        }
+
+        /* Resumo por especialista */
+        .specialist-summary {
+            background: #f8fafc !important;
+            border: 1px solid #e2e8f0 !important;
+            padding: 0.5cm !important;
+            margin: 0.5cm 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            page-break-inside: avoid !important;
+        }
+
+        /* Seções principais */
+        .mb-5, .specialist-summary, .sprint-details {
+            page-break-inside: avoid !important;
+        }
+
+        /* Permitir quebra entre sprints se necessário */
+        .sprint-section + .sprint-section {
+            page-break-before: auto !important;
+        }
+
+        /* Remover limitações que podem cortar conteúdo */
+        * {
+            max-height: none !important;
+            overflow: visible !important;
+        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-            <h6 class="m-0 font-weight-bold text-primary">
-                <i class="bi bi-file-earmark-text me-2"></i>Relatório Consolidado de Sprints
-            </h6>
-            <div class="no-print">
-                <button class="btn btn-sm btn-outline-success me-2" onclick="window.location.href='{{ url_for('sprints.export_consolidated_report') }}?sprint_ids={% for sprint in sprints %}{{ sprint.id }}{% if not loop.last %},{% endif %}{% endfor %}'">
-                    <i class="bi bi-file-excel me-1"></i>Exportar Excel
-                </button>
-                <button class="btn btn-sm btn-outline-secondary me-2" onclick="window.print()">
-                    <i class="bi bi-printer me-1"></i>Imprimir
-                </button>
-                <a href="{{ url_for('sprints.consolidated_report_page') }}" class="btn btn-sm btn-secondary">
-                    <i class="bi bi-arrow-left me-1"></i>Voltar
-                </a>
+<div class="report-container">
+    <div class="container-fluid mt-4">
+        <div class="card shadow mb-4">
+            <div class="card-header">
+                <h6>
+                    <i class="bi bi-file-earmark-text me-2"></i>Relatório Consolidado de Sprints
+                </h6>
+                <div class="header-buttons screen-only">
+                    <a href="{{ url_for('sprints.export_consolidated_report') }}?sprint_ids={% for sprint in sprints %}{{ sprint.id }}{% if not loop.last %},{% endif %}{% endfor %}" class="btn btn-outline-success">
+                        <i class="bi bi-file-excel"></i>Exportar Excel
+                    </a>
+                    <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+                        <i class="bi bi-printer"></i>Imprimir
+                    </button>
+                    <a href="{{ url_for('sprints.consolidated_report_page') }}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i>Voltar
+                    </a>
+                </div>
             </div>
-        </div>
-        <div class="card-body">
-            {# Resumo Geral #}
-            <div class="mb-5">
-                <h5 class="mb-3">Resumo Geral</h5>
-                <div class="row">
-                    <div class="col-md-6">
-                        <table class="table table-sm table-fixed">
+            <div class="card-body">
+                {# Resumo Geral #}
+                <div class="mb-5">
+                    <h5 class="mb-3">Resumo Geral</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tbody>
+                                    <tr>
+                                        <th style="width: 200px;">Total de Sprints:</th>
+                                        <td>{{ sprints|length }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Período Total:</th>
+                                        <td>{{ start_date.strftime('%d/%m/%Y') }} - {{ end_date.strftime('%d/%m/%Y') }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Total de Tarefas:</th>
+                                        <td>{{ total_tasks }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                {# Resumo por Especialista #}
+                <div class="specialist-summary mb-5">
+                    <h5 class="mb-3">Capacidade por Especialista</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th class="specialist-name">Especialista</th>
+                                    <th class="hours-column">Total de Tarefas</th>
+                                    <th class="hours-column">Horas Estimadas</th>
+                                </tr>
+                            </thead>
                             <tbody>
+                                {% for specialist in specialist_summary %}
                                 <tr>
-                                    <th class="w-200px">Total de Sprints:</th>
-                                    <td>{{ sprints|length }}</td>
+                                    <td class="specialist-name">{{ specialist.name or 'Não Atribuído' }}</td>
+                                    <td class="hours-column">{{ specialist.total_tasks }}</td>
+                                    <td class="hours-column">{{ "%.1f"|format(specialist.total_hours) }}h</td>
                                 </tr>
-                                <tr>
-                                    <th class="w-200px">Período Total:</th>
-                                    <td>{{ start_date.strftime('%d/%m/%Y') }} - {{ end_date.strftime('%d/%m/%Y') }}</td>
-                                </tr>
-                                <tr>
-                                    <th class="w-200px">Total de Tarefas:</th>
-                                    <td>{{ total_tasks }}</td>
-                                </tr>
+                                {% endfor %}
                             </tbody>
                         </table>
                     </div>
                 </div>
-            </div>
 
-            {# Resumo por Especialista #}
-            <div class="specialist-summary mb-5">
-                <h5 class="mb-3">Capacidade por Especialista</h5>
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover table-fixed">
-                        <thead>
-                            <tr>
-                                <th class="specialist-name">Especialista</th>
-                                <th class="hours-column">Total de Tarefas</th>
-                                <th class="hours-column">Horas Estimadas</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for specialist in specialist_summary %}
-                            <tr>
-                                <td class="specialist-name">{{ specialist.name or 'Não Atribuído' }}</td>
-                                <td class="hours-column">{{ specialist.total_tasks }}</td>
-                                <td class="hours-column">{{ "%.1f"|format(specialist.total_hours) }}h</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {# Detalhes por Sprint #}
-            <div class="sprint-details">
-                <h5 class="mb-3">Detalhes por Sprint</h5>
-                {% for sprint in sprints %}
-                <div class="sprint-section mb-4">
-                    <div class="card">
-                        <div class="card-header py-2">
-                            <h6 class="m-0 font-weight-bold">
-                                {{ sprint.name }}
-                                <small class="text-muted ms-2">
-                                    ({{ sprint.start_date.strftime('%d/%m/%Y') }} - {{ sprint.end_date.strftime('%d/%m/%Y') }})
-                                </small>
-                            </h6>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-sm table-hover mb-0 table-fixed">
-                                    <thead>
-                                        <tr>
-                                            <th class="task-name">Tarefa</th>
-                                            <th class="specialist-name">Especialista</th>
-                                            <th class="hours-column">Horas Est.</th>
-                                            <th class="status-column">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for task in sprint.tasks %}
-                                        <tr>
-                                            <td class="task-name">{{ task.name }}</td>
-                                            <td class="specialist-name">{{ task.specialist_name or 'Não Atribuído' }}</td>
-                                            <td class="hours-column">{{ "%.1f"|format(task.estimated_hours) if task.estimated_hours else '-' }}h</td>
-                                            <td class="status-column">
-                                                <span class="badge {% if task.status == 'Concluído' %}bg-success{% else %}bg-secondary{% endif %}">
-                                                    {{ task.status }}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                    <tfoot>
-                                        <tr class="table-light">
-                                            <th colspan="2">Total da Sprint:</th>
-                                            <th class="hours-column">{{ "%.1f"|format(sprint.total_hours) }}h</th>
-                                            <th></th>
-                                        </tr>
-                                    </tfoot>
-                                </table>
+                {# Detalhes por Sprint #}
+                <div class="sprint-details">
+                    <h5 class="mb-3">Detalhes por Sprint</h5>
+                    {% for sprint in sprints %}
+                    <div class="sprint-section mb-4">
+                        <div class="card">
+                            <div class="card-header py-3 sprint-header">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="m-0 font-weight-bold">
+                                            <i class="bi bi-calendar3-week me-2"></i>{{ sprint.name }}
+                                        </h6>
+                                        <small>
+                                            <i class="bi bi-calendar-range me-1"></i>
+                                            {{ sprint.start_date.strftime('%d/%m/%Y') }} - {{ sprint.end_date.strftime('%d/%m/%Y') }}
+                                        </small>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge bg-primary">{{ sprint.tasks|length }} tarefas</span>
+                                        <span class="badge bg-secondary ms-1">{{ "%.1f"|format(sprint.total_hours) }}h total</span>
+                                    </div>
+                                </div>
+                                {% if sprint.goal %}
+                                <div class="mt-2">
+                                    <small>
+                                        <i class="bi bi-target me-1"></i><strong>Objetivo:</strong> {{ sprint.goal }}
+                                    </small>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th class="task-name">Tarefa</th>
+                                                <th class="specialist-name">Especialista</th>
+                                                <th class="hours-column">Horas Est.</th>
+                                                <th class="status-column">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for task in sprint.tasks %}
+                                            <tr>
+                                                <td class="task-name">{{ task.name }}</td>
+                                                <td class="specialist-name">{{ task.specialist_name or 'Não Atribuído' }}</td>
+                                                <td class="hours-column">{{ "%.1f"|format(task.estimated_hours) if task.estimated_hours else '-' }}h</td>
+                                                <td class="status-column">
+                                                    <span class="badge {% if task.status == 'Concluído' %}bg-success{% elif task.status == 'Em Andamento' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                                        {{ task.status or 'Em Andamento' }}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                            {% if not sprint.tasks %}
+                                            <tr>
+                                                <td colspan="4" class="text-center text-muted py-3">
+                                                    <i class="bi bi-inbox me-1"></i>Nenhuma tarefa alocada nesta sprint
+                                                </td>
+                                            </tr>
+                                            {% endif %}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr>
+                                                <th colspan="2">
+                                                    <strong>Total da Sprint:</strong>
+                                                </th>
+                                                <th class="hours-column">
+                                                    <strong>{{ "%.1f"|format(sprint.total_hours) }}h</strong>
+                                                </th>
+                                                <th class="status-column">
+                                                    <span class="badge bg-info">{{ sprint.tasks|length }} tarefas</span>
+                                                </th>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Script otimizado para funcionamento dos botões
+document.addEventListener('DOMContentLoaded', function() {
+    // Garantir que todos os botões funcionem corretamente
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(button => {
+        button.style.cursor = 'pointer';
+        
+        // Efeitos visuais nos botões
+        button.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-1px)';
+        });
+        
+        button.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+    
+    // Animação suave de entrada dos cards
+    const sprintCards = document.querySelectorAll('.sprint-section');
+    sprintCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            card.style.transition = 'all 0.4s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+    
+    // Otimizar impressão
+    const printButton = document.querySelector('button[onclick="window.print()"]');
+    if (printButton) {
+        printButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Preparar para impressão
+            document.body.classList.add('printing');
+            
+            // Aguardar um momento para aplicar os estilos
+            setTimeout(() => {
+                window.print();
+                
+                // Restaurar após impressão
+                setTimeout(() => {
+                    document.body.classList.remove('printing');
+                }, 1000);
+            }, 100);
+        });
+    }
+});
+
+// Função melhorada para impressão
+window.addEventListener('beforeprint', function() {
+    // Salva o título original
+    window.originalTitle = document.title;
+    document.title = 'Relatório Consolidado de Sprints - SOU.Cloud';
+    
+    // Aplicar estilos específicos para impressão
+    const style = document.createElement('style');
+    style.id = 'print-styles';
+    style.innerHTML = `
+        @media print {
+            body { 
+                font-family: 'Inter', Arial, sans-serif !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .report-container {
+                max-width: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+});
+
+window.addEventListener('afterprint', function() {
+    // Restaura o título original
+    if (window.originalTitle) {
+        document.title = window.originalTitle;
+    }
+    
+    // Remove estilos temporários
+    const printStyles = document.getElementById('print-styles');
+    if (printStyles) {
+        printStyles.remove();
+    }
+});
+</script>
 {% endblock %} 
