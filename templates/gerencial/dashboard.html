@@ -900,7 +900,12 @@
                 </div>
                 <div class="modal-footer border-0">
                     <div class="dt-controls-footer d-flex justify-content-between align-items-center w-100 mb-2"></div> <!-- Placeholder para controles do footer -->
-                    <button type="button" class="btn btn-outline-secondary ms-auto" data-bs-dismiss="modal">Fechar</button>
+                    <div class="ms-auto"> <!-- Wrapper para botões ficarem à direita -->
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                        <a href="/macro/relatorio/ativos" target="_blank" class="btn btn-success">
+                            <i class="bi bi-file-earmark-text me-1"></i> Ver Relatório Completo
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1023,6 +1028,9 @@
                     <div class="dt-controls-footer d-flex justify-content-between align-items-center w-100 mb-2"></div> <!-- Placeholder para controles do footer -->
                     <div class="ms-auto"> <!-- Wrapper para botões ficarem à direita -->
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                        <a href="/macro/relatorio/criticos" target="_blank" class="btn btn-danger">
+                            <i class="bi bi-file-earmark-text me-1"></i> Ver Relatório Completo
+                        </a>
                         <button type="button" class="btn btn-danger" onclick="exportarProjetosCriticos()">
                             <i class="bi bi-download me-1"></i> Exportar
                         </button>

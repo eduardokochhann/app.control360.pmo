@@ -268,6 +268,38 @@ def relatorio_projetos_ativos():
                              error=str(e),
                              hora_atualizacao=datetime.now())
 
+@macro_bp.route('/relatorio/criticos')
+def relatorio_projetos_criticos():
+    """Rota para o relatório de projetos críticos com funcionalidades de exportação"""
+    try:
+        logger.info("Acessando relatório de projetos críticos")
+        
+        # Carrega dados atuais
+        dados_atuais = macro_service.carregar_dados(fonte=None)
+        
+        if dados_atuais.empty:
+            logger.warning("Dados vazios para o relatório de projetos críticos")
+            return render_template('macro/relatorio_projetos_criticos.html', 
+                                 title="Relatório de Projetos Críticos",
+                                 error="Nenhum dado disponível para exibição",
+                                 hora_atualizacao=datetime.now())
+        
+        # Prepara contexto para o template
+        context = {
+            'title': 'Relatório de Projetos Críticos',
+            'hora_atualizacao': datetime.now()
+        }
+        
+        logger.info(f"Renderizando relatório de projetos críticos com {len(dados_atuais)} registros")
+        return render_template('macro/relatorio_projetos_criticos.html', **context)
+        
+    except Exception as e:
+        logger.exception(f"Erro na rota relatorio_projetos_criticos: {str(e)}")
+        return render_template('macro/relatorio_projetos_criticos.html', 
+                             title="Relatório de Projetos Críticos",
+                             error=str(e),
+                             hora_atualizacao=datetime.now())
+
 # --- Rotas de API (Mantidas exatamente como estavam) ---
 @macro_bp.route('/api/especialistas')
 def api_especialistas():
@@ -838,12 +870,14 @@ def apresentacao():
                  fonte_mes_loop = 'dadosr.csv (atual)' # Descritivo
                  logger.info(f"[Tempo Médio Vida] Usando dados já carregados para mês de referência atual ({mes_referencia.strftime('%m/%Y')})")
             else:
-                # Lógica para determinar a fonte histórica (igual à anterior, mas precisa ser mais completa)
-                if mes_loop == 3 and ano_loop == 2025: fonte_mes_loop = 'dadosr_apt_mar'
-                elif mes_loop == 4 and ano_loop == 2025: fonte_mes_loop = 'dadosr_apt_abr' # <-- Adicionado Abril
-                elif mes_loop == 2 and ano_loop == 2025: fonte_mes_loop = 'dadosr_apt_fev'
-                elif mes_loop == 1 and ano_loop == 2025: fonte_mes_loop = 'dadosr_apt_jan'
-                # Adicionar mais fontes aqui...
+                # Lógica para determinar a fonte histórica - USA DETECÇÃO AUTOMÁTICA
+                fonte_mes_loop = None
+                
+                # Procura a fonte nas fontes detectadas automaticamente
+                for fonte in fontes_disponiveis:
+                    if fonte['mes'] == mes_loop and fonte['ano'] == ano_loop:
+                        fonte_mes_loop = fonte['nome_arquivo']
+                        break
                 
                 if fonte_mes_loop:
                     logger.info(f"[Tempo Médio Vida] Tentando carregar dados da fonte: {fonte_mes_loop} para {mes_loop}/{ano_loop}")
@@ -893,13 +927,14 @@ def apresentacao():
                 ano_loop = mes_atual_loop_ant.year
                 fonte_mes_loop = None
                 
-                # Lógica para determinar a fonte (precisa ser expandida)
-                if mes_loop == 3 and ano_loop == 2025: fonte_mes_loop = 'dadosr_apt_mar'
-                elif mes_loop == 4 and ano_loop == 2025: fonte_mes_loop = 'dadosr_apt_abr' # <-- Precisa de Março aqui para comparar Abril
-                elif mes_loop == 2 and ano_loop == 2025: fonte_mes_loop = 'dadosr_apt_fev'
-                elif mes_loop == 1 and ano_loop == 2025: fonte_mes_loop = 'dadosr_apt_jan'
-                elif mes_loop == 12 and ano_loop == 2024: fonte_mes_loop = 'dadosr_apt_dez' 
-                # Adicionar mais regras aqui...
+                # Lógica para determinar a fonte - USA DETECÇÃO AUTOMÁTICA
+                fonte_mes_loop = None
+                
+                # Procura a fonte nas fontes detectadas automaticamente  
+                for fonte in fontes_disponiveis:
+                    if fonte['mes'] == mes_loop and fonte['ano'] == ano_loop:
+                        fonte_mes_loop = fonte['nome_arquivo']
+                        break
                 
                 if fonte_mes_loop:
                     logger.info(f"[TMV Anterior] Tentando carregar dados da fonte: {fonte_mes_loop} para {mes_loop}/{ano_loop}")

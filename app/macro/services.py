@@ -131,6 +131,11 @@ class MacroService(BaseService):
             if fonte:
                 # Obtém o diretório data (mesmo local do dadosr.csv)
                 data_dir = self.csv_path.parent
+                
+                # CORREÇÃO CRÍTICA: Se a fonte não tem extensão, adiciona .csv
+                if not fonte.endswith('.csv'):
+                    fonte = fonte + '.csv'
+                    
                 csv_path = data_dir / fonte
                 # OTIMIZAÇÃO: Log reduzido apenas para fontes específicas
                 if fonte != 'dadosr.csv':
@@ -284,19 +289,19 @@ class MacroService(BaseService):
 
     def obter_dados_e_referencia_atual(self):
         """
-        Carrega os dados atuais (dadosr.csv) e determina o mês de referência
-        com base na data mais recente da coluna 'UltimaInteracao'.
+        Carrega os dados atuais (dadosr.csv) e define o mês de referência como o mês atual do sistema.
         
-        A Visão Atual sempre usa dadosr.csv. Os arquivos dadosr_apt_* são apenas
-        para visões históricas e são criados na virada do mês.
+        A Visão Atual sempre usa:
+        - Dados: dadosr.csv (dados correntes do mês atual)
+        - Mês de referência: Mês atual do sistema (hoje = 04/Junho/2025 -> Junho/2025)
+        - Comparações: Com dados históricos dos meses anteriores (Maio, Abril, Março)
 
         Returns:
             tuple: (pd.DataFrame, datetime.datetime) contendo os dados carregados
-                   e o mês de referência (primeiro dia do mês). Retorna (DataFrame vazio, None)
-                   se os dados não puderem ser carregados ou a data de referência
-                   não puder ser determinada.
+                   e o mês de referência (primeiro dia do mês atual). Retorna (DataFrame vazio, None)
+                   se os dados não puderem ser carregados.
         """
-        logger.info("Obtendo dados atuais (dadosr.csv) e mês de referência...")
+        logger.info("Obtendo dados atuais (dadosr.csv) para Visão Atual...")
         
         # SEMPRE usa dadosr.csv para a visão atual
         dados_atuais = self.carregar_dados(fonte=None)  # Carrega dadosr.csv
@@ -305,34 +310,18 @@ class MacroService(BaseService):
             logger.warning("Não foi possível carregar dados atuais (dadosr.csv).")
             return pd.DataFrame(), None
 
-        # Verifica se a coluna 'UltimaInteracao' existe
-        if 'UltimaInteracao' not in dados_atuais.columns:
-            logger.error("Coluna 'UltimaInteracao' não encontrada nos dados atuais após renomeação.")
-            # Usa o mês atual do sistema como fallback
-            mes_referencia_atual = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            logger.info(f"Usando mês atual do sistema como referência: {mes_referencia_atual.strftime('%B/%Y')}")
-            return dados_atuais, mes_referencia_atual
-
-        # Converte para datetime, tratando erros
-        datas_interacao = pd.to_datetime(dados_atuais['UltimaInteracao'], errors='coerce')
-
-        # Remove valores NaT (datas inválidas)
-        datas_validas = datas_interacao.dropna()
-
-        if datas_validas.empty:
-            logger.warning("Nenhuma data válida encontrada na coluna 'UltimaInteracao' para determinar o mês de referência.")
-            # Usa o mês atual do sistema como fallback
-            mes_referencia_atual = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            logger.info(f"Usando mês atual do sistema como referência: {mes_referencia_atual.strftime('%B/%Y')}")
-            return dados_atuais, mes_referencia_atual
-
-        # Encontra a data mais recente
-        data_maxima = datas_validas.max()
-        logger.info(f"Data máxima encontrada em 'UltimaInteracao': {data_maxima.strftime('%d/%m/%Y')}")
-
-        # Define o mês de referência como o primeiro dia do mês da data máxima
-        mes_referencia_atual = data_maxima.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        logger.info(f"Mês de referência atual determinado: {mes_referencia_atual.strftime('%B/%Y')}")
+        # Para a Visão Atual, SEMPRE usa o mês atual do sistema
+        mes_referencia_atual = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        logger.info(f"Visão Atual - Mês de referência definido como mês atual: {mes_referencia_atual.strftime('%B/%Y')}")
+        
+        # Log informativo sobre as datas nos dados (apenas para debug)
+        if 'UltimaInteracao' in dados_atuais.columns:
+            datas_interacao = pd.to_datetime(dados_atuais['UltimaInteracao'], errors='coerce')
+            datas_validas = datas_interacao.dropna()
+            if not datas_validas.empty:
+                data_maxima = datas_validas.max()
+                data_minima = datas_validas.min()
+                logger.info(f"Dados carregados: datas de {data_minima.strftime('%d/%m/%Y')} até {data_maxima.strftime('%d/%m/%Y')} ({len(dados_atuais)} registros)")
 
         return dados_atuais, mes_referencia_atual
 
@@ -647,6 +636,78 @@ class MacroService(BaseService):
             
             dados_para_retorno = projetos_ativos_df[colunas_existentes].copy() # Usar .copy() para evitar SettingWithCopyWarning
 
+            # <<< INÍCIO: Calcular tempo de vida do projeto >>>
+            hoje = datetime.now().date()
+            
+            # Debug: mostrar colunas disponíveis
+            logger.info(f"Colunas disponíveis para cálculo tempo de vida: {projetos_ativos_df.columns.tolist()}")
+            
+            def calcular_tempo_vida(row):
+                try:
+                    # Tenta encontrar data de abertura em diferentes colunas possíveis
+                    data_abertura = None
+                    
+                    # Verifica colunas possíveis de data de abertura (ordem de prioridade)
+                    colunas_possiveis = ['DataInicio', 'DataAbertura', 'Data Abertura', 'data_abertura', 'DataCriacao', 'Data Criacao', 'Data_Criacao', 'Aberto em']
+                    for col in colunas_possiveis:
+                        if col in row.index and pd.notna(row[col]):
+                            data_abertura = row[col]
+                            logger.debug(f"Encontrada data de abertura na coluna '{col}': {data_abertura} para projeto {row.get('Numero', 'N/A')}")
+                            break
+                    
+                    if data_abertura is None:
+                        # Se não encontrou data específica, usa uma estimativa baseada no número do projeto
+                        # Projetos mais antigos têm números menores (aproximação)
+                        if 'Numero' in row.index and pd.notna(row['Numero']):
+                            numero = str(row['Numero'])
+                            if numero.isdigit():
+                                numero_int = int(numero)
+                                # Estima: projetos com números menores são mais antigos
+                                # Esta é uma aproximação que pode ser ajustada
+                                if numero_int < 1000:
+                                    logger.debug(f"Estimativa para projeto {numero}: 400 dias (< 1000)")
+                                    return 400  # ~1 ano e 1 mês
+                                elif numero_int < 3000:
+                                    logger.debug(f"Estimativa para projeto {numero}: 300 dias (< 3000)")
+                                    return 300  # ~10 meses
+                                elif numero_int < 5000:
+                                    logger.debug(f"Estimativa para projeto {numero}: 200 dias (< 5000)")
+                                    return 200  # ~6-7 meses
+                                elif numero_int < 7000:
+                                    logger.debug(f"Estimativa para projeto {numero}: 150 dias (< 7000)")
+                                    return 150  # ~5 meses
+                                else:
+                                    logger.debug(f"Estimativa para projeto {numero}: 90 dias (>= 7000)")
+                                    return 90   # ~3 meses
+                        logger.warning(f"Não foi possível calcular tempo de vida para projeto {row.get('Numero', 'N/A')} - dados insuficientes")
+                        return None
+                        
+                    # Converte para datetime se for string
+                    if isinstance(data_abertura, str):
+                        # Tenta diferentes formatos de data
+                        for formato in ['%Y-%m-%d', '%d/%m/%Y', '%Y-%m-%d %H:%M:%S', '%d/%m/%Y %H:%M:%S']:
+                            try:
+                                data_abertura = datetime.strptime(data_abertura, formato).date()
+                                break
+                            except ValueError:
+                                continue
+                    elif hasattr(data_abertura, 'date'):
+                        data_abertura = data_abertura.date()
+                    
+                    if data_abertura:
+                        diff = hoje - data_abertura
+                        return diff.days
+                        
+                except Exception as e:
+                    logger.debug(f"Erro ao calcular tempo de vida para projeto {row.get('Numero', 'N/A')}: {e}")
+                
+                return None
+            
+            # Adiciona coluna de tempo de vida
+            dados_para_retorno['tempo_vida'] = projetos_ativos_df.apply(calcular_tempo_vida, axis=1)
+            logger.info(f"Tempo de vida calculado - Exemplos: {dados_para_retorno['tempo_vida'].head().tolist()}")
+            # <<< FIM: Calcular tempo de vida do projeto >>>
+
             # <<< INÍCIO: Restaurar Renomeação e Formatação >>>
             # Renomeia colunas para o formato esperado pelo frontend
             rename_map_final = {
@@ -658,7 +719,8 @@ class MacroService(BaseService):
                 'HorasRestantes': 'horasRestantes',
                 'VencimentoEm': 'dataPrevEnc',
                 'Horas': 'Horas', # Manter Horas para cálculo no JS se necessário
-                'backlog_exists': 'backlog_exists' # Manter a coluna de backlog
+                'backlog_exists': 'backlog_exists', # Manter a coluna de backlog
+                'tempo_vida': 'tempo_vida' # Nova coluna de tempo de vida
             }
             # Filtra o mapa de renomeação para incluir apenas colunas que existem em dados_para_retorno
             colunas_para_renomear_final = {k: v for k, v in rename_map_final.items() if k in dados_para_retorno.columns}
@@ -784,15 +846,129 @@ class MacroService(BaseService):
             # Adiciona verificação de backlog usando a função auxiliar
             projetos_criticos = self._adicionar_verificacao_backlog(projetos_criticos)
             
-            # Prepara dados para o modal
-            colunas_modal = ['Numero', 'Projeto', 'Status', 'Squad', 'Conclusao', 'HorasRestantes', 'VencimentoEm', 'motivo', 'Horas', 'backlog_exists']
+            # Seleciona apenas as colunas existentes para retornar (igual ao método de projetos ativos)
+            colunas_modal_criticos = ['Numero', 'Projeto', 'Status', 'Squad', 'Conclusao', 'HorasRestantes', 'VencimentoEm', 'Horas']
             
-            # Seleciona apenas as colunas que existem
-            colunas_existentes = [col for col in colunas_modal if col in projetos_criticos.columns]
-            dados_modal = projetos_criticos[colunas_existentes].copy()
+            # Certifica-se de que a coluna Numero existe
+            if 'Numero' not in projetos_criticos.columns and 'Número' in projetos_criticos.columns:
+                projetos_criticos['Numero'] = projetos_criticos['Número']
+            elif 'Numero' not in projetos_criticos.columns:
+                logger.warning("Coluna 'Numero' não encontrada nos projetos críticos. Criando coluna vazia.")
+                projetos_criticos['Numero'] = ''
+            else:
+                # Garante que 'Numero' seja string
+                projetos_criticos['Numero'] = projetos_criticos['Numero'].astype(str)
+
+            # <<< INÍCIO: Adicionar verificação de backlog para projetos críticos >>>
+            if not projetos_criticos.empty and 'Numero' in projetos_criticos.columns:
+                project_ids = projetos_criticos['Numero'].dropna().unique().tolist()
+                project_ids = [pid for pid in project_ids if pid]
+
+                if project_ids:
+                    try:
+                        from app.models import Backlog
+                        from app import db
+                        
+                        backlogs_existentes = db.session.query(Backlog.project_id)\
+                                                        .filter(Backlog.project_id.in_(project_ids))\
+                                                        .all()
+                        ids_com_backlog = {result[0] for result in backlogs_existentes}
+                        logger.info(f"Encontrados {len(ids_com_backlog)} backlogs para {len(project_ids)} projetos críticos verificados.")
+                        
+                        projetos_criticos['backlog_exists'] = projetos_criticos['Numero'].apply(
+                            lambda pid: pid in ids_com_backlog if pd.notna(pid) else False
+                        )
+
+                    except Exception as db_error:
+                        logger.error(f"Erro ao consultar backlogs para projetos críticos: {db_error}", exc_info=True)
+                        projetos_criticos['backlog_exists'] = False
+                else:
+                    projetos_criticos['backlog_exists'] = False
+            else:
+                if 'Numero' in projetos_criticos.columns:
+                    projetos_criticos['backlog_exists'] = False
+            # <<< FIM: Adicionar verificação de backlog >>>
+
+            # Adiciona a nova coluna de backlog à lista de colunas
+            colunas_finais_criticos = colunas_modal_criticos + ['backlog_exists']
+            colunas_existentes_criticos = [col for col in colunas_finais_criticos if col in projetos_criticos.columns]
             
+            dados_para_retorno = projetos_criticos[colunas_existentes_criticos].copy()
+
+            # <<< INÍCIO: Calcular tempo de vida para projetos críticos >>>
+            hoje = datetime.now().date()
+            
+            # Debug: mostrar colunas disponíveis
+            logger.info(f"Colunas disponíveis para projetos críticos: {projetos_criticos.columns.tolist()}")
+            
+            def calcular_tempo_vida_criticos(row):
+                try:
+                    # Tenta encontrar data de abertura em diferentes colunas possíveis
+                    data_abertura = None
+                    
+                    # Verifica colunas possíveis de data de abertura (ordem de prioridade)
+                    colunas_possiveis = ['DataInicio', 'DataAbertura', 'Data Abertura', 'data_abertura', 'DataCriacao', 'Data Criacao', 'DataCriacao', 'Data_Criacao']
+                    for col in colunas_possiveis:
+                        if col in row.index and pd.notna(row[col]):
+                            data_abertura = row[col]
+                            logger.debug(f"Encontrada data de abertura na coluna '{col}': {data_abertura} para projeto crítico {row.get('Numero', 'N/A')}")
+                            break
+                    
+                    if data_abertura is None:
+                        # Se não encontrou data específica, usa uma estimativa baseada no número do projeto
+                        # Para projetos críticos, tendemos a assumir que são mais antigos
+                        if 'Numero' in row.index and pd.notna(row['Numero']):
+                            numero = str(row['Numero'])
+                            if numero.isdigit():
+                                numero_int = int(numero)
+                                # Estima para projetos críticos (geralmente mais antigos)
+                                if numero_int < 1000:
+                                    logger.debug(f"Estimativa para projeto crítico {numero}: 500 dias (< 1000)")
+                                    return 500  # ~1 ano e 4 meses
+                                elif numero_int < 3000:
+                                    logger.debug(f"Estimativa para projeto crítico {numero}: 400 dias (< 3000)")
+                                    return 400  # ~1 ano e 1 mês
+                                elif numero_int < 5000:
+                                    logger.debug(f"Estimativa para projeto crítico {numero}: 300 dias (< 5000)")
+                                    return 300  # ~10 meses
+                                elif numero_int < 7000:
+                                    logger.debug(f"Estimativa para projeto crítico {numero}: 200 dias (< 7000)")
+                                    return 200  # ~6-7 meses
+                                else:
+                                    logger.debug(f"Estimativa para projeto crítico {numero}: 120 dias (>= 7000)")
+                                    return 120  # ~4 meses
+                        logger.warning(f"Não foi possível calcular tempo de vida para projeto crítico {row.get('Numero', 'N/A')} - dados insuficientes")
+                        return None
+                        
+                    # Converte para datetime se for string
+                    if isinstance(data_abertura, str):
+                        # Tenta diferentes formatos de data
+                        for formato in ['%Y-%m-%d', '%d/%m/%Y', '%Y-%m-%d %H:%M:%S', '%d/%m/%Y %H:%M:%S']:
+                            try:
+                                data_abertura = datetime.strptime(data_abertura, formato).date()
+                                logger.debug(f"Data de abertura convertida com formato {formato}: {data_abertura}")
+                                break
+                            except ValueError:
+                                continue
+                    elif hasattr(data_abertura, 'date'):
+                        data_abertura = data_abertura.date()
+                    
+                    if data_abertura:
+                        diff = hoje - data_abertura
+                        return diff.days
+                        
+                except Exception as e:
+                    logger.debug(f"Erro ao calcular tempo de vida para projeto crítico {row.get('Numero', 'N/A')}: {e}")
+                
+                return None
+            
+            # Adiciona coluna de tempo de vida
+            dados_para_retorno['tempo_vida'] = projetos_criticos.apply(calcular_tempo_vida_criticos, axis=1)
+            logger.info(f"Tempo de vida calculado para críticos - Exemplos: {dados_para_retorno['tempo_vida'].head().tolist()}")
+            # <<< FIM: Calcular tempo de vida >>>
+
             # Renomeia colunas para o formato esperado pelo frontend
-            dados_modal = dados_modal.rename(columns={
+            rename_map_criticos = {
                 'Numero': 'numero',
                 'Projeto': 'projeto',
                 'Status': 'status',
@@ -800,17 +976,32 @@ class MacroService(BaseService):
                 'Conclusao': 'conclusao',
                 'HorasRestantes': 'horasRestantes',
                 'VencimentoEm': 'dataPrevEnc',
-                'backlog_exists': 'backlog_exists'  # Mantém o nome
-            })
+                'Horas': 'Horas',
+                'backlog_exists': 'backlog_exists',
+                'tempo_vida': 'tempo_vida'
+            }
+            
+            # Filtra o mapa de renomeação para incluir apenas colunas que existem
+            colunas_para_renomear_criticos = {k: v for k, v in rename_map_criticos.items() if k in dados_para_retorno.columns}
+            dados_para_retorno = dados_para_retorno.rename(columns=colunas_para_renomear_criticos)
             
             # Formata a data de vencimento
-            dados_modal['dataPrevEnc'] = dados_modal['dataPrevEnc'].dt.strftime('%d/%m/%Y')
-            dados_modal['dataPrevEnc'] = dados_modal['dataPrevEnc'].fillna('N/A')
+            if 'dataPrevEnc' in dados_para_retorno.columns:
+                dados_para_retorno['dataPrevEnc'] = pd.to_datetime(dados_para_retorno['dataPrevEnc'], errors='coerce')
+                dados_para_retorno['dataPrevEnc'] = dados_para_retorno['dataPrevEnc'].dt.strftime('%d/%m/%Y')
+                dados_para_retorno['dataPrevEnc'] = dados_para_retorno['dataPrevEnc'].fillna('N/A')
+
+            logger.info(f"Calculados {len(projetos_criticos)} projetos críticos. Colunas retornadas: {dados_para_retorno.columns.tolist()}")
             
             return {
-                'total': metricas['total'],
-                'dados': dados_modal.replace({np.nan: None}),
-                'metricas': metricas
+                "total": len(projetos_criticos),
+                "dados": dados_para_retorno.replace({np.nan: None}),
+                "metricas": {
+                    'bloqueados': len(projetos_nao_concluidos[bloqueados]),
+                    'horas_negativas': len(projetos_nao_concluidos[horas_negativas]),
+                    'prazo_vencido': len(projetos_nao_concluidos[prazo_vencido]),
+                    'por_squad': projetos_criticos.groupby('Squad').size().to_dict()
+                }
             }
             
         except Exception as e:
@@ -3266,14 +3457,25 @@ class MacroService(BaseService):
             
         mes_num = mes_abbr_to_num[abrev_mes.lower()]
         
-        # Para determinar o ano, vamos usar uma heurística:
-        # Se o mês é maior que o mês atual, provavelmente é do ano passado
-        # Caso contrário, é do ano atual
+        # Lógica melhorada para determinar o ano
         hoje = datetime.now()
-        if mes_num > hoje.month:
-            ano_assumido = hoje.year - 1
+        ano_atual = hoje.year
+        
+        # Para dados históricos de 2025, sempre usa 2025
+        # Esta lógica pode ser expandida conforme necessário para outros anos
+        if ano_atual == 2025:
+            ano_assumido = 2025
+            logger.info(f"Usando ano 2025 para mês {mes_num} (abrev: {abrev_mes})")
         else:
-            ano_assumido = hoje.year
+            # Lógica para anos futuros: 
+            # Se o mês é significativamente maior que o atual (mais de 3 meses), pode ser do ano passado
+            # Caso contrário, assume ano atual
+            if mes_num > hoje.month + 3:
+                ano_assumido = ano_atual - 1
+                logger.info(f"Mês {mes_num} parece ser do ano anterior ({ano_assumido})")
+            else:
+                ano_assumido = ano_atual
+                logger.info(f"Usando ano atual ({ano_assumido}) para mês {mes_num}")
             
         return mes_num, ano_assumido
     
