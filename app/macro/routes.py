@@ -1627,3 +1627,97 @@ def api_projetos_por_status(status):
     except Exception as e:
         logger.error(f"Erro ao buscar projetos por status {status}: {str(e)}", exc_info=True)
         return jsonify({'erro': 'Erro interno do servidor'}), 500
+
+@macro_bp.route('/api/especialistas/resumo')
+def api_resumo_especialistas():
+    """
+    Retorna resumo detalhado dos especialistas com métricas agregadas.
+    Inclui: total de projetos, projetos ativos, projetos concluídos e horas utilizadas.
+    """
+    try:
+        logger.info("API: Calculando resumo dos especialistas...")
+        
+        dados = macro_service.carregar_dados()
+        if dados.empty:
+            logger.warning("API: Dados vazios ao calcular resumo dos especialistas.")
+            return jsonify([])
+        
+        # Prepara dados base
+        dados_base = macro_service.preparar_dados_base(dados)
+        
+        if 'Especialista' not in dados_base.columns:
+            logger.warning("API: Coluna 'Especialista' não encontrada nos dados.")
+            return jsonify([])
+        
+        # Obtém data atual para filtrar projetos concluídos do mês
+        hoje = datetime.now()
+        mes_atual = hoje.month
+        ano_atual = hoje.year
+        
+        # Status para categorização
+        status_concluidos = ['FECHADO', 'ENCERRADO', 'RESOLVIDO', 'CANCELADO']
+        status_ativos = ['NOVO', 'AGUARDANDO', 'EM ATENDIMENTO', 'BLOQUEADO']
+        
+        # Garante que colunas numéricas estão corretas
+        colunas_numericas = ['Horas', 'HorasTrabalhadas', 'HorasRestantes']
+        for col in colunas_numericas:
+            if col in dados_base.columns:
+                dados_base[col] = pd.to_numeric(dados_base[col], errors='coerce').fillna(0.0)
+        
+        # Filtra especialistas válidos (remove nulos e 'Não Alocado')
+        dados_especialistas = dados_base[
+            dados_base['Especialista'].notna() & 
+            (dados_base['Especialista'] != '') & 
+            (dados_base['Especialista'] != 'Não Alocado')
+        ].copy()
+        
+        if dados_especialistas.empty:
+            logger.warning("API: Nenhum especialista válido encontrado nos dados.")
+            return jsonify([])
+        
+        resumo_especialistas = []
+        
+        # Agrupa por especialista
+        for especialista in dados_especialistas['Especialista'].unique():
+            dados_esp = dados_especialistas[dados_especialistas['Especialista'] == especialista]
+            
+            # Total de projetos (todos os projetos já trabalhados pelo especialista)
+            total_projetos = len(dados_esp)
+            
+            # Projetos ativos (não concluídos)
+            projetos_ativos = len(dados_esp[~dados_esp['Status'].isin(status_concluidos)])
+            
+            # TODOS os projetos concluídos (histórico completo)
+            projetos_concluidos = len(dados_esp[dados_esp['Status'].isin(status_concluidos)])
+            
+            # Projetos concluídos no mês atual
+            dados_concluidos_mes = dados_esp[
+                (dados_esp['Status'].isin(status_concluidos)) &
+                (pd.to_datetime(dados_esp['DataTermino']).dt.month == mes_atual) &
+                (pd.to_datetime(dados_esp['DataTermino']).dt.year == ano_atual)
+            ]
+            projetos_concluidos_mes = len(dados_concluidos_mes)
+            
+            # Horas utilizadas (soma das horas trabalhadas em todos os projetos)
+            horas_utilizadas = dados_esp['HorasTrabalhadas'].sum()
+            
+            resumo_especialistas.append({
+                'nome': especialista,
+                'total_projetos': total_projetos,
+                'projetos_ativos': projetos_ativos,
+                'projetos_concluidos': projetos_concluidos,
+                'projetos_concluidos_mes': projetos_concluidos_mes,
+                'horas_utilizadas': round(horas_utilizadas, 1)
+            })
+        
+        # Ordena por número de projetos ativos (decrescente) e depois por nome
+        resumo_especialistas.sort(key=lambda x: (-x['projetos_ativos'], x['nome']))
+        
+        logger.info(f"API: Resumo calculado para {len(resumo_especialistas)} especialistas")
+        logger.debug(f"API: Exemplo de dados - {resumo_especialistas[0] if resumo_especialistas else 'Nenhum dado'}")
+        
+        return jsonify(resumo_especialistas)
+        
+    except Exception as e:
+        logger.error(f"Erro na API resumo especialistas: {str(e)}", exc_info=True)
+        return jsonify([]), 500

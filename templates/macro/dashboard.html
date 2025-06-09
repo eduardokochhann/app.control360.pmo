@@ -304,6 +304,132 @@
         }
         
         /* <<< FIM: Estilos Tabela Gerencial >>> */
+        
+        /* === ESTILOS PARA MODAL RESUMO ESPECIALISTAS === */
+        .card-especialista {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            background: white;
+            overflow: hidden;
+            max-width: 100%;
+        }
+        
+        .card-especialista:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .card-especialista .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1.2rem;
+            position: relative;
+        }
+        
+        .card-especialista .card-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        
+        .especialista-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 0.4rem;
+        }
+        
+        .estatistica-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid #667eea;
+            transition: all 0.2s ease;
+        }
+        
+        .estatistica-item:hover {
+            background: #e9ecef;
+            border-left-color: #764ba2;
+        }
+        
+        .estatistica-numero {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #495057;
+            line-height: 1;
+        }
+        
+        .estatistica-label {
+            font-size: 0.875rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 0.25rem;
+        }
+        
+        .badge-status {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 25px;
+        }
+        
+        .progress-especialista {
+            height: 8px;
+            border-radius: 4px;
+            background-color: rgba(255,255,255,0.3);
+            overflow: hidden;
+        }
+        
+        .progress-especialista .progress-bar {
+            border-radius: 4px;
+            transition: width 0.6s ease;
+        }
+        
+        /* Cores para diferentes níveis de carga de trabalho */
+        .carga-baixa { border-left-color: #28a745 !important; }
+        .carga-media { border-left-color: #ffc107 !important; }
+        .carga-alta { border-left-color: #fd7e14 !important; }
+        .carga-critica { border-left-color: #dc3545 !important; }
+        
+        /* Animações */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .card-especialista {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+        
+        .card-especialista:nth-child(1) { animation-delay: 0.1s; }
+        .card-especialista:nth-child(2) { animation-delay: 0.2s; }
+        .card-especialista:nth-child(3) { animation-delay: 0.3s; }
+        .card-especialista:nth-child(4) { animation-delay: 0.4s; }
+        /* === FIM ESTILOS MODAL RESUMO ESPECIALISTAS === */
     </style>
 </head>
 <body style="padding-top: 70px;">
@@ -679,6 +805,13 @@
 
                 <!-- Aba Especialistas -->
                 <div class="tab-pane fade" id="especialistas" role="tabpanel">
+                    <!-- Header com botão para modal de resumo -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div></div> <!-- Espaço vazio para alinhamento -->
+                        <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#modalResumoEspecialistas" title="Visualizar resumo dos especialistas em cards">
+                            <i class="bi bi-collection"></i> Resumo em Cards
+                        </button>
+                    </div>
                     <!-- Removido o card que envolvia o conteúdo -->
                     {% include 'macro/partials/tabela_especialistas.html' %}
                 </div>
@@ -1022,6 +1155,62 @@
                             </div>
                         </div>
                         <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Resumo Especialistas em Cards -->
+            <div class="modal fade" id="modalResumoEspecialistas" tabindex="-1" aria-labelledby="modalResumoEspecialistasLabel" aria-hidden="true">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                            <h5 class="modal-title" id="modalResumoEspecialistasLabel">
+                                <i class="bi bi-people-fill me-2"></i> Resumo dos Especialistas
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body p-4" style="background-color: #f8f9fa;">
+                            <!-- Campo de Busca -->
+                            <div class="row mb-4">
+                                <div class="col-md-8">
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-white border-end-0">
+                                            <i class="bi bi-search text-muted"></i>
+                                        </span>
+                                        <input type="text" class="form-control border-start-0" id="buscaEspecialistasCards" placeholder="Buscar especialista por nome...">
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <span class="badge bg-info fs-6" id="totalEspecialistasCards">0 especialistas</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Loading State -->
+                            <div id="loadingEspecialistas" class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Carregando...</span>
+                                </div>
+                                <p class="mt-3 text-muted">Carregando dados dos especialistas...</p>
+                            </div>
+                            
+                            <!-- Container dos Cards -->
+                            <div id="cardsEspecialistasContainer" class="row g-4" style="display: none;">
+                                <!-- Cards serão preenchidos dinamicamente -->
+                            </div>
+                            
+                            <!-- Estado Vazio -->
+                            <div id="estadoVazioEspecialistas" class="text-center py-5" style="display: none;">
+                                <i class="bi bi-person-x fs-1 text-muted"></i>
+                                <h5 class="mt-3 text-muted">Nenhum especialista encontrado</h5>
+                                <p class="text-muted">Verifique os filtros ou tente novamente</p>
+                            </div>
+                        </div>
+                        <div class="modal-footer bg-white">
+                            <button type="button" class="btn btn-outline-primary" onclick="exportarResumoEspecialistas()">
+                                <i class="bi bi-download me-1"></i> Exportar Relatório
+                            </button>
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
                         </div>
                     </div>
@@ -3750,6 +3939,397 @@
         
         console.log('[Sistema] Sprint Semanal carregado com todas as funcionalidades');
         console.log('[Sistema] Funções disponíveis:', Object.keys(window).filter(key => key.includes('Seg') || key.includes('Sprint') || key.includes('filtrar') || key.includes('alterar')));
+
+        // ==============================
+        // MODAL RESUMO ESPECIALISTAS EM CARDS
+        // ==============================
+        
+        let dadosEspecialistasCards = [];
+
+        // Event listener para o modal de resumo dos especialistas
+        document.getElementById('modalResumoEspecialistas').addEventListener('shown.bs.modal', function() {
+            carregarResumoEspecialistas();
+        });
+
+        // Função para carregar dados do resumo dos especialistas
+        function carregarResumoEspecialistas() {
+            console.log('[Resumo Especialistas] Carregando dados...');
+            
+            // Mostra loading
+            document.getElementById('loadingEspecialistas').style.display = 'block';
+            document.getElementById('cardsEspecialistasContainer').style.display = 'none';
+            document.getElementById('estadoVazioEspecialistas').style.display = 'none';
+            
+            fetch('/macro/api/especialistas/resumo')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('[Resumo Especialistas] Dados recebidos:', data);
+                    dadosEspecialistasCards = data;
+                    renderizarCardsEspecialistas(data);
+                })
+                .catch(error => {
+                    console.error('[Resumo Especialistas] Erro ao carregar:', error);
+                    document.getElementById('loadingEspecialistas').style.display = 'none';
+                    document.getElementById('estadoVazioEspecialistas').style.display = 'block';
+                    document.getElementById('estadoVazioEspecialistas').innerHTML = `
+                        <i class="bi bi-exclamation-triangle fs-1 text-danger"></i>
+                        <h5 class="mt-3 text-danger">Erro ao Carregar Dados</h5>
+                        <p class="text-muted">${error.message}</p>
+                        <button class="btn btn-outline-primary" onclick="carregarResumoEspecialistas()">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Tentar Novamente
+                        </button>
+                    `;
+                });
+        }
+
+        // Função para renderizar os cards dos especialistas
+        function renderizarCardsEspecialistas(especialistas) {
+            const container = document.getElementById('cardsEspecialistasContainer');
+            const totalElement = document.getElementById('totalEspecialistasCards');
+            
+            // Esconde loading
+            document.getElementById('loadingEspecialistas').style.display = 'none';
+            
+            if (!especialistas || especialistas.length === 0) {
+                document.getElementById('estadoVazioEspecialistas').style.display = 'block';
+                totalElement.textContent = '0 especialistas';
+                return;
+            }
+            
+            // Atualiza contador
+            totalElement.textContent = `${especialistas.length} especialista${especialistas.length !== 1 ? 's' : ''}`;
+            
+            // Gera HTML dos cards
+            let cardsHTML = '';
+            
+            especialistas.forEach((especialista, index) => {
+                const iniciais = obterIniciais(especialista.nome);
+                const classCarga = obterClasseCarga(especialista.projetos_ativos);
+                const statusBadge = obterStatusBadge(especialista.projetos_ativos, especialista.horas_utilizadas);
+                const percentualOcupacao = calcularPercentualOcupacao(especialista.horas_utilizadas);
+                
+                cardsHTML += `
+                    <div class="col-lg-3 col-md-6">
+                        <div class="card card-especialista h-100" style="animation-delay: ${(index + 1) * 0.1}s;">
+                            <div class="card-header text-center position-relative">
+                                ${statusBadge}
+                                <div class="especialista-avatar mx-auto">
+                                    ${iniciais}
+                                </div>
+                                <h5 class="mb-1 fw-bold">${especialista.nome}</h5>
+                                <p class="mb-2 opacity-75">Especialista</p>
+                                
+                                <!-- Barra de Ocupação -->
+                                <div class="mt-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <small>Ocupação</small>
+                                        <small><strong>${percentualOcupacao}%</strong></small>
+                                    </div>
+                                    <div class="progress-especialista">
+                                        <div class="progress-bar bg-white" style="width: ${Math.min(percentualOcupacao, 100)}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card-body">
+                                <!-- Total de Projetos -->
+                                <div class="estatistica-item ${classCarga}">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="estatistica-numero">${especialista.total_projetos}</div>
+                                            <div class="estatistica-label">Total de Projetos</div>
+                                        </div>
+                                        <i class="bi bi-briefcase fs-4 text-muted"></i>
+                                    </div>
+                                </div>
+                                
+                                <!-- Projetos Ativos -->
+                                <div class="estatistica-item ${classCarga}">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="estatistica-numero text-primary">${especialista.projetos_ativos}</div>
+                                            <div class="estatistica-label">Projetos Ativos</div>
+                                        </div>
+                                        <i class="bi bi-play-circle fs-4 text-primary"></i>
+                                    </div>
+                                </div>
+                                
+                                <!-- Projetos Concluídos (Total) -->
+                                <div class="estatistica-item ${classCarga}">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="estatistica-numero text-success">${especialista.projetos_concluidos}</div>
+                                            <div class="estatistica-label">Entregues</div>
+                                        </div>
+                                        <i class="bi bi-check-circle fs-4 text-success"></i>
+                                    </div>
+                                </div>
+                                
+                                <!-- Projetos Concluídos no Mês -->
+                                <div class="estatistica-item ${classCarga}">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="estatistica-numero text-warning">${especialista.projetos_concluidos_mes || 0}</div>
+                                            <div class="estatistica-label">Entregues/Mês</div>
+                                        </div>
+                                        <i class="bi bi-calendar-check fs-4 text-warning"></i>
+                                    </div>
+                                </div>
+                                
+                                <!-- Horas Utilizadas -->
+                                <div class="estatistica-item ${classCarga}">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="estatistica-numero text-info">${especialista.horas_utilizadas.toFixed(1)}h</div>
+                                            <div class="estatistica-label">Horas Utilizadas</div>
+                                        </div>
+                                        <i class="bi bi-clock fs-4 text-info"></i>
+                                    </div>
+                                </div>
+                                
+                                <!-- Taxa de Conclusão -->
+                                <div class="mt-3 text-center">
+                                    <small class="text-muted">Taxa de Conclusão</small>
+                                    <div class="progress mt-1" style="height: 6px;">
+                                        <div class="progress-bar bg-success" 
+                                             style="width: ${calcularTaxaConclusao(especialista.projetos_concluidos, especialista.total_projetos)}%"></div>
+                                    </div>
+                                    <small class="text-muted">${calcularTaxaConclusao(especialista.projetos_concluidos, especialista.total_projetos)}%</small>
+                                </div>
+                            </div>
+                            
+                            <div class="card-footer bg-transparent border-0 text-center">
+                                <button class="btn btn-outline-primary btn-sm" onclick="abrirDetalhesEspecialista('${especialista.nome}')">
+                                    <i class="bi bi-eye me-1"></i> Ver Detalhes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = cardsHTML;
+            container.style.display = 'flex';
+            
+            // Configura busca
+            configurarBuscaEspecialistasCards();
+        }
+
+        // Função para obter iniciais do nome
+        function obterIniciais(nome) {
+            if (!nome) return '??';
+            const palavras = nome.trim().split(' ');
+            if (palavras.length === 1) {
+                return palavras[0].substring(0, 2).toUpperCase();
+            }
+            return (palavras[0][0] + palavras[palavras.length - 1][0]).toUpperCase();
+        }
+
+        // Função para obter classe de carga de trabalho
+        function obterClasseCarga(projetosAtivos) {
+            if (projetosAtivos >= 8) return 'carga-critica';
+            if (projetosAtivos >= 6) return 'carga-alta';
+            if (projetosAtivos >= 3) return 'carga-media';
+            return 'carga-baixa';
+        }
+
+        // Função para obter badge de status
+        function obterStatusBadge(projetosAtivos, horasUtilizadas) {
+            let badgeClass = 'bg-success';
+            let texto = 'Normal';
+            
+            if (projetosAtivos >= 8 || horasUtilizadas > 200) {
+                badgeClass = 'bg-danger';
+                texto = 'Sobrecarregado';
+            } else if (projetosAtivos >= 6 || horasUtilizadas > 150) {
+                badgeClass = 'bg-warning text-dark';
+                texto = 'Ocupado';
+            } else if (projetosAtivos >= 3 || horasUtilizadas > 80) {
+                badgeClass = 'bg-info';
+                texto = 'Ativo';
+            }
+            
+            return `<span class="badge badge-status ${badgeClass}">${texto}</span>`;
+        }
+
+        // Função para calcular percentual de ocupação
+        function calcularPercentualOcupacao(horasUtilizadas) {
+            // Considera 200h como 100% de ocupação (valor base)
+            return Math.min(Math.round((horasUtilizadas / 200) * 100), 100);
+        }
+
+        // Função para calcular taxa de conclusão
+        function calcularTaxaConclusao(concluidos, total) {
+            if (total === 0) return 0;
+            return Math.round((concluidos / total) * 100);
+        }
+
+        // Função para configurar busca nos cards
+        function configurarBuscaEspecialistasCards() {
+            const inputBusca = document.getElementById('buscaEspecialistasCards');
+            
+            inputBusca.addEventListener('input', function() {
+                const termo = this.value.toLowerCase().trim();
+                const cards = document.querySelectorAll('#cardsEspecialistasContainer .col-lg-3');
+                let visivéis = 0;
+                
+                cards.forEach(card => {
+                    const nomeEspecialista = card.querySelector('h5').textContent.toLowerCase();
+                    const visible = nomeEspecialista.includes(termo);
+                    
+                    card.style.display = visible ? 'block' : 'none';
+                    if (visible) visivéis++;
+                });
+                
+                document.getElementById('totalEspecialistasCards').textContent = 
+                    `${visivéis} especialista${visivéis !== 1 ? 's' : ''}${termo ? ' encontrado' + (visivéis !== 1 ? 's' : '') : ''}`;
+                
+                // Mostra estado vazio se necessário
+                const containerVazio = document.getElementById('estadoVazioEspecialistas');
+                if (visivéis === 0 && termo) {
+                    containerVazio.innerHTML = `
+                        <i class="bi bi-search fs-1 text-muted"></i>
+                        <h5 class="mt-3 text-muted">Nenhum resultado encontrado</h5>
+                        <p class="text-muted">Não há especialistas que correspondam à busca "<strong>${termo}</strong>"</p>
+                    `;
+                    containerVazio.style.display = 'block';
+                    document.getElementById('cardsEspecialistasContainer').style.display = 'none';
+                } else if (visivéis > 0) {
+                    containerVazio.style.display = 'none';
+                    document.getElementById('cardsEspecialistasContainer').style.display = 'flex';
+                }
+            });
+        }
+
+        // Função para abrir detalhes do especialista
+        function abrirDetalhesEspecialista(nomeEspecialista) {
+            console.log('[Detalhes] Abrindo detalhes para:', nomeEspecialista);
+            
+            // Fecha o modal de resumo
+            bootstrap.Modal.getInstance(document.getElementById('modalResumoEspecialistas')).hide();
+            
+            // Simula clique no especialista na tabela para abrir o modal de projetos
+            setTimeout(() => {
+                // Define o especialista atual para o sistema de sprint
+                window.ultimoEspecialistaClicado = nomeEspecialista;
+                
+                // Atualiza o título do modal
+                const modalTitulo = document.getElementById('modalEspecialistaProjetosLabel');
+                if (modalTitulo) {
+                    modalTitulo.innerHTML = `<i class="bi bi-person"></i> Projetos Ativos - ${nomeEspecialista}`;
+                }
+                
+                // Abre o modal de projetos do especialista
+                const modalEspecialista = new bootstrap.Modal(document.getElementById('modalEspecialistaProjetos'));
+                const modalBody = document.querySelector('#modalEspecialistaProjetos .modal-body');
+                
+                modalBody.innerHTML = '<p class="text-center">Carregando projetos...</p>';
+                modalEspecialista.show();
+
+                // Carrega os projetos
+                fetch(`/macro/api/projetos/especialista/${encodeURIComponent(nomeEspecialista)}`)
+                    .then(response => response.json())
+                    .then(projetos => {
+                        if (projetos && projetos.length > 0) {
+                            const linhasHTML = projetos.map(p => formatarLinhaMacro(p)).join('');
+                            
+                            modalBody.innerHTML = `
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Número</th>
+                                                <th>Projeto</th>
+                                                <th>Status</th>
+                                                <th>Squad</th>
+                                                <th>Conclusão</th>
+                                                <th>Horas Rest.</th>
+                                                <th>Previsão</th>
+                                                <th>Ações</th>
+                                                <th>Backlog</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>${linhasHTML}</tbody>
+                                    </table>
+                                </div>`;
+                        } else {
+                            modalBody.innerHTML = '<p class="text-center">Nenhum projeto ativo encontrado</p>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Erro ao carregar projetos:", error);
+                        modalBody.innerHTML = '<p class="text-center text-danger">Erro ao carregar projetos</p>';
+                    });
+            }, 300);
+        }
+
+        // Função para exportar relatório dos especialistas
+        function exportarResumoEspecialistas() {
+            if (!dadosEspecialistasCards || dadosEspecialistasCards.length === 0) {
+                alert('⚠️ Nenhum dado disponível para exportar');
+                return;
+            }
+            
+            const confirmacao = confirm('📊 EXPORTAR RELATÓRIO\n\nDeseja exportar o resumo dos especialistas em formato CSV?');
+            
+            if (confirmacao) {
+                // Prepara dados para CSV
+                const csvData = dadosEspecialistasCards.map(esp => ({
+                    'Especialista': esp.nome,
+                    'Total de Projetos': esp.total_projetos,
+                    'Projetos Ativos': esp.projetos_ativos,
+                    'Projetos Entregues': esp.projetos_concluidos,
+                    'Entregues no Mês': esp.projetos_concluidos_mes || 0,
+                    'Horas Utilizadas': esp.horas_utilizadas.toFixed(1),
+                    'Taxa de Conclusão (%)': calcularTaxaConclusao(esp.projetos_concluidos, esp.total_projetos),
+                    'Status': obterStatusBadge(esp.projetos_ativos, esp.horas_utilizadas).replace(/<[^>]*>/g, '').trim()
+                }));
+                
+                // Converte para CSV
+                const csvContent = convertToCSV(csvData);
+                
+                // Download
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `resumo_especialistas_${new Date().toISOString().slice(0, 10)}.csv`;
+                link.click();
+            }
+        }
+
+        // Função auxiliar para converter para CSV
+        function convertToCSV(data) {
+            if (!data || data.length === 0) return '';
+            
+            const headers = Object.keys(data[0]);
+            const csvRows = [];
+            
+            // Headers
+            csvRows.push(headers.join(','));
+            
+            // Data rows
+            data.forEach(row => {
+                const values = headers.map(header => {
+                    const value = row[header];
+                    return typeof value === 'string' ? `"${value.replace(/"/g, '""')}"` : value;
+                });
+                csvRows.push(values.join(','));
+            });
+            
+            return csvRows.join('\n');
+        }
+
+        // Torna as funções acessíveis globalmente
+        window.carregarResumoEspecialistas = carregarResumoEspecialistas;
+        window.abrirDetalhesEspecialista = abrirDetalhesEspecialista;
+        window.exportarResumoEspecialistas = exportarResumoEspecialistas;
+        
+        console.log('[Sistema] Modal Resumo Especialistas carregado com sucesso');
     </script>
 </body>
 </html>
