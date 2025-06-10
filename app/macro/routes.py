@@ -1664,11 +1664,15 @@ def api_resumo_especialistas():
             if col in dados_base.columns:
                 dados_base[col] = pd.to_numeric(dados_base[col], errors='coerce').fillna(0.0)
         
-        # Filtra especialistas válidos (remove nulos e 'Não Alocado')
+        # Filtra especialistas válidos (remove nulos, vazios, 'Não Alocado' e Squads/Entidades)
+        especialistas_invalidos = [
+            'Não Alocado', 'CDB DATA SOLUTIONS', 'SOU CLOUD', 'SQUAD', 'EQUIPE',
+            'CONSULTORIA', 'DESENVOLVIMENTO', 'INFRAESTRUTURA', '', None
+        ]
         dados_especialistas = dados_base[
             dados_base['Especialista'].notna() & 
             (dados_base['Especialista'] != '') & 
-            (dados_base['Especialista'] != 'Não Alocado')
+            (~dados_base['Especialista'].isin(especialistas_invalidos))
         ].copy()
         
         if dados_especialistas.empty:
@@ -1701,13 +1705,26 @@ def api_resumo_especialistas():
             # Horas utilizadas (soma das horas trabalhadas em todos os projetos)
             horas_utilizadas = dados_esp['HorasTrabalhadas'].sum()
             
+            # Calcula status de sobrecarga baseado apenas em projetos ativos
+            dados_ativos = dados_esp[~dados_esp['Status'].isin(status_concluidos)]
+            horas_ativas = dados_ativos['HorasRestantes'].sum()
+            
+            # Define status de sobrecarga baseado na carga ativa
+            if projetos_ativos >= 8 or horas_ativas > 250:
+                status_sobrecarga = 'CRÍTICO'
+            elif projetos_ativos >= 5 or horas_ativas > 150:
+                status_sobrecarga = 'SOBRECARREGADO'
+            else:
+                status_sobrecarga = 'NORMAL'
+            
             resumo_especialistas.append({
                 'nome': especialista,
-                'total_projetos': total_projetos,
+                'projetos_total': total_projetos,  # Renomeado para ficar mais claro
                 'projetos_ativos': projetos_ativos,
                 'projetos_concluidos': projetos_concluidos,
                 'projetos_concluidos_mes': projetos_concluidos_mes,
-                'horas_utilizadas': round(horas_utilizadas, 1)
+                'total_horas': round(horas_utilizadas, 1),  # Renomeado para ficar consistente
+                'status_sobrecarga': status_sobrecarga
             })
         
         # Ordena por número de projetos ativos (decrescente) e depois por nome
