@@ -139,43 +139,64 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Cabeçalho do Projeto -->
-    {% if current_project %}
-    <div class="project-header">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h1 class="h3 mb-2">
-                    <i class="bi bi-kanban"></i> {{ current_project.projeto }}
-                </h1>
-                <div class="d-flex gap-3">
-                    <span><i class="bi bi-hash"></i> Projeto #{{ current_project.numero }}</span>
-                    {% if current_project.squad %}
-                    <span><i class="bi bi-people"></i> {{ current_project.squad }}</span>
-                    {% endif %}
-                    {% if current_project.especialista %}
-                    <span><i class="bi bi-person-badge"></i> {{ current_project.especialista }}</span>
-                    {% endif %}
+<div class="container-fluid mt-4">
+
+    <!-- CABEÇALHO DO PROJETO COM AÇÕES -->
+    <div class="card mb-4" id="projectHeader" style="display: none;">
+        <div class="card-body p-3">
+            <div class="row align-items-center">
+                <!-- Coluna Esquerda: Nome e Especialista -->
+                <div class="col-md-5">
+                    <h4 class="mb-1" id="headerProjectName" style="font-size: 1.2rem;">Carregando...</h4>
+                    <p class="text-muted mb-0" id="headerSpecialist" style="font-size: 0.9rem;">Especialista: -</p>
+                </div>
+
+                <!-- Coluna Direita: Ações do Usuário -->
+                <div class="col-md-7 d-flex justify-content-end align-items-center gap-2">
+                    <button class="btn btn-light btn-sm" onclick="location.href='/backlog/projetos'">
+                        <i class="bi bi-arrow-left"></i> Voltar
+                    </button>
+                    <button class="btn btn-primary btn-sm" onclick="openTaskModal()">
+                        <i class="bi bi-plus-circle"></i> Nova Tarefa
+                    </button>
+                    <button class="btn btn-info btn-sm" onclick="location.href='/backlog/agenda'">
+                        <i class="bi bi-calendar3"></i> Agenda
+                    </button>
+                    <div class="dropdown">
+                        <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" id="dropdownTools" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-tools"></i> Ferramentas
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownTools">
+                            <li><a class="dropdown-item" href="#" onclick="toggleProjectTools()"><i class="bi bi-kanban"></i> Ferramentas do Projeto</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="importTasks()"><i class="bi bi-file-earmark-excel"></i> Importar Excel</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="exportTasks()"><i class="bi bi-download"></i> Exportar</a></li>
+                        </ul>
+                    </div>
                 </div>
             </div>
-            <div class="d-flex gap-2">
-                <button class="btn btn-light" onclick="location.href='/backlog/projetos'">
-                    <i class="bi bi-arrow-left"></i> Voltar
-                </button>
-                <button class="btn btn-outline-light" onclick="openTaskModal()">
-                    <i class="bi bi-plus-circle"></i> Nova Tarefa
-                </button>
-                <button class="btn btn-outline-light" onclick="location.href='/backlog/agenda'">
-                    <i class="bi bi-calendar3"></i> Agenda
-                </button>
-                <button class="btn btn-outline-light" onclick="toggleProjectTools()" id="toggleProjectToolsBtn">
-                    <i class="bi bi-tools"></i> Ferramentas do Projeto
-                    <i class="bi bi-chevron-down" id="toolsChevron"></i>
-                </button>
+            <!-- Linha para Status e Métricas (aparece depois de carregar) -->
+            <hr class="my-2" id="headerMetricsSeparator" style="display: none;">
+            <div class="row text-center" id="headerMetrics" style="display: none;">
+                 <div class="col">
+                    <small class="text-muted">Status</small>
+                    <p class="fw-bold mb-0" id="headerProjectStatus">-</p>
+                </div>
+                <div class="col">
+                    <small class="text-muted">Horas Estimadas</small>
+                    <p class="fw-bold mb-0" id="headerTotalHours">-</p>
+                </div>
+                <div class="col">
+                    <small class="text-muted">Horas Restantes</small>
+                    <p class="fw-bold mb-0" id="headerRemainingHours">-</p>
+                </div>
+                <div class="col">
+                    <small class="text-muted">Account Manager</small>
+                    <p class="fw-bold mb-0" id="headerAccountManager">-</p>
+                </div>
             </div>
         </div>
     </div>
-    {% endif %}
+    <!-- FIM DO CABEÇALHO -->
 
     <!-- Informações do Backlog -->
     <div class="row mb-3">

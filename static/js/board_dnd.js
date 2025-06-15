@@ -27,6 +27,7 @@ function initializeSortable() {
         renderTasks();
         initializeSortableJS();
         loadSpecialists();
+        loadProjectHeader();
     }
 
     function setupEventListeners() {
@@ -70,6 +71,41 @@ function initializeSortable() {
         }
     }
 
+    async function loadProjectHeader() {
+        const projectId = window.boardData.projectId;
+        const headerDiv = document.getElementById('projectHeader');
+        if (!projectId || !headerDiv) {
+            console.warn("ID do Projeto ou div do cabeçalho não encontrados.");
+            return;
+        }
+
+        try {
+            const response = await fetch(`/backlog/api/projects/${projectId}/header-details`);
+            if (!response.ok) throw new Error('Falha ao buscar dados do cabeçalho.');
+            
+            const data = await response.json();
+            
+            // Preenche os dados no HTML
+            document.getElementById('headerProjectName').textContent = data.project_name || 'Nome não encontrado';
+            document.getElementById('headerSpecialist').textContent = `Especialista: ${data.specialist || 'N/A'}`;
+            document.getElementById('headerProjectStatus').textContent = data.status || '-';
+            document.getElementById('headerTotalHours').textContent = data.estimated_hours || '-';
+            document.getElementById('headerRemainingHours').textContent = data.remaining_hours || '-';
+            document.getElementById('headerAccountManager').textContent = data.account_manager || 'N/A';
+
+            // Mostra o cabeçalho e as métricas
+            headerDiv.style.display = 'block';
+            document.getElementById('headerMetrics').style.display = 'flex';
+            document.getElementById('headerMetricsSeparator').style.display = 'block';
+
+        } catch (error) {
+            console.error("Erro ao carregar cabeçalho do projeto:", error);
+            // Mostra o cabeçalho com uma mensagem de erro
+            headerDiv.style.display = 'block';
+            document.getElementById('headerProjectName').textContent = 'Erro ao carregar dados do projeto';
+        }
+    }
+
     function renderTasks() {
         // Limpa todas as colunas
         columns.forEach(column => {
@@ -107,7 +143,7 @@ function initializeSortable() {
             <div class="task-meta">
                 <div>
                     ${task.priority ? `<span class="task-priority priority-${task.priority.toLowerCase()}">${task.priority}</span>` : ''}
-                    ${task.estimated_effort ? `<span class="task-estimated-hours">${task.estimated_effort}h</span>` : ''}
+                    ${task.estimated_hours ? `<span class="task-estimated-hours">${task.estimated_hours}h</span>` : ''}
                 </div>
                 ${task.specialist_name ? `<span class="task-specialist">${task.specialist_name}</span>` : ''}
             </div>
@@ -212,55 +248,71 @@ function initializeSortable() {
     async function openTaskModal(columnId, task = null) {
         taskForm.reset();
         document.getElementById('taskStatus').value = columnId;
-        const modalTitle = document.getElementById('taskModalLabel');
-        const deleteBtn = document.getElementById('deleteTaskBtn');
-
+        
         if (task) {
             // Editando tarefa existente
-            modalTitle.textContent = 'Editar Tarefa';
-            deleteBtn.style.display = 'block';
-            
+            document.getElementById('taskModalLabel').textContent = 'Editar Tarefa';
             document.getElementById('taskId').value = task.id;
-            document.getElementById('taskColumnId').value = task.column_id;
             document.getElementById('taskTitle').value = task.title;
             document.getElementById('taskDescription').value = task.description || '';
-            document.getElementById('taskSpecialistId').value = task.specialist_id || '';
             document.getElementById('taskPriority').value = task.priority || 'Média';
-            document.getElementById('taskEstimatedEffort').value = task.estimated_effort || '';
             document.getElementById('taskStatus').value = task.column_id;
-
+            document.getElementById('taskSpecialistId').value = task.specialist_name || '';
+            document.getElementById('taskEstimatedEffort').value = task.estimated_effort || '';
+            
+            // Botão de exclusão
+            document.getElementById('deleteTaskBtn').style.display = 'block';
         } else {
             // Criando nova tarefa
-            modalTitle.textContent = 'Nova Tarefa';
-            deleteBtn.style.display = 'none';
+            document.getElementById('taskModalLabel').textContent = 'Adicionar Tarefa';
             document.getElementById('taskId').value = '';
-            document.getElementById('taskColumnId').value = columnId;
+            document.getElementById('deleteTaskBtn').style.display = 'none';
+
+            // Opcional: Pré-preencher especialista com o do projeto ao criar nova tarefa
+            const projectSpecialist = document.getElementById('headerSpecialist').textContent.replace('Especialista: ', '').trim();
+            if (projectSpecialist && projectSpecialist !== 'N/A') {
+                document.getElementById('taskSpecialistId').value = projectSpecialist;
+            }
         }
+        
         taskModal.show();
     }
 
     async function saveTask() {
         const taskId = document.getElementById('taskId').value;
-        const columnId = document.getElementById('taskColumnId').value;
+        const title = document.getElementById('taskTitle').value;
+        const columnId = document.getElementById('taskStatus').value; // O select de status agora contém o ID da coluna
         
-        const data = {
-            title: document.getElementById('taskTitle').value,
+        if (!title.trim()) {
+            showToast('O título da tarefa é obrigatório.', 'error');
+            return;
+        }
+
+        const taskData = {
+            title: title,
             description: document.getElementById('taskDescription').value,
             priority: document.getElementById('taskPriority').value,
-            estimated_effort: document.getElementById('taskEstimatedEffort').value || null,
-            specialist_id: document.getElementById('taskSpecialistId').value || null,
-            backlog_id: backlogId,
-            column_id: document.getElementById('taskStatus').value,
+            specialist_name: document.getElementById('taskSpecialistId').value,
+            estimated_hours: document.getElementById('taskEstimatedEffort').value,
+            status: columnId, // Envia o ID da coluna como 'status' para a API de update
         };
 
         const url = taskId ? `/backlog/api/tasks/${taskId}` : `/backlog/api/backlogs/${backlogId}/tasks`;
         const method = taskId ? 'PUT' : 'POST';
 
+        if (!taskId) {
+            // Para novas tarefas, a API espera 'column_id' e 'position'
+            delete taskData.status; // Remove o campo 'status' que não é usado na criação
+            taskData.column_id = parseInt(columnId);
+            const columnTasks = tasksData.filter(t => t.column_id == columnId);
+            taskData.position = columnTasks.length;
+        }
+        
         try {
             const response = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
+                body: JSON.stringify(taskData)
             });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'Falha ao salvar a tarefa.');

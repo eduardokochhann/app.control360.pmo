@@ -466,125 +466,67 @@ def get_tasks():
 # API para obter detalhes de uma tarefa específica
 @backlog_bp.route('/api/tasks/<int:task_id>', methods=['GET'])
 def get_task_details(task_id):
-    task = Task.query.get_or_404(task_id) # Busca a tarefa ou retorna 404 se não encontrar
-    return jsonify(serialize_task(task)) # Retorna os dados serializados da tarefa
+    task = Task.query.get_or_404(task_id)
+    return jsonify(task.to_dict())
 
 # API para atualizar detalhes de uma tarefa existente
 @backlog_bp.route('/api/tasks/<int:task_id>', methods=['PUT'])
 def update_task_details(task_id):
-    task = Task.query.get_or_404(task_id)
+    task = Task.query.get(task_id)
+    if not task:
+        return jsonify({'error': 'Task not found'}), 404
+
     data = request.get_json()
-
-    if not data:
-        return jsonify({'error': 'Nenhum dado fornecido'}), 400
-
     current_app.logger.info(f"Atualizando tarefa {task_id} com dados: {data}")
 
-    # Campos que podem ser atualizados diretamente
-    simple_update_fields = {
-        'title': 'title',
-        'description': 'description',
-        'priority': 'priority',
-        'estimated_hours': 'estimated_effort', # Frontend envia 'estimated_hours', modelo usa 'estimated_effort'
-        'logged_time': 'logged_time',
-        'specialist_name': 'specialist_name'
-        # 'is_generic' e 'is_unplanned' serão tratados abaixo
-    }
+    # Mapeamento de status ID para nome para validação
+    status_map = {col.id: col.name for col in Column.query.all()}
+    
+    # Validação e atualização dos campos
+    if 'title' in data:
+        task.title = data['title']
+    if 'description' in data:
+        task.description = data['description']
+    if 'priority' in data:
+        task.priority = data['priority']
+    
+    if 'estimated_hours' in data:
+        try:
+            # Permite valor nulo ou string vazia para limpar o campo
+            if data.get('estimated_hours') and str(data['estimated_hours']).strip():
+                task.estimated_effort = float(data['estimated_hours'])
+            else:
+                task.estimated_effort = None
+        except (ValueError, TypeError):
+            current_app.logger.warning(f"Valor inválido para estimated_hours: {data.get('estimated_hours')}")
+            task.estimated_effort = None
 
-    for front_key, model_key in simple_update_fields.items():
-        if front_key in data:
-            setattr(task, model_key, data[front_key])
-
-    # Tratamento para 'status'
+    if 'specialist_name' in data:
+        # Permite "Não atribuído" ou nulo para limpar o campo
+        specialist = data['specialist_name']
+        if specialist and specialist.lower() != 'não atribuído':
+            task.specialist_name = specialist
+        else:
+            task.specialist_name = None
+    
     if 'status' in data:
         try:
-            status_enum = TaskStatus[data['status']]
-            task.status = status_enum
-        except KeyError:
-            return jsonify({'error': f"Status inválido: {data['status']}"}), 400
+            status_id = int(data['status'])
+            if status_id in status_map:
+                # O ID da coluna é o próprio status_id no novo modelo
+                task.column_id = status_id
+            else:
+                current_app.logger.error(f"Status ID '{status_id}' inválido recebido.")
+                return jsonify({'error': f"Status inválido: {data['status']}"}), 400
+        except (ValueError, TypeError):
+            current_app.logger.error(f"Valor de status inválido recebido: {data['status']}. Esperado um ID numérico.")
+            return jsonify({'error': f"Valor de status inválido: {data['status']}"}), 400
 
-    # Tratamento para 'is_generic'
-    if 'is_generic' in data:
-        if isinstance(data['is_generic'], bool):
-            task.is_generic = data['is_generic']
-        else:
-            current_app.logger.warning(f"Valor inválido para is_generic: {data['is_generic']}. Esperado um booleano.")
-            task.is_generic = str(data['is_generic']).lower() in ['true', '1', 'yes']
-
-    # Tratamento para 'is_unplanned' - NOVO
-    if 'is_unplanned' in data:
-        if isinstance(data['is_unplanned'], bool):
-            task.is_unplanned = data['is_unplanned']
-        else:
-            current_app.logger.warning(f"Valor inválido para is_unplanned: {data['is_unplanned']}. Esperado um booleano.")
-            task.is_unplanned = str(data['is_unplanned']).lower() in ['true', '1', 'yes']
-
-    # Tratamento para 'start_date'
-    if 'start_date' in data and data['start_date']:
-        try:
-            task.start_date = datetime.fromisoformat(data['start_date'].replace('Z', '+00:00'))
-        except ValueError:
-            try: # Tentar parsear apenas data YYYY-MM-DD
-                task.start_date = datetime.strptime(data['start_date'], '%Y-%m-%d')
-            except ValueError:
-                 return jsonify({'error': f"Formato de start_date inválido: {data['start_date']}"}), 400
-    elif 'start_date' in data and not data['start_date']: # Permitir limpar a data
-        task.start_date = None
-
-    # Tratamento para 'due_date'
-    if 'due_date' in data and data['due_date']:
-        try:
-            task.due_date = datetime.fromisoformat(data['due_date'].replace('Z', '+00:00'))
-        except ValueError:
-            try: # Tentar parsear apenas data YYYY-MM-DD
-                task.due_date = datetime.strptime(data['due_date'], '%Y-%m-%d')
-            except ValueError:
-                return jsonify({'error': f"Formato de due_date inválido: {data['due_date']}"}), 400
-    elif 'due_date' in data and not data['due_date']: # Permitir limpar a data
-        task.due_date = None
-
-    # Tratamento para 'completed_at'
-    if 'completed_at' in data and data['completed_at']:
-        try:
-            task.completed_at = datetime.fromisoformat(data['completed_at'].replace('Z', '+00:00'))
-            # Se a tarefa está sendo marcada como concluída, atualiza o status para DONE
-            # a menos que já seja um status final (ex: ARCHIVED)
-            if task.status not in [TaskStatus.DONE, TaskStatus.ARCHIVED]: # CORRIGIDO AQUI
-                task.status = TaskStatus.DONE # CORRIGIDO AQUI
-        except ValueError:
-            try: # Tentar parsear apenas data YYYY-MM-DD
-                dt_obj = datetime.strptime(data['completed_at'], '%Y-%m-%d')
-                # Se apenas a data for fornecida, podemos definir a hora para o final do dia ou manter como meia-noite.
-                # Para consistência, manter meia-noite UTC se nenhuma hora for dada.
-                task.completed_at = dt_obj 
-                if task.status not in [TaskStatus.DONE, TaskStatus.ARCHIVED]: # CORRIGIDO AQUI
-                    task.status = TaskStatus.DONE # CORRIGIDO AQUI
-            except ValueError:
-                current_app.logger.error(f"Formato de data inválido para completed_at: {data['completed_at']}")
-                
-    elif 'completed_at' in data and not data['completed_at']:
-        task.completed_at = None
-        # Se a data de conclusão é removida, e o status era CONCLUIDO,
-        # pode ser necessário reverter o status para um anterior (ex: EM_ANDAMENTO ou A_FAZER).
-        # Isso depende da lógica de negócios. Por enquanto, apenas remove a data.
-        # Poderíamos adicionar: if task.status == TaskStatus.DONE: task.status = TaskStatus.IN_PROGRESS # Ou A_FAZER # CORRIGIDO AQUI (exemplo)
-
-    try:
-        db.session.commit()
-        # Log após o commit bem-sucedido
-        current_app.logger.info(f"Tarefa {task_id} atualizada com sucesso. Novo status: {task.status}, Título: {task.title}")
-        # Serializa a tarefa atualizada para retornar na resposta
-        updated_task_data = serialize_task(task)
-        if updated_task_data.get('error'): # Verifica se a serialização falhou
-            current_app.logger.error(f"Erro ao serializar tarefa {task_id} após atualização: {updated_task_data.get('error')}")
-            # Mesmo que a serialização falhe, a atualização no DB ocorreu.
-            # Retornar uma mensagem genérica de sucesso ou tentar um fallback.
-            return jsonify({'message': 'Tarefa atualizada, mas erro ao obter detalhes completos.'}), 200
-        return jsonify(updated_task_data), 200
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Erro ao atualizar tarefa {task_id}: {str(e)}", exc_info=True)
-        return jsonify({'error': f'Erro ao salvar alterações: {str(e)}'}), 500
+    db.session.commit()
+    current_app.logger.info(f"Tarefa {task_id} atualizada com sucesso.")
+    
+    # Usar serialize_task em vez de task.to_dict()
+    return jsonify(serialize_task(task))
 
 # API para excluir uma tarefa (VERSÃO OTIMIZADA)
 @backlog_bp.route('/api/tasks/<int:task_id>', methods=['DELETE'])
@@ -679,7 +621,7 @@ def create_task(backlog_id):
             abort(400, description="Formato inválido para 'due_date'. Use YYYY-MM-DD.")
 
     new_task = Task(
-        title=data['title'].strip(),
+        title=data.get('title', 'Nova Tarefa').strip(),
         description=data.get('description'),
         status=TaskStatus.TODO, # Status inicial sempre TODO
         priority=data.get('priority', 'Média'), # Adiciona prioridade
@@ -689,7 +631,7 @@ def create_task(backlog_id):
         due_date=due_date_obj, # <<< CORREÇÃO: Usa o objeto datetime validado
         backlog_id=backlog.id,
         column_id=first_column.id, # Atribui à primeira coluna
-        specialist_name=default_specialist, # <<< Define o especialista padrão >>>
+        specialist_name=data.get('specialist_name') or default_specialist, # Usa o do payload ou o padrão
         is_unplanned=data.get('is_unplanned', False) # <<< NOVO CAMPO >>>
     )
     db.session.add(new_task)
@@ -862,6 +804,47 @@ def get_project_details(project_id):
         current_app.logger.error(f"Erro ao buscar detalhes do projeto {project_id}: {e}", exc_info=True)
         abort(500, description="Erro interno ao buscar detalhes do projeto.")
 # ------------------------------------------------
+
+# --- NOVA ROTA PARA DADOS DO CABEÇALHO ---
+@backlog_bp.route('/api/projects/<string:project_id>/header-details', methods=['GET'])
+def get_project_header_details(project_id):
+    """
+    Retorna dados formatados para o cabeçalho do projeto no quadro Kanban.
+    """
+    current_app.logger.info(f"Buscando dados de cabeçalho para o projeto {project_id}")
+    macro_service = MacroService()
+    details = macro_service.obter_detalhes_projeto(project_id)
+
+    if not details:
+        current_app.logger.warning(f"Nenhum detalhe encontrado para o projeto {project_id} no MacroService.")
+        return jsonify({
+            'project_name': 'Projeto não encontrado',
+            'specialist': 'N/A',
+            'status': 'N/A',
+            'estimated_hours': '-',
+            'remaining_hours': '-',
+            'account_manager': 'N/A'
+        }), 404
+
+    # O serviço já deve retornar chaves minúsculas, mas garantimos aqui.
+    details = {str(k).lower(): v for k, v in details.items()}
+
+    # Formata os dados para o frontend, tratando valores nulos ou vazios
+    estimated_hours = details.get('horas', 0)
+    remaining_hours = details.get('horasrestantes', 0)
+
+    header_data = {
+        'project_name': details.get('projeto', 'Nome não disponível'),
+        'specialist': details.get('especialista', 'Não atribuído'),
+        'status': details.get('status', 'Status não definido'),
+        'estimated_hours': f"{estimated_hours:.0f}h" if pd.notna(estimated_hours) and estimated_hours > 0 else "-",
+        'remaining_hours': f"{remaining_hours:.0f}h" if pd.notna(remaining_hours) and remaining_hours > 0 else "-",
+        'account_manager': details.get('account_manager', 'N/A')
+    }
+    
+    current_app.logger.info(f"Dados do cabeçalho para o projeto {project_id}: {header_data}")
+    return jsonify(header_data)
+# --- FIM DA NOVA ROTA ---
 
 # Adicionar rotas para CRUD de Sprints se necessário... 
 

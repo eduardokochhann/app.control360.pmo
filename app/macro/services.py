@@ -84,6 +84,16 @@ def _set_cached_project_details(project_id, details):
         'timestamp': time.time()
     }
 
+def _normalize_key(key):
+    """Normaliza uma chave de dicionário para minúsculo, sem acentos e com underscores."""
+    if not isinstance(key, str):
+        return key
+    # Remove acentos
+    nfkd_form = unicodedata.normalize('NFKD', key)
+    only_ascii = nfkd_form.encode('ASCII', 'ignore').decode('utf-8')
+    # Substitui espaços por underscore e converte para minúsculo
+    return only_ascii.lower().replace(' ', '_')
+
 class MacroService(BaseService):
     def __init__(self):
         super().__init__()
@@ -3371,13 +3381,17 @@ class MacroService(BaseService):
         # Retorna o primeiro resultado como dicionário
         projeto_dict = projeto.iloc[0].to_dict()
         
+        # --- INÍCIO: Normalização das chaves ---
+        normalized_details = { _normalize_key(k): v for k, v in projeto_dict.items() }
+        # --- FIM: Normalização das chaves ---
+
         # OTIMIZAÇÃO: Cache o resultado para futuras consultas
-        _set_cached_project_details(project_id, projeto_dict)
+        _set_cached_project_details(project_id, normalized_details)
         
         # OTIMIZAÇÃO: Log silenciado para evitar spam (projeto encontrado é comum)
         # self.logger.info(f"Projeto encontrado: {projeto_dict.get('Projeto', 'N/A')}")
         
-        return projeto_dict
+        return normalized_details
 
     def obter_fontes_disponiveis(self):
         """
