@@ -61,3 +61,6 @@ projetos.csv
 
 # Ignorar qualquer arquivo temporário
 *.tmp
+
+# Ignorar arquivos de revisão
+_ARQUIVOS_DUPLICADOS_PARA_REVISAO/
