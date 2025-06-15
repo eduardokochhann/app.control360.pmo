@@ -509,6 +509,38 @@ def update_task_details(task_id):
         else:
             task.specialist_name = None
     
+    # Novos campos adicionais
+    if 'start_date' in data:
+        if data['start_date']:
+            try:
+                task.start_date = datetime.strptime(data['start_date'], '%Y-%m-%d')
+            except ValueError:
+                current_app.logger.warning(f"Formato inválido para start_date: {data['start_date']}")
+        else:
+            task.start_date = None
+    
+    if 'due_date' in data:
+        if data['due_date']:
+            try:
+                task.due_date = datetime.strptime(data['due_date'], '%Y-%m-%d')
+            except ValueError:
+                current_app.logger.warning(f"Formato inválido para due_date: {data['due_date']}")
+        else:
+            task.due_date = None
+    
+    if 'logged_time' in data:
+        try:
+            if data.get('logged_time') is not None and str(data['logged_time']).strip():
+                task.logged_time = float(data['logged_time'])
+            else:
+                task.logged_time = None
+        except (ValueError, TypeError):
+            current_app.logger.warning(f"Valor inválido para logged_time: {data.get('logged_time')}")
+            task.logged_time = None
+    
+    if 'is_unplanned' in data:
+        task.is_unplanned = bool(data['is_unplanned'])
+    
     if 'status' in data:
         try:
             status_id = int(data['status'])
@@ -619,6 +651,15 @@ def create_task(backlog_id):
             due_date_obj = datetime.strptime(data['due_date'], '%Y-%m-%d') # Valida o formato
         except ValueError:
             abort(400, description="Formato inválido para 'due_date'. Use YYYY-MM-DD.")
+    
+    logged_time_val = None # Inicializa fora do try
+    if data.get('logged_time') is not None and data['logged_time'] != '':
+        try:
+            logged_time_val = float(data['logged_time'])
+            if logged_time_val < 0:
+                abort(400, description="'logged_time' não pode ser negativo.")
+        except ValueError:
+            abort(400, description="Valor inválido para 'logged_time'. Use um número.")
 
     new_task = Task(
         title=data.get('title', 'Nova Tarefa').strip(),
@@ -626,6 +667,7 @@ def create_task(backlog_id):
         status=TaskStatus.TODO, # Status inicial sempre TODO
         priority=data.get('priority', 'Média'), # Adiciona prioridade
         estimated_effort=estimated_effort_val, # <<< Usa a variável processada
+        logged_time=logged_time_val, # <<< NOVO CAMPO >>>
         position=new_position,
         start_date=start_date_obj, # <<< Usa a variável processada
         due_date=due_date_obj, # <<< CORREÇÃO: Usa o objeto datetime validado

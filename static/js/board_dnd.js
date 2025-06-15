@@ -260,6 +260,12 @@ function initializeSortable() {
             document.getElementById('taskSpecialistId').value = task.specialist_name || '';
             document.getElementById('taskEstimatedEffort').value = task.estimated_effort || '';
             
+            // Novos campos
+            document.getElementById('taskStartDate').value = task.start_date ? task.start_date.split('T')[0] : '';
+            document.getElementById('taskDueDate').value = task.due_date ? task.due_date.split('T')[0] : '';
+            document.getElementById('taskLoggedTime').value = task.logged_time || 0;
+            document.getElementById('taskIsUnplanned').checked = task.is_unplanned || false;
+            
             // Botão de exclusão
             document.getElementById('deleteTaskBtn').style.display = 'block';
         } else {
@@ -294,6 +300,10 @@ function initializeSortable() {
             priority: document.getElementById('taskPriority').value,
             specialist_name: document.getElementById('taskSpecialistId').value,
             estimated_hours: document.getElementById('taskEstimatedEffort').value,
+            start_date: document.getElementById('taskStartDate').value || null,
+            due_date: document.getElementById('taskDueDate').value || null,
+            logged_time: parseFloat(document.getElementById('taskLoggedTime').value) || null,
+            is_unplanned: document.getElementById('taskIsUnplanned').checked,
             status: columnId, // Envia o ID da coluna como 'status' para a API de update
         };
 
