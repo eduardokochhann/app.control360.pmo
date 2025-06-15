@@ -204,9 +204,10 @@ class ProjectMilestone(db.Model):
 # --- NOVO MODELO PARA RISCOS DO PROJETO (Estrutura básica) ---
 # Enums para Riscos (se ainda não existirem)
 class RiskStatus(enum.Enum):
-    ACTIVE = 'Ativo'
+    IDENTIFIED = 'Identificado'
     MITIGATED = 'Mitigado'
     RESOLVED = 'Resolvido'
+    ACCEPTED = 'Aceito'
 
 class RiskImpact(enum.Enum):
     LOW = 'Baixo'
@@ -220,10 +221,11 @@ class RiskProbability(enum.Enum):
 
 class ProjectRisk(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    description = db.Column(db.Text, nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
     impact = db.Column(db.Enum(RiskImpact), default=RiskImpact.MEDIUM, nullable=False)
     probability = db.Column(db.Enum(RiskProbability), default=RiskProbability.MEDIUM, nullable=False)
-    status = db.Column(db.Enum(RiskStatus), default=RiskStatus.ACTIVE, nullable=False)
+    status = db.Column(db.Enum(RiskStatus), default=RiskStatus.IDENTIFIED, nullable=False)
     identified_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     resolved_date = db.Column(db.DateTime, nullable=True)
     mitigation_plan = db.Column(db.Text)
@@ -254,10 +256,11 @@ class ProjectRisk(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'title': self.title,
             'description': self.description,
-            'impact': self.impact.value,
-            'probability': self.probability.value,
-            'status': self.status.value,
+            'impact': {'key': self.impact.name, 'value': self.impact.value},
+            'probability': {'key': self.probability.name, 'value': self.probability.value},
+            'status': {'key': self.status.name, 'value': self.status.value},
             'identified_date': self.identified_date.strftime('%Y-%m-%d') if self.identified_date else None,
             'resolved_date': self.resolved_date.strftime('%Y-%m-%d') if self.resolved_date else None,
             'mitigation_plan': self.mitigation_plan,
@@ -269,7 +272,7 @@ class ProjectRisk(db.Model):
         }
 
     def __repr__(self):
-        return f'<ProjectRisk {self.id}: {self.description[:30]}...>'
+        return f'<ProjectRisk {self.id}: {self.title[:30]}...>'
 # --- FIM NOVO MODELO RISCOS ---
 
 # Enums para o sistema de notas

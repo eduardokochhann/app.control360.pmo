@@ -147,20 +147,29 @@ function initializeProjectTools() {
         }
 
         const risksHtml = risks.map(risk => `
-            <div class="card mb-3">
+            <div class="card mb-3 risk-card" data-risk-id="${risk.id}">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <h6 class="card-title">${risk.title || risk.description}</h6>
-                            <p class="card-text">${risk.description}</p>
-                            <div class="d-flex gap-2 mb-2">
-                                <span class="badge bg-${getRiskColor(risk.probability)}">${risk.probability}</span>
-                                <span class="badge bg-${getRiskColor(risk.impact)}">${risk.impact}</span>
-                                <span class="badge bg-${getStatusColor(risk.status)}">${risk.status}</span>
+                        <div class="flex-grow-1">
+                            <h6 class="card-title mb-1">${risk.title}</h6>
+                            ${risk.description ? `<p class="card-text text-muted small">${risk.description}</p>` : ''}
+                            
+                            <div class="d-flex gap-3 mt-2 flex-wrap">
+                                <div>
+                                    <small class="text-muted d-block" style="font-size: 0.75em;">Prob.</small>
+                                    <span class="badge bg-${getRiskColor(risk.probability.key)}">${risk.probability.value}</span>
+                                </div>
+                                <div>
+                                    <small class="text-muted d-block" style="font-size: 0.75em;">Impacto</small>
+                                    <span class="badge bg-${getRiskColor(risk.impact.key)}">${risk.impact.value}</span>
+                                </div>
+                                <div>
+                                    <small class="text-muted d-block" style="font-size: 0.75em;">Status</small>
+                                    <span class="badge bg-${getStatusColor(risk.status.key)}">${risk.status.value}</span>
+                                </div>
                             </div>
-                            ${risk.mitigation_plan ? `<small class="text-muted">Mitigação: ${risk.mitigation_plan}</small>` : ''}
                         </div>
-                        <div class="btn-group">
+                        <div class="btn-group-vertical ms-2">
                             <button class="btn btn-sm btn-outline-primary" onclick="editRisk(${risk.id})">
                                 <i class="bi bi-pencil"></i>
                             </button>
@@ -188,14 +197,21 @@ function initializeProjectTools() {
             document.getElementById('riskId').value = risk.id;
             document.getElementById('riskTitle').value = risk.title || '';
             document.getElementById('riskDescription').value = risk.description || '';
-            document.getElementById('riskProbability').value = risk.probability || 'MEDIUM';
-            document.getElementById('riskImpact').value = risk.impact || 'MEDIUM';
-            document.getElementById('riskStatus').value = risk.status || 'IDENTIFIED';
+            document.getElementById('riskProbability').value = risk.probability.key || 'MEDIUM';
+            document.getElementById('riskImpact').value = risk.impact.key || 'MEDIUM';
+            document.getElementById('riskStatus').value = risk.status.key || 'IDENTIFIED';
             document.getElementById('riskMitigationPlan').value = risk.mitigation_plan || '';
         } else {
             modalTitle.textContent = 'Novo Risco';
             deleteBtn.style.display = 'none';
             document.getElementById('riskId').value = '';
+            // Limpa os campos para um novo risco
+            document.getElementById('riskTitle').value = '';
+            document.getElementById('riskDescription').value = '';
+            // Define valores padrão corretos para novo risco
+            document.getElementById('riskProbability').value = 'MEDIUM';
+            document.getElementById('riskImpact').value = 'MEDIUM';
+            document.getElementById('riskStatus').value = 'IDENTIFIED';
         }
         
         riskModal.show();
@@ -223,7 +239,16 @@ function initializeProjectTools() {
                 body: JSON.stringify(data)
             });
 
-            if (!response.ok) throw new Error('Erro ao salvar risco');
+            if (!response.ok) {
+                // Tenta extrair uma mensagem de erro JSON, se falhar, usa o status
+                let errorData;
+                try {
+                    errorData = await response.json();
+                } catch (e) {
+                    throw new Error(response.statusText);
+                }
+                throw new Error(errorData.description || errorData.message || 'Erro desconhecido');
+            }
             
             riskModal.hide();
             showToast('Risco salvo com sucesso!', 'success');
@@ -350,13 +375,16 @@ function initializeProjectTools() {
             document.getElementById('milestoneDescription').value = milestone.description || '';
             document.getElementById('milestonePlannedDate').value = milestone.planned_date || '';
             document.getElementById('milestoneActualDate').value = milestone.actual_date || '';
-            document.getElementById('milestoneStatus').value = milestone.status || 'PENDING';
-            document.getElementById('milestoneCriticality').value = milestone.criticality || 'MEDIUM';
+            document.getElementById('milestoneStatus').value = milestone.status || 'Pendente';
+            document.getElementById('milestoneCriticality').value = milestone.criticality || 'Média';
             document.getElementById('milestoneIsCheckpoint').checked = milestone.is_checkpoint || false;
         } else {
             modalTitle.textContent = 'Novo Marco';
             deleteBtn.style.display = 'none';
             document.getElementById('milestoneId').value = '';
+            // Definir valores padrão corretos para novo marco
+            document.getElementById('milestoneStatus').value = 'Pendente';
+            document.getElementById('milestoneCriticality').value = 'Média';
         }
         
         milestoneModal.show();
@@ -385,7 +413,10 @@ function initializeProjectTools() {
                 body: JSON.stringify(data)
             });
 
-            if (!response.ok) throw new Error('Erro ao salvar marco');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Erro ao salvar marco');
+            }
             
             milestoneModal.hide();
             showToast('Marco salvo com sucesso!', 'success');
@@ -400,7 +431,10 @@ function initializeProjectTools() {
     async function editMilestone(milestoneId) {
         try {
             const response = await fetch(`/backlog/api/milestones/${milestoneId}`);
-            if (!response.ok) throw new Error('Erro ao carregar marco');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Erro ao carregar marco');
+            }
             
             const milestone = await response.json();
             openMilestoneModal(milestone);
@@ -657,7 +691,10 @@ function initializeProjectTools() {
                 body: JSON.stringify(data)
             });
 
-            if (!response.ok) throw new Error('Erro ao salvar nota');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || errorData.message || 'Erro ao salvar nota');
+            }
             
             noteModal.hide();
             showToast('Nota salva com sucesso!', 'success');
@@ -672,7 +709,10 @@ function initializeProjectTools() {
     async function editNote(noteId) {
         try {
             const response = await fetch(`/backlog/api/notes/${noteId}`);
-            if (!response.ok) throw new Error('Erro ao carregar nota');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || errorData.message || 'Erro ao carregar nota');
+            }
             
             const note = await response.json();
             openNoteModal(note);
@@ -757,6 +797,7 @@ function initializeProjectTools() {
             case 'IN_PROGRESS': case 'MITIGATED': return 'warning';
             case 'PENDING': case 'IDENTIFIED': return 'info';
             case 'DELAYED': case 'ACTIVE': return 'danger';
+            case 'ACCEPTED': return 'primary';
             default: return 'secondary';
         }
     }

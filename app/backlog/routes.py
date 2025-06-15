@@ -1096,87 +1096,11 @@ def get_milestones(backlog_id):
         current_app.logger.error(f"Erro ao buscar marcos para backlog {backlog_id}: {e}", exc_info=True)
         abort(500, description="Erro interno ao buscar marcos do projeto.")
 
-# Rota modificada para POST (sem backlog_id na URL)
-@backlog_bp.route('/api/milestones', methods=['POST'])
-def create_milestone():
-    """Cria um novo marco para o projeto associado ao backlog (ID do backlog vem no corpo)."""
-    # <<< LOG DE DEBUG >>>
-    current_app.logger.info("!!! ROTA POST /api/milestones ACESSADA !!!") 
-    # <<< FIM LOG DE DEBUG >>>
-    data = request.get_json()
-
-    # <<< NOVO: Obter backlog_id do corpo da requisição >>>
-    backlog_id = data.get('backlog_id')
-    if not backlog_id:
-        current_app.logger.error("Erro em create_milestone: backlog_id não encontrado no corpo JSON.")
-        abort(400, description="ID do Backlog (backlog_id) é obrigatório no corpo da requisição.")
-        
-    # Verifica se o backlog existe
-    try:
-        backlog = Backlog.query.get_or_404(backlog_id)
-    except Exception as e: # Captura erro se backlog_id não for um int válido para get_or_404
-        current_app.logger.error(f"Erro ao buscar backlog ID {backlog_id}: {e}")
-        abort(404, description=f"Backlog com ID {backlog_id} não encontrado.")
-    # <<< FIM NOVO >>>
-
-    if not data or not data.get('name') or not data.get('planned_date'):
-        current_app.logger.error("Erro em create_milestone: Dados obrigatórios (name, planned_date) faltando.")
-        abort(400, description="Nome e data planejada são obrigatórios.")
-
-    try:
-        # Processa dados obrigatórios
-        planned_date = datetime.strptime(data['planned_date'], '%Y-%m-%d').date()
-        name = data['name'].strip()
-        if not name:
-            abort(400, description="Nome não pode ser vazio.")
-        
-        # Processa dados opcionais
-        description = data.get('description', '')
-        actual_date_str = data.get('actual_date')
-        actual_date = datetime.strptime(actual_date_str, '%Y-%m-%d').date() if actual_date_str else None
-        
-        status_str = data.get('status', MilestoneStatus.PENDING.value) # Default PENDING
-        try:
-            status = MilestoneStatus(status_str)
-        except ValueError:
-            valid_statuses = [s.value for s in MilestoneStatus]
-            abort(400, description=f"Status inválido. Valores válidos: {valid_statuses}")
-
-        criticality_str = data.get('criticality', MilestoneCriticality.MEDIUM.value) # Default MEDIUM
-        try:
-            criticality = MilestoneCriticality(criticality_str)
-        except ValueError:
-            valid_criticalities = [c.value for c in MilestoneCriticality]
-            abort(400, description=f"Criticidade inválida. Valores válidos: {valid_criticalities}")
-            
-        is_checkpoint = data.get('is_checkpoint', False)
-
-        # Cria o novo marco
-        new_milestone = ProjectMilestone(
-            name=name,
-            description=description,
-            planned_date=planned_date,
-            actual_date=actual_date,
-            status=status,
-            criticality=criticality,
-            is_checkpoint=is_checkpoint,
-            backlog_id=backlog_id # Associa ao backlog (vindo do corpo agora)
-        )
-        
-        db.session.add(new_milestone)
-        db.session.commit()
-        
-        # Retorna o marco criado usando to_dict
-        return jsonify(new_milestone.to_dict()), 201
-
-    except ValueError as ve:
-        # Erro específico de conversão de data ou enum
-        db.session.rollback()
-        abort(400, description=str(ve))
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Erro ao criar marco para backlog {backlog_id}: {e}", exc_info=True)
-        abort(500, description="Erro interno ao criar marco do projeto.")
+@backlog_bp.route('/api/milestones/<int:milestone_id>', methods=['GET'])
+def get_milestone_details(milestone_id):
+    """Retorna os detalhes de um marco específico."""
+    milestone = ProjectMilestone.query.get_or_404(milestone_id)
+    return jsonify(milestone.to_dict())
 
 @backlog_bp.route('/api/milestones/<int:milestone_id>', methods=['PUT'])
 def update_milestone(milestone_id):
@@ -1206,21 +1130,31 @@ def update_milestone(milestone_id):
             milestone.actual_date = datetime.strptime(actual_date_str, '%Y-%m-%d').date() if actual_date_str else None
             
         if 'status' in data:
+            status_value = data['status']
+            # Se o status estiver vazio ou None, usar valor padrão
+            if not status_value or status_value.strip() == '':
+                status_value = 'Pendente'  # Valor padrão
+            
             try:
-                milestone.status = MilestoneStatus(data['status'])
+                milestone.status = MilestoneStatus(status_value)
                 # Regra: Se marcar como concluído e não tiver data real, define data real
                 if milestone.status == MilestoneStatus.COMPLETED and not milestone.actual_date:
                     milestone.actual_date = datetime.utcnow().date()
             except ValueError:
                 valid_statuses = [s.value for s in MilestoneStatus]
-                abort(400, description=f"Status inválido. Valores válidos: {valid_statuses}")
+                abort(400, description=f"Status inválido '{status_value}'. Valores válidos: {valid_statuses}")
                 
         if 'criticality' in data:
+            criticality_value = data['criticality']
+            # Se a criticidade estiver vazia ou None, usar valor padrão
+            if not criticality_value or criticality_value.strip() == '':
+                criticality_value = 'Média'  # Valor padrão
+                
             try:
-                milestone.criticality = MilestoneCriticality(data['criticality'])
+                milestone.criticality = MilestoneCriticality(criticality_value)
             except ValueError:
                 valid_criticalities = [c.value for c in MilestoneCriticality]
-                abort(400, description=f"Criticidade inválida. Valores válidos: {valid_criticalities}")
+                abort(400, description=f"Criticidade inválida '{criticality_value}'. Valores válidos: {valid_criticalities}")
         
         if 'is_checkpoint' in data:
             milestone.is_checkpoint = bool(data['is_checkpoint'])
@@ -1285,32 +1219,50 @@ def create_risk():
         abort(400, description="Nenhum dado fornecido.")
 
     backlog_id = data.get('backlog_id')
+    title = data.get('title')
     description = data.get('description')
-    impact_str = data.get('impact', RiskImpact.MEDIUM.value) # Default MEDIUM
-    probability_str = data.get('probability', RiskProbability.MEDIUM.value) # Default MEDIUM
-    status_str = data.get('status', RiskStatus.ACTIVE.value) # Default ACTIVE
+    # --- CORREÇÃO: Usar .name para o padrão e esperar a CHAVE do frontend ---
+    impact_str = data.get('impact', RiskImpact.MEDIUM.name)
+    probability_str = data.get('probability', RiskProbability.MEDIUM.name)
+    status_str = data.get('status', RiskStatus.IDENTIFIED.name)
     responsible = data.get('responsible')
     mitigation_plan = data.get('mitigation_plan')
     contingency_plan = data.get('contingency_plan')
     trend = data.get('trend',
                      'Estável')
 
-    if not backlog_id or not description:
-        abort(400, description="'backlog_id' e 'description' são obrigatórios.")
+    if not backlog_id or not title:
+        abort(400, description="'backlog_id' e 'title' são obrigatórios.")
 
     backlog = Backlog.query.get_or_404(backlog_id)
 
     try:
-        impact = RiskImpact(impact_str)
-        probability = RiskProbability(probability_str)
-        status = RiskStatus(status_str)
-    except ValueError:
-        valid_impacts = [r.value for r in RiskImpact]
-        valid_probabilities = [r.value for r in RiskProbability]
-        valid_statuses = [r.value for r in RiskStatus]
-        abort(400, description=f"Valores inválidos para impacto, probabilidade ou status. Válidos: Impacto={valid_impacts}, Probabilidade={valid_probabilities}, Status={valid_statuses}")
+        # Validar e converter enums com tratamento de valores vazios
+        if not impact_str or impact_str.strip() == '':
+            impact_str = RiskImpact.MEDIUM.name
+        if not probability_str or probability_str.strip() == '':
+            probability_str = RiskProbability.MEDIUM.name
+        if not status_str or status_str.strip() == '':
+            status_str = RiskStatus.IDENTIFIED.name
+            
+        # --- CORREÇÃO: Acessar Enum pela chave (ex: RiskStatus['IDENTIFIED']) ---
+        impact = RiskImpact[impact_str]
+        probability = RiskProbability[probability_str]
+        status = RiskStatus[status_str]
+    except KeyError as e:
+        # Erro mais específico se a chave do Enum não for encontrada
+        valid_impacts = [r.name for r in RiskImpact]
+        valid_probabilities = [r.name for r in RiskProbability]
+        valid_statuses = [r.name for r in RiskStatus]
+        abort(400, description=f"Valores de chave inválidos para Enums. Chave não encontrada: {e}. Válidas: Impacto={valid_impacts}, Probabilidade={valid_probabilities}, Status={valid_statuses}")
+    except ValueError as e:
+        valid_impacts = [r.name for r in RiskImpact]
+        valid_probabilities = [r.name for r in RiskProbability]
+        valid_statuses = [r.name for r in RiskStatus]
+        abort(400, description=f"Valores inválidos. Impacto='{impact_str}' (válidos: {valid_impacts}), Probabilidade='{probability_str}' (válidos: {valid_probabilities}), Status='{status_str}' (válidos: {valid_statuses})")
 
     new_risk = ProjectRisk(
+        title=title,
         description=description,
         impact=impact,
         probability=probability,
@@ -1344,14 +1296,25 @@ def update_risk(risk_id):
 
     # Atualiza os campos (com validação para Enums)
     try:
+        if 'title' in data:
+            risk.title = data['title']
         if 'description' in data:
             risk.description = data['description']
         if 'impact' in data:
-            risk.impact = RiskImpact(data['impact'])
+            impact_value = data['impact']
+            if not impact_value or impact_value.strip() == '':
+                impact_value = RiskImpact.MEDIUM.name
+            risk.impact = RiskImpact[impact_value]  # Alterado para buscar pela chave
         if 'probability' in data:
-            risk.probability = RiskProbability(data['probability'])
+            probability_value = data['probability']
+            if not probability_value or probability_value.strip() == '':
+                probability_value = RiskProbability.MEDIUM.name
+            risk.probability = RiskProbability[probability_value]  # Alterado para buscar pela chave
         if 'status' in data:
-            risk.status = RiskStatus(data['status'])
+            status_value = data['status']
+            if not status_value or status_value.strip() == '':
+                status_value = RiskStatus.IDENTIFIED.name
+            risk.status = RiskStatus[status_value]  # Alterado para buscar pela chave
         if 'responsible' in data:
             risk.responsible = data.get('responsible')
         if 'mitigation_plan' in data:
@@ -1366,12 +1329,18 @@ def update_risk(risk_id):
         
         risk.updated_at = datetime.utcnow() # Atualiza a data de modificação
 
-    except ValueError:
+    except KeyError as e:
+        # Captura erro se alguma CHAVE de Enum for inválida
+        valid_impacts = [r.name for r in RiskImpact]
+        valid_probabilities = [r.name for r in RiskProbability]
+        valid_statuses = [r.name for r in RiskStatus]
+        abort(400, description=f"Chave de Enum inválida: {e}. Chaves válidas: Impacto={valid_impacts}, Probabilidade={valid_probabilities}, Status={valid_statuses}")
+    except ValueError as e:
         # Captura erro se algum valor de Enum for inválido
-        valid_impacts = [r.value for r in RiskImpact]
-        valid_probabilities = [r.value for r in RiskProbability]
-        valid_statuses = [r.value for r in RiskStatus]
-        abort(400, description=f"Valores inválidos para impacto, probabilidade ou status. Válidos: Impacto={valid_impacts}, Probabilidade={valid_probabilities}, Status={valid_statuses}")
+        valid_impacts = [r.name for r in RiskImpact]
+        valid_probabilities = [r.name for r in RiskProbability]
+        valid_statuses = [r.name for r in RiskStatus]
+        abort(400, description=f"Valores inválidos para enums. Detalhes: {str(e)}. Válidos: Impacto={valid_impacts}, Probabilidade={valid_probabilities}, Status={valid_statuses}")
     except Exception as e: # Outros erros de conversão, como data
         db.session.rollback()
         current_app.logger.error(f"[API UPDATE RISK] Erro de conversão de dados para risco {risk_id}: {e}", exc_info=True)
@@ -2996,3 +2965,85 @@ def _assess_prediction_risks(metricas: dict, tendencias: dict) -> dict:
         'level': 'alto' if len(risks) > 2 else 'medio' if len(risks) > 0 else 'baixo',
         'factors': risks
     }
+
+# Rota modificada para POST (sem backlog_id na URL)
+@backlog_bp.route('/api/milestones', methods=['POST'])
+def create_milestone():
+    """Cria um novo marco para o projeto associado ao backlog (ID do backlog vem no corpo)."""
+    # <<< LOG DE DEBUG >>>
+    current_app.logger.info("!!! ROTA POST /api/milestones ACESSADA !!!") 
+    # <<< FIM LOG DE DEBUG >>>
+    data = request.get_json()
+
+    # <<< NOVO: Obter backlog_id do corpo da requisição >>>
+    backlog_id = data.get('backlog_id')
+    if not backlog_id:
+        current_app.logger.error("Erro em create_milestone: backlog_id não encontrado no corpo JSON.")
+        abort(400, description="ID do Backlog (backlog_id) é obrigatório no corpo da requisição.")
+        
+    # Verifica se o backlog existe
+    try:
+        backlog = Backlog.query.get_or_404(backlog_id)
+    except Exception as e: # Captura erro se backlog_id não for um int válido para get_or_404
+        current_app.logger.error(f"Erro ao buscar backlog ID {backlog_id}: {e}")
+        abort(404, description=f"Backlog com ID {backlog_id} não encontrado.")
+    # <<< FIM NOVO >>>
+
+    if not data or not data.get('name') or not data.get('planned_date'):
+        current_app.logger.error("Erro em create_milestone: Dados obrigatórios (name, planned_date) faltando.")
+        abort(400, description="Nome e data planejada são obrigatórios.")
+
+    try:
+        # Processa dados obrigatórios
+        planned_date = datetime.strptime(data['planned_date'], '%Y-%m-%d').date()
+        name = data['name'].strip()
+        if not name:
+            abort(400, description="Nome não pode ser vazio.")
+        
+        # Processa dados opcionais
+        description = data.get('description', '')
+        actual_date_str = data.get('actual_date')
+        actual_date = datetime.strptime(actual_date_str, '%Y-%m-%d').date() if actual_date_str else None
+        
+        status_str = data.get('status', MilestoneStatus.PENDING.value) # Default PENDING
+        try:
+            status = MilestoneStatus(status_str)
+        except ValueError:
+            valid_statuses = [s.value for s in MilestoneStatus]
+            abort(400, description=f"Status inválido '{status_str}'. Valores válidos: {valid_statuses}")
+
+        criticality_str = data.get('criticality', MilestoneCriticality.MEDIUM.value) # Default MEDIUM
+        try:
+            criticality = MilestoneCriticality(criticality_str)
+        except ValueError:
+            valid_criticalities = [c.value for c in MilestoneCriticality]
+            abort(400, description=f"Criticidade inválida '{criticality_str}'. Valores válidos: {valid_criticalities}")
+            
+        is_checkpoint = data.get('is_checkpoint', False)
+
+        # Cria o novo marco
+        new_milestone = ProjectMilestone(
+            name=name,
+            description=description,
+            planned_date=planned_date,
+            actual_date=actual_date,
+            status=status,
+            criticality=criticality,
+            is_checkpoint=is_checkpoint,
+            backlog_id=backlog_id # Associa ao backlog (vindo do corpo agora)
+        )
+        
+        db.session.add(new_milestone)
+        db.session.commit()
+        
+        # Retorna o marco criado usando to_dict
+        return jsonify(new_milestone.to_dict()), 201
+
+    except ValueError as ve:
+        # Erro específico de conversão de data ou enum
+        db.session.rollback()
+        abort(400, description=str(ve))
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao criar marco para backlog {backlog_id}: {e}", exc_info=True)
+        abort(500, description="Erro interno ao criar marco do projeto.")
