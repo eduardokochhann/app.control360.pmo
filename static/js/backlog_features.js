@@ -10,8 +10,8 @@ function initializeProjectTools() {
     let currentBacklogId = window.boardData.backlogId;
 
     const projectToolsSection = document.getElementById('projectToolsSection');
-    const toggleBtn = document.getElementById('toggleProjectToolsBtn');
-    const toolsChevron = document.getElementById('toolsChevron');
+    const toggleBtn = document.querySelector('a[onclick="toggleProjectTools()"]');
+    const toolsChevron = toggleBtn ? toggleBtn.querySelector('i') : null;
     
     // Modais e Forms
     const riskModal = new bootstrap.Modal(document.getElementById('riskModal'));
@@ -331,22 +331,27 @@ function initializeProjectTools() {
         }
 
         const milestonesHtml = milestones.map(milestone => `
-            <div class="card mb-3">
+            <div class="card mb-3 milestone-card" data-milestone-id="${milestone.id}">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <h6 class="card-title">${milestone.name}</h6>
-                            ${milestone.description ? `<p class="card-text">${milestone.description}</p>` : ''}
-                            <div class="d-flex gap-2 mb-2">
-                                <span class="badge bg-info">Planejado: ${formatDate(milestone.planned_date)}</span>
-                                ${milestone.actual_date ? `<span class="badge bg-success">Real: ${formatDate(milestone.actual_date)}</span>` : ''}
-                                <span class="badge bg-${getStatusColor(milestone.status)}">${milestone.status}</span>
-                                <span class="badge bg-${getCriticalityColor(milestone.criticality)}">${milestone.criticality}</span>
+                        <div class="flex-grow-1">
+                            <h6 class="card-title mb-1">${milestone.is_checkpoint ? '<i class="bi bi-star-fill text-warning"></i> ' : ''}${milestone.name}</h6>
+                            ${milestone.description ? `<p class="card-text text-muted small">${milestone.description}</p>` : ''}
+                            
+                            <div class="d-flex align-items-center gap-3 mt-2 flex-wrap">
+                                <span class="badge bg-light text-dark">
+                                    <i class="bi bi-calendar-event"></i> Planejado: ${formatDate(milestone.planned_date)}
+                                </span>
+                                ${milestone.actual_date ? `
+                                <span class="badge bg-light text-dark">
+                                    <i class="bi bi-calendar-check"></i> Real: ${formatDate(milestone.actual_date)}
+                                </span>` : ''}
+                                <span class="badge bg-${getStatusColor(milestone.status.key)}">${milestone.status.value}</span>
+                                <span class="badge bg-${getCriticalityColor(milestone.criticality.key)}">${milestone.criticality.value}</span>
                             </div>
-                            ${milestone.is_checkpoint ? '<i class="bi bi-star-fill text-warning"></i> Checkpoint Crítico' : ''}
                         </div>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-outline-primary" onclick="editMilestone(${milestone.id})">
+                        <div class="btn-group-vertical ms-2">
+                             <button class="btn btn-sm btn-outline-primary" onclick="editMilestone(${milestone.id})">
                                 <i class="bi bi-pencil"></i>
                             </button>
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteMilestone(${milestone.id})">
@@ -375,18 +380,23 @@ function initializeProjectTools() {
             document.getElementById('milestoneDescription').value = milestone.description || '';
             document.getElementById('milestonePlannedDate').value = milestone.planned_date || '';
             document.getElementById('milestoneActualDate').value = milestone.actual_date || '';
-            document.getElementById('milestoneStatus').value = milestone.status || 'Pendente';
-            document.getElementById('milestoneCriticality').value = milestone.criticality || 'Média';
+            document.getElementById('milestoneStatus').value = milestone.status.key || 'PENDING';
+            document.getElementById('milestoneCriticality').value = milestone.criticality.key || 'MEDIUM';
             document.getElementById('milestoneIsCheckpoint').checked = milestone.is_checkpoint || false;
+
         } else {
             modalTitle.textContent = 'Novo Marco';
             deleteBtn.style.display = 'none';
             document.getElementById('milestoneId').value = '';
-            // Definir valores padrão corretos para novo marco
-            document.getElementById('milestoneStatus').value = 'Pendente';
-            document.getElementById('milestoneCriticality').value = 'Média';
+            document.getElementById('milestoneName').value = '';
+            document.getElementById('milestoneDescription').value = '';
+            document.getElementById('milestonePlannedDate').value = '';
+            document.getElementById('milestoneActualDate').value = '';
+            document.getElementById('milestoneStatus').value = 'PENDING';
+            document.getElementById('milestoneCriticality').value = 'MEDIUM';
+            document.getElementById('milestoneIsCheckpoint').checked = false;
         }
-        
+
         milestoneModal.show();
     }
 
@@ -747,8 +757,12 @@ function initializeProjectTools() {
     function toggleProjectTools() {
         const isHidden = projectToolsSection.style.display === 'none';
         projectToolsSection.style.display = isHidden ? 'block' : 'none';
-        toolsChevron.classList.toggle('bi-chevron-down', !isHidden);
-        toolsChevron.classList.toggle('bi-chevron-up', isHidden);
+        
+        if (toolsChevron) {
+            toolsChevron.classList.toggle('bi-chevron-down', !isHidden);
+            toolsChevron.classList.toggle('bi-chevron-up', isHidden);
+        }
+
         if (isHidden) {
             // Apenas carrega os dados se o painel for aberto e os dados ainda não tiverem sido carregados
             if (currentBacklogId && !tabs.risks.classList.contains('active')) {

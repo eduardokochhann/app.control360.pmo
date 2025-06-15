@@ -190,8 +190,8 @@ class ProjectMilestone(db.Model):
             'description': self.description,
             'planned_date': self.planned_date.strftime('%Y-%m-%d') if self.planned_date else None,
             'actual_date': self.actual_date.strftime('%Y-%m-%d') if self.actual_date else None,
-            'status': self.status.value,
-            'criticality': self.criticality.value,
+            'status': {'key': self.status.name, 'value': self.status.value},
+            'criticality': {'key': self.criticality.name, 'value': self.criticality.value},
             'is_checkpoint': self.is_checkpoint,
             'is_delayed': self.is_delayed,
             'backlog_id': self.backlog_id
