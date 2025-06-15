@@ -1,10 +1,10 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 
 {% block title %}{{ title }}{% endblock %}
 
 {% block extra_css %}
 <style>
-  /* Variáveis de Cores e Estilos */
+  /* VariÃ¡veis de Cores e Estilos */
   :root {
     --sprint-primary: #0d6efd;
     --sprint-secondary: #6c757d;
@@ -40,7 +40,7 @@
     border-radius: 0.5rem;
     border: 1px solid var(--sprint-border);
     box-shadow: var(--sprint-shadow);
-    overflow: hidden; /* Previne scroll não intencional */
+    overflow: hidden; /* Previne scroll nÃ£o intencional */
   }
 
   /* Sprint Board */
@@ -52,7 +52,7 @@
     padding: 0.5rem;
     align-items: flex-start;
     height: 100%;
-    padding-bottom: 1rem; /* Espaço para evitar corte */
+    padding-bottom: 1rem; /* EspaÃ§o para evitar corte */
   }
 
   /* Sprint Cards */
@@ -73,14 +73,14 @@
     margin-bottom: 0.5rem;
   }
 
-  /* Cabeçalho da Sprint */
+  /* CabeÃ§alho da Sprint */
   .sprint-card-header {
     padding: 1rem;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
     border-radius: 0.5rem 0.5rem 0 0;
-    min-height: 120px; /* Altura mínima fixa para o cabeçalho */
+    min-height: 120px; /* Altura mÃ­nima fixa para o cabeÃ§alho */
   }
 
   /* Cores de Criticidade */
@@ -99,7 +99,7 @@
     border-bottom: 2px solid var(--criticality-critica-border);
   }
 
-  /* Linha Superior do Cabeçalho */
+  /* Linha Superior do CabeÃ§alho */
   .sprint-header-top {
     display: flex;
     justify-content: space-between;
@@ -108,7 +108,7 @@
     gap: 1rem;
   }
 
-  /* Área do Título e Informações */
+  /* Ãrea do TÃ­tulo e InformaÃ§Ãµes */
   .sprint-title-area {
     flex: 1;
     min-width: 0; /* Importante para text-overflow funcionar */
@@ -147,7 +147,7 @@
     margin-right: 0.25rem;
   }
 
-  /* Área de Ações */
+  /* Ãrea de AÃ§Ãµes */
   .sprint-card-actions {
     display: flex;
     gap: 0.5rem;
@@ -163,7 +163,7 @@
     transition: all 0.2s ease;
   }
 
-  /* Linha Inferior do Cabeçalho */
+  /* Linha Inferior do CabeÃ§alho */
   .sprint-header-bottom {
     display: flex;
     flex-direction: column;
@@ -311,7 +311,7 @@
     }
   }
 
-  /* Colunas Laterais (Backlog e Tarefas Genéricas) */
+  /* Colunas Laterais (Backlog e Tarefas GenÃ©ricas) */
   .side-column {
     flex: 0 0 350px;
     min-width: 350px;
@@ -325,7 +325,7 @@
     overflow: hidden;
   }
 
-  /* Coluna de Backlog específica */
+  /* Coluna de Backlog especÃ­fica */
   #backlogColumn {
     flex: 0 0 400px;
     min-width: 400px;
@@ -429,7 +429,7 @@
     display: block;
   }
 
-  /* Tarefas Genéricas */
+  /* Tarefas GenÃ©ricas */
   .generic-task {
     padding: 0.75rem;
     background-color: #ffffff;
@@ -482,7 +482,7 @@
     white-space: nowrap;
   }
 
-  /* Popover básico de especialistas */
+  /* Popover bÃ¡sico de especialistas */
   .specialist-hours-popover {
     cursor: pointer;
     border: none;
@@ -497,30 +497,25 @@
     border-radius: 0.25rem;
   }
 
-  /* CSS básico para popovers limpos */
-  .popover {
-    max-width: 250px;
-    font-size: 0.875rem;
   }
 
-  .popover-body {
-    padding: 0.5rem;
-  }
-  
-  /* Estados de Sortable para melhor feedback visual */
-  .sortable-dragging {
-    opacity: 0.6;
-    transform: rotate(2deg);
-    z-index: 9999;
+    padding: 0.75rem;
   }
 
-  .sortable-ghost-task {
-    opacity: 0.3;
-    background-color: #e9ecef !important;
   }
 
-  .sortable-chosen-task {
-    cursor: grabbing !important;
+  }
+
+  }
+
+  }
+
+  }
+
+  }
+
+  }
+
   }
 </style>
 {% endblock %}
@@ -529,17 +524,17 @@
 <div class="container-fluid mt-4">
   <div class="card shadow mb-4">
     <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-      {# <<< INÍCIO: Agrupamento Título + Botão Collapse >>> #}
+      {# <<< INÃCIO: Agrupamento TÃ­tulo + BotÃ£o Collapse >>> #}
       <div class="d-flex align-items-center">
         <button class="btn btn-sm btn-outline-secondary me-2" id="toggleBacklogBtn" title="Recolher Backlog">
             <i class="bi bi-chevron-double-left"></i>
         </button>
         <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-calendar3-week me-2"></i>{{ title }}</h6>
       </div>
-      {# <<< FIM: Agrupamento Título + Botão Collapse >>> #}
+      {# <<< FIM: Agrupamento TÃ­tulo + BotÃ£o Collapse >>> #}
       <div>
         <a href="{{ url_for('sprints.consolidated_report_page') }}" class="btn btn-sm btn-outline-primary me-2">
-            <i class="bi bi-file-earmark-text me-1"></i>Relatório Consolidado
+            <i class="bi bi-file-earmark-text me-1"></i>RelatÃ³rio Consolidado
         </a>
         <button class="btn btn-sm btn-primary" id="addSprintBtn" data-bs-toggle="modal" data-bs-target="#sprintModal">
             <i class="bi bi-plus-lg me-1"></i>Nova Sprint
@@ -547,7 +542,7 @@
       </div>
     </div>
     <div class="card-body">
-      {# Área do Quadro de Sprints #}
+      {# Ãrea do Quadro de Sprints #}
       <div class="sprint-board-container" id="sprintBoardContainer"> {# Novo container geral #}
           {# Coluna do Backlog #}
           <div class="side-column" id="backlogColumn">
@@ -561,15 +556,15 @@
                   </div>
               </div>
               <div class="side-column-body" id="backlogList">
-                  {# Conteúdo do backlog será carregado via JavaScript #}
+                  {# ConteÃºdo do backlog serÃ¡ carregado via JavaScript #}
               </div>
           </div>
 
-          {# Nova Coluna de Tarefas Genéricas #}
+          {# Nova Coluna de Tarefas GenÃ©ricas #}
           <div class="side-column" id="genericTasksColumn">
               <div class="side-column-header">
                   <div class="side-column-title">
-                      <h6>Tarefas Genéricas</h6>
+                      <h6>Tarefas GenÃ©ricas</h6>
                       <button class="btn btn-sm btn-outline-primary" id="addGenericTaskBtn">
                           <i class="bi bi-plus"></i>
                       </button>
@@ -580,11 +575,11 @@
                   </div>
               </div>
               <div class="side-column-body" id="genericTasksList">
-                  {# Conteúdo das tarefas genéricas será carregado via JavaScript #}
+                  {# ConteÃºdo das tarefas genÃ©ricas serÃ¡ carregado via JavaScript #}
               </div>
           </div>
 
-          {# Área Rolável para Sprints #}
+          {# Ãrea RolÃ¡vel para Sprints #}
           <div id="sprintBoard" class="sprint-board">
           <div class="text-center text-muted p-5">Carregando sprints...</div>
           </div>
@@ -612,7 +607,7 @@
           
           <div class="row mb-3">
               <div class="col-md-6">
-                  <label for="sprintStartDate" class="form-label">Data Início <span class="text-danger">*</span></label>
+                  <label for="sprintStartDate" class="form-label">Data InÃ­cio <span class="text-danger">*</span></label>
                   <input type="date" class="form-control form-control-sm" id="sprintStartDate" name="start_date" required>
               </div>
               <div class="col-md-6">
@@ -630,17 +625,17 @@
             <select class="form-select form-select-sm" id="sprintCriticality" name="criticality">
                 <option value="Normal" selected>Normal</option>
                 <option value="Alta">Alta</option>
-                <option value="Crítica">Crítica</option>
+                <option value="CrÃ­tica">CrÃ­tica</option>
             </select>
           </div>
-          {# Campo oculto para o método HTTP (usado para PUT em edição) #}
+          {# Campo oculto para o mÃ©todo HTTP (usado para PUT em ediÃ§Ã£o) #}
           <input type="hidden" id="formMethod" name="_method" value="POST">
         </div>
         <div class="modal-footer">
-          {# Botão Excluir aparece apenas na edição #}
+          {# BotÃ£o Excluir aparece apenas na ediÃ§Ã£o #}
           <button type="button" class="btn btn-danger me-auto" id="modalDeleteBtn" style="display: none;">Excluir Sprint</button>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="submit" class="btn btn-primary" onclick="console.log('[Inline Click] Botão Salvar clicado!')">Salvar Sprint</button>
+          <button type="submit" class="btn btn-primary" onclick="console.log('[Inline Click] BotÃ£o Salvar clicado!')">Salvar Sprint</button>
         </div>
         {# Loading Feedback #}
         <div class="loading-overlay" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255, 255, 255, 0.7); z-index: 1056; display: flex; justify-content: center; align-items: center; border-radius: inherit;">
@@ -653,25 +648,25 @@
   </div>
 </div>
 
-{# Modal para Adicionar/Editar Tarefa Genérica #}
+{# Modal para Adicionar/Editar Tarefa GenÃ©rica #}
 <div class="modal fade" id="genericTaskModal" tabindex="-1" aria-labelledby="genericTaskModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <form id="genericTaskForm">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="genericTaskModalLabel">Nova Tarefa Genérica</h5>
+                    <h5 class="modal-title" id="genericTaskModalLabel">Nova Tarefa GenÃ©rica</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="genericTaskId" name="taskId">
                     
                     <div class="mb-3">
-                        <label for="genericTaskTitle" class="form-label">Título <span class="text-danger">*</span></label>
+                        <label for="genericTaskTitle" class="form-label">TÃ­tulo <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="genericTaskTitle" name="title" required>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="genericTaskDescription" class="form-label">Descrição</label>
+                        <label for="genericTaskDescription" class="form-label">DescriÃ§Ã£o</label>
                         <textarea class="form-control" id="genericTaskDescription" name="description" rows="3"></textarea>
                     </div>
                     
@@ -680,13 +675,13 @@
                             <label for="genericTaskPriority" class="form-label">Prioridade</label>
                             <select class="form-select" id="genericTaskPriority" name="priority">
                                 <option value="Baixa">Baixa</option>
-                                <option value="Média" selected>Média</option>
+                                <option value="MÃ©dia" selected>MÃ©dia</option>
                                 <option value="Alta">Alta</option>
                                 <option value="Urgente">Urgente</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="genericTaskEffort" class="form-label">Esforço (horas)</label>
+                            <label for="genericTaskEffort" class="form-label">EsforÃ§o (horas)</label>
                             <input type="number" class="form-control" id="genericTaskEffort" name="estimated_effort" step="0.5" min="0">
                         </div>
                     </div>
@@ -721,14 +716,14 @@
           
           <div class="row mb-3">
             <div class="col-md-8">
-              <label for="taskTitle" class="form-label">Título <span class="text-danger">*</span></label>
+              <label for="taskTitle" class="form-label">TÃ­tulo <span class="text-danger">*</span></label>
               <input type="text" class="form-control" id="taskTitle" name="title" required>
             </div>
             <div class="col-md-4">
               <label for="taskPriority" class="form-label">Prioridade</label>
               <select class="form-select" id="taskPriority" name="priority">
                 <option value="Baixa">Baixa</option>
-                <option value="Média" selected>Média</option>
+                <option value="MÃ©dia" selected>MÃ©dia</option>
                 <option value="Alta">Alta</option>
                 <option value="Urgente">Urgente</option>
               </select>
@@ -749,14 +744,14 @@
               <select class="form-select" id="taskStatus" name="status">
                 <option value="pendente">Pendente</option>
                 <option value="em_andamento">Em Andamento</option>
-                <option value="concluido">Concluído</option>
+                <option value="concluido">ConcluÃ­do</option>
                 <option value="bloqueado">Bloqueado</option>
               </select>
             </div>
           </div>
 
           <div class="mb-3">
-            <label for="taskDescription" class="form-label">Descrição</label>
+            <label for="taskDescription" class="form-label">DescriÃ§Ã£o</label>
             <textarea class="form-control" id="taskDescription" name="description" rows="4"></textarea>
           </div>
 
@@ -777,7 +772,7 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-danger me-auto" id="taskDeleteBtn">Excluir Tarefa</button>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-        <button type="submit" form="taskDetailsForm" class="btn btn-primary">Salvar Alterações</button>
+        <button type="submit" form="taskDetailsForm" class="btn btn-primary">Salvar AlteraÃ§Ãµes</button>
       </div>
     </div>
   </div>
@@ -790,19 +785,19 @@
   document.addEventListener('DOMContentLoaded', function() {
     console.log("[Sprint Mgmt] DOMContentLoaded iniciado.");
     const backlogColumnBody = document.querySelector('#backlogColumn .side-column-body'); // Corpo da coluna de backlog
-    const sprintBoard = document.getElementById('sprintBoard'); // Seleciona o contêiner do quadro
+    const sprintBoard = document.getElementById('sprintBoard'); // Seleciona o contÃªiner do quadro
     const sprintModalElement = document.getElementById('sprintModal');
     const sprintModal = new bootstrap.Modal(sprintModalElement);
     const sprintForm = document.getElementById('sprintForm');
-    console.log("[Sprint Mgmt] Elemento sprintForm encontrado:", sprintForm); // Log de verificação
+    console.log("[Sprint Mgmt] Elemento sprintForm encontrado:", sprintForm); // Log de verificaÃ§Ã£o
     const sprintModalLabel = document.getElementById('sprintModalLabel');
-    let editingSprintId = null; // Para controle de edição futura
-    const formMethodInput = document.getElementById('formMethod'); // Input oculto para método
-    const modalDeleteBtn = document.getElementById('modalDeleteBtn'); // Botão excluir no modal
+    let editingSprintId = null; // Para controle de ediÃ§Ã£o futura
+    const formMethodInput = document.getElementById('formMethod'); // Input oculto para mÃ©todo
+    const modalDeleteBtn = document.getElementById('modalDeleteBtn'); // BotÃ£o excluir no modal
     const apiSprintsBaseUrl = '/sprints/api/sprints'; // API Sprints
     const apiBacklogTasksUrl = '/backlog/api/backlogs/unassigned-tasks'; // API Backlog Tasks
 
-    // Função para mostrar feedback de loading no modal
+    // FunÃ§Ã£o para mostrar feedback de loading no modal
     function showModalLoading(isLoading) {
         const overlay = sprintForm.querySelector('.loading-overlay');
         const submitButton = sprintForm.querySelector('button[type="submit"]');
@@ -813,20 +808,20 @@
         if (cancelButton) cancelButton.disabled = isLoading;
     }
 
-    // Função para formatar data (DD/MM/YYYY)
+    // FunÃ§Ã£o para formatar data (DD/MM/YYYY)
     function formatDate(isoDateString) {
         if (!isoDateString) return '-';
         try {
             // Tenta criar a data. Adiciona 'T00:00:00' se for apenas YYYY-MM-DD
             const dateStr = isoDateString.includes('T') ? isoDateString : isoDateString + 'T00:00:00';
             const date = new Date(dateStr);
-            // Verifica se a data é válida
+            // Verifica se a data Ã© vÃ¡lida
             if (isNaN(date.getTime())) {
-                console.warn("Data inválida recebida:", isoDateString);
-                return 'Data Inválida';
+                console.warn("Data invÃ¡lida recebida:", isoDateString);
+                return 'Data InvÃ¡lida';
             }
             const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0'); // Mês é 0-indexed
+            const month = String(date.getMonth() + 1).padStart(2, '0'); // MÃªs Ã© 0-indexed
             const year = date.getFullYear();
             return `${day}/${month}/${year}`;
         } catch (e) {
@@ -835,7 +830,7 @@
         }
     }
 
-    // Função para carregar e renderizar sprints
+    // FunÃ§Ã£o para carregar e renderizar sprints
     async function loadSprints() {
         console.log("[Sprint Mgmt] loadSprints() chamado.");
         sprintBoard.innerHTML = '<div class="text-center text-muted p-5"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Carregando...</span></div> Carregando sprints...</div>';
@@ -851,8 +846,8 @@
             if (!sprintsApiResponse || sprintsApiResponse.length === 0) {
                 sprintBoard.innerHTML = '<div class="text-center text-muted p-5">Nenhuma sprint encontrada. Crie uma nova!</div>';
             } else {
-                for (const sprint of sprintsApiResponse) {
-                    // INÍCIO DA NOVA VERIFICAÇÃO DE ERRO
+                sprintsApiResponse.forEach(sprint => {
+                    // INÃCIO DA NOVA VERIFICAÃ‡ÃƒO DE ERRO
                     if (sprint.error) {
                         console.warn(`[Sprint Mgmt] Sprint ID ${sprint.id || 'N/A'} retornou com erro da API: ${sprint.error}`);
                         const errorCard = document.createElement('div');
@@ -865,19 +860,19 @@
                             </div>
                             <div class="sprint-card-body">
                                 <p><strong>Detalhe do erro:</strong> ${escapeHtml(sprint.error)}</p>
-                                <p class="text-muted small">Verifique os logs do servidor para mais informações.</p>
+                                <p class="text-muted small">Verifique os logs do servidor para mais informaÃ§Ãµes.</p>
                             </div>
                         `;
                         sprintBoard.appendChild(errorCard);
-                        continue; // Pula para a próxima sprint
+                        return; // Pula para a prÃ³xima sprint
                     }
-                    // FIM DA NOVA VERIFICAÇÃO DE ERRO
+                    // FIM DA NOVA VERIFICAÃ‡ÃƒO DE ERRO
 
                     const sprintCard = document.createElement('div');
                     sprintCard.className = 'sprint-card';
                     sprintCard.dataset.sprintId = sprint.id;
 
-                    // <<< INÍCIO: Calcular Total de Horas Estimadas da Sprint >>>
+                    // <<< INÃCIO: Calcular Total de Horas Estimadas da Sprint >>>
                     let totalSprintHours = 0;
                     if (sprint.tasks && sprint.tasks.length > 0) {
                         totalSprintHours = sprint.tasks.reduce((sum, task) => {
@@ -887,11 +882,11 @@
                     }
                     // <<< FIM: Calcular Total de Horas Estimadas da Sprint >>>
 
-                    // <<< INÍCIO: Calcular Horas por Especialista >>>
+                    // <<< INÃCIO: Calcular Horas por Especialista >>>
                     let hoursBySpecialist = {};
                     if (sprint.tasks && sprint.tasks.length > 0) {
                         hoursBySpecialist = sprint.tasks.reduce((acc, task) => {
-                            const specialist = task.specialist_name || 'Não Atribuído';
+                            const specialist = task.specialist_name || 'NÃ£o AtribuÃ­do';
                             const hours = parseFloat(task.estimated_effort);
                             if (!isNaN(hours)) {
                                 acc[specialist] = (acc[specialist] || 0) + hours;
@@ -900,81 +895,35 @@
                         }, {});
                     }
                     
-                    // <<< INÍCIO: Buscar Capacidade Dinâmica da API >>>
-                    function calcularSemanasDoSprint(startDate, endDate) {
-                        if (!startDate || !endDate) return 1; // Default para 1 semana se não tiver datas
-                        
-                        const start = new Date(startDate);
-                        const end = new Date(endDate);
-                        const diffTime = Math.abs(end - start);
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                        const weeks = Math.ceil(diffDays / 7); // Arredonda para cima
-                        
-                        return Math.max(weeks, 1); // Mínimo de 1 semana
-                    }
-                    
-                    async function buscarCapacidadeDinamica(sprintId) {
-                        try {
-                            const response = await fetch(`/backlog/api/sprints/${sprintId}/capacity`);
-                            if (response.ok) {
-                                return await response.json();
-                            }
-                            return null;
-                        } catch (error) {
-                            console.error('Erro ao buscar capacidade dinâmica:', error);
-                            return null;
-                        }
-                    }
-                    
-                    // Busca dados de capacidade da API
-                    const capacidadeDinamica = await buscarCapacidadeDinamica(sprint.id);
-                    const semanasSprint = capacidadeDinamica ? capacidadeDinamica.duration_weeks : calcularSemanasDoSprint(sprint.start_date, sprint.end_date);
-                    const capacidadeSemanalPorEspecialista = 40; // 40h por semana
-                    const capacidadeTotalPorEspecialista = capacidadeDinamica ? capacidadeDinamica.capacidade_total_por_especialista : (capacidadeSemanalPorEspecialista * semanasSprint);
-                    // <<< FIM: Buscar Capacidade Dinâmica da API >>>
-                    
-                    // Formata o conteúdo do popover com informações básicas
-                    let popoverContent = '';
-                    Object.entries(hoursBySpecialist).forEach(([specialist, hours]) => {
-                        if (specialist !== 'Não Atribuído') {
-                            const capacidadeTotal = capacidadeTotalPorEspecialista;
-                            const horasRestantes = capacidadeTotal - hours;
-                            const percentualUtilizado = Math.round((hours / capacidadeTotal) * 100);
+                    // Formata o conteÃºdo do popover com informaÃ§Ãµes bÃ¡sicas
+                    let popoverContent = Object.entries(hoursBySpecialist)
+                        .map(([name, allocatedHours]) => {
+                            const remainingHours = Math.max(0, 40 - allocatedHours);
+                            const utilizationPercent = (allocatedHours / 40) * 100;
                             
-                            // Se temos dados da API, usa informações mais precisas
-                            let statusInfo = '';
-                            if (capacidadeDinamica && capacidadeDinamica.specialist_details && capacidadeDinamica.specialist_details[specialist]) {
-                                const apiData = capacidadeDinamica.specialist_details[specialist];
-                                statusInfo = ` | Status: ${apiData.status}`;
+                            // Badge de alerta simples
+                            let alertBadge = '';
+                            if (utilizationPercent > 100) {
+                                alertBadge = '<span class="badge bg-danger ms-2">âš ï¸ Sobrecarga</span>';
+                            } else if (utilizationPercent > 80) {
+                                alertBadge = '<span class="badge bg-warning ms-2">âš ï¸ Limite</span>';
+                            } else {
+                                alertBadge = '<span class="badge bg-success ms-2">âœ… OK</span>';
                             }
                             
-                            // Define cor do badge baseado na utilização
-                            let badgeClass = 'success';
-                            if (percentualUtilizado > 100) {
-                                badgeClass = 'danger';
-                            } else if (percentualUtilizado > 80) {
-                                badgeClass = 'warning';
-                            }
-                            
-                            popoverContent += `
-                                <div class="mb-2">
-                                    <strong>${escapeHtml(specialist)}</strong><br>
-                                    <small>
-                                        ${hours.toFixed(1)}h utilizadas / ${capacidadeTotal}h disponíveis (${semanasSprint} sem.)${statusInfo}<br>
-                                        Saldo: ${horasRestantes.toFixed(1)}h 
-                                        <span class="badge bg-${badgeClass} ms-1">${percentualUtilizado}%</span>
-                                    </small>
+                            return `
+                                <div class="mb-1">
+                                    <strong>${escapeHtml(name)}</strong><br>
+                                    <small>Consumo: ${allocatedHours.toFixed(1)}h | Saldo: ${remainingHours.toFixed(1)}h</small>
+                                    ${alertBadge}
                                 </div>
                             `;
-                        }
-                    });
+                        })
+                        .join('');
                     
                     if (!popoverContent) {
                         popoverContent = '<small class="text-muted">Nenhum especialista alocado</small>';
                     }
-                    
-                    // Escape do conteúdo do popover para uso seguro no atributo HTML
-                    const escapedPopoverContent = popoverContent.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                     // <<< FIM: Calcular Horas por Especialista >>>
 
                     sprintCard.innerHTML = `
@@ -986,26 +935,20 @@
                                         <span class="sprint-badge">
                                             <i class="bi bi-stopwatch"></i>${totalSprintHours.toFixed(1)}h
                                         </span>
-                                        ${Object.keys(hoursBySpecialist).length > 0 ? `
                                         <button type="button" class="sprint-badge specialist-hours-popover" 
                                                 data-bs-toggle="popover" 
                                                 data-bs-placement="bottom"
                                                 data-bs-trigger="hover focus"
                                                 data-bs-html="true" 
                                                 title="Especialistas"
-                                                data-popover-content-id="popover-content-${sprint.id}">
+                                                data-bs-content="${popoverContent}">
                                             <i class="bi bi-people"></i>Especialistas
                                         </button>
-                                        <div id="popover-content-${sprint.id}" style="display: none;">${popoverContent}</div>
-                                        ` : ''}
                                     </div>
                                 </div>
                                 <div class="sprint-card-actions">
                                     <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="${sprint.id}" title="Editar Sprint">
                                         <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-primary test-update-btn" data-id="${sprint.id}" title="Teste: Atualizar Contadores" style="display: none;">
-                                        <i class="bi bi-arrow-clockwise"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${sprint.id}" data-name="${escapeHtml(sprint.name)}" title="Excluir Sprint">
                                         <i class="bi bi-trash"></i>
@@ -1040,7 +983,7 @@
                                             
                                             <div class="task-meta d-flex justify-content-between align-items-center mb-2">
                                                 <div class="task-meta-left">
-                                                    <span class="badge rounded-pill task-priority-badge">${escapeHtml(task.priority || 'Média')}</span>
+                                                    <span class="badge rounded-pill task-priority-badge">${escapeHtml(task.priority || 'MÃ©dia')}</span>
                                                 </div>
                                                 <div class="task-meta-right d-flex align-items-center gap-2">
                                                     ${task.estimated_effort ? `<span class="text-muted small"><i class="bi bi-clock me-1"></i>${task.estimated_effort}h</span>` : ''}
@@ -1049,10 +992,10 @@
                                             
                                             ${task.specialist_name ? `<div class="task-specialist small text-primary">
                                                 <i class="bi bi-person-fill me-1"></i>${escapeHtml(task.specialist_name)}
-                                            </div>` : '<div class="task-specialist small text-muted"><i class="bi bi-person me-1"></i>Não atribuído</div>'}
+                                            </div>` : '<div class="task-specialist small text-muted"><i class="bi bi-person me-1"></i>NÃ£o atribuÃ­do</div>'}
                                             
                                             <div class="task-actions">
-                                                
+                                                {# REMOVIDO BOTÃƒO DEVOLVER DAQUI #}
                                             </div>
                                         </div>`;
                                     }).join('') 
@@ -1063,14 +1006,14 @@
                     `;
                     sprintBoard.appendChild(sprintCard);
 
-                    // Aplica classe de cor ao badge de prioridade APÓS adicionar ao DOM
+                    // Aplica classe de cor ao badge de prioridade APÃ“S adicionar ao DOM
                     sprint.tasks.forEach(task => {
                         const cardElement = sprintBoard.querySelector(`.sprint-task-card[data-task-id="${task.id}"]`);
                         if (cardElement) {
                             const badgeElement = cardElement.querySelector('.task-priority-badge');
                             if (badgeElement) {
                                 const priorityLower = (task.priority || '').toLowerCase();
-                                let badgeClass = 'text-bg-primary'; // Default: Média
+                                let badgeClass = 'text-bg-primary'; // Default: MÃ©dia
                                 if (priorityLower === 'urgente') badgeClass = 'text-bg-danger';
                                 else if (priorityLower === 'alta') badgeClass = 'text-bg-warning';
                                 else if (priorityLower === 'baixa') badgeClass = 'text-bg-secondary';
@@ -1078,7 +1021,7 @@
                             }
                         }
                     });
-                }
+                });
                 initializeSortable(); // Inicializa Sortable DEPOIS de renderizar sprints
                 initializePopovers(); // <<< INICIALIZA Popovers DEPOIS de renderizar sprints >>>
             }
@@ -1088,7 +1031,7 @@
         }
     }
 
-    // Função para renderizar uma tarefa do backlog
+    // FunÃ§Ã£o para renderizar uma tarefa do backlog
     function renderBacklogTask(task) {
         const projectPart = task.project_id || 'PROJ';
         const columnPart = (task.column_identifier || 'UNK').substring(0, 3).toUpperCase();
@@ -1104,7 +1047,7 @@
                 <div class="task-title">${escapeHtml(task.title)}</div>
                 <div class="task-meta">
                     <div class="task-meta-left">
-                        <span class="badge rounded-pill task-priority-badge ${getPriorityClass(task.priority)}">${escapeHtml(task.priority || 'Média')}</span>
+                        <span class="badge rounded-pill task-priority-badge ${getPriorityClass(task.priority)}">${escapeHtml(task.priority || 'MÃ©dia')}</span>
                     </div>
                     <div class="task-meta-right text-muted task-hours">
                         <span title="Estimado"><i class="bi bi-clock-history me-1"></i>${task.estimated_effort != null ? task.estimated_effort.toFixed(1) : '-'}h</span>
@@ -1115,39 +1058,39 @@
         `;
     }
 
-    // Função auxiliar para obter a classe CSS baseada na prioridade
+    // FunÃ§Ã£o auxiliar para obter a classe CSS baseada na prioridade
     function getPriorityClass(priority) {
         const priorityLower = (priority || '').toLowerCase();
         switch (priorityLower) {
             case 'urgente': return 'text-bg-danger';
             case 'alta': return 'text-bg-warning';
             case 'baixa': return 'text-bg-secondary';
-            default: return 'text-bg-primary'; // Média ou outro
+            default: return 'text-bg-primary'; // MÃ©dia ou outro
         }
     }
 
-    // Função para renderizar um projeto do backlog
+    // FunÃ§Ã£o para renderizar um projeto do backlog
     function renderBacklogProject(backlog) {
         const projectBoardUrl = `/backlog/board/${backlog.project_id}`; // URL de destino para o quadro do projeto
         
         // NOVO: Limita o nome do projeto para evitar quebras de linha
         let displayName = backlog.project_name || 'Sem Nome';
         
-        // Estratégia inteligente de truncamento:
-        // 1. Sempre mantém o número do projeto se estiver no início
-        // 2. Limita por palavras (primeiras 2-3 palavras após o número)
+        // EstratÃ©gia inteligente de truncamento:
+        // 1. Sempre mantÃ©m o nÃºmero do projeto se estiver no inÃ­cio
+        // 2. Limita por palavras (primeiras 2-3 palavras apÃ³s o nÃºmero)
         // 3. Backup: limita por caracteres se ainda for muito longo
         
         const palavras = displayName.split(' ');
         
-        // Se começar com número (ID do projeto), mantém ele + próximas 2 palavras
+        // Se comeÃ§ar com nÃºmero (ID do projeto), mantÃ©m ele + prÃ³ximas 2 palavras
         if (palavras.length > 1 && /^\d+$/.test(palavras[0])) {
-            // Exemplo: "11362 PLANALTO SOLUÇÕES IMOBILIÁRIAS" -> "11362 PLANALTO SOLUÇÕES"
+            // Exemplo: "11362 PLANALTO SOLUÃ‡Ã•ES IMOBILIÃRIAS" -> "11362 PLANALTO SOLUÃ‡Ã•ES"
             if (palavras.length > 3) {
                 displayName = palavras.slice(0, 3).join(' ');
             }
         } else {
-            // Se não começar com número, limita a 2-3 palavras
+            // Se nÃ£o comeÃ§ar com nÃºmero, limita a 2-3 palavras
             if (palavras.length > 2) {
                 displayName = palavras.slice(0, 2).join(' ');
             }
@@ -1172,14 +1115,14 @@
                 <div class="project-tasks">
                     ${backlog.tasks && backlog.tasks.length > 0 
                         ? backlog.tasks.map(task => renderBacklogTask(task)).join('')
-                        : '<div class="text-muted small p-2">Nenhuma tarefa disponível.</div>'
+                        : '<div class="text-muted small p-2">Nenhuma tarefa disponÃ­vel.</div>'
                     }
                 </div>
             </div>
         `;
     }
 
-    // Função para carregar e renderizar tarefas do backlog não alocadas
+    // FunÃ§Ã£o para carregar e renderizar tarefas do backlog nÃ£o alocadas
     async function loadBacklogTasks() {
         const backlogList = document.getElementById('backlogList');
         backlogList.innerHTML = '<div class="text-center text-muted p-3"><div class="spinner-border spinner-border-sm"></div> Carregando...</div>';
@@ -1206,7 +1149,7 @@
         }
     }
 
-    // Função para busca nos backlogs
+    // FunÃ§Ã£o para busca nos backlogs
     function setupSearch(inputId, itemsContainer, itemSelector) {
         const searchInput = document.getElementById(inputId);
         if (!searchInput) return;
@@ -1226,7 +1169,7 @@
     setupSearch('backlogSearch', document.getElementById('backlogList'), '.backlog-project');
     setupSearch('genericTaskSearch', document.getElementById('genericTasksList'), '.generic-task');
 
-    // Função para alternar visibilidade das tarefas do projeto
+    // FunÃ§Ã£o para alternar visibilidade das tarefas do projeto
     window.toggleProjectTasks = function(header) {
         const tasksDiv = header.nextElementSibling;
         const chevron = header.querySelector('.bi');
@@ -1240,27 +1183,21 @@
         }
     };
 
-    // --- Funções de Drag and Drop (SortableJS) ---
-    let sortableInstances = []; // Guarda instâncias para possível destruição/recriação
+    // --- FunÃ§Ãµes de Drag and Drop (SortableJS) ---
+    let sortableInstances = []; // Guarda instÃ¢ncias para possÃ­vel destruiÃ§Ã£o/recriaÃ§Ã£o
 
-    // <<< INÍCIO: Armazena instâncias de Popover para atualização >>>
-    let popoverInstances = {}; // Guarda instâncias por ID do botão (ex: popover-sprint-123)
-    // <<< FIM: Armazena instâncias de Popover >>>
+    // <<< INÃCIO: Armazena instÃ¢ncias de Popover para atualizaÃ§Ã£o >>>
+    let popoverInstances = {}; // Guarda instÃ¢ncias por ID do botÃ£o (ex: popover-sprint-123)
+    // <<< FIM: Armazena instÃ¢ncias de Popover >>>
 
     function initializeSortable() {
-        // Destroi instâncias antigas se existirem (útil se recarregar dinamicamente)
-        sortableInstances.forEach(instance => {
-            try {
-                instance.destroy();
-            } catch (e) {
-                console.warn("Erro ao destruir instância sortable:", e);
-            }
-        });
+        // Destroi instÃ¢ncias antigas se existirem (Ãºtil se recarregar dinamicamente)
+        sortableInstances.forEach(instance => instance.destroy());
         sortableInstances = [];
 
         console.log("[Sprint Mgmt] Inicializando SortableJS...");
 
-        // Seleciona TODAS as listas de tarefas (backlog, sprints e tarefas genéricas)
+        // Seleciona TODAS as listas de tarefas (backlog, sprints e tarefas genÃ©ricas)
         const taskLists = document.querySelectorAll('.project-tasks, #genericTasksList, .sprint-tasks');
         
         taskLists.forEach(list => {
@@ -1269,50 +1206,50 @@
                 animation: 150,
                 ghostClass: 'sortable-ghost-task', // Classe CSS para o fantasma
                 chosenClass: 'sortable-chosen-task', // Classe CSS para o item escolhido
-                draggable: '.backlog-task-card, .generic-task', // Itens arrastáveis
-                forceFallback: true, // Força o uso do fallback para evitar conflitos
-                fallbackTolerance: 5, // Tolerância para iniciar o drag
-                delay: 100, // Atraso antes de iniciar o drag para evitar conflitos com cliques
-                delayOnTouchStart: 100, // Atraso no touch
-                touchStartThreshold: 10, // Threshold para touch
-                
-                onStart: function (evt) {
-                    console.log("[Sortable] Iniciando drag da tarefa:", evt.item.dataset.taskId);
-                    // Desabilita eventos de clique temporariamente para evitar conflitos
-                    evt.item.style.pointerEvents = 'none';
-                    evt.item.style.userSelect = 'none';
-                    // Adiciona classe visual durante o drag
-                    evt.item.classList.add('sortable-dragging');
-                },
+                draggable: '.backlog-task-card, .generic-task', // Itens arrastÃ¡veis
                 
                 onEnd: function (evt) {
                     const item = evt.item; // O elemento da tarefa movida
                     const taskId = item.dataset.taskId;
                     const fromList = evt.from; // Lista de origem
                     const toList = evt.to;     // Lista de destino
-                    const newIndex = evt.newIndex; // Nova posição na lista de destino
-
-                    console.log(`[Sortable] Drag finalizado - Tarefa ${taskId} de ${fromList.className} para ${toList.className}`);
-                    
-                    // Reabilita eventos de clique após um pequeno delay e limpa classes
-                    setTimeout(() => {
-                        item.style.pointerEvents = '';
-                        item.style.userSelect = '';
-                        item.classList.remove('sortable-dragging');
-                        
-                        // Força reflow para garantir que as mudanças sejam aplicadas
-                        item.offsetHeight;
-                    }, 150);
-
-                    // Se não houve mudança real, não faz nada
-                    if (fromList === toList && evt.oldIndex === evt.newIndex) {
-                        console.log("[Sortable] Sem mudança real, ignorando.");
-                        return;
-                    }
+                    const newIndex = evt.newIndex; // Nova posiÃ§Ã£o na lista de destino
 
                     // Atualiza horas estimadas na UI
                     const taskHours = parseFloat(item.dataset.estimatedHours) || 0;
-                    const taskSpecialist = item.dataset.specialistName || 'Não Atribuído';
+                    const taskSpecialist = item.dataset.specialistName || 'NÃ£o AtribuÃ­do';
+
+                    // FunÃ§Ã£o auxiliar para atualizar o display de horas de uma sprint
+                    function updateSprintHoursDisplay(sprintListElement, hoursDelta) {
+                        const sprintCard = sprintListElement.closest('.sprint-card');
+                        if (!sprintCard) return;
+                        const hoursSpan = sprintCard.querySelector('.sprint-total-hours');
+                        if (!hoursSpan) return;
+
+                        try {
+                            const currentHoursText = hoursSpan.textContent.match(/([\d\.]+)/);
+                            let currentHours = currentHoursText ? parseFloat(currentHoursText[1]) : 0;
+                            if (isNaN(currentHours)) currentHours = 0;
+                            
+                            const newTotalHours = currentHours + hoursDelta;
+                            
+                            hoursSpan.innerHTML = `<i class="bi bi-stopwatch me-1"></i>${newTotalHours.toFixed(1)}h`;
+                        } catch (e) {
+                            console.error("Erro ao atualizar display de horas da sprint:", e);
+                        }
+                    }
+
+                    // Atualiza horas da sprint de ORIGEM (se for uma sprint)
+                    if (fromList.classList.contains('sprint-tasks')) {
+                        updateSprintHoursDisplay(fromList, -taskHours);
+                        updateSpecialistPopover(fromList);
+                    }
+
+                    // Atualiza horas da sprint de DESTINO (se for uma sprint)
+                    if (toList.classList.contains('sprint-tasks')) {
+                        updateSprintHoursDisplay(toList, taskHours);
+                        updateSpecialistPopover(toList);
+                    }
 
                     // Identifica o destino (para a API)
                     let targetSprintId = null;
@@ -1320,15 +1257,49 @@
                         targetSprintId = toList.dataset.sprintId;
                     }
 
-                    // Processa a movimentação
+                    // Se a tarefa foi movida para uma sprint, atualiza o sprint_id
                     if (targetSprintId) {
-                        // Movendo PARA uma sprint
-                        console.log(`[Sortable] Movendo tarefa ${taskId} para sprint ${targetSprintId}`);
-                        updateTaskSprintAssignmentOptimized(taskId, targetSprintId, newIndex, item, fromList, toList, taskHours);
+                        updateTaskSprintAssignment(taskId, targetSprintId, newIndex);
                     } else {
-                        // Movendo PARA FORA de uma sprint (para Backlog ou Tarefas Genéricas)
-                        console.log(`[Sortable] Movendo tarefa ${taskId} para fora da sprint`);
-                        moveTaskToBacklogOptimized(taskId, item, fromList, toList, taskHours);
+                        // Se a tarefa foi movida para fora de uma sprint (para Backlog ou Tarefas GenÃ©ricas na UI)
+                        // chamar a API de "move-to-backlog".
+                        console.log(`[Sortable onEnd] Tarefa ${taskId} movida para fora da sprint (destino nÃ£o Ã© uma sprint). Chamando API /move-to-backlog.`);
+                        fetch(`/sprints/api/sprints/tasks/${taskId}/move-to-backlog`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                // Adicionar CSRF token se necessÃ¡rio
+                                // {% raw %}'X-CSRFToken': '{{ csrf_token() }}'{% endraw %} 
+                            }
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.json().then(err => { throw new Error(err.message || `Erro ${response.status}`); });
+                            }
+                            return response.json();
+                        })
+                        .then(updatedTask => {
+                            console.log(`[Sortable onEnd] Tarefa ${taskId} movida para backlog via API. Dados:`, updatedTask);
+                            // O elemento jÃ¡ foi movido pelo SortableJS.
+                            // A sprint de origem precisa ser atualizada (contagem de horas).
+                            // As listas de backlog/genÃ©ricas precisam ser atualizadas para refletir a tarefa devolvida corretamente.
+                            if (updatedTask.is_generic) {
+                                console.log(`[Sortable onEnd] Tarefa ${taskId} (genÃ©rica) devolvida. Recarregando tarefas genÃ©ricas.`);
+                                loadGenericTasks();
+                            } else {
+                                console.log(`[Sortable onEnd] Tarefa ${taskId} (de projeto) devolvida. Recarregando backlog de projetos.`);
+                                loadBacklogTasks();
+                            }
+                            loadSprints(); // Atualiza a sprint de origem e outras para consistÃªncia
+                        })
+                        .catch(error => {
+                            console.error(`[Sortable onEnd] Erro ao mover tarefa ${taskId} para o backlog via API:`, error);
+                            alert(`Erro ao tentar mover tarefa para o backlog: ${error.message}. A interface pode estar dessincronizada. Por favor, atualize a pÃ¡gina.`);
+                            // Para garantir, recarregar tudo para tentar sincronizar
+                            loadSprints();
+                            loadBacklogTasks();
+                            loadGenericTasks();
+                        });
                     }
                 }
             });
@@ -1336,282 +1307,27 @@
         });
     }
 
-    // Versão otimizada da função de atualização que não recarrega tudo
-    async function updateTaskSprintAssignmentOptimized(taskId, sprintId, newPosition, taskElement, fromList, toList, taskHours) {
-        const apiUrl = `/backlog/api/tasks/${taskId}/assign`;
-        const payload = {
-            sprint_id: sprintId,
-            position: newPosition 
-        };
-
-        console.log(`[API Call] Chamando ${apiUrl} com payload:`, payload);
-
-        try {
-            const response = await fetch(apiUrl, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                let errorMsg = `Erro ${response.status}`; 
-                try { 
-                    const errorData = await response.json();
-                    errorMsg = errorData.message || errorData.description || errorMsg; 
-                } catch(e) {}
-                throw new Error(errorMsg);
-            }
-
-            const updatedTask = await response.json();
-            console.log("[API Call] Tarefa atualizada com sucesso:", updatedTask);
-            
-            // Usa os novos métodos globais para atualização automática
-            if (fromList && fromList.classList.contains('sprint-tasks')) {
-                const fromSprintId = fromList.dataset.sprintId;
-                window.updateSprintHourCounters(fromSprintId);
-            }
-            
-            if (toList && toList.classList.contains('sprint-tasks')) {
-                const toSprintId = toList.dataset.sprintId;
-                window.updateSprintHourCounters(toSprintId);
-            }
-
-        } catch (error) {
-            console.error("[API Call] Erro ao atualizar sprint da tarefa:", error);
-            
-            // Reverte a mudança visual em caso de erro
-            console.log("[API Call] Revertendo mudança visual devido ao erro...");
-            fromList.insertBefore(taskElement, fromList.children[newPosition] || null);
-            
-            alert(`Erro ao mover tarefa: ${error.message}`);
-        }
-    }
-
-    // Versão otimizada para mover tarefa para backlog
-    async function moveTaskToBacklogOptimized(taskId, taskElement, fromList, toList, taskHours) {
-        try {
-            const response = await fetch(`/sprints/api/sprints/tasks/${taskId}/move-to-backlog`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Erro ${response.status}`);
-            }
-            
-            const updatedTask = await response.json();
-            console.log(`[API Call] Tarefa ${taskId} movida para backlog via API:`, updatedTask);
-            
-            // Usa os novos métodos globais para atualização automática
-            if (fromList && fromList.classList.contains('sprint-tasks')) {
-                const fromSprintId = fromList.dataset.sprintId;
-                window.updateSprintHourCounters(fromSprintId);
-            }
-            
-            // Remove o elemento da lista atual e recarrega apenas a lista de destino
-            taskElement.remove();
-            
-        } catch (error) {
-            console.error(`[API Call] Erro ao mover tarefa para backlog:`, error);
-            
-            // Reverte a mudança visual
-            fromList.appendChild(taskElement);
-            
-            alert(`Erro ao mover tarefa: ${error.message}`);
-        }
-    }
-
-    // Função otimizada para atualizar display de horas sem recarregar
-    function updateSprintHoursDisplayOptimized(fromList, toList, taskHours) {
-        // Atualiza sprint de origem
-        if (fromList && fromList.classList.contains('sprint-tasks')) {
-            updateSingleSprintHours(fromList, -taskHours);
-        }
-        
-        // Atualiza sprint de destino
-        if (toList && toList.classList.contains('sprint-tasks')) {
-            updateSingleSprintHours(toList, taskHours);
-        }
-    }
-
-    // Função para atualizar horas de uma única sprint
-    function updateSingleSprintHours(sprintList, hoursDelta) {
-        const sprintCard = sprintList.closest('.sprint-card');
-        if (!sprintCard) return;
-        
-        const hoursSpan = sprintCard.querySelector('.sprint-badge i.bi-stopwatch').parentElement;
-        if (!hoursSpan) return;
-
-        try {
-            const currentHoursText = hoursSpan.textContent.match(/([\d\.]+)/);
-            let currentHours = currentHoursText ? parseFloat(currentHoursText[1]) : 0;
-            if (isNaN(currentHours)) currentHours = 0;
-            
-            const newTotalHours = Math.max(0, currentHours + hoursDelta);
-            hoursSpan.innerHTML = `<i class="bi bi-stopwatch"></i>${newTotalHours.toFixed(1)}h`;
-        } catch (e) {
-            console.error("Erro ao atualizar display de horas da sprint:", e);
-        }
-    }
-
-    // Função otimizada para atualizar popovers
-    function updateSpecialistPopoverOptimized(fromList, toList) {
-        if (fromList && fromList.classList.contains('sprint-tasks')) {
-            updateSingleSprintPopover(fromList);
-        }
-        
-        if (toList && toList.classList.contains('sprint-tasks')) {
-            updateSingleSprintPopover(toList);
-        }
-    }
-
-    // Função para atualizar popover de uma única sprint
-    function updateSingleSprintPopover(sprintList) {
-        try {
-            const sprintCard = sprintList.closest('.sprint-card');
-            if (!sprintCard) return;
-
-            // Recalcula horas por especialista
-            const tasks = sprintList.querySelectorAll('.backlog-task-card');
-            let hoursBySpecialist = {};
-
-            tasks.forEach(task => {
-                const specialist = task.dataset.specialistName;
-                if (specialist && specialist.trim() && specialist !== 'Não Atribuído') {
-                    const hours = parseFloat(task.dataset.estimatedHours) || 0;
-                    hoursBySpecialist[specialist] = (hoursBySpecialist[specialist] || 0) + hours;
-                }
-            });
-
-            // Atualiza o popover
-            const popoverButton = sprintCard.querySelector('.specialist-hours-popover');
-            if (!popoverButton) return;
-
-            // Destrói popover existente
-            const existingPopover = bootstrap.Popover.getInstance(popoverButton);
-            if (existingPopover) {
-                existingPopover.dispose();
-            }
-
-            if (Object.keys(hoursBySpecialist).length > 0) {
-                // Gera novo conteúdo
-                let popoverContent = '';
-                Object.entries(hoursBySpecialist).forEach(([specialist, hours]) => {
-                    const capacidadeTotal = 80; // Valor padrão, idealmente vir da API
-                    const horasRestantes = capacidadeTotal - hours;
-                    const percentualUtilizado = Math.round((hours / capacidadeTotal) * 100);
-                    
-                    let badgeClass = 'success';
-                    if (percentualUtilizado > 100) {
-                        badgeClass = 'danger';
-                    } else if (percentualUtilizado > 80) {
-                        badgeClass = 'warning';
-                    }
-                    
-                    popoverContent += `
-                        <div class="mb-2">
-                            <strong>${escapeHtml(specialist)}</strong><br>
-                            <small>
-                                ${hours.toFixed(1)}h utilizadas / ${capacidadeTotal}h disponíveis<br>
-                                Saldo: ${horasRestantes.toFixed(1)}h 
-                                <span class="badge bg-${badgeClass} ms-1">${percentualUtilizado}%</span>
-                            </small>
-                        </div>
-                    `;
-                });
-
-                // Cria novo popover
-                const popoverInstance = new bootstrap.Popover(popoverButton, {
-                    content: popoverContent,
-                    html: true,
-                    placement: 'bottom',
-                    trigger: 'hover', // Apenas hover, remove focus para evitar problemas
-                    title: 'Especialistas',
-                    delay: { show: 300, hide: 100 }, // Adiciona delays para melhor UX
-                    container: 'body' // Anexa ao body para evitar conflitos de z-index
-                });
-
-                // Adiciona listeners manuais para melhor controle
-                let hideTimeout;
-                
-                popoverButton.addEventListener('mouseenter', () => {
-                    if (hideTimeout) {
-                        clearTimeout(hideTimeout);
-                    }
-                });
-                
-                popoverButton.addEventListener('mouseleave', () => {
-                    hideTimeout = setTimeout(() => {
-                        if (popoverInstance) {
-                            popoverInstance.hide();
-                        }
-                    }, 200); // Delay de 200ms antes de esconder
-                });
-                
-                popoverButton.style.display = 'inline-flex';
-            } else {
-                popoverButton.style.display = 'none';
-            }
-        } catch (e) {
-            console.error("Erro ao atualizar popover:", e);
-        }
-    }
-
-    // <<< INÍCIO: Função para inicializar todos os popovers >>>
+    // <<< INÃCIO: FunÃ§Ã£o para inicializar todos os popovers >>>
     function initializePopovers() {
         console.log("[Sprint Mgmt] Inicializando Popovers...");
         const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]');
         popoverTriggerList.forEach(popoverTriggerEl => {
-            // Gera um ID único para o botão se não existir (necessário para armazenar instância)
+            // Gera um ID Ãºnico para o botÃ£o se nÃ£o existir (necessÃ¡rio para armazenar instÃ¢ncia)
             if (!popoverTriggerEl.id) {
                 popoverTriggerEl.id = `popover-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
             }
-            
-            // Para popovers de especialistas, usa o conteúdo do div oculto
-            let popoverOptions = {
-                html: true,
-                placement: 'bottom',
-                trigger: 'hover', // Apenas hover, remove focus para evitar problemas
-                title: 'Especialistas',
-                delay: { show: 300, hide: 100 }, // Adiciona delays para melhor UX
-                container: 'body' // Anexa ao body para evitar conflitos de z-index
-            };
-            
-            if (popoverTriggerEl.hasAttribute('data-popover-content-id')) {
-                const contentId = popoverTriggerEl.getAttribute('data-popover-content-id');
-                const contentDiv = document.getElementById(contentId);
-                if (contentDiv) {
-                    popoverOptions.content = contentDiv.innerHTML;
-                }
-            }
-            
-            // Cria e armazena a instância
-            const instance = new bootstrap.Popover(popoverTriggerEl, popoverOptions);
+            // Cria e armazena a instÃ¢ncia
+            const instance = new bootstrap.Popover(popoverTriggerEl);
             popoverInstances[popoverTriggerEl.id] = instance;
-
-            // Adiciona listeners manuais para melhor controle
-            let hideTimeout;
-            
-            popoverTriggerEl.addEventListener('mouseenter', () => {
-                if (hideTimeout) {
-                    clearTimeout(hideTimeout);
-                }
-            });
-            
-            popoverTriggerEl.addEventListener('mouseleave', () => {
-                hideTimeout = setTimeout(() => {
-                    if (instance) {
-                        instance.hide();
-                    }
-                }, 200); // Delay de 200ms antes de esconder
-            });
         });
-        console.log(`[Sprint Mgmt] ${Object.keys(popoverInstances).length} instâncias Popover inicializadas.`);
-    }
-    // <<< FIM: Função para inicializar todos os popovers >>>
+        console.log(`[Sprint Mgmt] ${Object.keys(popoverInstances).length} instÃ¢ncias Popover inicializadas.`);
 
-    // *** TODO: Função para chamar a API ***
-    // Função para chamar a API e atualizar a associação da sprint da tarefa
+        // Opcional: Adicionar listener para destruir popovers ao sair da pÃ¡gina?
+    }
+    // <<< FIM: FunÃ§Ã£o para inicializar todos os popovers >>>
+
+    // *** TODO: FunÃ§Ã£o para chamar a API ***
+    // FunÃ§Ã£o para chamar a API e atualizar a associaÃ§Ã£o da sprint da tarefa
     async function updateTaskSprintAssignment(taskId, sprintId, newPosition) {
         const apiUrl = `/backlog/api/tasks/${taskId}/assign`;
         // Se sprintId for undefined (arrastado para a coluna de backlog), envia null
@@ -1640,19 +1356,19 @@
 
             const updatedTask = await response.json();
             console.log("[API Call] Tarefa atualizada com sucesso:", updatedTask);
-            // Opcional: Atualizar visualmente o card da tarefa se a API retornar dados úteis
-            // Por enquanto, a mudança visual já foi feita pelo SortableJS.
+            // Opcional: Atualizar visualmente o card da tarefa se a API retornar dados Ãºteis
+            // Por enquanto, a mudanÃ§a visual jÃ¡ foi feita pelo SortableJS.
 
         } catch (error) {
             console.error("[API Call] Erro ao atualizar sprint da tarefa:", error);
-            alert(`Erro ao mover tarefa: ${error.message}\nA interface pode estar dessincronizada. Recarregue a página.`);
-            // TODO: Implementar lógica para reverter a mudança visual do SortableJS?
-            // Isso é complexo, recarregar a página pode ser a solução mais simples.
+            alert(`Erro ao mover tarefa: ${error.message}\nA interface pode estar dessincronizada. Recarregue a pÃ¡gina.`);
+            // TODO: Implementar lÃ³gica para reverter a mudanÃ§a visual do SortableJS?
+            // Isso Ã© complexo, recarregar a pÃ¡gina pode ser a soluÃ§Ã£o mais simples.
             // window.location.reload(); 
         }
     }
 
-    // Função para escapar HTML (segurança)
+    // FunÃ§Ã£o para escapar HTML (seguranÃ§a)
     function escapeHtml(unsafe) {
       if (!unsafe) return '';
       return unsafe
@@ -1663,16 +1379,16 @@
            .replace(/'/g, "&#039;");
     }
 
-    // --- Funções de Ação (Editar/Excluir) ---
+    // --- FunÃ§Ãµes de AÃ§Ã£o (Editar/Excluir) ---
 
-    // Prepara e abre o modal para edição
+    // Prepara e abre o modal para ediÃ§Ã£o
     async function openEditModal(sprintId) {
         console.log(`Abrindo modal para editar Sprint ID: ${sprintId}`);
-        sprintForm.reset(); // Limpa o formulário
+        sprintForm.reset(); // Limpa o formulÃ¡rio
         editingSprintId = sprintId;
-        formMethodInput.value = 'PUT'; // Define método como PUT
+        formMethodInput.value = 'PUT'; // Define mÃ©todo como PUT
         sprintModalLabel.textContent = 'Editar Sprint';
-        modalDeleteBtn.style.display = 'inline-block'; // Mostra botão excluir
+        modalDeleteBtn.style.display = 'inline-block'; // Mostra botÃ£o excluir
         showModalLoading(true); // Mostra loading antes do fetch
         sprintModal.show();
 
@@ -1683,7 +1399,7 @@
             }
             const sprintData = await response.json();
 
-            // Preenche o formulário
+            // Preenche o formulÃ¡rio
             document.getElementById('sprintId').value = sprintData.id;
             document.getElementById('sprintName').value = sprintData.name;
             // Formata data para YYYY-MM-DD para input date
@@ -1693,7 +1409,7 @@
             document.getElementById('sprintCriticality').value = sprintData.criticality || 'Normal';
 
         } catch (error) {
-            console.error("Erro ao carregar dados para edição:", error);
+            console.error("Erro ao carregar dados para ediÃ§Ã£o:", error);
             alert(`Erro ao carregar dados da sprint: ${error.message}`)
             sprintModal.hide(); // Esconde o modal se deu erro ao carregar
         } finally {
@@ -1703,11 +1419,11 @@
 
     // Exclui uma sprint
     async function deleteSprint(sprintId, sprintName) {
-        if (!confirm(`Tem certeza que deseja excluir a sprint "${sprintName}"?\nAs tarefas associadas serão desvinculadas.`)) {
+        if (!confirm(`Tem certeza que deseja excluir a sprint "${sprintName}"?\nAs tarefas associadas serÃ£o desvinculadas.`)) {
             return;
         }
         console.log(`Tentando excluir Sprint ID: ${sprintId}`);
-        // Poderíamos mostrar um loading na linha da tabela ou geral
+        // PoderÃ­amos mostrar um loading na linha da tabela ou geral
 
         try {
             const response = await fetch(`${apiSprintsBaseUrl}/${sprintId}`, {
@@ -1720,7 +1436,7 @@
                 throw new Error(errorMsg);
             }
 
-            console.log(`Sprint ${sprintId} excluída com sucesso.`);
+            console.log(`Sprint ${sprintId} excluÃ­da com sucesso.`);
             // Opcional: Mostrar um toast/alert de sucesso
             loadSprints(); // Recarrega a lista
 
@@ -1730,9 +1446,9 @@
         }
     }
 
-    // --- Fim Funções de Ação ---
+    // --- Fim FunÃ§Ãµes de AÃ§Ã£o ---
 
-    // Listener para submissão do formulário (Criar/Editar Sprint)
+    // Listener para submissÃ£o do formulÃ¡rio (Criar/Editar Sprint)
     sprintForm.addEventListener('submit', async function(event) {
         event.preventDefault();
         console.log("[Submit Handler] Evento submit detectado."); // Log A
@@ -1742,22 +1458,22 @@
         console.log("[Submit Handler] FormData criado."); // Log B
         const data = {
             name: formData.get('name'),
-            // Input type=date já retorna YYYY-MM-DD, que é compatível com fromisoformat no backend
+            // Input type=date jÃ¡ retorna YYYY-MM-DD, que Ã© compatÃ­vel com fromisoformat no backend
             start_date: formData.get('start_date'), 
-            end_date: formData.get('end_date'),   // O input type=date já retorna YYYY-MM-DD
+            end_date: formData.get('end_date'),   // O input type=date jÃ¡ retorna YYYY-MM-DD
             goal: formData.get('goal') || null,
             criticality: formData.get('criticality') || 'Normal'
         };
 
-        // Validação simples das datas no frontend
+        // ValidaÃ§Ã£o simples das datas no frontend
         if (data.start_date && data.end_date && data.start_date > data.end_date) {
-            alert('A data de início não pode ser posterior à data de fim.');
+            alert('A data de inÃ­cio nÃ£o pode ser posterior Ã  data de fim.');
             showModalLoading(false);
             return;
         }
 
-        console.log("[Submit Handler] Validação passou. Preparando fetch..."); // Log C
-        // Define URL e Método baseado na edição ou criação
+        console.log("[Submit Handler] ValidaÃ§Ã£o passou. Preparando fetch..."); // Log C
+        // Define URL e MÃ©todo baseado na ediÃ§Ã£o ou criaÃ§Ã£o
         const isEditing = !!editingSprintId;
         const url = isEditing ? `${apiSprintsBaseUrl}/${editingSprintId}` : apiSprintsBaseUrl;
         const method = isEditing ? 'PUT' : 'POST';
@@ -1770,7 +1486,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
-            console.log("[Submit Handler] Fetch concluído, resposta recebida.", response.status); // Log E
+            console.log("[Submit Handler] Fetch concluÃ­do, resposta recebida.", response.status); // Log E
 
             if (!response.ok) {
                 let errorMsg = `Erro ${response.status}`; 
@@ -1793,25 +1509,25 @@
         }
     });
 
-    // Listener de CLIQUE no botão Salvar (para depuração)
+    // Listener de CLIQUE no botÃ£o Salvar (para depuraÃ§Ã£o)
     const submitButton = sprintForm.querySelector('button[type="submit"]');
     if (submitButton) {
         submitButton.addEventListener('click', function(clickEvent) {
-            console.log("[Submit Button Click] Botão Salvar clicado!");
-            // Poderíamos até chamar a função de submit daqui manualmente se necessário,
-            // mas primeiro vamos ver se o clique é registrado.
+            console.log("[Submit Button Click] BotÃ£o Salvar clicado!");
+            // PoderÃ­amos atÃ© chamar a funÃ§Ã£o de submit daqui manualmente se necessÃ¡rio,
+            // mas primeiro vamos ver se o clique Ã© registrado.
         });
     } else {
-        console.error("[Sprint Mgmt] Botão Salvar (submit) não encontrado dentro do formulário!");
+        console.error("[Sprint Mgmt] BotÃ£o Salvar (submit) nÃ£o encontrado dentro do formulÃ¡rio!");
     }
 
-    // Event Delegation para botões de Ação na tabela
+    // Event Delegation para botÃµes de AÃ§Ã£o na tabela
     sprintBoard.addEventListener('click', function(event) { // Agora escuta cliques no quadro
-        const target = event.target.closest('button'); // Encontra o botão clicado
-        if (!target) return; // Sai se o clique não foi em um botão
+        const target = event.target.closest('button'); // Encontra o botÃ£o clicado
+        if (!target) return; // Sai se o clique nÃ£o foi em um botÃ£o
 
         const sprintId = target.dataset.id;
-        if (!sprintId) return; // Sai se o botão não tem ID
+        if (!sprintId) return; // Sai se o botÃ£o nÃ£o tem ID
 
         if (target.classList.contains('edit-btn')) {
             openEditModal(sprintId);
@@ -1820,59 +1536,36 @@
             const sprintName = target.dataset.name || `Sprint ${sprintId}`; // Pega nome do data attribute
             deleteSprint(sprintId, sprintName);
         }
-        else if (target.classList.contains('test-update-btn')) {
-            // Botão de teste para desenvolvedores
-            console.log(`[TESTE] Atualizando contadores da sprint ${sprintId}`);
-            window.updateSprintHourCounters(sprintId);
-            
-            // Exemplo de como adicionar uma tarefa de teste
-            if (confirm('Deseja adicionar uma tarefa de teste?')) {
-                const taskData = {
-                    id: Date.now(), // ID temporário
-                    title: `Tarefa de Teste ${new Date().getHours()}:${new Date().getMinutes()}`,
-                    estimated_effort: Math.floor(Math.random() * 8) + 1, // 1-8 horas
-                    specialist_name: 'Desenvolvedor Teste',
-                    priority: 'Média',
-                    project_id: 'TEST',
-                    is_generic: false
-                };
-                
-                const success = window.addTaskToSprintVisually(sprintId, taskData);
-                if (success) {
-                    alert('Tarefa de teste adicionada com sucesso! Observe como o contador foi atualizado automaticamente.');
-                }
-            }
-        }
         // Adicionar else if para 'allocate-btn' futuramente
     });
 
-    // Listener para botão Excluir DENTRO do modal (apenas na edição)
+    // Listener para botÃ£o Excluir DENTRO do modal (apenas na ediÃ§Ã£o)
     modalDeleteBtn.addEventListener('click', function() {
         if (editingSprintId) {
             const sprintNameInput = document.getElementById('sprintName');
             const sprintName = sprintNameInput ? sprintNameInput.value : `Sprint ${editingSprintId}`; 
-            sprintModal.hide(); // Esconde o modal antes de confirmar exclusão
+            sprintModal.hide(); // Esconde o modal antes de confirmar exclusÃ£o
             deleteSprint(editingSprintId, sprintName);
         }
     });
 
-    // Listener para quando o modal é fechado (resetar)
+    // Listener para quando o modal Ã© fechado (resetar)
     sprintModalElement.addEventListener('hidden.bs.modal', function (event) {
         sprintForm.reset();
         sprintModalLabel.textContent = 'Nova Sprint';
-        formMethodInput.value = 'POST'; // Reseta método para POST
+        formMethodInput.value = 'POST'; // Reseta mÃ©todo para POST
         editingSprintId = null;
-        modalDeleteBtn.style.display = 'none'; // Esconde botão excluir
+        modalDeleteBtn.style.display = 'none'; // Esconde botÃ£o excluir
     });
 
-    // Listener para quando o modal está PRESTES A SER EXIBIDO
+    // Listener para quando o modal estÃ¡ PRESTES A SER EXIBIDO
     sprintModalElement.addEventListener('show.bs.modal', function (event) {
         // Garante que o modal sempre abra sem o loading ativo
-        // A função openEditModal vai ativar o loading se necessário DEPOIS disso.
-        console.log("[Sprint Mgmt] Evento show.bs.modal disparado. Garantindo que loading está desligado.");
+        // A funÃ§Ã£o openEditModal vai ativar o loading se necessÃ¡rio DEPOIS disso.
+        console.log("[Sprint Mgmt] Evento show.bs.modal disparado. Garantindo que loading estÃ¡ desligado.");
         showModalLoading(false);
-        // O reset do formulário e título já é feito no hidden.bs.modal
-        // Mas podemos garantir o título aqui também para o caso de criação
+        // O reset do formulÃ¡rio e tÃ­tulo jÃ¡ Ã© feito no hidden.bs.modal
+        // Mas podemos garantir o tÃ­tulo aqui tambÃ©m para o caso de criaÃ§Ã£o
         if (!editingSprintId) {
             sprintModalLabel.textContent = 'Nova Sprint';
             modalDeleteBtn.style.display = 'none';
@@ -1883,26 +1576,26 @@
     // Carrega Sprints e Backlog em paralelo e inicializa SortableJS DEPOIS que ambos terminarem
     console.log("[Sprint Mgmt] Iniciando carregamento inicial de Sprints e Backlog...");
     Promise.all([
-        loadSprints(),      // loadSprints já é async
-        loadBacklogTasks()  // loadBacklogTasks já é async
+        loadSprints(),      // loadSprints jÃ¡ Ã© async
+        loadBacklogTasks()  // loadBacklogTasks jÃ¡ Ã© async
     ]).then(() => {
-        console.log("[Sprint Mgmt] Carregamento inicial de Sprints e Backlog CONCLUÍDO.");
-        initializeSortable(); // Chama UMA VEZ após tudo estar carregado
-        initializePopovers(); // <<< INICIALIZA Popovers após carregamento inicial >>>
+        console.log("[Sprint Mgmt] Carregamento inicial de Sprints e Backlog CONCLUÃDO.");
+        initializeSortable(); // Chama UMA VEZ apÃ³s tudo estar carregado
+        initializePopovers(); // <<< INICIALIZA Popovers apÃ³s carregamento inicial >>>
     }).catch(error => {
         console.error("[Sprint Mgmt] Erro durante o carregamento inicial (Promise.all):", error);
-        // Mostrar uma mensagem de erro geral para o usuário?
-        sprintBoard.innerHTML = '<div class="alert alert-danger">Erro crítico ao carregar dados iniciais. Recarregue a página.</div>';
-        backlogColumnBody.innerHTML = '<div class="alert alert-danger">Erro crítico ao carregar dados iniciais.</div>';
+        // Mostrar uma mensagem de erro geral para o usuÃ¡rio?
+        sprintBoard.innerHTML = '<div class="alert alert-danger">Erro crÃ­tico ao carregar dados iniciais. Recarregue a pÃ¡gina.</div>';
+        backlogColumnBody.innerHTML = '<div class="alert alert-danger">Erro crÃ­tico ao carregar dados iniciais.</div>';
     });
 
-    // <<< INÍCIO: Lógica para Recolher/Expandir Backlog (JS Manipula Estilos) >>>
+    // <<< INÃCIO: LÃ³gica para Recolher/Expandir Backlog (JS Manipula Estilos) >>>
     const toggleBtn = document.getElementById('toggleBacklogBtn');
     const backlogColumn = document.getElementById('backlogColumn'); // Seleciona a coluna diretamente
-    const boardContainer = document.getElementById('sprintBoardContainer'); // Container ainda útil?
+    const boardContainer = document.getElementById('sprintBoardContainer'); // Container ainda Ãºtil?
 
-    if (toggleBtn && backlogColumn) { // Verifica se botão e COLUNA existem
-        // Função para aplicar estilos de recolhimento/expansão
+    if (toggleBtn && backlogColumn) { // Verifica se botÃ£o e COLUNA existem
+        // FunÃ§Ã£o para aplicar estilos de recolhimento/expansÃ£o
         function applyCollapseStyles(collapse) {
             if (collapse) {
                 backlogColumn.style.flexBasis = '0px';
@@ -1912,9 +1605,9 @@
                 backlogColumn.style.paddingRight = '0';
                 backlogColumn.style.borderWidth = '0';
                 backlogColumn.style.pointerEvents = 'none';
-                toggleBtn.classList.add('collapsed-trigger'); // Adiciona classe ao botão
+                toggleBtn.classList.add('collapsed-trigger'); // Adiciona classe ao botÃ£o
             } else {
-                // Remove estilos inline para voltar aos padrões do CSS
+                // Remove estilos inline para voltar aos padrÃµes do CSS
                 backlogColumn.style.removeProperty('flex-basis');
                 backlogColumn.style.removeProperty('min-width');
                 backlogColumn.style.removeProperty('opacity');
@@ -1922,11 +1615,11 @@
                 backlogColumn.style.removeProperty('padding-right');
                 backlogColumn.style.removeProperty('border-width');
                 backlogColumn.style.removeProperty('pointer-events');
-                toggleBtn.classList.remove('collapsed-trigger'); // Remove classe do botão
+                toggleBtn.classList.remove('collapsed-trigger'); // Remove classe do botÃ£o
             }
         }
 
-        // Função para atualizar ícone e título do botão
+        // FunÃ§Ã£o para atualizar Ã­cone e tÃ­tulo do botÃ£o
         function updateButtonState(collapsed) {
             const icon = toggleBtn.querySelector('i');
             if (collapsed) {
@@ -1941,42 +1634,42 @@
         // Estado inicial (lido do localStorage)
         let isCollapsed = localStorage.getItem('sprintBacklogCollapsed') === 'true';
         applyCollapseStyles(isCollapsed); // Aplica estilos iniciais
-        updateButtonState(isCollapsed); // Define botão inicial
+        updateButtonState(isCollapsed); // Define botÃ£o inicial
 
-        // Listener de clique no botão
+        // Listener de clique no botÃ£o
         toggleBtn.addEventListener('click', () => {
             isCollapsed = !isCollapsed; // Inverte o estado
             applyCollapseStyles(isCollapsed); // Aplica novos estilos
-            updateButtonState(isCollapsed); // Atualiza botão
+            updateButtonState(isCollapsed); // Atualiza botÃ£o
             localStorage.setItem('sprintBacklogCollapsed', isCollapsed ? 'true' : 'false'); // Salva estado
         });
 
     } else {
-        console.error('[Sprint Mgmt] Botão #toggleBacklogBtn ou Coluna #backlogColumn não encontrados.');
+        console.error('[Sprint Mgmt] BotÃ£o #toggleBacklogBtn ou Coluna #backlogColumn nÃ£o encontrados.');
     }
-    // <<< FIM: Lógica para Recolher/Expandir Backlog >>>
+    // <<< FIM: LÃ³gica para Recolher/Expandir Backlog >>>
 
-    // Função para carregar tarefas genéricas
+    // FunÃ§Ã£o para carregar tarefas genÃ©ricas
     async function loadGenericTasks() {
         const genericTasksBody = document.querySelector('#genericTasksColumn .side-column-body');
-        genericTasksBody.innerHTML = '<div class="text-center text-muted p-3"><div class="spinner-border spinner-border-sm" role="status"></div> Carregando tarefas genéricas...</div>';
+        genericTasksBody.innerHTML = '<div class="text-center text-muted p-3"><div class="spinner-border spinner-border-sm" role="status"></div> Carregando tarefas genÃ©ricas...</div>';
         
         try {
             const response = await fetch('/sprints/api/generic-tasks');
             if (!response.ok) {
-                throw new Error(`Erro ${response.status}: Falha ao buscar tarefas genéricas`);
+                throw new Error(`Erro ${response.status}: Falha ao buscar tarefas genÃ©ricas`);
             }
             const tasks = await response.json();
             
             genericTasksBody.innerHTML = '';
             if (tasks.length === 0) {
-                genericTasksBody.innerHTML = '<div class="text-center text-muted p-3">Nenhuma tarefa genérica encontrada.</div>';
+                genericTasksBody.innerHTML = '<div class="text-center text-muted p-3">Nenhuma tarefa genÃ©rica encontrada.</div>';
                 return;
             }
             
             tasks.forEach(task => {
                 const taskCard = document.createElement('div');
-                taskCard.className = `generic-task ${task.status === 'Concluído' ? 'task-completed' : ''}`;
+                taskCard.className = `generic-task ${task.status === 'ConcluÃ­do' ? 'task-completed' : ''}`;
                 taskCard.dataset.taskId = task.id;
                 taskCard.draggable = true;
                 
@@ -1994,10 +1687,10 @@
                     
                     ${task.specialist_name ? `<div class="task-specialist small text-primary">
                         <i class="bi bi-person-fill me-1"></i>${escapeHtml(task.specialist_name)}
-                    </div>` : '<div class="task-specialist small text-muted"><i class="bi bi-person me-1"></i>Não atribuído</div>'}
+                    </div>` : '<div class="task-specialist small text-muted"><i class="bi bi-person me-1"></i>NÃ£o atribuÃ­do</div>'}
                 `;
                 
-                // Adiciona evento de clique para edição
+                // Adiciona evento de clique para ediÃ§Ã£o
                 taskCard.addEventListener('click', () => openGenericTaskModal(task));
                 
                 genericTasksBody.appendChild(taskCard);
@@ -2006,7 +1699,7 @@
                 const badgeElement = taskCard.querySelector('.priority-badge');
                 if (badgeElement) {
                     const priorityLower = (task.priority || '').toLowerCase();
-                    let badgeClass = 'text-bg-primary'; // Default: Média
+                    let badgeClass = 'text-bg-primary'; // Default: MÃ©dia
                     if (priorityLower === 'urgente') badgeClass = 'text-bg-danger';
                     else if (priorityLower === 'alta') badgeClass = 'text-bg-warning';
                     else if (priorityLower === 'baixa') badgeClass = 'text-bg-secondary';
@@ -2014,18 +1707,18 @@
                 }
             });
         } catch (error) {
-            console.error("Erro ao carregar tarefas genéricas:", error);
-            genericTasksBody.innerHTML = `<div class="alert alert-danger">Erro ao carregar tarefas genéricas: ${error.message}</div>`;
+            console.error("Erro ao carregar tarefas genÃ©ricas:", error);
+            genericTasksBody.innerHTML = `<div class="alert alert-danger">Erro ao carregar tarefas genÃ©ricas: ${error.message}</div>`;
         }
     }
 
-    // Modal de Tarefa Genérica
+    // Modal de Tarefa GenÃ©rica
     const genericTaskModal = new bootstrap.Modal(document.getElementById('genericTaskModal'));
     const genericTaskForm = document.getElementById('genericTaskForm');
     const genericTaskDeleteBtn = document.getElementById('genericTaskDeleteBtn');
     let editingGenericTaskId = null;
 
-    // Função para abrir o modal de tarefa genérica
+    // FunÃ§Ã£o para abrir o modal de tarefa genÃ©rica
     function openGenericTaskModal(task = null) {
         const modalTitle = document.getElementById('genericTaskModalLabel');
         const deleteBtn = document.getElementById('genericTaskDeleteBtn');
@@ -2033,17 +1726,17 @@
         genericTaskForm.reset();
         
         if (task) {
-            modalTitle.textContent = 'Editar Tarefa Genérica';
+            modalTitle.textContent = 'Editar Tarefa GenÃ©rica';
             document.getElementById('genericTaskId').value = task.id;
             document.getElementById('genericTaskTitle').value = task.title;
             document.getElementById('genericTaskDescription').value = task.description || '';
-            document.getElementById('genericTaskPriority').value = task.priority || 'Média';
+            document.getElementById('genericTaskPriority').value = task.priority || 'MÃ©dia';
             document.getElementById('genericTaskEffort').value = task.estimated_effort || '';
             document.getElementById('genericTaskSpecialist').value = task.specialist_name || '';
             deleteBtn.style.display = 'block';
             editingGenericTaskId = task.id;
         } else {
-            modalTitle.textContent = 'Nova Tarefa Genérica';
+            modalTitle.textContent = 'Nova Tarefa GenÃ©rica';
             deleteBtn.style.display = 'none';
             editingGenericTaskId = null;
         }
@@ -2051,7 +1744,7 @@
         genericTaskModal.show();
     }
 
-    // Handler para submissão do formulário de tarefa genérica
+    // Handler para submissÃ£o do formulÃ¡rio de tarefa genÃ©rica
     genericTaskForm.addEventListener('submit', async function(event) {
         event.preventDefault();
         
@@ -2083,14 +1776,14 @@
             loadGenericTasks();
             
         } catch (error) {
-            console.error("Erro ao salvar tarefa genérica:", error);
-            alert(`Erro ao salvar tarefa genérica: ${error.message}`);
+            console.error("Erro ao salvar tarefa genÃ©rica:", error);
+            alert(`Erro ao salvar tarefa genÃ©rica: ${error.message}`);
         }
     });
 
-    // Handler para exclusão de tarefa genérica
+    // Handler para exclusÃ£o de tarefa genÃ©rica
     genericTaskDeleteBtn.addEventListener('click', async function() {
-        if (!editingGenericTaskId || !confirm('Tem certeza que deseja excluir esta tarefa genérica?')) {
+        if (!editingGenericTaskId || !confirm('Tem certeza que deseja excluir esta tarefa genÃ©rica?')) {
             return;
         }
         
@@ -2104,25 +1797,25 @@
             }
             
             genericTaskModal.hide();
-            loadGenericTasks(); // Recarrega as tarefas genéricas
+            loadGenericTasks(); // Recarrega as tarefas genÃ©ricas
             loadSprints(); // Recarrega as sprints para atualizar caso a tarefa estivesse em alguma sprint
             
         } catch (error) {
-            console.error("Erro ao excluir tarefa genérica:", error);
-            alert(`Erro ao excluir tarefa genérica: ${error.message}`);
+            console.error("Erro ao excluir tarefa genÃ©rica:", error);
+            alert(`Erro ao excluir tarefa genÃ©rica: ${error.message}`);
         }
     });
 
-    // Carrega as tarefas genéricas junto com o resto dos dados
+    // Carrega as tarefas genÃ©ricas junto com o resto dos dados
     loadGenericTasks();
 
-    // Adiciona listener para o botão de adicionar tarefa genérica
+    // Adiciona listener para o botÃ£o de adicionar tarefa genÃ©rica
     const addGenericTaskBtn = document.getElementById('addGenericTaskBtn');
     if (addGenericTaskBtn) {
         addGenericTaskBtn.addEventListener('click', () => openGenericTaskModal());
     }
 
-    // Função para atualizar o popover de horas por especialista de uma sprint
+    // FunÃ§Ã£o para atualizar o popover de horas por especialista de uma sprint
     function updateSpecialistPopover(sprintListElement) {
         const sprintCard = sprintListElement.closest('.sprint-card');
         if (!sprintCard) return;
@@ -2134,68 +1827,55 @@
         // Calcula horas por especialista
         tasks.forEach(task => {
             const specialist = task.dataset.specialistName;
-            if (specialist && specialist.trim()) { // Só considera se tiver especialista
+            if (specialist && specialist.trim()) { // SÃ³ considera se tiver especialista
                 const hours = parseFloat(task.dataset.estimatedHours) || 0;
                 hoursBySpecialist[specialist] = (hoursBySpecialist[specialist] || 0) + hours;
             }
         });
 
-        // Formata o conteúdo do popover com informações básicas
-        let popoverContent = '';
-        Object.entries(hoursBySpecialist).forEach(([specialist, hours]) => {
-            if (specialist !== 'Não Atribuído') {
-                const capacidadeTotal = capacidadeTotalPorEspecialista;
-                const horasRestantes = capacidadeTotal - hours;
-                const percentualUtilizado = Math.round((hours / capacidadeTotal) * 100);
+        // Formata o conteÃºdo do popover com informaÃ§Ãµes bÃ¡sicas
+        let popoverContent = Object.entries(hoursBySpecialist)
+            .map(([name, allocatedHours]) => {
+                const remainingHours = Math.max(0, 40 - allocatedHours);
+                const utilizationPercent = (allocatedHours / 40) * 100;
                 
-                // Define cor do badge baseado na utilização
-                let badgeClass = 'success';
-                if (percentualUtilizado > 100) {
-                    badgeClass = 'danger';
-                } else if (percentualUtilizado > 80) {
-                    badgeClass = 'warning';
+                // Badge de alerta simples
+                let alertBadge = '';
+                if (utilizationPercent > 100) {
+                    alertBadge = '<span class="badge bg-danger ms-2">âš ï¸ Sobrecarga</span>';
+                } else if (utilizationPercent > 80) {
+                    alertBadge = '<span class="badge bg-warning ms-2">âš ï¸ Limite</span>';
+                } else {
+                    alertBadge = '<span class="badge bg-success ms-2">âœ… OK</span>';
                 }
                 
-                popoverContent += `
-                    <div class="mb-2">
-                        <strong>${escapeHtml(specialist)}</strong><br>
-                        <small>
-                            ${hours.toFixed(1)}h utilizadas / ${capacidadeTotal}h disponíveis (${semanasSprint} sem.)<br>
-                            Saldo: ${horasRestantes.toFixed(1)}h 
-                            <span class="badge bg-${badgeClass} ms-1">${percentualUtilizado}%</span>
-                        </small>
+                return `
+                    <div class="mb-1">
+                        <strong>${escapeHtml(name)}</strong><br>
+                        <small>Consumo: ${allocatedHours.toFixed(1)}h | Saldo: ${remainingHours.toFixed(1)}h</small>
+                        ${alertBadge}
                     </div>
                 `;
-            }
-        });
+            })
+            .join('');
         
         if (!popoverContent) {
             popoverContent = '<small class="text-muted">Nenhum especialista alocado</small>';
         }
 
-        // Escape do conteúdo do popover para uso seguro
-        const escapedPopoverContent = popoverContent.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-
         // Atualiza o popover
         const popoverButton = sprintCard.querySelector('.specialist-hours-popover');
         if (popoverButton) {
-            // Destrói o popover existente
+            // DestrÃ³i o popover existente
             const popoverInstance = bootstrap.Popover.getInstance(popoverButton);
             if (popoverInstance) {
                 popoverInstance.dispose();
             }
 
             if (Object.keys(hoursBySpecialist).length > 0) {
-                // Atualiza o div oculto com o novo conteúdo
-                const contentId = popoverButton.getAttribute('data-popover-content-id');
-                const contentDiv = document.getElementById(contentId);
-                if (contentDiv) {
-                    contentDiv.innerHTML = popoverContent;
-                }
-                
-                // Cria um novo popover com o conteúdo atualizado
+                // Cria um novo popover com o conteÃºdo atualizado
                 new bootstrap.Popover(popoverButton, {
-                    content: popoverContent, // Usa conteúdo não-escapado para JavaScript
+                    content: popoverContent,
                     html: true,
                     placement: 'bottom',
                     trigger: 'hover focus',
@@ -2208,7 +1888,7 @@
         }
     }
 
-    // Função para abrir o modal de detalhes da tarefa
+    // FunÃ§Ã£o para abrir o modal de detalhes da tarefa
     function openTaskDetailsModal(taskElement) {
         const taskId = taskElement.dataset.taskId;
         const taskType = taskElement.classList.contains('generic-task') ? 'generic' : 'backlog';
@@ -2217,12 +1897,12 @@
         const modalTitle = document.getElementById('taskDetailsModalLabel');
         const deleteBtn = document.getElementById('taskDeleteBtn');
 
-        // Reset form e configura campos básicos
+        // Reset form e configura campos bÃ¡sicos
         form.reset();
         document.getElementById('taskId').value = taskId;
         document.getElementById('taskType').value = taskType;
 
-        // Configura visibilidade dos campos específicos do backlog
+        // Configura visibilidade dos campos especÃ­ficos do backlog
         backlogFields.classList.toggle('d-none', taskType === 'generic');
 
         // Busca dados da tarefa na API
@@ -2232,9 +1912,9 @@
                 return response.json();
             })
             .then(task => {
-                // Preenche os campos do formulário
+                // Preenche os campos do formulÃ¡rio
                 document.getElementById('taskTitle').value = task.name || '';
-                document.getElementById('taskPriority').value = task.priority || 'Média';
+                document.getElementById('taskPriority').value = task.priority || 'MÃ©dia';
                 document.getElementById('taskSpecialist').value = task.specialist_name || '';
                 document.getElementById('taskEstimatedHours').value = task.estimated_effort || '';
                 document.getElementById('taskDescription').value = task.description || '';
@@ -2245,7 +1925,7 @@
                     document.getElementById('taskColumnIdentifier').value = task.column_identifier || '';
                 }
 
-                // Configura título do modal
+                // Configura tÃ­tulo do modal
                 modalTitle.textContent = `Detalhes da Tarefa - ${task.name}`;
 
                 // Mostra o modal
@@ -2258,7 +1938,7 @@
             });
     }
 
-    // Handler para submissão do formulário de detalhes da tarefa
+    // Handler para submissÃ£o do formulÃ¡rio de detalhes da tarefa
     document.getElementById('taskDetailsForm').addEventListener('submit', async function(event) {
         event.preventDefault();
         
@@ -2297,11 +1977,11 @@
 
         } catch (error) {
             console.error('Erro ao salvar tarefa:', error);
-            alert('Erro ao salvar alterações. Por favor, tente novamente.');
+            alert('Erro ao salvar alteraÃ§Ãµes. Por favor, tente novamente.');
         }
     });
 
-    // Handler para exclusão de tarefa
+    // Handler para exclusÃ£o de tarefa
     document.getElementById('taskDeleteBtn').addEventListener('click', async function() {
         const taskId = document.getElementById('taskId').value;
         const taskType = document.getElementById('taskType').value;
@@ -2337,7 +2017,7 @@
         }
     });
 
-    // Delegação de eventos para botões de editar e excluir Sprints
+    // DelegaÃ§Ã£o de eventos para botÃµes de editar e excluir Sprints
     sprintBoard.addEventListener('click', function(event) {
         const editButton = event.target.closest('.edit-btn');
         const deleteButton = event.target.closest('.delete-btn');
@@ -2352,382 +2032,20 @@
         }
     });
 
-    // Carrega os dados iniciais (Este bloco de chamadas diretas é redundante se Promise.all está sendo usado)
+    // Carrega os dados iniciais (Este bloco de chamadas diretas Ã© redundante se Promise.all estÃ¡ sendo usado)
     // loadSprints(); // Redundante
     // loadBacklogTasks(); // Redundante
     // loadGenericTasks(); // Redundante
 
-    // <<< INÍCIO: Event Listeners para Coluna de Tarefas Genéricas >>>
-    // A declaração e o listener para addGenericTaskBtn já foram feitos anteriormente no código.
-    // Este bloco abaixo é uma duplicação e causa o erro de linter, então será removido.
+    // <<< INÃCIO: Event Listeners para Coluna de Tarefas GenÃ©ricas >>>
+    // A declaraÃ§Ã£o e o listener para addGenericTaskBtn jÃ¡ foram feitos anteriormente no cÃ³digo.
+    // Este bloco abaixo Ã© uma duplicaÃ§Ã£o e causa o erro de linter, entÃ£o serÃ¡ removido.
     // const addGenericTaskBtn = document.getElementById('addGenericTaskBtn'); 
     // if (addGenericTaskBtn) {
     //     addGenericTaskBtn.addEventListener('click', () => openGenericTaskModal());
     // }
-    // <<< FIM: Event Listeners para Coluna de Tarefas Genéricas >>>
+    // <<< FIM: Event Listeners para Coluna de Tarefas GenÃ©ricas >>>
 
-    // <<< INÍCIO: Funções Globais para Atualização Automática de Contadores >>>
-    
-    // Função global para recalcular e atualizar horas de uma sprint específica
-    window.updateSprintHourCounters = function(sprintId) {
-        console.log(`[Sprint Update] Atualizando contadores da sprint ${sprintId}`);
-        
-        const sprintCard = document.querySelector(`.sprint-card[data-sprint-id="${sprintId}"]`);
-        if (!sprintCard) {
-            console.warn(`[Sprint Update] Sprint card ${sprintId} não encontrado`);
-            return;
-        }
-
-        const sprintTasksContainer = sprintCard.querySelector('.sprint-tasks');
-        if (!sprintTasksContainer) {
-            console.warn(`[Sprint Update] Container de tarefas da sprint ${sprintId} não encontrado`);
-            return;
-        }
-
-        // Recalcula total de horas da sprint
-        const tasks = sprintTasksContainer.querySelectorAll('.backlog-task-card');
-        let totalSprintHours = 0;
-        let hoursBySpecialist = {};
-
-        tasks.forEach(task => {
-            const hours = parseFloat(task.dataset.estimatedHours) || 0;
-            totalSprintHours += hours;
-
-            // Calcula horas por especialista para o popover
-            const specialist = task.dataset.specialistName;
-            if (specialist && specialist.trim() && specialist !== 'Não Atribuído') {
-                hoursBySpecialist[specialist] = (hoursBySpecialist[specialist] || 0) + hours;
-            }
-        });
-
-        // Busca o badge de horas totais de forma mais robusta
-        let hoursSpan = sprintCard.querySelector('.sprint-badge:has(i.bi-stopwatch)');
-        if (!hoursSpan) {
-            // Fallback: procura por qualquer elemento que contenha o ícone stopwatch
-            hoursSpan = sprintCard.querySelector('.sprint-badge i.bi-stopwatch');
-            if (hoursSpan) {
-                hoursSpan = hoursSpan.parentElement;
-            }
-        }
-        
-        // Terceiro fallback: procura pelo padrão de texto das horas
-        if (!hoursSpan) {
-            const allBadges = sprintCard.querySelectorAll('.sprint-badge');
-            allBadges.forEach(badge => {
-                if (badge.textContent.includes('h') && badge.querySelector('i.bi-stopwatch')) {
-                    hoursSpan = badge;
-                }
-            });
-        }
-
-        if (hoursSpan) {
-            hoursSpan.innerHTML = `<i class="bi bi-stopwatch"></i>${totalSprintHours.toFixed(1)}h`;
-            console.log(`[Sprint Update] Horas atualizadas para ${totalSprintHours.toFixed(1)}h na sprint ${sprintId}`);
-        } else {
-            console.warn(`[Sprint Update] Elemento de horas não encontrado na sprint ${sprintId}`);
-            console.log('[Sprint Update] Elementos encontrados:', sprintCard.querySelectorAll('.sprint-badge'));
-        }
-
-        // Atualiza popover de especialistas
-        updateSpecialistPopoverForSprint(sprintCard, hoursBySpecialist);
-    };
-
-    // Função para atualizar popover de especialistas de uma sprint específica
-    function updateSpecialistPopoverForSprint(sprintCard, hoursBySpecialist) {
-        const popoverButton = sprintCard.querySelector('.specialist-hours-popover');
-        if (!popoverButton) return;
-
-        // Destrói popover existente para evitar conflitos
-        const existingPopover = bootstrap.Popover.getInstance(popoverButton);
-        if (existingPopover) {
-            existingPopover.dispose();
-        }
-
-        if (Object.keys(hoursBySpecialist).length > 0) {
-            // Gera novo conteúdo
-            let popoverContent = '';
-            Object.entries(hoursBySpecialist).forEach(([specialist, hours]) => {
-                const capacidadeTotal = 80; // Valor padrão, idealmente vir da API
-                const horasRestantes = capacidadeTotal - hours;
-                const percentualUtilizado = Math.round((hours / capacidadeTotal) * 100);
-                
-                let badgeClass = 'success';
-                if (percentualUtilizado > 100) {
-                    badgeClass = 'danger';
-                } else if (percentualUtilizado > 80) {
-                    badgeClass = 'warning';
-                }
-                
-                popoverContent += `
-                    <div class="mb-2">
-                        <strong>${escapeHtml(specialist)}</strong><br>
-                        <small>
-                            ${hours.toFixed(1)}h utilizadas / ${capacidadeTotal}h disponíveis<br>
-                            Saldo: ${horasRestantes.toFixed(1)}h 
-                            <span class="badge bg-${badgeClass} ms-1">${percentualUtilizado}%</span>
-                        </small>
-                    </div>
-                `;
-            });
-
-            // Cria novo popover com configuração melhorada
-            const popoverInstance = new bootstrap.Popover(popoverButton, {
-                content: popoverContent,
-                html: true,
-                placement: 'bottom',
-                trigger: 'hover', // Apenas hover, remove focus para evitar problemas
-                title: 'Especialistas',
-                delay: { show: 300, hide: 100 }, // Adiciona delays para melhor UX
-                container: 'body' // Anexa ao body para evitar conflitos de z-index
-            });
-
-            // Adiciona listeners manuais para melhor controle
-            let hideTimeout;
-            
-            popoverButton.addEventListener('mouseenter', () => {
-                if (hideTimeout) {
-                    clearTimeout(hideTimeout);
-                }
-            });
-            
-            popoverButton.addEventListener('mouseleave', () => {
-                hideTimeout = setTimeout(() => {
-                    if (popoverInstance) {
-                        popoverInstance.hide();
-                    }
-                }, 200); // Delay de 200ms antes de esconder
-            });
-            
-            popoverButton.style.display = 'inline-flex';
-        } else {
-            popoverButton.style.display = 'none';
-        }
-    }
-
-    // Função global para adicionar uma tarefa visualmente a uma sprint (sem API)
-    window.addTaskToSprintVisually = function(sprintId, taskData) {
-        console.log(`[Sprint Update] Adicionando tarefa ${taskData.id} visualmente à sprint ${sprintId}`);
-        
-        const sprintCard = document.querySelector(`.sprint-card[data-sprint-id="${sprintId}"]`);
-        if (!sprintCard) {
-            console.warn(`[Sprint Update] Sprint card ${sprintId} não encontrado`);
-            return false;
-        }
-
-        const sprintTasksContainer = sprintCard.querySelector('.sprint-tasks');
-        if (!sprintTasksContainer) {
-            console.warn(`[Sprint Update] Container de tarefas da sprint ${sprintId} não encontrado`);
-            return false;
-        }
-
-        // Remove mensagem de "nenhuma tarefa" se existir
-        const emptyMessage = sprintTasksContainer.querySelector('.text-muted.fst-italic');
-        if (emptyMessage) {
-            emptyMessage.remove();
-        }
-
-        // Cria o elemento HTML da tarefa
-        const taskCard = document.createElement('div');
-        taskCard.className = `backlog-task-card sprint-task-card ${taskData.status === 'concluido' ? 'task-completed' : ''}`;
-        taskCard.dataset.taskId = taskData.id;
-        taskCard.dataset.estimatedHours = taskData.estimated_effort || 0;
-        taskCard.dataset.specialistName = taskData.specialist_name || '';
-        taskCard.dataset.isGeneric = taskData.is_generic || false;
-        taskCard.draggable = true;
-
-        const projectPart = taskData.project_id || 'PROJ';
-        const columnPart = (taskData.column_identifier || 'UNK').substring(0, 3).toUpperCase();
-
-        taskCard.innerHTML = `
-            <div class="task-title">${escapeHtml(taskData.title || taskData.name)}</div>
-            
-            ${taskData.project_id && !taskData.is_generic ? `<div class="task-project-info small text-muted mb-2">
-                <i class="bi bi-folder2 me-1"></i><strong>${taskData.project_id}</strong>${taskData.project_name ? ` - ${escapeHtml(taskData.project_name.length > 25 ? taskData.project_name.substring(0, 25) + '...' : taskData.project_name)}` : ''}
-            </div>` : ''}
-            
-            <div class="task-meta d-flex justify-content-between align-items-center mb-2">
-                <div class="task-meta-left">
-                    <span class="badge rounded-pill task-priority-badge">${escapeHtml(taskData.priority || 'Média')}</span>
-                </div>
-                <div class="task-meta-right d-flex align-items-center gap-2">
-                    ${taskData.estimated_effort ? `<span class="text-muted small"><i class="bi bi-clock me-1"></i>${taskData.estimated_effort}h</span>` : ''}
-                </div>
-            </div>
-            
-            ${taskData.specialist_name ? `<div class="task-specialist small text-primary">
-                <i class="bi bi-person-fill me-1"></i>${escapeHtml(taskData.specialist_name)}
-            </div>` : '<div class="task-specialist small text-muted"><i class="bi bi-person me-1"></i>Não atribuído</div>'}
-        `;
-
-        // Adiciona classe de cor ao badge de prioridade
-        const badgeElement = taskCard.querySelector('.task-priority-badge');
-        if (badgeElement) {
-            const priorityLower = (taskData.priority || '').toLowerCase();
-            let badgeClass = 'text-bg-primary'; // Default: Média
-            if (priorityLower === 'urgente') badgeClass = 'text-bg-danger';
-            else if (priorityLower === 'alta') badgeClass = 'text-bg-warning';
-            else if (priorityLower === 'baixa') badgeClass = 'text-bg-secondary';
-            badgeElement.classList.add(...badgeClass.split(' '));
-        }
-
-        // Adiciona a tarefa ao container
-        sprintTasksContainer.appendChild(taskCard);
-
-        // Atualiza contadores automaticamente
-        window.updateSprintHourCounters(sprintId);
-
-        // Reinicializa sortable para incluir a nova tarefa
-        initializeSortable();
-
-        console.log(`[Sprint Update] Tarefa ${taskData.id} adicionada com sucesso à sprint ${sprintId}`);
-        return true;
-    };
-
-    // Função global para remover uma tarefa visualmente de uma sprint
-    window.removeTaskFromSprintVisually = function(sprintId, taskId) {
-        console.log(`[Sprint Update] Removendo tarefa ${taskId} visualmente da sprint ${sprintId}`);
-        
-        const sprintCard = document.querySelector(`.sprint-card[data-sprint-id="${sprintId}"]`);
-        if (!sprintCard) {
-            console.warn(`[Sprint Update] Sprint card ${sprintId} não encontrado`);
-            return false;
-        }
-
-        const taskCard = sprintCard.querySelector(`.sprint-task-card[data-task-id="${taskId}"]`);
-        if (!taskCard) {
-            console.warn(`[Sprint Update] Tarefa ${taskId} não encontrada na sprint ${sprintId}`);
-            return false;
-        }
-
-        // Remove a tarefa
-        taskCard.remove();
-
-        // Verifica se precisa adicionar mensagem de "nenhuma tarefa"
-        const sprintTasksContainer = sprintCard.querySelector('.sprint-tasks');
-        const remainingTasks = sprintTasksContainer.querySelectorAll('.backlog-task-card');
-        if (remainingTasks.length === 0) {
-            sprintTasksContainer.innerHTML = '<small class="text-muted fst-italic ps-2">Nenhuma tarefa alocada.</small>';
-        }
-
-        // Atualiza contadores automaticamente
-        window.updateSprintHourCounters(sprintId);
-
-        console.log(`[Sprint Update] Tarefa ${taskId} removida com sucesso da sprint ${sprintId}`);
-        return true;
-    };
-
-    // Função global para atualizar dados de uma tarefa existente em uma sprint
-    window.updateTaskInSprintVisually = function(sprintId, taskId, updatedTaskData) {
-        console.log(`[Sprint Update] Atualizando tarefa ${taskId} na sprint ${sprintId}`);
-        
-        const sprintCard = document.querySelector(`.sprint-card[data-sprint-id="${sprintId}"]`);
-        if (!sprintCard) {
-            console.warn(`[Sprint Update] Sprint card ${sprintId} não encontrado`);
-            return false;
-        }
-
-        const taskCard = sprintCard.querySelector(`.sprint-task-card[data-task-id="${taskId}"]`);
-        if (!taskCard) {
-            console.warn(`[Sprint Update] Tarefa ${taskId} não encontrada na sprint ${sprintId}`);
-            return false;
-        }
-
-        // Atualiza datasets
-        if (updatedTaskData.estimated_effort !== undefined) {
-            taskCard.dataset.estimatedHours = updatedTaskData.estimated_effort || 0;
-        }
-        if (updatedTaskData.specialist_name !== undefined) {
-            taskCard.dataset.specialistName = updatedTaskData.specialist_name || '';
-        }
-
-        // Atualiza contadores automaticamente
-        window.updateSprintHourCounters(sprintId);
-
-        console.log(`[Sprint Update] Tarefa ${taskId} atualizada com sucesso na sprint ${sprintId}`);
-        return true;
-    };
-
-    // <<< FIM: Funções Globais para Atualização Automática de Contadores >>>
-
-    // <<< INÍCIO: Exemplo de Integração com APIs Externas >>>
-    
-    // Exemplo de como integrar com outras partes do sistema:
-    // 
-    // 1. Quando uma tarefa é criada e associada a uma sprint:
-    //    window.addTaskToSprintVisually(sprintId, taskData);
-    //
-    // 2. Quando uma tarefa é editada e suas horas mudam:
-    //    window.updateTaskInSprintVisually(sprintId, taskId, {estimated_effort: newHours});
-    //
-    // 3. Quando uma tarefa é removida de uma sprint:
-    //    window.removeTaskFromSprintVisually(sprintId, taskId);
-    //
-    // 4. Para forçar recálculo de uma sprint específica:
-    //    window.updateSprintHourCounters(sprintId);
-    
-    // Hook global que pode ser usado por outras páginas/modais
-    window.sprintManagementHooks = {
-        onTaskCreated: function(taskData, sprintId) {
-            if (sprintId && taskData) {
-                return window.addTaskToSprintVisually(sprintId, taskData);
-            }
-            return false;
-        },
-        
-        onTaskUpdated: function(taskId, updatedData, sprintId) {
-            if (sprintId && taskId) {
-                return window.updateTaskInSprintVisually(sprintId, taskId, updatedData);
-            }
-            return false;
-        },
-        
-        onTaskDeleted: function(taskId, sprintId) {
-            if (sprintId && taskId) {
-                return window.removeTaskFromSprintVisually(sprintId, taskId);
-            }
-            return false;
-        },
-        
-        refreshSprint: function(sprintId) {
-            if (sprintId) {
-                window.updateSprintHourCounters(sprintId);
-                return true;
-            }
-            return false;
-        }
-    };
-    
-    // Expõe o hook globalmente para uso em console ou outras páginas
-    console.log("[Sprint Management] Hooks globais disponíveis em window.sprintManagementHooks");
-    console.log("[Sprint Management] Funções diretas disponíveis:");
-    console.log("  - window.updateSprintHourCounters(sprintId)");
-    console.log("  - window.addTaskToSprintVisually(sprintId, taskData)");
-    console.log("  - window.removeTaskFromSprintVisually(sprintId, taskId)");
-    console.log("  - window.updateTaskInSprintVisually(sprintId, taskId, updatedData)");
-    
-    // Função para habilitar modo de teste (para desenvolvedores)
-    window.enableSprintTestMode = function() {
-        const testButtons = document.querySelectorAll('.test-update-btn');
-        testButtons.forEach(btn => {
-            btn.style.display = 'inline-block';
-        });
-        console.log("[Sprint Management] Modo de teste habilitado! Botões de teste aparecem nos cards das sprints.");
-        console.log("Execute window.disableSprintTestMode() para ocultar.");
-    };
-    
-    window.disableSprintTestMode = function() {
-        const testButtons = document.querySelectorAll('.test-update-btn');
-        testButtons.forEach(btn => {
-            btn.style.display = 'none';
-        });
-        console.log("[Sprint Management] Modo de teste desabilitado.");
-    };
-    
-    console.log("[Sprint Management] Para testar: execute window.enableSprintTestMode() no console");
-    
-    // <<< FIM: Exemplo de Integração com APIs Externas >>>
-
-    // Função para inicializar todos os popovers
   }); // Fim DOMContentLoaded
 </script>
 {# Adiciona SortableJS #}

@@ -5,7 +5,7 @@
 {% block extra_css %}
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.1/dist/bootstrap-table.min.css" rel="stylesheet">
 <style>
-    /* ===== DESIGN PROFISSIONAL SOU.CLOUD - RELATÓRIO DE PROJETOS ===== */
+    /* ===== DESIGN PROFISSIONAL SOU.CLOUD - RELATÓRIO DE PROJETOS CRÍTICOS ===== */
     
     /* Importa fonte elegante do Google Fonts */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -46,7 +46,7 @@
     body {
         padding-top: 0 !important;
         margin-top: 0 !important;
-        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        background: linear-gradient(135deg, #fef7f7 0%, #ffe6e6 100%);
         background-attachment: fixed;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         color: #2d3748;
@@ -62,22 +62,25 @@
         margin-top: 0 !important;
     }
     
-    /* Variáveis de design SOU.Cloud */
+    /* Variáveis de design SOU.Cloud com tema crítico */
     :root {
         --sou-rosa: #FF2D5F;
         --sou-azul: #07304F;
         --sou-rosa-light: #ff4d7a;
         --sou-azul-light: #0a4a78;
+        --critico-vermelho: #dc3545;
+        --critico-vermelho-light: #e55d6b;
         --sou-rosa-gradient: linear-gradient(135deg, #FF2D5F 0%, #ff4d7a 100%);
         --sou-azul-gradient: linear-gradient(135deg, #07304F 0%, #0a4a78 100%);
-        --light-shadow: 0 2px 12px rgba(7, 48, 79, 0.1);
-        --premium-shadow: 0 4px 24px rgba(7, 48, 79, 0.15);
+        --critico-gradient: linear-gradient(135deg, #dc3545 0%, #e55d6b 100%);
+        --light-shadow: 0 2px 12px rgba(220, 53, 69, 0.15);
+        --premium-shadow: 0 4px 24px rgba(220, 53, 69, 0.2);
         --text-primary: #2d3748;
         --text-secondary: #4a5568;
         --text-muted: #718096;
-        --bg-light: #f8fafc;
+        --bg-light: #fef7f7;
         --bg-white: #ffffff;
-        --border-light: #e2e8f0;
+        --border-light: #f5c6cb;
     }
     
     /* Container principal otimizado */
@@ -91,9 +94,10 @@
         overflow: hidden;
         position: relative;
         width: calc(100% - 2rem);
+        border: 2px solid var(--critico-vermelho);
     }
     
-    /* Card principal com design clean */
+    /* Card principal com design crítico */
     .card {
         background: var(--bg-white);
         border: 1px solid var(--border-light);
@@ -103,14 +107,25 @@
         margin-bottom: 2rem;
     }
     
-    /* Cabeçalho do relatório */
+    /* Cabeçalho do relatório com tema crítico */
     .d-sm-flex.align-items-center {
-        background: var(--sou-azul-gradient);
+        background: var(--critico-gradient);
         color: white;
         padding: 1.5rem 2rem;
         border-radius: 12px 12px 0 0;
         margin: 0 0 2rem 0;
         position: relative;
+    }
+    
+    .d-sm-flex.align-items-center::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #ff6b6b 0%, #ff5252 50%, #dc3545 100%);
+        border-radius: 12px 12px 0 0;
     }
     
     .d-sm-flex.align-items-center h1 {
@@ -122,7 +137,7 @@
     }
     
     .d-sm-flex.align-items-center .text-muted {
-        color: rgba(255, 255, 255, 0.8) !important;
+        color: rgba(255, 255, 255, 0.9) !important;
         font-size: 0.875rem;
         font-weight: 400;
     }
@@ -189,17 +204,17 @@
     }
     
     .fixed-table-toolbar .btn:hover {
-        background: var(--sou-azul);
+        background: var(--sou-rosa);
         color: white;
-        border-color: var(--sou-azul);
+        border-color: var(--sou-rosa);
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(7, 48, 79, 0.2);
+        box-shadow: 0 4px 12px rgba(255, 45, 95, 0.2);
     }
     
     .fixed-table-toolbar .btn.active {
-        background: var(--sou-azul);
+        background: var(--sou-rosa);
         color: white;
-        border-color: var(--sou-azul);
+        border-color: var(--sou-rosa);
     }
     
     /* Estilos gerais dos botões */
@@ -230,14 +245,14 @@
     }
     
     .btn-danger {
-        background: var(--sou-rosa);
+        background: var(--critico-vermelho);
         color: white;
     }
     
     .btn-danger:hover {
-        background: var(--sou-rosa-light);
+        background: var(--critico-vermelho-light);
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(255, 45, 95, 0.3);
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
     }
     
     /* Tabela moderna e limpa */
@@ -247,9 +262,9 @@
         color: var(--text-primary);
     }
     
-    /* Cabeçalho da tabela */
+    /* Cabeçalho da tabela com tema crítico */
     .table thead th {
-        background: var(--sou-azul) !important;
+        background: var(--critico-vermelho) !important;
         color: white !important;
         font-weight: 600;
         font-size: 0.8rem;
@@ -274,7 +289,7 @@
     }
     
     .table tbody tr:nth-child(even) {
-        background: #fafbfc;
+        background: #fef9f9;
     }
     
     /* Badges modernos */
@@ -302,7 +317,7 @@
     }
     
     .bg-danger {
-        background: #dc3545 !important;
+        background: var(--critico-vermelho) !important;
         color: white;
     }
     
@@ -316,14 +331,14 @@
         color: white;
     }
     
-    /* Barras de progresso elegantes */
+    /* Barras de progresso elegantes com tema crítico */
     .progress-thin {
         height: 8px;
         margin-top: 4px;
-        background-color: #e9ecef;
+        background-color: #f8d7da;
         border-radius: 4px;
         overflow: hidden;
-        box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+        box-shadow: inset 0 1px 2px rgba(220, 53, 69, 0.1);
     }
     
     .progress-thin .progress-bar {
@@ -350,7 +365,7 @@
         background: linear-gradient(90deg, #dc3545 0%, #c82333 100%) !important; 
     }
     .progress-warning .progress-bar { 
-        background: linear-gradient(90deg, #ffc107 0%, #e0a800 100%) !important; 
+        background: linear-gradient(90deg, #fd7e14 0%, #e55d0e 100%) !important; 
     }
     .progress-success .progress-bar { 
         background: linear-gradient(90deg, #28a745 0%, #20c997 100%) !important; 
@@ -381,7 +396,7 @@
     
     /* Texto de horas negativas destacado */
     .text-danger-bold {
-        color: #dc3545 !important;
+        color: var(--critico-vermelho) !important;
         font-weight: bold;
         text-shadow: 0 1px 2px rgba(220, 53, 69, 0.2);
     }
@@ -402,8 +417,8 @@
     
     .fixed-table-toolbar .search-input:focus {
         outline: none;
-        border-color: var(--sou-azul);
-        box-shadow: 0 0 0 0.2rem rgba(7, 48, 79, 0.25);
+        border-color: var(--critico-vermelho);
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
     }
     
     /* Responsividade */
@@ -507,9 +522,9 @@
             border: none !important;
         }
 
-        /* Cabeçalho principal mantém cores */
+        /* Cabeçalho principal mantém cores críticas */
         .d-sm-flex.align-items-center {
-            background: #07304F !important;
+            background: #dc3545 !important;
             color: white !important;
             padding: 0.8cm 1cm !important;
             margin: 0 0 0.5cm 0 !important;
@@ -562,7 +577,7 @@
         }
 
         .table thead th {
-            background: #07304F !important;
+            background: #dc3545 !important;
             color: white !important;
             font-size: 7pt !important;
             padding: 0.3cm 0.2cm !important;
@@ -573,7 +588,7 @@
         .table tbody td {
             padding: 0.2cm 0.1cm !important;
             font-size: 7pt !important;
-            border: 1px solid #e2e8f0 !important;
+            border: 1px solid #f5c6cb !important;
             page-break-inside: avoid !important;
         }
 
@@ -582,7 +597,7 @@
         }
 
         .table tbody tr:nth-child(even) {
-            background: #f8fafc !important;
+            background: #fef9f9 !important;
             -webkit-print-color-adjust: exact !important;
         }
 
@@ -681,7 +696,7 @@
 {% block content %}
 <div class="container-fluid mt-4">
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0"><i class="bi bi-list-task me-2"></i>{{ title }}</h1>
+        <h1 class="h3 mb-0"><i class="bi bi-exclamation-triangle me-2"></i>{{ title }}</h1>
         <span class="text-muted small">
              {% if hora_atualizacao %}
                 Atualizado em: {{ hora_atualizacao.strftime('%d/%m/%Y %H:%M:%S') }}
@@ -700,11 +715,10 @@
                         <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
                     </button>
                 </div>
-                <!-- Os botões de controle do Bootstrap Table serão inseridos aqui automaticamente -->
             </div>
             <table
-              id="tabelaProjetosAtivos"
-              data-url="/macro/api/projetos/ativos"
+              id="tabelaProjetosCriticos"
+              data-url="/macro/api/projetos/criticos"
               data-pagination="false"
               data-search="true"
               data-show-refresh="true"
@@ -736,15 +750,14 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.1/dist/extensions/export/bootstrap-table-export.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tableexport.jquery.plugin@1.28.0/tableExport.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.1/dist/locale/bootstrap-table-pt-BR.min.js"></script>
-<!-- Adicionando bibliotecas para exportação Excel -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <script>
-    // Funções auxiliares de formatação (copiadas e adaptadas de dashboard.html)
+    // Funções auxiliares de formatação (adaptadas para projetos críticos)
     function getStatusColor(status) {
         const cores = {
-            'NOVO': 'info',
-            'EM ATENDIMENTO': 'primary',
+            'NOVO': 'warning',
+            'EM ATENDIMENTO': 'danger',
             'AGUARDANDO': 'warning',
             'BLOQUEADO': 'danger',
             'FECHADO': 'success',
@@ -752,7 +765,7 @@
             'RESOLVIDO': 'success',
             'CANCELADO': 'secondary'
         };
-        return cores[status?.toUpperCase()] || 'secondary';
+        return cores[status?.toUpperCase()] || 'danger';
     }
 
     function escapeHtml(unsafe) {
@@ -787,10 +800,9 @@
 
     function conclusaoFormatter(value, row) {
         const conclusao = !isNaN(parseFloat(value)) ? parseFloat(value) : 0;
-        let progressClassConclusao = 'progress-info';
-        if (conclusao < 30) progressClassConclusao = 'progress-danger';
-        else if (conclusao < 70) progressClassConclusao = 'progress-warning';
-        else if (conclusao >= 70) progressClassConclusao = 'progress-success';
+        let progressClassConclusao = 'progress-danger';
+        if (conclusao >= 70) progressClassConclusao = 'progress-warning';
+        else if (conclusao >= 90) progressClassConclusao = 'progress-success';
 
         return `
             <div class="progress-value">
@@ -802,32 +814,27 @@
         `;
     }
 
-    // Formatador apenas para EXIBIÇÃO da coluna Horas Restantes
     function horasFormatter(value, row) {
         const totalHorasDecimal = !isNaN(parseFloat(value)) ? parseFloat(value) : 0;
 
-        // Formata para exibição na tabela
         const sinal = totalHorasDecimal < 0 ? "-" : "";
         const horasAbs = Math.abs(totalHorasDecimal);
         const horasInteiras = Math.floor(horasAbs);
         const minutosDecimais = (horasAbs - horasInteiras) * 60;
-        const minutosInteiros = Math.round(minutosDecimais); // Arredonda para o minuto mais próximo
+        const minutosInteiros = Math.round(minutosDecimais);
 
         const displayValue = `${sinal}${horasInteiras}h${String(minutosInteiros).padStart(2, '0')}m`;
 
-        // Lógica da barra de progresso (mantida)
         const esforco = !isNaN(parseFloat(row.Horas)) ? parseFloat(row.Horas) : 0;
-        let horasClass = 'progress-success';
-        let corBarra = '#198754'; // Verde
-        let percentualHoras = 0;
+        let horasClass = 'progress-danger';
+        let corBarra = '#dc3545';
+        let percentualHoras = 100;
 
         if (totalHorasDecimal < 0) {
-            horasClass = 'progress-danger';
-            corBarra = '#dc3545'; // Vermelho
             percentualHoras = 100;
         } else if (totalHorasDecimal < 10 && esforco > 0) {
             horasClass = 'progress-warning';
-            corBarra = '#ffc107'; // Amarelo
+            corBarra = '#fd7e14';
             percentualHoras = Math.min(100, Math.max(0, (totalHorasDecimal / esforco) * 100));
         } else if (esforco > 0) {
             percentualHoras = Math.min(100, Math.max(0, (totalHorasDecimal / esforco) * 100));
@@ -843,12 +850,13 @@
         `;
     }
 
+    function dataFormatter(value, row) {
+        return escapeHtml(value) || 'N/A';
+    }
+
     // Formatador específico para exportação Excel das horas
     function horasExcelFormatter(value, row) {
         const totalHorasDecimal = !isNaN(parseFloat(value)) ? parseFloat(value) : 0;
-        
-        // Debug: verificar o valor recebido
-        console.log('Formatando hora para Excel:', value, '→', totalHorasDecimal);
         
         // Converte para formato de tempo do Excel (HH:MM)
         const sinal = totalHorasDecimal < 0 ? "-" : "";
@@ -858,32 +866,28 @@
         const minutosInteiros = Math.round(minutosDecimais);
         
         // Formato Excel: -20:00 ou 20:00
-        const resultado = `${sinal}${horasInteiras}:${String(minutosInteiros).padStart(2, '0')}`;
-        console.log('Resultado formatado:', resultado);
-        return resultado;
+        return `${sinal}${horasInteiras}:${String(minutosInteiros).padStart(2, '0')}`;
     }
 
-    function dataFormatter(value, row) {
-        return escapeHtml(value) || 'N/A';
-    }
-
-    // Novo formatador para tempo de vida do projeto
+    // Formatador para tempo de vida com tema crítico
     function tempoVidaFormatter(value, row) {
-        // Se já vier calculado da API, usar esse valor
         if (value !== undefined && value !== null) {
             const dias = parseInt(value);
-            let badgeClass = 'bg-success';
-            let icone = 'bi-check-circle';
+            let badgeClass = 'bg-warning';
+            let icone = 'bi-clock';
             
-            if (dias > 365) {
+            if (dias > 730) { // 2 anos
                 badgeClass = 'bg-danger';
-                icone = 'bi-exclamation-triangle';
-            } else if (dias > 180) {
+                icone = 'bi-exclamation-triangle-fill';
+            } else if (dias > 365) { // 1 ano
                 badgeClass = 'bg-warning';
-                icone = 'bi-clock';
-            } else if (dias > 90) {
+                icone = 'bi-exclamation-triangle';
+            } else if (dias > 180) { // 6 meses
                 badgeClass = 'bg-info';
                 icone = 'bi-info-circle';
+            } else {
+                badgeClass = 'bg-secondary';
+                icone = 'bi-clock';
             }
             
             return `
@@ -893,43 +897,9 @@
             `;
         }
         
-        // Fallback: calcular no frontend se não vier da API
-        // Assumir que a data de abertura está no campo 'dataAbertura' ou similar
-        if (row.dataAbertura) {
-            try {
-                const dataAbertura = new Date(row.dataAbertura);
-                const hoje = new Date();
-                const diffTime = hoje - dataAbertura;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                
-                let badgeClass = 'bg-success';
-                let icone = 'bi-check-circle';
-                
-                if (diffDays > 365) {
-                    badgeClass = 'bg-danger';
-                    icone = 'bi-exclamation-triangle';
-                } else if (diffDays > 180) {
-                    badgeClass = 'bg-warning';
-                    icone = 'bi-clock';
-                } else if (diffDays > 90) {
-                    badgeClass = 'bg-info';
-                    icone = 'bi-info-circle';
-                }
-                
-                return `
-                    <span class="badge status-badge ${badgeClass}">
-                        <i class="${icone} me-1"></i>${diffDays} dias
-                    </span>
-                `;
-            } catch (e) {
-                return '<span class="text-muted">N/A</span>';
-            }
-        }
-        
         return '<span class="text-muted">N/A</span>';
     }
 
-    // Formatador para as ações (botão backlog)
     function acoesFormatter(value, row) {
         const hasBacklog = value === true || value === 'true';
         const numero = row.numero || 'N/A';
@@ -937,7 +907,7 @@
         if (hasBacklog && numero !== 'N/A') {
             return `
                 <a href="/backlog/project/${numero}" 
-                   class="btn btn-sm btn-outline-primary" 
+                   class="btn btn-sm btn-outline-danger" 
                    target="_blank" 
                    title="Ver Backlog">
                     <i class="bi bi-list-ul"></i>
@@ -952,16 +922,14 @@
         }
     }
 
-    // Função para exportar para Excel
     function exportToExcel() {
-        const table = $('#tabelaProjetosAtivos').bootstrapTable('getData');
+        const table = $('#tabelaProjetosCriticos').bootstrapTable('getData');
         
         if (table.length === 0) {
             alert('Nenhum dado disponível para exportação.');
             return;
         }
 
-        // Prepara os dados para exportação
         const excelData = table.map(row => ({
             'Número': row.numero || 'N/A',
             'Projeto': row.projeto || 'N/A',
@@ -974,7 +942,6 @@
             'Tem Backlog': row.backlog_exists ? 'Sim' : 'Não'
         }));
 
-        // Cria o workbook
         const ws = XLSX.utils.json_to_sheet(excelData);
         
         // Configurar a coluna de horas como formato de tempo no Excel
@@ -993,38 +960,18 @@
             }
         }
         
-        XLSX.utils.book_append_sheet(workbook, ws, "Projetos Ativos");
+        XLSX.utils.book_append_sheet(workbook, ws, "Projetos Críticos");
 
-        // Baixa o arquivo
-        const fileName = `projetos_ativos_${new Date().toISOString().split('T')[0]}.xlsx`;
+        const fileName = `projetos_criticos_${new Date().toISOString().split('T')[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
     }
 
-    // Função para exportar para PDF
     function exportToPDF() {
         window.print();
     }
 
-    // Inicialização da tabela
     $(document).ready(function() {
-        console.log('Inicializando Bootstrap Table...');
-        console.log('URL da API:', '/macro/api/projetos/ativos');
-        console.log('jQuery version:', $.fn.jquery);
-        console.log('Bootstrap Table available:', typeof $.fn.bootstrapTable);
-        
-        // Teste direto da API antes de inicializar a tabela
-        $.get('/macro/api/projetos/ativos')
-            .done(function(data) {
-                console.log('✅ API funcionando! Total de registros:', data.length);
-                console.log('Primeiros 3 registros:', data.slice(0, 3));
-            })
-            .fail(function(xhr, status, error) {
-                console.error('❌ Erro na API:', status, error);
-                console.error('Response:', xhr.responseText);
-            });
-        
-        // Configuração inicial da tabela
-        $('#tabelaProjetosAtivos').bootstrapTable({
+        $('#tabelaProjetosCriticos').bootstrapTable({
             locale: 'pt-BR',
             searchHighlight: true,
             showSearchButton: false,
@@ -1034,108 +981,14 @@
             loadingFontSize: '14px',
             loadingTemplate: loadingTemplate,
             onLoadError: function(status) {
-                console.error('Bootstrap Table Load Error:', status);
-                console.error('Status completo:', JSON.stringify(status));
-                
-                // FALLBACK: Criar tabela HTML simples se Bootstrap Table falhar
-                console.log('🔧 Iniciando fallback para tabela HTML simples...');
-                
-                $.get('/macro/api/projetos/ativos')
-                    .done(function(data) {
-                        console.log('✅ Fallback: API retornou', data.length, 'registros');
-                        
-                        if (data.length > 0) {
-                            // Remove o Bootstrap Table e cria uma tabela HTML simples
-                            $('#tabelaProjetosAtivos').replaceWith(`
-                                <div class="alert alert-warning">
-                                    <i class="bi bi-exclamation-triangle me-2"></i>
-                                    Bootstrap Table falhou. Exibindo tabela simplificada com ${data.length} registros.
-                                </div>
-                                <div class="table-responsive">
-                                    <table class="table table-striped table-hover" id="tabelaSimples">
-                                        <thead class="table-dark">
-                                            <tr>
-                                                <th>Número</th>
-                                                <th>Projeto</th>
-                                                <th>Status</th>
-                                                <th>Squad</th>
-                                                <th>Conclusão</th>
-                                                <th>Horas Rest.</th>
-                                                <th>Backlog</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="corpoTabela">
-                                        </tbody>
-                                    </table>
-                                </div>
-                            `);
-                            
-                            // Popula a tabela com os dados
-                            const tbody = $('#corpoTabela');
-                            data.forEach(row => {
-                                tbody.append(`
-                                    <tr>
-                                        <td><a href="https://atendimento.sou.cloud/Ticket/Edit/${row.numero}" target="_blank">${row.numero || 'N/A'}</a></td>
-                                        <td title="${row.projeto}">${(row.projeto || 'N/A').substring(0, 40)}${row.projeto && row.projeto.length > 40 ? '...' : ''}</td>
-                                        <td><span class="badge bg-secondary">${row.status || 'N/A'}</span></td>
-                                        <td>${row.squad || 'N/A'}</td>
-                                        <td>${row.conclusao || 0}%</td>
-                                        <td>${row.horasRestantes || 0}h</td>
-                                        <td>${row.backlog_exists ? '✅' : '❌'}</td>
-                                    </tr>
-                                `);
-                            });
-                        } else {
-                            $('#tabelaProjetosAtivos').replaceWith(`
-                                <div class="alert alert-info">
-                                    <i class="bi bi-info-circle me-2"></i>
-                                    Nenhum projeto ativo encontrado.
-                                </div>
-                            `);
-                        }
-                    })
-                    .fail(function(xhr, status, error) {
-                        console.error('❌ Fallback também falhou:', status, error);
-                        $('#tabelaProjetosAtivos').replaceWith(`
-                            <div class="alert alert-danger">
-                                <i class="bi bi-x-circle me-2"></i>
-                                Erro ao carregar dados: ${error}
-                            </div>
-                        `);
-                    });
+                console.error('Erro ao carregar dados da tabela:', status);
+                alert('Erro ao carregar dados. Tente novamente.');
             },
             onRefresh: function() {
                 console.log('Tabela atualizada');
-            },
-            responseHandler: function(res) {
-                console.log('Response handler chamado');
-                console.log('Tipo de resposta:', typeof res);
-                console.log('É array?', Array.isArray(res));
-                console.log('Dados recebidos:', res);
-                
-                // Adiciona cálculo do tempo de vida se não vier da API
-                if (Array.isArray(res)) {
-                    console.log('Processando', res.length, 'registros');
-                    return res.map(row => {
-                        if (!row.tempo_vida && row.dataAbertura) {
-                            try {
-                                const dataAbertura = new Date(row.dataAbertura);
-                                const hoje = new Date();
-                                const diffTime = hoje - dataAbertura;
-                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                                row.tempo_vida = diffDays;
-                            } catch (e) {
-                                row.tempo_vida = null;
-                            }
-                        }
-                        return row;
-                    });
-                }
-                return res;
             }
         });
         
-        // Animação de entrada dos cards
         setTimeout(() => {
             $('.card').css({
                 'opacity': '0',
@@ -1147,14 +1000,14 @@
     });
 
     function loadingTemplate() {
-        return '<div class="d-flex justify-content-center align-items-center" style="height: 200px;"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Carregando...</span></div></div>';
+        return '<div class="d-flex justify-content-center align-items-center" style="height: 200px;"><div class="spinner-border text-danger" role="status"><span class="visually-hidden">Carregando...</span></div></div>';
     }
 
     // Otimizações para impressão
     window.addEventListener('beforeprint', function() {
         // Salva o título original
         window.originalTitle = document.title;
-        document.title = 'Relatório de Projetos Ativos - SOU.Cloud';
+        document.title = 'Relatório de Projetos Críticos - SOU.Cloud';
         
         // NOVA ABORDAGEM: Remover fisicamente o cabeçalho para impressão
         const header = document.querySelector('.d-sm-flex.align-items-center');
@@ -1170,9 +1023,9 @@
             const printHeader = document.createElement('div');
             printHeader.className = 'print-header-only';
             printHeader.innerHTML = `
-                <div style="background: #07304F; color: white; padding: 0.8cm 1cm; margin: 0 0 0.5cm 0; page-break-after: avoid; page-break-inside: avoid;">
+                <div style="background: #dc3545; color: white; padding: 0.8cm 1cm; margin: 0 0 0.5cm 0; page-break-after: avoid; page-break-inside: avoid;">
                     <h1 style="color: white; font-size: 14pt; font-weight: bold; margin: 0;">
-                        <i class="bi bi-list-task" style="margin-right: 0.5rem;"></i>Relatório de Projetos Ativos
+                        <i class="bi bi-exclamation-triangle" style="margin-right: 0.5rem;"></i>Relatório de Projetos Críticos
                     </h1>
                     <span style="color: rgba(255, 255, 255, 0.9); font-size: 9pt;">
                         Atualizado em: ${new Date().toLocaleString('pt-BR')}

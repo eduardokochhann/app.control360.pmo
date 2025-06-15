@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Status Report</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jQuery (necessário para Bootstrap) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Bootstrap Bundle com Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #c0392b;
+            --light-bg: #f8f9fa;
+            --dark-bg: #2c3e50;
+        }
+
+        body { 
+            background-color: var(--light-bg); 
+            font-family: 'Inter', sans-serif;
+            color: var(--primary-color);
+        }
+
+        .card { 
+            margin-bottom: 1rem; 
+            border-radius: 0.5rem;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1) !important;
+            border: none;
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            border-radius: 0.5rem 0.5rem 0 0 !important;
+            font-weight: 600;
+            padding: 1rem;
+        }
+
+        .gradient-custom {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+        }
+
+        .header-principal {
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .graficos-container { 
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .card-grafico { 
+            min-width: 0;
+        }
+
+        /* Status e Indicadores */
+        .status-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-align: center;
+            white-space: nowrap;
+            display: inline-block;
+        }
+
+        .badge-counter {
+            position: relative;
+            font-size: 0.85rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.5rem;
+            margin-left: 0.4rem;
+            font-weight: 600;
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        /* Indicadores de variação */
+        .variacao-positiva { color: var(--success-color); }
+        .variacao-negativa { color: var(--danger-color); }
+        .variacao-neutra { color: #6c757d; }
+
+        .variacao-badge {
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .variacao-badge.positiva {
+            background-color: rgba(39, 174, 96, 0.1);
+            color: var(--success-color);
+        }
+
+        .variacao-badge.negativa {
+            background-color: rgba(192, 57, 43, 0.1);
+            color: var(--danger-color);
+        }
+
+        .variacao-badge.neutra {
+            background-color: rgba(108, 117, 125, 0.1);
+            color: #6c757d;
+        }
+
+        /* KPI Cards */
+        .kpi-card {
+            height: 100%;
+            transition: all 0.3s ease;
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .kpi-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .kpi-title {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Gráficos */
+        .chart-container {
+            position: relative;
+            height: 250px;
+            width: 100%;
+        }
+
+        /* Tabelas */
+        .table-responsive-sm {
+            margin-bottom: 1rem;
+        }
+
+        .table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .table thead th {
+            background-color: var(--light-bg);
+            font-weight: 600;
+            border-bottom: 2px solid #dee2e6;
+            color: var(--primary-color);
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(52, 152, 219, 0.05);
+        }
+
+        .table-sm td, .table-sm th {
+            padding: 0.5rem;
+        }
+
+        /* Comparativo */
+        .comparativo-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        /* Alertas */
+        .alert {
+            border-radius: 0.5rem;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Media Queries */
+        @media (max-width: 768px) {
+            .graficos-container,
+            .comparativo-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .kpi-value {
+                font-size: 1.5rem;
+            }
+        }
+
+        .kpi-card {
+            margin-bottom: 1rem;
+        }
+        .kpi-title {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .kpi-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .azure-border {
+            border-left: 4px solid #0078D4 !important;
+        }
+        .m365-border {
+            border-left: 4px solid #D83B01 !important;
+        }
+        .datapower-border {
+            border-left: 4px solid #107C10 !important;
+        }
+        .cdb-border {
+            border-left: 4px solid #5C2D91 !important;
+        }
+
+        @media print {
+            @page {
+                size: landscape;
+                margin: 0.5in;
+            }
+
+            html, body {
+                width: 100%;
+                height: 100%;
+                overflow: hidden !important;
+            }
+
+            body {
+                font-size: 10pt;
+                padding-top: 0 !important;
+                background-color: initial !important;
+                color: inherit !important;
+                transform-origin: top left;
+                transform: scale(0.7);
+            }
+
+            .navbar,
+            .nav-tabs,
+            .d-sm-flex.align-items-center.justify-content-between.mb-4,
+            #scrollToTopBtn {
+                display: none !important;
+            }
+
+            .card {
+                box-shadow: none !important;
+                border: 1px solid #ddd !important;
+                margin-bottom: 0.5rem !important;
+                page-break-inside: avoid;
+                background-color: inherit !important;
+            }
+
+            .card-header {
+                border-bottom: 1px solid #ddd !important;
+                padding: 0.5rem !important;
+                background: inherit !important;
+                color: inherit !important;
+            }
+
+            .card-header h5, .card-header h6 {
+                font-size: 12pt !important;
+                color: inherit !important;
+            }
+
+            .card-body {
+                padding: 0.5rem !important;
+                background-color: inherit !important;
+                color: inherit !important;
+            }
+
+            h1, h2, h3, h4, h5, h6 {
+                color: inherit !important;
+                page-break-after: avoid;
+            }
+
+            .kpi-value {
+                font-size: 1.5rem !important;
+                color: inherit !important;
+            }
+
+            .kpi-title {
+                color: inherit !important;
+            }
+
+            .badge {
+                border: 1px solid #ccc !important;
+                color: inherit !important;
+                background-color: inherit !important;
+            }
+
+            .badge.bg-primary { background-color: var(--bs-primary) !important; color: white !important; }
+            .badge.bg-secondary { background-color: var(--bs-secondary) !important; color: white !important; }
+            .badge.bg-success { background-color: var(--bs-success) !important; color: white !important; }
+            .badge.bg-danger { background-color: var(--bs-danger) !important; color: white !important; }
+            .badge.bg-warning { background-color: var(--bs-warning) !important; color: black !important; }
+            .badge.bg-info { background-color: var(--bs-info) !important; color: black !important; }
+            .badge.bg-light { background-color: var(--bs-light) !important; color: black !important; }
+            .badge.bg-dark { background-color: var(--bs-dark) !important; color: white !important; }
+
+            .table {
+                font-size: 9pt;
+                color: inherit !important;
+            }
+
+            .table thead th {
+                background-color: inherit !important;
+                color: inherit !important;
+            }
+
+            .table tbody tr:hover {
+                background-color: inherit !important;
+            }
+
+            .text-success { color: var(--success-color) !important; }
+            .text-danger { color: var(--danger-color) !important; }
+            .text-muted { color: #6c757d !important; }
+            .text-primary { color: var(--primary-color) !important; }
+            .text-warning { color: var(--warning-color) !important; }
+            .text-info { color: var(--bs-info) !important; }
+            
+            .variacao-positiva { color: var(--success-color) !important; }
+            .variacao-negativa { color: var(--danger-color) !important; }
+            .variacao-neutra { color: #6c757d !important; }
+
+            .bi-arrow-up, .bi-arrow-down {
+            }
+
+            canvas {
+                max-width: 100% !important;
+                height: auto !important;
+            }
+        }
+    </style>
+</head>
+<body style="padding-top: 70px;">
+    <!-- Barra de Navegação Principal Fixa (Colada) -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('macro.dashboard') }}">
+                <i class="bi bi-speedometer2"></i> Control360
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'gerencial.dashboard' else '' }}" href="{{ url_for('gerencial.dashboard') }}">
+                            <i class="bi bi-kanban"></i>
+                            <span>Gerencial</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'macro.dashboard' else '' }}" href="{{ url_for('macro.dashboard') }}">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>Macro</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'macro.apresentacao' else '' }}" href="{{ url_for('macro.apresentacao') }}">
+                            <i class="bi bi-file-earmark-slides"></i>
+                            <span>Status Report</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav> 
+    
+    <!-- Container Principal (Conteúdo Mantido) -->
+    <div class="container-fluid mt-4">
+    
+        <!-- CABEÇALHO ANTIGO REMOVIDO -->
+        <!-- 
+        <div class="container-fluid mb-4 pt-3">
+            <div class="row align-items-start">
+                ...
+            </div>
+        </div>
+        -->
+        
+        <!-- NOVO TITULO E SELETOR DE MES -->
+         <div class="d-sm-flex align-items-center justify-content-between mb-4">
+            <div>
+                 <h1 class="h3 mb-0 text-gray-800"><i class="bi bi-file-earmark-slides me-2"></i>Status Report</h1>
+                 <p class="text-muted small mb-0">Fonte de dados: {{ fonte_dados }}</p>
+            </div>
+        </div>
+        <!-- FIM NOVO TITULO E SELETOR DE MES -->
+
+        <!-- Exibição de Erro -->
+        {% if error %}
+        <div class="col-12">
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ error }}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ABAS DE NAVEGAÇÃO POR MÊS (RESTAURADAS) -->
+        <div class="container-fluid mb-3">
+            <ul class="nav nav-tabs">
+                <li class="nav-item">
+                    {# Link para a visão padrão/atual #}
+                    {# Ativo se NENHUM mes/ano for passado na URL #}
+                    {% set is_default = not request.args.get('mes') and not request.args.get('ano') %}
+                    <a class="nav-link {{ 'active' if is_default else '' }}" 
+                       href="{{ url_for('macro.apresentacao') }}">
+                       Visão Atual
+                    </a>
+                </li>
+                
+                {# ABAS DINÂMICAS baseadas nas fontes detectadas automaticamente #}
+                {% if fontes_disponiveis %}
+                    {% for fonte in fontes_disponiveis %}
+                        <li class="nav-item">
+                            {% set is_active = request.args.get('mes') == fonte.mes|string and request.args.get('ano') == fonte.ano|string %}
+                            <a class="nav-link {{ 'active' if is_active else '' }}" 
+                               href="{{ url_for('macro.apresentacao', mes=fonte.mes, ano=fonte.ano) }}">
+                               {{ fonte.label }}
+                            </a>
+                        </li>
+                    {% endfor %}
+                {% else %}
+                    {# Fallback para abas fixas caso a detecção automática falhe #}
+                    <!-- Reordenado para Decrescente -->
+                    <li class="nav-item">
+                        {# Link para Abr/2025 #}
+                        {% set is_abr = request.args.get('mes') == '4' and request.args.get('ano') == '2025' %}
+                        <a class="nav-link {{ 'active' if is_abr else '' }}" 
+                           href="{{ url_for('macro.apresentacao', mes=4, ano=2025) }}">
+                           Abr/2025
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        {# Link para Mar/2025 #}
+                        {% set is_mar = request.args.get('mes') == '3' and request.args.get('ano') == '2025' %}
+                        <a class="nav-link {{ 'active' if is_mar else '' }}" 
+                           href="{{ url_for('macro.apresentacao', mes=3, ano=2025) }}">
+                           Mar/2025
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        {# Link para Fev/2025 #}
+                        {% set is_fev = request.args.get('mes') == '2' and request.args.get('ano') == '2025' %}
+                        <a class="nav-link {{ 'active' if is_fev else '' }}" 
+                           href="{{ url_for('macro.apresentacao', mes=2, ano=2025) }}">
+                           Fev/2025
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        {# Link para Jan/2025 #}
+                        {% set is_jan = request.args.get('mes') == '1' and request.args.get('ano') == '2025' %}
+                        <a class="nav-link {{ 'active' if is_jan else '' }}" 
+                           href="{{ url_for('macro.apresentacao', mes=1, ano=2025) }}">
+                           Jan/2025
+                        </a>
+                    </li>
+                {% endif %}
+                <!-- Adicionar mais meses históricos aqui se necessário (manter ordem decrescente) -->
+            </ul>
+        </div>
+        <!-- FIM ABAS DE NAVEGAÇÃO -->
+
+        <div class="container-fluid py-3">
+            <!-- Resumo e Comparativos -->
+            <div class="row mb-3">
+                <!-- Mensagem de erro se houver -->
+                {% if error %}
+                <div class="col-12">
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i> {{ error }}
+                    </div>
+                </div>
+                {% else %}
+                
+                <!-- Resumo de projetos ativos -->
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="card shadow">
+                            <div class="card-header py-2 bg-primary text-white"> {# Revertido para bg-primary #}
+                                <h5 class="mb-0">Resumo de projetos ativos</h5> {# Mês/Ano já removido #}
+                            </div>
+                            <div class="card-body p-3">
+                                <div class="row mb-3">
+                                    <div class="col-md-12">
+                                        <h5 class="text-center mb-3">
+                                            Total de projetos ativos: 
+                                            <span class="badge bg-primary fs-6">{{ total_ativos_atual }}</span>
+                                            
+                                            {# -- INÍCIO: Indicador de Variação (já usa variáveis diretas) -- #}
+                                            {% set variacao_ativos = total_ativos_atual - total_ativos_anterior %}
+                                            {% if variacao_ativos != 0 %}
+                                                <span class="ms-2 small {% if variacao_ativos > 0 %}text-success{% elif variacao_ativos < 0 %}text-danger{% endif %}">
+                                                    ({{ '%+d'|format(variacao_ativos) }} vs {{ nome_mes_comparativo | default('mês ant.') }})
+                                                    <i class="bi {% if variacao_ativos > 0 %}bi-arrow-up{% elif variacao_ativos < 0 %}bi-arrow-down{% endif %}"></i>
+                                                </span>
+                                            {% else %}
+                                                <span class="ms-2 small text-muted">
+                                                    (= vs {{ nome_mes_comparativo | default('mês ant.') }})
+                                                </span>
+                                            {% endif %}
+                                            {# -- FIM: Indicador de Variação -- #}
+                                            
+                                        </h5>
+                                    </div>
+                                </div>
+                                
+                                {# Definir variáveis para contagens individuais usando a nova chave agregacoes_por_status #}
+                                {% set novo = agregacoes_por_status.get('NOVO', {}).get('quantidade', 0) %}
+                                {% set em_andamento = agregacoes_por_status.get('EM ATENDIMENTO', {}).get('quantidade', 0) %}
+                                {% set aguardando = agregacoes_por_status.get('AGUARDANDO', {}).get('quantidade', 0) %}
+                                {% set bloqueado = agregacoes_por_status.get('BLOQUEADO', {}).get('quantidade', 0) %}
+                                
+                                <div class="row g-3">
+                                    <!-- Card 1: Status Novo -->
+                                    <div class="col-md-3">
+                                        <div class="card border-0 shadow-sm">
+                                            <div class="card-header bg-light py-2"> {# Revertido para bg-light #}
+                                                <h6 class="mb-0">STATUS NOVO</h6> {# Revertido para h6 #}
+                                            </div>
+                                            <div class="card-body text-center"> {# Revertido para text-center #}
+                                                <h2 class="display-6">{{ novo }}</h2> {# Removido mb-0 #}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Card 2: Status Em andamento -->
+                                    <div class="col-md-3">
+                                        <div class="card border-0 shadow-sm">
+                                            <div class="card-header bg-light py-2"> {# Revertido para bg-light #}
+                                                <h6 class="mb-0">STATUS EM ANDAMENTO</h6> {# Revertido para h6 #}
+                                            </div>
+                                            <div class="card-body text-center"> {# Revertido para text-center #}
+                                                <h2 class="display-6">{{ em_andamento }}</h2> {# Removido mb-0 #}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Card 3: Status Aguardando -->
+                                    <div class="col-md-3">
+                                        <div class="card border-0 shadow-sm">
+                                            <div class="card-header bg-light py-2"> {# Revertido para bg-light #}
+                                                <h6 class="mb-0">STATUS AGUARDANDO</h6> {# Revertido para h6 #}
+                                            </div>
+                                            <div class="card-body text-center"> {# Revertido para text-center #}
+                                                <h2 class="display-6">{{ aguardando }}</h2> {# Removido mb-0 #}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Card 4: Status Bloqueado -->
+                                    <div class="col-md-3">
+                                        <div class="card border-0 shadow-sm">
+                                            <div class="card-header bg-light py-2"> {# Revertido para bg-light #}
+                                                <h6 class="mb-0">STATUS BLOQUEADO</h6> {# Revertido para h6 #}
+                                            </div>
+                                            <div class="card-body text-center"> {# Revertido para text-center #}
+                                                <h2 class="display-6">{{ bloqueado }}</h2> {# Removido mb-0 #}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Distribuição por Squad -->
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="card shadow">
+                            <div class="card-header py-2 bg-primary text-white">
+                                <h5 class="mb-0">Distribuição por Squad</h5>
+                            </div>
+                            <div class="card-body p-3">
+                                <div class="row g-3">
+                                    <!-- Azure -->
+                                    <div class="col-md-3">
+                                        <div class="card border-start border-primary border-4 shadow-sm">
+                                            <div class="card-body">
+                                                <h5 class="card-title">AZURE</h5>
+                                                {# Usar a nova chave agregacoes_por_status_squad_especialista #}
+                                                {% set azure_total = 0 %}
+                                                {% if agregacoes_por_status_squad_especialista and 'AZURE' in agregacoes_por_status_squad_especialista %}
+                                                    {% set azure_total = agregacoes_por_status_squad_especialista.get('AZURE', {}).get('NOVO', 0) + 
+                                                               agregacoes_por_status_squad_especialista.get('AZURE', {}).get('EM ATENDIMENTO', 0) + 
+                                                               agregacoes_por_status_squad_especialista.get('AZURE', {}).get('AGUARDANDO', 0) + 
+                                                               agregacoes_por_status_squad_especialista.get('AZURE', {}).get('BLOQUEADO', 0) %}
+                                                {% endif %}
+                                                <h2 class="display-6 mb-3">{{ azure_total }}</h2>
+                                                <div class="d-flex flex-wrap gap-1">
+                                                    <span class="badge bg-primary">Novo: {{ agregacoes_por_status_squad_especialista.get('AZURE', {}).get('NOVO', 0) }}</span>
+                                                    <span class="badge bg-warning">Em andamento: {{ agregacoes_por_status_squad_especialista.get('AZURE', {}).get('EM ATENDIMENTO', 0) }}</span>
+                                                    <span class="badge bg-info">Aguardando: {{ agregacoes_por_status_squad_especialista.get('AZURE', {}).get('AGUARDANDO', 0) }}</span>
+                                                    <span class="badge bg-danger">Bloqueado: {{ agregacoes_por_status_squad_especialista.get('AZURE', {}).get('BLOQUEADO', 0) }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- M365 -->
+                                    <div class="col-md-3">
+                                        <div class="card border-start border-danger border-4 shadow-sm">
+                                            <div class="card-body">
+                                                <h5 class="card-title">M365</h5>
+                                                {# Usar a nova chave agregacoes_por_status_squad_especialista #}
+                                                {% set m365_total = 0 %}
+                                                {% if agregacoes_por_status_squad_especialista and 'M365' in agregacoes_por_status_squad_especialista %}
+                                                    {% set m365_total = agregacoes_por_status_squad_especialista.get('M365', {}).get('NOVO', 0) + 
+                                                               agregacoes_por_status_squad_especialista.get('M365', {}).get('EM ATENDIMENTO', 0) + 
+                                                               agregacoes_por_status_squad_especialista.get('M365', {}).get('AGUARDANDO', 0) + 
+                                                               agregacoes_por_status_squad_especialista.get('M365', {}).get('BLOQUEADO', 0) %}
+                                                {% endif %}
+                                                <h2 class="display-6 mb-3">{{ m365_total }}</h2>
+                                                <div class="d-flex flex-wrap gap-1">
+                                                    <span class="badge bg-primary">Novo: {{ agregacoes_por_status_squad_especialista.get('M365', {}).get('NOVO', 0) }}</span>
+                                                    <span class="badge bg-warning">Em andamento: {{ agregacoes_por_status_squad_especialista.get('M365', {}).get('EM ATENDIMENTO', 0) }}</span>
+                                                    <span class="badge bg-info">Aguardando: {{ agregacoes_por_status_squad_especialista.get('M365', {}).get('AGUARDANDO', 0) }}</span>
+                                                    <span class="badge bg-danger">Bloqueado: {{ agregacoes_por_status_squad_especialista.get('M365', {}).get('BLOQUEADO', 0) }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Data&Power -->
+                                    <div class="col-md-3">
+                                        <div class="card border-start border-success border-4 shadow-sm">
+                                            <div class="card-body">
+                                                <h5 class="card-title">DATA&POWER</h5>
+                                                {# Usar a nova chave agregacoes_por_status_squad_especialista #}
+                                                {% set datapower_total = 0 %}
+                                                {% if agregacoes_por_status_squad_especialista and 'DATA E POWER' in agregacoes_por_status_squad_especialista %}
+                                                    {% set datapower_total = agregacoes_por_status_squad_especialista.get('DATA E POWER', {}).get('NOVO', 0) + 
+                                                           agregacoes_por_status_squad_especialista.get('DATA E POWER', {}).get('EM ATENDIMENTO', 0) + 
+                                                           agregacoes_por_status_squad_especialista.get('DATA E POWER', {}).get('AGUARDANDO', 0) + 
+                                                           agregacoes_por_status_squad_especialista.get('DATA E POWER', {}).get('BLOQUEADO', 0) %}
+                                                {% endif %}
+                                                <h2 class="display-6 mb-3">{{ datapower_total }}</h2>
+                                                <div class="d-flex flex-wrap gap-1">
+                                                    <span class="badge bg-primary">Novo: {{ agregacoes_por_status_squad_especialista.get('DATA E POWER', {}).get('NOVO', 0) }}</span>
+                                                    <span class="badge bg-warning">Em andamento: {{ agregacoes_por_status_squad_especialista.get('DATA E POWER', {}).get('EM ATENDIMENTO', 0) }}</span>
+                                                    <span class="badge bg-info">Aguardando: {{ agregacoes_por_status_squad_especialista.get('DATA E POWER', {}).get('AGUARDANDO', 0) }}</span>
+                                                    <span class="badge bg-danger">Bloqueado: {{ agregacoes_por_status_squad_especialista.get('DATA E POWER', {}).get('BLOQUEADO', 0) }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- CDB -->
+                                    <div class="col-md-3">
+                                        <div class="card border-start border-info border-4 shadow-sm">
+                                            <div class="card-body">
+                                                <h5 class="card-title">CDB</h5>
+                                                {% set cdb_total = 0 %}
+                                                {% if agregacoes_por_status_squad_especialista and 'CDB' in agregacoes_por_status_squad_especialista %}
+                                                    {% set cdb_total = agregacoes_por_status_squad_especialista.get('CDB', {}).get('NOVO', 0) + 
+                                                             agregacoes_por_status_squad_especialista.get('CDB', {}).get('EM ATENDIMENTO', 0) + 
+                                                             agregacoes_por_status_squad_especialista.get('CDB', {}).get('AGUARDANDO', 0) + 
+                                                             agregacoes_por_status_squad_especialista.get('CDB', {}).get('BLOQUEADO', 0) %}
+                                                {% endif %}
+                                                <h2 class="display-6 mb-3">{{ cdb_total }}</h2>
+                                                <div class="d-flex flex-wrap gap-1">
+                                                    <span class="badge bg-primary">Novo: {{ agregacoes_por_status_squad_especialista.get('CDB', {}).get('NOVO', 0) }}</span>
+                                                    <span class="badge bg-warning">Em andamento: {{ agregacoes_por_status_squad_especialista.get('CDB', {}).get('EM ATENDIMENTO', 0) }}</span>
+                                                    <span class="badge bg-info">Aguardando: {{ agregacoes_por_status_squad_especialista.get('CDB', {}).get('AGUARDANDO', 0) }}</span>
+                                                    <span class="badge bg-danger">Bloqueado: {{ agregacoes_por_status_squad_especialista.get('CDB', {}).get('BLOQUEADO', 0) }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grid Principal de 4 cards -->
+                <div class="row g-3 mb-4">
+                    <!-- Projetos Entregues -->
+                    <div class="col-lg-3">
+                        <div class="card shadow h-100">
+                            <div class="card-header py-2 bg-primary text-white">
+                                <h6 class="mb-0">Projetos entregues</h6>
+                            </div>
+                            <div class="card-body p-3">
+                                <!-- Entregues no mês -->
+                                <div class="card mb-2 border-0">
+                                    <div class="card-body p-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">Entregues no mês:</small>
+                                            <span class="fs-4 fw-bold">{{ projetos_entregues.total_mes }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- No prazo -->
+                                <div class="card mb-2 border-0 bg-success bg-opacity-10">
+                                    <div class="card-body p-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">No prazo:</small>
+                                            <span class="fs-4 fw-bold">{{ projetos_entregues.no_prazo }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Fora do prazo -->
+                                <div class="card mb-3 border-0 bg-warning bg-opacity-10">
+                                    <div class="card-body p-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">Fora do prazo:</small>
+                                            <span class="fs-4 fw-bold">{{ projetos_entregues.fora_prazo }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Histórico de evolução -->
+                                <div class="card border-0 bg-light">
+                                    <div class="card-body p-2">
+                                        <small class="text-muted d-block mb-2">Histórico de evolução</small>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm mb-0">
+                                                <tbody>
+                                                    {% if projetos_entregues and projetos_entregues.historico %}
+                                                        {% for item in projetos_entregues.historico %}
+                                                        <tr>
+                                                            <td>{{ item.mes }}</td>
+                                                            <td class="text-end">{{ item.quantidade }}</td>
+                                                            {# Ajuste para tratar variacao_percentual como string '-' ou número #}
+                                                            <td class="text-end 
+                                                                {% if item.variacao_percentual is number and item.variacao_percentual > 0 %}text-success
+                                                                {% elif item.variacao_percentual is number and item.variacao_percentual < 0 %}text-danger
+                                                                {% else %}text-muted{% endif %}">
+                                                                {# Exibe o valor percentual se for número, senão exibe '-' #}
+                                                                {% if item.variacao_percentual is number %}{{ '%.1f'|format(item.variacao_percentual) }}%{% else %}-{% endif %}
+                                                            </td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    {% else %}
+                                                        <tr>
+                                                            <td colspan="3" class="text-center text-muted">Histórico indisponível</td>
+                                                        </tr>
+                                                    {% endif %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Novos Projetos -->
+                    <div class="col-lg-3">
+                        <div class="card shadow h-100">
+                            <div class="card-header py-2 bg-primary text-white">
+                                <h6 class="mb-0">Novos Projetos</h6>
+                            </div>
+                            <div class="card-body p-3">
+                                <!-- Azure -->
+                                <div class="card mb-2 border-0">
+                                    <div class="card-body p-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">Azure:</small>
+                                            <div>
+                                                <span class="fs-4 fw-bold">{{ novos_projetos_comparativo.por_squad.get('AZURE', {}).get('atual', 0) }}</span>
+                                                {% set variacao = novos_projetos_comparativo.por_squad.get('AZURE', {}).get('variacao_abs', 0) %}
+                                                <span class="ms-2 small {% if variacao > 0 %}text-success{% elif variacao < 0 %}text-danger{% else %}text-muted{% endif %}">
+                                                    ({{ '%+d'|format(variacao) }})
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- M365 -->
+                                <div class="card mb-2 border-0">
+                                    <div class="card-body p-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">M365:</small>
+                                            <div>
+                                                <span class="fs-4 fw-bold">{{ novos_projetos_comparativo.por_squad.get('M365', {}).get('atual', 0) }}</span>
+                                                {% set variacao = novos_projetos_comparativo.por_squad.get('M365', {}).get('variacao_abs', 0) %}
+                                                <span class="ms-2 small {% if variacao > 0 %}text-success{% elif variacao < 0 %}text-danger{% else %}text-muted{% endif %}">
+                                                    ({{ '%+d'|format(variacao) }})
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Data&Power -->
+                                <div class="card mb-2 border-0">
+                                    <div class="card-body p-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">Data&Power:</small>
+                                            <div>
+                                                <span class="fs-4 fw-bold">{{ novos_projetos_comparativo.por_squad.get('DATA E POWER', {}).get('atual', 0) }}</span>
+                                                {% set variacao = novos_projetos_comparativo.por_squad.get('DATA E POWER', {}).get('variacao_abs', 0) %}
+                                                <span class="ms-2 small {% if variacao > 0 %}text-success{% elif variacao < 0 %}text-danger{% else %}text-muted{% endif %}">
+                                                    ({{ '%+d'|format(variacao) }})
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Total -->
+                                <div class="card border-0 bg-light">
+                                    <div class="card-body p-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">Total:</small>
+                                            <div>
+                                                <span class="fs-4 fw-bold">{{ novos_projetos_comparativo.total.get('atual', 0) }}</span>
+                                                {% set variacao_abs = novos_projetos_comparativo.total.get('variacao_abs', 0) %}
+                                                <span class="ms-2 small {% if variacao_abs > 0 %}text-success{% elif variacao_abs < 0 %}text-danger{% else %}text-muted{% endif %}">
+                                                    ({{ '%+d'|format(variacao_abs) }})
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Seção Destacada para Variação Percentual Total -->
+                                <div class="text-center mt-4"> 
+                                    {% set variacao_pct_total = novos_projetos_comparativo.total.get('variacao_pct', 0) %}
+                                    <span class="fs-3 fw-bold {% if variacao_pct_total > 0 %}text-success{% elif variacao_pct_total < 0 %}text-danger{% else %}text-muted{% endif %}">
+                                        {{ '%+.1f'|format(variacao_pct_total) }}%
+                                    </span>
+                                    <small class="text-muted d-block mt-1">Novos projetos em relação a {{ nome_mes_comparativo | default('mês anterior') }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Outros indicadores -->
+                    <div class="col-lg-3">
+                        <div class="card shadow h-100">
+                            <div class="card-header py-2 bg-primary text-white">
+                                <h6 class="mb-0">Outros indicadores</h6>
+                            </div>
+                            <div class="card-body p-3 d-flex flex-column justify-content-center">
+                                <!-- Tempo médio de vida -->
+                                <div class="text-center mb-4">
+                                    <span class="fs-1 fw-bold d-block">{{ '%.1f'|format(tempo_medio_vida.media_dias | default(0.0)) }} dias</span>
+                                    <small class="text-muted">Tempo médio de vida</small>
+                                    {% if tempo_medio_vida_variacao_pct is defined %}
+                                        <div class="mt-1">
+                                            <span class="small {% if tempo_medio_vida_variacao_pct < 0 %}text-success{% elif tempo_medio_vida_variacao_pct > 0 %}text-danger{% else %}text-muted{% endif %}">
+                                                ({{ '%+.1f'|format(tempo_medio_vida_variacao_pct) }}% com relação a {{ mes_comparativo_abrev | default('mês ant.') }})
+                                            </span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Diferença de projetos entregues -->
+                                <div class="text-center">
+                                    {% set variacao_ent = diferenca_entregues_abs | default(0) %}
+                                    {# Busca a variação percentual correspondente #}
+                                    {% set variacao_ent_pct = variacao_entregues_pct | default(0.0) %}
+                                    
+                                    {# Container para alinhar número e porcentagem #}
+                                    <div class="d-flex align-items-baseline justify-content-center">
+                                        <span class="fs-3 fw-bold {% if variacao_ent > 0 %}text-success{% elif variacao_ent < 0 %}text-danger{% else %}text-muted{% endif %}">
+                                            {{ '%+d'|format(variacao_ent) }}
+                                        </span>
+                                        {# Adiciona a porcentagem ao lado, se não for zero, com fonte menor e espaço #}
+                                        {% if variacao_ent != 0 %}
+                                            <span class="ms-2 fs-6 fw-normal {% if variacao_ent > 0 %}text-success{% elif variacao_ent < 0 %}text-danger{% else %}text-muted{% endif %}">({{ '%+.1f'|format(variacao_ent_pct) }}%)</span>
+                                        {% endif %}
+                                    </div>
+                                    <small class="text-muted">Projetos entregues com<br>relação a {{ nome_mes_comparativo | default('mês anterior') }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Projetos ativos por tipo de faturamento -->
+                    <div class="col-lg-3">
+                        <div class="card shadow h-100">
+                            <div class="card-header py-2 bg-primary text-white">
+                                <h6 class="mb-0">Projetos ativos por tipo de faturamento</h6>
+                            </div>
+                            <div class="card-body p-3">
+                                {# --- ALTERAÇÃO: Usar loop e dados comparativos --- #}
+                                {% set tipos_ordem = ['INICIO', 'TERMINO', 'PLUS', 'PRIME', 'ENGAJAMENTO', 'FEOP'] %}
+                                
+                                {% for tipo in tipos_ordem %}
+                                    {% set comp_tipo = faturamento_comparativo.get(tipo) %}
+                                    {# Exibe apenas se houver dados para este tipo no mês atual ou anterior #}
+                                    {% if comp_tipo and (comp_tipo.atual > 0 or comp_tipo.anterior > 0) %}
+                                        <div class="card mb-2 border-0">
+                                            <div class="card-body p-2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <small class="text-muted">
+                                                        {# Mapeia código para nome mais legível #}
+                                                        {% if tipo == 'INICIO' %}Faturado no início:
+                                                        {% elif tipo == 'TERMINO' %}Faturar no final:
+                                                        {% elif tipo == 'PLUS' %}PLUS:
+                                                        {% elif tipo == 'PRIME' %}PRIME:
+                                                        {% elif tipo == 'ENGAJAMENTO' %}ENGAJAMENTO:
+                                                        {% elif tipo == 'FEOP' %}Fat. Outro Proj.:
+                                                        {% else %}{{ tipo }}:
+                                                        {% endif %}
+                                                    </small>
+                                                    <div>
+                                                        <span class="fs-5 fw-bold">{{ comp_tipo.atual }}</span>
+                                                        {% set variacao = comp_tipo.variacao_abs %}
+                                                        {# Exibe variação apenas se não for zero #}
+                                                        {% if variacao != 0 %}
+                                                        <span class="ms-1 small {% if variacao > 0 %}text-success{% elif variacao < 0 %}text-danger{% endif %}">
+                                                            ({{ '%+d'|format(variacao) }})
+                                                        </span>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                                {# --- FIM ALTERAÇÃO --- #}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Scripts específicos da página -->
+        <script>
+            // Função de utilidade para formatar números
+            function formatNumber(num) {
+                return num.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,');
+            }
+            
+            // Executado quando o DOM estiver carregado
+            document.addEventListener('DOMContentLoaded', function() {
+                // Obtém o mês e ano da URL atual
+                function obterParametrosURL() {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const mes = urlParams.get('mes');
+                    const ano = urlParams.get('ano');
+                    
+                    // Se não houver parâmetros, usa os valores do template
+                    if (!mes || !ano) {
+                        // Extrai mês e ano do texto de mes_referencia (formato: "MM/YYYY")
+                        const mesRefStr = "{{ mes_referencia }}";
+                        if (mesRefStr && mesRefStr.includes('/')) {
+                            const partes = mesRefStr.split('/');
+                            return {
+                                mes: parseInt(partes[0], 10),
+                                ano: parseInt(partes[1], 10)
+                            };
+                        }
+                        return { mes: null, ano: null };
+                    }
+                    
+                    return {
+                        mes: parseInt(mes, 10),
+                        ano: parseInt(ano, 10)
+                    };
+                }
+                
+                // Carrega os dados para cada squad usando o mês e ano corretos
+                const params = obterParametrosURL();
+                console.log("Parâmetros de data:", params);
+                
+                // Se temos mês e ano, carregamos com esses parâmetros, caso contrário usamos os dados já renderizados
+                if (params.mes && params.ano) {
+                    carregarDadosSquad('AZURE', params.mes, params.ano);
+                    carregarDadosSquad('M365', params.mes, params.ano);
+                    carregarDadosSquad('DATA E POWER', params.mes, params.ano);
+                    carregarDadosSquad('CDB', params.mes, params.ano);
+                    console.log(`Carregando dados de squads para ${params.mes}/${params.ano}`);
+                } else {
+                    console.log("Usando dados pre-renderizados dos squads (sem parâmetros de data na URL)");
+                }
+            });
+            
+            // Função para carregar dados de squad (mantida para evitar erros de JavaScript)
+            function carregarDadosSquad(squad, mes, ano) {
+                // Construir a URL com os parâmetros
+                var url = "/macro/api/projetos-squad-status-mes?squad=" + encodeURIComponent(squad) + "&mes=" + mes + "&ano=" + ano;
+                console.log("Tentando carregar dados para " + squad + " (" + mes + "/" + ano + ") da URL: " + url);
+                
+                fetch(url)
+                    .then(function(response) {
+                        console.log("Resposta recebida para " + squad + " com status: " + response.status);
+                        if (!response.ok) {
+                            throw new Error("Erro ao carregar dados: " + response.status);
+                        }
+                        return response.json();
+                    })
+                    .then(function(data) {
+                        console.log("Dados recebidos para " + squad + ":", data);
+                        atualizarCardsSquad(squad, data);
+                    })
+                    .catch(function(error) {
+                        console.error("Erro ao carregar dados para " + squad + ":", error);
+                    });
+            }
+            
+            // Função para atualizar cards de squad (mantida para evitar erros de JavaScript)
+            function atualizarCardsSquad(squad, data) {
+                console.log("Atualizando cards para squad " + squad + " com dados:", data);
+                
+                // Mapeamento de status retornados pela API para os IDs no HTML
+                var statusMapApi = {
+                    "NOVO": "novo",
+                    "EM ATENDIMENTO": "em-andamento",
+                    "AGUARDANDO": "aguardando",
+                    "BLOQUEADO": "bloqueado",
+                    "FECHADO": "concluido"
+                };
+                
+                // Método alternativo de atualização direta em todos os elementos com data-squad
+                var squadElements = document.querySelectorAll("[data-squad='" + squad + "']");
+                console.log("Total de elementos para squad " + squad + ": " + squadElements.length);
+                
+                // Para cada elemento com data-squad, verificar status e atualizar
+                squadElements.forEach(function(element) {
+                    var status = element.getAttribute("data-status");
+                    console.log("Processando elemento:", squad, status);
+                    
+                    var valueElement = element.querySelector(".fs-5");
+                    if (!valueElement) {
+                        console.warn("Não encontrou .fs-5 em:", element);
+                        return;
+                    }
+                    
+                    if (status === "total") {
+                        valueElement.textContent = data.total || 0;
+                        console.log("  -> Atualizado total:", data.total);
+                    } else {
+                        // Encontra o status na API correspondente ao status HTML
+                        var apiStatus = null;
+                        for (var key in statusMapApi) {
+                            if (statusMapApi[key] === status) {
+                                apiStatus = key;
+                                break;
+                            }
+                        }
+                        
+                        if (apiStatus) {
+                            var valor = 0;
+                            // Procura valor deste status nos dados da API
+                            for (var apiStatusKey in data.por_status) {
+                                if (apiStatusKey.toUpperCase() === apiStatus) {
+                                    valor = data.por_status[apiStatusKey];
+                                    break;
+                                }
+                            }
+                            valueElement.textContent = valor;
+                            console.log("  -> Atualizado " + status + " (" + apiStatus + "):", valor);
+                        }
+                    }
+                });
+            }
+
+            // Gráfico de Status
+            const statusCtx = document.getElementById('statusChart').getContext('2d');
+            new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Novo', 'Em andamento', 'Aguardando', 'Bloqueado'],
+                    datasets: [{
+                        data: [
+                            {{ agregacoes_por_status.get('NOVO', {}).get('quantidade', 0) }},
+                            {{ agregacoes_por_status.get('EM ATENDIMENTO', {}).get('quantidade', 0) }},
+                            {{ agregacoes_por_status.get('AGUARDANDO', {}).get('quantidade', 0) }},
+                            {{ agregacoes_por_status.get('BLOQUEADO', {}).get('quantidade', 0) }}
+                        ],
+                        backgroundColor: [
+                            'rgba(13, 110, 253, 0.8)',
+                            'rgba(255, 193, 7, 0.8)',
+                            'rgba(13, 202, 240, 0.8)',
+                            'rgba(220, 53, 69, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(13, 110, 253, 1)',
+                            'rgba(255, 193, 7, 1)',
+                            'rgba(13, 202, 240, 1)',
+                            'rgba(220, 53, 69, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+
+            // Gráfico de Squads
+            const squadCtx = document.getElementById('squadChart').getContext('2d');
+            new Chart(squadCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Azure', 'M365', 'Data&Power', 'CDB'],
+                    datasets: [{
+                        label: 'Total de Projetos Ativos',
+                        data: {{ squad_chart_data | tojson | safe }},
+                        backgroundColor: [
+                            'rgba(0, 120, 212, 0.8)',
+                            'rgba(216, 59, 1, 0.8)',
+                            'rgba(16, 124, 16, 0.8)',
+                            'rgba(92, 45, 145, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(0, 120, 212, 1)',
+                            'rgba(216, 59, 1, 1)',
+                            'rgba(16, 124, 16, 1)',
+                            'rgba(92, 45, 145, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Gráfico de Tendência (Total Ativos Atual vs Anterior)
+            const tendenciaCtx = document.getElementById('tendenciaChart').getContext('2d');
+            new Chart(tendenciaCtx, {
+                type: 'line',
+                data: {
+                    labels: ['{{ nome_mes_comparativo | default("Mês Anterior") }}', '{{ nome_mes_referencia }}'], 
+                    datasets: [{
+                        label: 'Total de Projetos Ativos',
+                        data: {{ tendencia_chart_data | tojson | safe }},
+                        borderColor: 'rgba(13, 110, 253, 1)',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        </script>
+    </div>
+</body>
+</html> 

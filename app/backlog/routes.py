@@ -272,18 +272,43 @@ def board_by_project(project_id):
         columns = Column.query.order_by(Column.position).all()
         current_app.logger.info(f"[DEBUG] Encontradas {len(columns)} colunas")
         
+        # Serializa as colunas para evitar erro de JSON
+        columns_list = [{'id': c.id, 'name': c.name, 'position': c.position} for c in columns]
+        
+        # Serializa os dados do projeto para evitar problemas de JSON
+        project_data = {
+            'id': str(project_details.get('Numero', project_id)),
+            'name': project_details.get('Projeto', 'Projeto Desconhecido'),
+            'squad': project_details.get('Squad', ''),
+            'status': project_details.get('Status', ''),
+            'specialist': project_details.get('Especialista', ''),
+            'hours': project_details.get('Horas', 0),
+            'worked_hours': project_details.get('HorasTrabalhadas', 0),
+            'completion': project_details.get('Conclusao', 0),
+            'account_manager': project_details.get('Account Manager', ''),
+            'start_date': project_details.get('DataInicio').isoformat() if project_details.get('DataInicio') and not pd.isna(project_details.get('DataInicio')) else None,
+            'due_date': project_details.get('VencimentoEm').isoformat() if project_details.get('VencimentoEm') and not pd.isna(project_details.get('VencimentoEm')) else None,
+            'billing': project_details.get('Faturamento', ''),
+            'remaining_hours': project_details.get('HorasRestantes', 0)
+        }
+        
+        # Serializa o backlog
+        backlog_data = {
+            'id': current_backlog.id,
+            'name': current_backlog.name,
+            'project_id': current_backlog.project_id
+        }
+        
         # 5. Renderiza o template do quadro passando os dados específicos
         current_app.logger.info(f"[DEBUG] Renderizando template board.html")
         return render_template(
             'backlog/board.html', 
-            columns=columns, 
-            # Passa a lista de tarefas serializadas diretamente para o JS consumir
-            # O template não precisará mais agrupar por coluna aqui
+            columns=columns_list,  # Passa lista serializada ao invés de objetos
             tasks_json=jsonify(tasks_list).get_data(as_text=True), 
-            current_project=project_details, # Passa os detalhes do projeto atual
+            current_project=project_data,  # Passa dados serializados
             current_backlog_id=backlog_id, 
             current_backlog_name=backlog_name,
-            backlog=current_backlog # Adiciona o objeto backlog completo
+            backlog=backlog_data  # Passa dados serializados
         )
 
     except Exception as e:
@@ -654,7 +679,7 @@ def create_task(backlog_id):
             abort(400, description="Formato inválido para 'due_date'. Use YYYY-MM-DD.")
 
     new_task = Task(
-        title=data['name'].strip(),
+        title=data['title'].strip(),
         description=data.get('description'),
         status=TaskStatus.TODO, # Status inicial sempre TODO
         priority=data.get('priority', 'Média'), # Adiciona prioridade
@@ -685,10 +710,10 @@ def move_task(task_id):
         abort(400, description="Nenhum dado fornecido para atualização.")
 
     new_column_id = data.get('column_id')
-    new_position = data.get('position') # A posição enviada pelo frontend (ex: 0, 1, 2...)
+    new_position = data.get('position', 0) # Posição padrão se não fornecida
 
-    if new_column_id is None or new_position is None:
-        abort(400, description="'column_id' e 'position' são obrigatórios para mover.")
+    if new_column_id is None:
+        abort(400, description="'column_id' é obrigatório para mover.")
 
     target_column = Column.query.get(new_column_id)
     if not target_column:
