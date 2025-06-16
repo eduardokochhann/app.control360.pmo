@@ -9,8 +9,30 @@ import os
 from . import sprints_bp
 from .. import db
 from ..models import Sprint, Task, Column, TaskStatus, Backlog
-from ..backlog.routes import serialize_task
+# from ..backlog.routes import serialize_task  # Removido para evitar problemas
 from ..utils.serializers import serialize_task_for_sprints
+
+# Função auxiliar local para serializar tarefas
+def serialize_task(task):
+    """Versão simplificada para uso local no módulo de sprints."""
+    if not task:
+        return None
+    
+    return {
+        'id': task.id,
+        'title': task.title or 'Sem título',
+        'description': task.description or '',
+        'priority': task.priority or 'Média',
+        'specialist_name': task.specialist_name or 'Não atribuído',
+        'estimated_effort': task.estimated_effort or 0,
+        'logged_time': task.logged_time or 0,
+        'position': task.position or 0,
+        'status': str(task.status) if task.status else 'TODO',
+        'is_generic': getattr(task, 'is_generic', False),
+        'backlog_id': task.backlog_id,
+        'column_id': task.column_id,
+        'sprint_id': task.sprint_id
+    }
 
 # --- Rotas de Frontend --- 
 
@@ -22,87 +44,25 @@ def sprint_management_page():
 
 # --- API Endpoints para Sprints --- 
 
-# GET /api/sprints - Listar todas as Sprints (VERSÃO SIMPLIFICADA PARA DEBUG)
+# GET /api/sprints - Listar todas as Sprints (VERSÃO OTIMIZADA)
 @sprints_bp.route('/api/sprints', methods=['GET'])
 def get_sprints():
     try:
-        # VERSÃO SIMPLIFICADA: Buscar sprints sem otimizações complexas
+        # Busca sprints sem otimizações problemáticas (tasks é lazy='dynamic')
         sprints = Sprint.query.order_by(Sprint.start_date).all()
         
+        # Usa o método to_dict otimizado do modelo
         sprints_data = []
         for sprint in sprints:
             try:
-                # Dados básicos da sprint
-                sprint_dict = {
-                    'id': sprint.id,
-                    'name': sprint.name or 'Sprint sem nome',
-                    'start_date': sprint.start_date.isoformat() if sprint.start_date else None,
-                    'end_date': sprint.end_date.isoformat() if sprint.end_date else None,
-                    'goal': sprint.goal or '',
-                    'criticality': getattr(sprint, 'criticality', 'Normal'),
-                    'tasks': []  # Por enquanto, lista vazia para evitar erros
-                }
-                
-                # Buscar tarefas da sprint de forma simples
-                try:
-                    sprint_tasks = Task.query.filter_by(sprint_id=sprint.id).order_by(Task.position).all()
-                    for task in sprint_tasks:
-                        try:
-                            # Buscar informações do projeto de forma otimizada
-                            project_id = None
-                            project_name = 'Projeto não identificado'
-                            
-                            if task.backlog_id:
-                                try:
-                                    from app.models import Backlog
-                                    backlog = Backlog.query.get(task.backlog_id)
-                                    if backlog and backlog.project_id:
-                                        project_id = backlog.project_id
-                                        # Tentar obter o nome do projeto
-                                        try:
-                                            from app.macro.services import MacroService
-                                            macro_service = MacroService()
-                                            project_details = macro_service.obter_detalhes_projeto(backlog.project_id)
-                                            if project_details:
-                                                project_name = project_details.get('Projeto', f'Projeto {project_id}')
-                                            else:
-                                                project_name = f'Projeto {project_id}'
-                                        except:
-                                            project_name = f'Projeto {project_id}'
-                                except:
-                                    pass
-                            
-                            task_simple = {
-                                'id': task.id,
-                                'title': task.title or 'Tarefa sem título',
-                                'description': task.description or '',
-                                'priority': task.priority or 'Média',
-                                'specialist_name': task.specialist_name or 'Não atribuído',
-                                'estimated_effort': task.estimated_effort or 0,
-                                'position': task.position or 0,
-                                'status': str(task.status) if task.status else 'TODO',
-                                # Novas informações para o card
-                                'project_id': project_id,
-                                'project_name': project_name,
-                                'backlog_id': task.backlog_id
-                            }
-                            sprint_dict['tasks'].append(task_simple)
-                        except Exception as task_error:
-                            # Pula tarefas com erro
-                            current_app.logger.warning(f"Erro ao processar tarefa {task.id}: {task_error}")
-                            continue
-                except Exception as tasks_error:
-                    current_app.logger.warning(f"Erro ao buscar tarefas da sprint {sprint.id}: {tasks_error}")
-                    sprint_dict['tasks'] = []
-                
-                sprints_data.append(sprint_dict)
-                
+                sprint_data = sprint.to_dict()
+                sprints_data.append(sprint_data)
             except Exception as sprint_error:
                 current_app.logger.error(f"Erro ao processar sprint {sprint.id}: {sprint_error}")
                 # Adiciona sprint com erro básico
                 sprints_data.append({
                     'id': getattr(sprint, 'id', 'unknown'),
-                    'name': f"Erro ao carregar sprint",
+                    'name': f"Erro ao carregar sprint {getattr(sprint, 'id', '')}",
                     'start_date': None,
                     'end_date': None,
                     'goal': '',
@@ -232,17 +192,8 @@ def get_generic_tasks_for_sprint_view():
                         backlog = Backlog.query.get(task.backlog_id)
                         if backlog and backlog.project_id:
                             project_id = backlog.project_id
-                            # Tentar obter o nome do projeto
-                            try:
-                                from app.macro.services import MacroService
-                                macro_service = MacroService()
-                                project_details = macro_service.obter_detalhes_projeto(backlog.project_id)
-                                if project_details:
-                                    project_name = project_details.get('Projeto', f'Projeto {project_id}')
-                                else:
-                                    project_name = f'Projeto {project_id}'
-                            except:
-                                project_name = f'Projeto {project_id}'
+                            # Simplificado - evita MacroService problemático
+                            project_name = f'Projeto {project_id}'
                     except:
                         pass
                 

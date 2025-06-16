@@ -947,9 +947,8 @@ def get_unassigned_tasks():
                     
                     # OTIMIZAÇÃO: Removido log excessivo de project details
                     # Pega o NOME DO PROJETO, usa 'Nome Indisponível' se não encontrar
-                    project_name = project_details.get('Projeto', 'Nome Indisponível') if project_details else 'Nome Indisponível'
-                    
-                    # OTIMIZAÇÃO: Removido log excessivo de nome do projeto
+                    # CORREÇÃO: A função _normalize_key converte 'Projeto' para 'projeto'
+                    project_name = project_details.get('projeto', 'Nome Indisponível') if project_details else 'Nome Indisponível'
 
                     result.append({
                         'backlog_id': backlog.id,

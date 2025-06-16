@@ -51,11 +51,7 @@ class Sprint(db.Model):
         return f'<Sprint {self.name}>'
 
     def to_dict(self):
-        # Importar serialize_task aqui para evitar importação circular no nível do módulo,
-        # assumindo que serialize_task pode depender de modelos definidos neste arquivo.
-        # Uma melhor prática seria ter serialize_task em um arquivo de utils ou helpers.
-        from app.backlog.routes import serialize_task 
-
+        """Serializa a sprint para dicionário sem importação circular."""
         sprint_data = {
             'id': self.id,
             'name': self.name,
@@ -65,18 +61,20 @@ class Sprint(db.Model):
             'criticality': self.criticality,
             'tasks': [] # Inicializa com lista vazia
         }
+        
         try:
+            # Usa o serializer otimizado para evitar importação circular
+            from app.utils.serializers import serialize_task_for_sprints
             # .all() é necessário porque 'tasks' é lazy='dynamic'
             tasks_for_sprint = self.tasks.all() 
-            sprint_data['tasks'] = [serialize_task(task) for task in tasks_for_sprint]
+            sprint_data['tasks'] = [serialize_task_for_sprints(task) for task in tasks_for_sprint]
         except Exception as e:
-            # Logar o erro seria ideal aqui.
-            # Por enquanto, se houver erro na serialização das tarefas, 
-            # retornamos a sprint com uma lista de tarefas vazia e um campo de erro.
-            # Isso permite que o frontend ainda mostre a sprint, mesmo com erro nas tarefas.
-            print(f"Erro ao serializar tarefas para a sprint {self.id}: {e}") # Log no servidor
+            # Log do erro de forma segura
+            from flask import current_app
+            if current_app:
+                current_app.logger.error(f"Erro ao serializar tarefas para a sprint {self.id}: {e}")
             sprint_data['tasks'] = []
-            sprint_data['error_serializing_tasks'] = str(e) # Adiciona um campo de erro
+            sprint_data['error_serializing_tasks'] = str(e)
 
         return sprint_data
 
