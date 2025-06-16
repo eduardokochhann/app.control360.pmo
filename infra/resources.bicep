@@ -124,6 +124,23 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.8.0' = {
             action: 'Allow'
           }
     ]
+    // TODO: Get admin permissions to allow this
+    // identityProviders: {
+    //   azureActiveDirectory: {
+    //     registration: {
+    //       openIdIssuer: 'https://sts.windows.net/a7220fd8-b71b-44f9-b153-117f6a6a7b2f/v2.0'
+    //       clientId: 'c5b9b4ab-76e8-4f42-abca-bebf57ea1102'
+    //       clientSecretSettingName: 'microsoft-provider-authentication-secret'
+    //     }
+    //     validation: {
+    //       allowedAudiences: []
+    //       defaultAuthorizationPolicy: {
+    //         allowedPrincipals: {}
+    //       }
+    //     }
+    //     isAutoProvisioned: false
+    //   }
+    // }
   }
 }
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.outputs.loginServer
