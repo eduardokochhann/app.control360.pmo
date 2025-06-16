@@ -55,7 +55,7 @@ module fileShareStorageAccount 'br/public:avm/res/storage/storage-account:0.20.0
         }
       ]
     }
-    kind: 'FileStorage'
+    kind: 'StorageV2'
     skuName: 'Standard_LRS'
     secretsExportConfiguration: {
       keyVaultResourceId: keyVault.outputs.resourceId
