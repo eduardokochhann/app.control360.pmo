@@ -1,0 +1,66 @@
+# Run when commits are pushed to feat/refactor-deployment
+trigger:
+  - feat/refactor-deployment
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  AZURE_SUBSCRIPTION_ID: '6f97d0ea-fd4f-4149-9480-729e8f6a966f'
+  AZURE_ENV_NAME: 'app-control360-sou-dev'
+  AZURE_LOCATION: 'eastus2'
+
+steps:
+  - task: Bash@3
+    displayName: Install azd
+    inputs:
+      targetType: 'inline'
+      script: |
+        curl -fsSL https://aka.ms/install-azd.sh | bash
+
+  # azd delegate auth to az to use service connection with AzureCLI@2
+  - pwsh: |
+      azd config set auth.useAzCliAuth "true"
+    displayName: Configure AZD to Use AZ CLI Authentication.
+
+  - task: AzureCLI@2
+    displayName: Check infrastructure changes
+    inputs:
+      azureSubscription: arm-mpn-subscription-bernardo-mesko
+      scriptType: bash
+      scriptLocation: inlineScript
+      keepAzSessionActive: true
+      inlineScript: |
+        azd provision --preview --no-prompt
+    env:
+      AZURE_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+      AZURE_ENV_NAME: $(AZURE_ENV_NAME)
+      AZURE_LOCATION: $(AZURE_LOCATION)
+
+  - task: AzureCLI@2
+    displayName: Provision Infrastructure
+    inputs:
+      azureSubscription: arm-mpn-subscription-bernardo-mesko
+      scriptType: bash
+      scriptLocation: inlineScript
+      keepAzSessionActive: true
+      inlineScript: |
+        azd provision --no-prompt
+    env:
+      AZURE_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+      AZURE_ENV_NAME: $(AZURE_ENV_NAME)
+      AZURE_LOCATION: $(AZURE_LOCATION)
+
+  - task: AzureCLI@2
+    displayName: Deploy Application
+    inputs:
+      azureSubscription: arm-mpn-subscription-bernardo-mesko
+      scriptType: bash
+      scriptLocation: inlineScript
+      keepAzSessionActive: true
+      inlineScript: |
+        azd deploy --no-prompt
+    env:
+      AZURE_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+      AZURE_ENV_NAME: $(AZURE_ENV_NAME)
+      AZURE_LOCATION: $(AZURE_LOCATION)
