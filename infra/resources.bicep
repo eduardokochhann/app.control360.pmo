@@ -30,8 +30,18 @@ module containerRegistry 'br/public:avm/res/container-registry/registry:0.1.1' =
   }
 }
 
-module containerVolumeFileShare 'br/public:avm/res/storage/storage-account:0.20.0' = {
-  name: 'container-volume-file-share'
+module keyVault 'br/public:avm/res/key-vault/vault:0.13.0' = {
+  name: 'keyVault'
+  params: {
+    // Required parameters
+    name: '${abbrs.keyVaultVaults}${resourceToken}'
+    // Non-required parameters
+    enablePurgeProtection: false
+  }
+}
+
+module fileShareStorageAccount 'br/public:avm/res/storage/storage-account:0.20.0' = {
+  name: 'file-share-storage-account'
   params: {
     // Required parameters
     name: '${abbrs.storageStorageAccounts}${resourceToken}'
@@ -39,13 +49,17 @@ module containerVolumeFileShare 'br/public:avm/res/storage/storage-account:0.20.
     fileServices: {
       shares: [
         {
-          enabledProtocols: 'NFS'
-          name: 'nfsfileshare'
+          enabledProtocols: 'SMB'
+          name: 'app-control360-sou-app-data'
+          shareQuota: 4 // Quota in GB
         }
       ]
     }
     kind: 'FileStorage'
     skuName: 'Standard_LRS'
+    secretsExportConfiguration: {
+      keyVaultResourceId: keyVault.outputs.resourceId
+    }
   }
 }
 
@@ -62,9 +76,9 @@ module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.11.
     storages: [
       {
         accessMode: 'ReadWrite'
-        kind: 'NFS'
+        kind: 'SMB'
         shareName: 'app-control360-sou'
-        storageAccountName: containerVolumeFileShare.outputs.name
+        storageAccountName: fileShareStorageAccount.outputs.name
       }
     ]
   }
@@ -93,8 +107,6 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.8.0' = {
     scaleMinReplicas: 0
     scaleMaxReplicas: 1
     secrets: {
-      secureList:  [
-      ]
     }
     containers: [
       {
