@@ -25,6 +25,9 @@ const apiBacklogTasksUrl = '/backlog/api/backlogs/unassigned-tasks';
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Inicializando Sprint Management...');
     
+    // Inicializa controles de visibilidade primeiro
+    initializeColumnVisibility();
+    
     // Carrega dados iniciais
     Promise.all([
         loadSprints(),
@@ -1247,5 +1250,127 @@ function calculateSprintCapacity(sprint) {
         return HORAS_POR_SEMANA; // Fallback para 1 semana
     }
 }
+
+// Controles de Visibilidade das Colunas
+let columnVisibility = {
+    backlog: true,
+    genericTasks: true
+};
+
+/**
+ * Alterna a visibilidade de uma coluna
+ * @param {string} columnType - Tipo da coluna ('backlog' ou 'genericTasks')
+ */
+function toggleColumnVisibility(columnType) {
+    const isVisible = columnVisibility[columnType];
+    const newVisibility = !isVisible;
+    
+    // Atualiza o estado
+    columnVisibility[columnType] = newVisibility;
+    
+    // Aplica a mudança visual
+    applyColumnVisibility(columnType, newVisibility);
+    
+    // Atualiza o botão
+    updateToggleButton(columnType, newVisibility);
+    
+    // Salva a preferência no localStorage
+    saveColumnPreferences();
+    
+    console.log(`🔄 Coluna ${columnType} ${newVisibility ? 'mostrada' : 'ocultada'}`);
+}
+
+/**
+ * Aplica a visibilidade de uma coluna
+ * @param {string} columnType - Tipo da coluna
+ * @param {boolean} isVisible - Se deve estar visível
+ */
+function applyColumnVisibility(columnType, isVisible) {
+    const columnMap = {
+        'backlog': 'backlogColumn',
+        'genericTasks': 'genericTasksColumn'
+    };
+    
+    const columnElement = document.getElementById(columnMap[columnType]);
+    if (!columnElement) return;
+    
+    if (isVisible) {
+        columnElement.classList.remove('hidden');
+    } else {
+        columnElement.classList.add('hidden');
+    }
+}
+
+/**
+ * Atualiza o estado visual do botão de toggle
+ * @param {string} columnType - Tipo da coluna
+ * @param {boolean} isVisible - Se está visível
+ */
+function updateToggleButton(columnType, isVisible) {
+    const buttonMap = {
+        'backlog': 'toggleBacklogBtn',
+        'genericTasks': 'toggleGenericTasksBtn'
+    };
+    
+    const button = document.getElementById(buttonMap[columnType]);
+    if (!button) return;
+    
+    // Remove classes anteriores
+    button.classList.remove('btn-toggle-active', 'btn-toggle-inactive');
+    
+    // Adiciona a classe apropriada
+    if (isVisible) {
+        button.classList.add('btn-toggle-active');
+        button.title = `Ocultar ${columnType === 'backlog' ? 'Backlog' : 'Tarefas Genéricas'}`;
+    } else {
+        button.classList.add('btn-toggle-inactive');
+        button.title = `Mostrar ${columnType === 'backlog' ? 'Backlog' : 'Tarefas Genéricas'}`;
+    }
+}
+
+/**
+ * Salva as preferências de visibilidade no localStorage
+ */
+function saveColumnPreferences() {
+    try {
+        localStorage.setItem('sprintColumnVisibility', JSON.stringify(columnVisibility));
+    } catch (error) {
+        console.warn('⚠️ Não foi possível salvar preferências de visibilidade:', error);
+    }
+}
+
+/**
+ * Carrega as preferências de visibilidade do localStorage
+ */
+function loadColumnPreferences() {
+    try {
+        const saved = localStorage.getItem('sprintColumnVisibility');
+        if (saved) {
+            const preferences = JSON.parse(saved);
+            columnVisibility = { ...columnVisibility, ...preferences };
+        }
+    } catch (error) {
+        console.warn('⚠️ Não foi possível carregar preferências de visibilidade:', error);
+    }
+}
+
+/**
+ * Inicializa os controles de visibilidade
+ */
+function initializeColumnVisibility() {
+    // Carrega preferências salvas
+    loadColumnPreferences();
+    
+    // Aplica a visibilidade inicial
+    Object.keys(columnVisibility).forEach(columnType => {
+        applyColumnVisibility(columnType, columnVisibility[columnType]);
+        updateToggleButton(columnType, columnVisibility[columnType]);
+    });
+    
+    console.log('✅ Controles de visibilidade inicializados:', columnVisibility);
+}
+
+// Expõe a função globalmente para uso nos botões
+window.toggleColumnVisibility = toggleColumnVisibility;
 
 console.log('✅ Sprint Management JavaScript carregado'); 

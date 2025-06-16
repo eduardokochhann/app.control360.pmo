@@ -44,6 +44,36 @@
     overflow: hidden;
   }
 
+  /* Controles de Visibilidade */
+  .side-column {
+    transition: all 0.3s ease-in-out;
+    overflow: hidden;
+  }
+
+  .side-column.hidden {
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    opacity: 0;
+  }
+
+  /* Estados dos Botões de Toggle */
+  .btn-toggle-active {
+    background-color: var(--sprint-primary) !important;
+    border-color: var(--sprint-primary) !important;
+    color: white !important;
+  }
+
+  .btn-toggle-inactive {
+    background-color: transparent !important;
+    border-color: var(--sprint-secondary) !important;
+    color: var(--sprint-secondary) !important;
+    opacity: 0.6;
+  }
+
   /* Sprint Board */
   .sprint-board {
     flex-grow: 1;
@@ -365,7 +395,21 @@
             <h1 class="h3 mb-0">Gerenciamento de Sprints</h1>
             <p class="text-muted mb-0">Organize e gerencie suas sprints com drag & drop</p>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 align-items-center">
+            <!-- Controles de Visibilidade -->
+            <div class="btn-group" role="group" aria-label="Controles de Visibilidade">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="toggleBacklogBtn" 
+                        onclick="toggleColumnVisibility('backlog')" title="Mostrar/Ocultar Backlog">
+                    <i class="bi bi-list-ul"></i> Backlog
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="toggleGenericTasksBtn" 
+                        onclick="toggleColumnVisibility('genericTasks')" title="Mostrar/Ocultar Tarefas Genéricas">
+                    <i class="bi bi-gear"></i> Tarefas
+                </button>
+            </div>
+            
+            <div class="vr"></div>
+            
             <a href="{{ url_for('sprints.consolidated_report_page') }}" class="btn btn-outline-info">
                 <i class="bi bi-file-earmark-text"></i> Relatório Consolidado
             </a>
