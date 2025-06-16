@@ -4,6 +4,8 @@ param location string = resourceGroup().location
 @description('Tags that will be applied to all resources')
 param tags object = {}
 
+@description('Id of the user or app to assign application roles')
+param principalId string
 
 param appControl360SouExists bool
 
@@ -82,7 +84,6 @@ module appControl360SouFetchLatestImage './modules/fetch-container-image.bicep' 
     name: 'app-control360-sou'
   }
 }
-
 
 module appControl360Sou 'br/public:avm/res/app/container-app:0.8.0' = {
   name: 'appControl360Sou'
