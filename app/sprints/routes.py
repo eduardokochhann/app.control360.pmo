@@ -48,8 +48,14 @@ def sprint_management_page():
 @sprints_bp.route('/api/sprints', methods=['GET'])
 def get_sprints():
     try:
+        # Parâmetro para incluir sprints arquivadas (padrão: apenas ativas)
+        include_archived = request.args.get('include_archived', 'false').lower() == 'true'
+        
         # Busca sprints sem otimizações problemáticas (tasks é lazy='dynamic')
-        sprints = Sprint.query.order_by(Sprint.start_date).all()
+        if include_archived:
+            sprints = Sprint.query.order_by(Sprint.start_date).all()
+        else:
+            sprints = Sprint.query.filter_by(is_archived=False).order_by(Sprint.start_date).all()
         
         # Usa o método to_dict otimizado do modelo
         sprints_data = []
@@ -147,6 +153,64 @@ def update_sprint(sprint_id):
         
     db.session.commit()
     return jsonify(sprint.to_dict())
+
+# PUT /api/sprints/<int:sprint_id>/archive - Arquivar uma Sprint
+@sprints_bp.route('/api/sprints/<int:sprint_id>/archive', methods=['PUT'])
+def archive_sprint(sprint_id):
+    sprint = Sprint.query.get_or_404(sprint_id)
+    
+    if sprint.is_archived:
+        return jsonify({'error': 'Sprint já está arquivada'}), 400
+    
+    # Arquiva a sprint
+    sprint.is_archived = True
+    sprint.archived_at = datetime.utcnow()
+    sprint.archived_by = request.json.get('archived_by', 'Sistema') if request.json else 'Sistema'
+    
+    db.session.commit()
+    return jsonify({
+        'message': f'Sprint "{sprint.name}" arquivada com sucesso',
+        'sprint': sprint.to_dict()
+    })
+
+# PUT /api/sprints/<int:sprint_id>/unarchive - Desarquivar uma Sprint
+@sprints_bp.route('/api/sprints/<int:sprint_id>/unarchive', methods=['PUT'])
+def unarchive_sprint(sprint_id):
+    sprint = Sprint.query.get_or_404(sprint_id)
+    
+    if not sprint.is_archived:
+        return jsonify({'error': 'Sprint não está arquivada'}), 400
+    
+    # Desarquiva a sprint
+    sprint.is_archived = False
+    sprint.archived_at = None
+    sprint.archived_by = None
+    
+    db.session.commit()
+    return jsonify({
+        'message': f'Sprint "{sprint.name}" desarquivada com sucesso',
+        'sprint': sprint.to_dict()
+    })
+
+# GET /api/sprints/archived - Listar apenas Sprints Arquivadas
+@sprints_bp.route('/api/sprints/archived', methods=['GET'])
+def get_archived_sprints():
+    try:
+        sprints = Sprint.query.filter_by(is_archived=True).order_by(Sprint.archived_at.desc()).all()
+        
+        sprints_data = []
+        for sprint in sprints:
+            try:
+                sprint_data = sprint.to_dict()
+                sprints_data.append(sprint_data)
+            except Exception as sprint_error:
+                current_app.logger.error(f"Erro ao processar sprint arquivada {sprint.id}: {sprint_error}")
+        
+        return jsonify(sprints_data)
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao buscar sprints arquivadas: {str(e)}", exc_info=True)
+        return jsonify({"message": f"Erro interno: {str(e)}"}), 500
 
 # DELETE /api/sprints/<int:sprint_id> - Deletar uma Sprint
 @sprints_bp.route('/api/sprints/<int:sprint_id>', methods=['DELETE'])

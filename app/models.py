@@ -44,6 +44,12 @@ class Sprint(db.Model):
     end_date = db.Column(db.DateTime)
     goal = db.Column(db.Text) # Objetivo da Sprint
     criticality = db.Column(db.String(50), nullable=False, server_default='Normal') # Usa server_default
+    
+    # Campos de arquivamento
+    is_archived = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
+    archived_at = db.Column(db.DateTime, nullable=True)
+    archived_by = db.Column(db.String(150), nullable=True)
+    
     # Se tarefas pertencem a uma única sprint:
     tasks = db.relationship('Task', backref='sprint', lazy='dynamic', order_by='Task.position') # Ordena por posição
 
@@ -59,6 +65,9 @@ class Sprint(db.Model):
             'end_date': self.end_date.isoformat() if self.end_date else None,
             'goal': self.goal,
             'criticality': self.criticality,
+            'is_archived': self.is_archived,
+            'archived_at': self.archived_at.isoformat() if self.archived_at else None,
+            'archived_by': self.archived_by,
             'tasks': [] # Inicializa com lista vazia
         }
         

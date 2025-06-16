@@ -327,6 +327,9 @@ function createSprintCard(sprint) {
                     <button class="btn btn-sm btn-outline-primary edit-btn" data-id="${sprint.id}">
                         <i class="bi bi-pencil"></i>
                     </button>
+                    <button class="btn btn-sm btn-outline-warning archive-btn" data-id="${sprint.id}" data-name="${escapeHtml(sprint.name || '')}" title="Arquivar Sprint">
+                        <i class="bi bi-archive"></i>
+                    </button>
                     <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${sprint.id}" data-name="${escapeHtml(sprint.name || '')}">
                         <i class="bi bi-trash"></i>
                     </button>
@@ -727,11 +730,16 @@ async function updateSprint(sprintId, sprintData) {
 
 function handleSprintActions(event) {
     const editButton = event.target.closest('.edit-btn');
+    const archiveButton = event.target.closest('.archive-btn');
     const deleteButton = event.target.closest('.delete-btn');
     
     if (editButton) {
         const sprintId = editButton.dataset.id;
         openEditModal(sprintId);
+    } else if (archiveButton) {
+        const sprintId = archiveButton.dataset.id;
+        const sprintName = archiveButton.dataset.name;
+        archiveSprint(sprintId, sprintName);
     } else if (deleteButton) {
         const sprintId = deleteButton.dataset.id;
         const sprintName = deleteButton.dataset.name;
@@ -763,6 +771,66 @@ async function openEditModal(sprintId) {
     } catch (error) {
         console.error('❌ Erro ao carregar sprint:', error);
         showToast('Erro ao carregar dados da sprint', 'error');
+    }
+}
+
+async function archiveSprint(sprintId, sprintName) {
+    if (!confirm(`Tem certeza que deseja arquivar a sprint "${sprintName}"?\n\nEla será removida da visualização principal mas poderá ser recuperada posteriormente.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${apiSprintsBaseUrl}/${sprintId}/archive`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                archived_by: 'Usuário' // Pode ser melhorado com autenticação
+            })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || `Erro ${response.status}`);
+        }
+        
+        const result = await response.json();
+        showToast(result.message || 'Sprint arquivada com sucesso!', 'success');
+        loadSprints(); // Recarrega sprints ativas
+        
+    } catch (error) {
+        console.error('❌ Erro ao arquivar sprint:', error);
+        showToast(`Erro ao arquivar sprint: ${error.message}`, 'error');
+    }
+}
+
+async function unarchiveSprint(sprintId, sprintName) {
+    if (!confirm(`Tem certeza que deseja desarquivar a sprint "${sprintName}"?\n\nEla voltará a aparecer na visualização principal.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${apiSprintsBaseUrl}/${sprintId}/unarchive`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || `Erro ${response.status}`);
+        }
+        
+        const result = await response.json();
+        showToast(result.message || 'Sprint desarquivada com sucesso!', 'success');
+        loadSprints(); // Recarrega sprints ativas
+        refreshArchivedSprints(); // Atualiza modal de arquivadas
+        
+    } catch (error) {
+        console.error('❌ Erro ao desarquivar sprint:', error);
+        showToast(`Erro ao desarquivar sprint: ${error.message}`, 'error');
     }
 }
 
@@ -847,6 +915,165 @@ window.openGenericTaskModal = function(task = null) {
     const bootstrapModal = new bootstrap.Modal(modal);
     bootstrapModal.show();
 };
+
+window.openArchivedSprintsModal = async function() {
+    const modal = document.getElementById('archivedSprintsModal');
+    if (!modal) {
+        console.error('Modal de sprints arquivadas não encontrado');
+        return;
+    }
+    
+    // Mostra o modal
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+    
+    // Carrega sprints arquivadas
+    await loadArchivedSprints();
+};
+
+window.refreshArchivedSprints = async function() {
+    await loadArchivedSprints();
+};
+
+async function loadArchivedSprints() {
+    const container = document.getElementById('archivedSprintsContainer');
+    if (!container) return;
+    
+    // Mostra loading
+    container.innerHTML = `
+        <div class="text-center p-4">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2 text-muted">Carregando sprints arquivadas...</p>
+        </div>
+    `;
+    
+    try {
+        const response = await fetch(`${apiSprintsBaseUrl}/archived`);
+        if (!response.ok) throw new Error(`Erro ${response.status}`);
+        
+        const archivedSprints = await response.json();
+        renderArchivedSprints(archivedSprints);
+        
+    } catch (error) {
+        console.error('❌ Erro ao carregar sprints arquivadas:', error);
+        container.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i>
+                Erro ao carregar sprints arquivadas: ${error.message}
+            </div>
+        `;
+    }
+}
+
+function renderArchivedSprints(sprints) {
+    const container = document.getElementById('archivedSprintsContainer');
+    if (!container) return;
+    
+    if (!sprints || sprints.length === 0) {
+        container.innerHTML = `
+            <div class="text-center p-4">
+                <i class="bi bi-archive display-4 text-muted"></i>
+                <p class="mt-3 text-muted">Nenhuma sprint arquivada encontrada.</p>
+                <small class="text-muted">Sprints arquivadas aparecerão aqui.</small>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = `
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Período</th>
+                        <th>Tarefas</th>
+                        <th>Arquivada em</th>
+                        <th>Arquivada por</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${sprints.map(sprint => renderArchivedSprintRow(sprint)).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+function renderArchivedSprintRow(sprint) {
+    const taskCount = sprint.tasks ? sprint.tasks.length : 0;
+    const archivedDate = sprint.archived_at ? new Date(sprint.archived_at).toLocaleString('pt-BR') : 'N/A';
+    const archivedBy = sprint.archived_by || 'N/A';
+    
+    return `
+        <tr>
+            <td>
+                <strong>${escapeHtml(sprint.name || 'Sprint sem nome')}</strong>
+                ${sprint.goal ? `<br><small class="text-muted">${escapeHtml(sprint.goal)}</small>` : ''}
+            </td>
+            <td>
+                <small>
+                    ${formatDate(sprint.start_date)} - ${formatDate(sprint.end_date)}
+                </small>
+            </td>
+            <td>
+                <span class="badge bg-secondary">${taskCount} tarefas</span>
+            </td>
+            <td>
+                <small>${archivedDate}</small>
+            </td>
+            <td>
+                <small>${escapeHtml(archivedBy)}</small>
+            </td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-success" 
+                            onclick="unarchiveSprint(${sprint.id}, '${escapeHtml(sprint.name || '')}')"
+                            title="Desarquivar Sprint">
+                        <i class="bi bi-arrow-up-circle"></i>
+                    </button>
+                    <a href="/sprints/report/${sprint.id}" 
+                       class="btn btn-outline-info" 
+                       title="Ver Relatório">
+                        <i class="bi bi-file-text"></i>
+                    </a>
+                    <button class="btn btn-outline-danger" 
+                            onclick="deleteArchivedSprint(${sprint.id}, '${escapeHtml(sprint.name || '')}')"
+                            title="Excluir Permanentemente">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `;
+}
+
+async function deleteArchivedSprint(sprintId, sprintName) {
+    if (!confirm(`Tem certeza que deseja EXCLUIR PERMANENTEMENTE a sprint "${sprintName}"?\n\nEsta ação não pode ser desfeita!`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${apiSprintsBaseUrl}/${sprintId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || `Erro ${response.status}`);
+        }
+        
+        showToast('Sprint excluída permanentemente!', 'success');
+        refreshArchivedSprints(); // Atualiza lista de arquivadas
+        
+    } catch (error) {
+        console.error('❌ Erro ao excluir sprint arquivada:', error);
+        showToast(`Erro ao excluir sprint: ${error.message}`, 'error');
+    }
+}
 
 // Função para inicializar popovers do Bootstrap
 function initializePopovers() {

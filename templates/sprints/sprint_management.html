@@ -410,6 +410,9 @@
             
             <div class="vr"></div>
             
+            <button type="button" class="btn btn-outline-secondary" onclick="openArchivedSprintsModal()">
+                <i class="bi bi-archive"></i> Sprints Arquivadas
+            </button>
             <a href="{{ url_for('sprints.consolidated_report_page') }}" class="btn btn-outline-info">
                 <i class="bi bi-file-earmark-text"></i> Relatório Consolidado
             </a>
@@ -677,6 +680,41 @@
         </div>
     </div>
 </div>
+
+<!-- Modal de Sprints Arquivadas -->
+<div class="modal fade" id="archivedSprintsModal" tabindex="-1" aria-labelledby="archivedSprintsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="archivedSprintsModalLabel">
+                    <i class="bi bi-archive"></i> Sprints Arquivadas
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <p class="text-muted mb-0">Gerencie sprints que foram arquivadas. Você pode desarquivar uma sprint para trazê-la de volta à visualização principal.</p>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="refreshArchivedSprints()">
+                        <i class="bi bi-arrow-clockwise"></i> Atualizar
+                    </button>
+                </div>
+                
+                <div id="archivedSprintsContainer">
+                    <div class="text-center p-4">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Carregando sprints arquivadas...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
