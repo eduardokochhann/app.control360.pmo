@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 class CapacityService:
     """Serviço para gerenciar capacidade de trabalho dos especialistas"""
     
-    HORAS_POR_DIA = 8.0
+    HORAS_POR_DIA = 7.2  # 36h ÷ 5 dias = 7.2h por dia
     DIAS_UTEIS_SEMANA = 5  # Segunda a Sexta
-    HORAS_POR_SEMANA = HORAS_POR_DIA * DIAS_UTEIS_SEMANA  # 40h
+    HORAS_POR_SEMANA = 36.0  # 36h por semana conforme especificação
     
     HORARIO_INICIO = time(9, 0)  # 9:00
     HORARIO_FIM = time(18, 0)    # 18:00

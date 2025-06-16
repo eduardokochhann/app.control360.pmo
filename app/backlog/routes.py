@@ -2078,7 +2078,7 @@ def auto_segment_task(task_id):
         max_hours_per_segment = data.get('max_hours_per_segment', 10)
         start_date = data.get('start_date')  # YYYY-MM-DD
         start_time = data.get('start_time', '09:00')  # HH:MM
-        daily_hours = data.get('daily_hours', 8)  # Horas por dia de trabalho
+        daily_hours = data.get('daily_hours', 7.2)  # Horas por dia de trabalho (36h/semana ÷ 5 dias)
         
         if not start_date:
             return jsonify({'error': 'Data de início é obrigatória'}), 400
@@ -2932,7 +2932,7 @@ def calculate_team_optimization_score():
         score_components['overload_prevention'] = round(overload_score, 1)
         
         # 4. Eficiência de capacidade
-        max_possible_capacity = len(team_members) * 40  # 40h por semana por pessoa
+        max_possible_capacity = len(team_members) * 36  # 36h por semana por pessoa
         capacity_efficiency = (total_capacity / max_possible_capacity) * 100 if max_possible_capacity > 0 else 0
         score_components['capacity_efficiency'] = round(capacity_efficiency, 1)
         

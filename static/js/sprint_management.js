@@ -217,11 +217,14 @@ function createSprintCard(sprint) {
         });
     }
     
+    // Calcula capacidade baseada na duração da sprint
+    const sprintCapacity = calculateSprintCapacity(sprint);
+    
     // Gera conteúdo do popover
     let popoverContent = Object.entries(hoursBySpecialist)
         .map(([name, allocatedHours]) => {
-            const remainingHours = Math.max(0, 40 - allocatedHours);
-            const utilizationPercent = (allocatedHours / 40) * 100;
+            const remainingHours = Math.max(0, sprintCapacity - allocatedHours);
+            const utilizationPercent = (allocatedHours / sprintCapacity) * 100;
             
             let alertBadge = '';
             if (utilizationPercent > 100) {
@@ -896,6 +899,37 @@ async function handleGenericTaskFormSubmit(event) {
     } catch (error) {
         console.error('❌ Erro ao salvar tarefa genérica:', error);
         showToast(`Erro ao salvar tarefa: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Calcula a capacidade total de um especialista para uma sprint baseada na duração
+ * @param {Object} sprint - Objeto da sprint com start_date e end_date
+ * @returns {number} - Capacidade total em horas para a sprint
+ */
+function calculateSprintCapacity(sprint) {
+    const HORAS_POR_SEMANA = 36.0; // 36h por semana conforme especificação
+    
+    if (!sprint.start_date || !sprint.end_date) {
+        return HORAS_POR_SEMANA; // Default 1 semana se não tiver datas
+    }
+    
+    try {
+        const startDate = new Date(sprint.start_date);
+        const endDate = new Date(sprint.end_date);
+        
+        // Calcula duração em dias
+        const durationDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+        
+        // Calcula duração em semanas (mínimo 1, arredonda para cima)
+        const weeks = Math.max(1, Math.ceil(durationDays / 7));
+        
+        // Capacidade total = semanas × 36h
+        return HORAS_POR_SEMANA * weeks;
+        
+    } catch (error) {
+        console.error('Erro ao calcular capacidade da sprint:', error);
+        return HORAS_POR_SEMANA; // Fallback para 1 semana
     }
 }
 

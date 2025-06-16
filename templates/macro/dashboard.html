@@ -1143,7 +1143,7 @@
                                     <i class="bi bi-clock-history"></i> Cumprimento: <span id="indicadorCumprimento">-</span>%
                                 </span>
                                 <!-- NOVO: Indicador de Capacidade -->
-                                <span class="badge bg-light text-dark" title="Utilização da capacidade semanal (máx 40h)">
+                                <span class="badge bg-light text-dark" title="Utilização da capacidade semanal (máx 36h)">
                                     <i class="bi bi-speedometer2"></i> Capacidade: <span id="indicadorCapacidade">-</span>%
                                 </span>
                             </div>
@@ -1185,7 +1185,7 @@
                                         
                                         <!-- NOVO: Indicador de Capacidade -->
                                         <div class="badge me-2" id="badgeCapacidadeSemana">
-                                            <i class="bi bi-battery-half"></i> <span id="capacidadeSemana">0/40</span>h
+                                            <i class="bi bi-battery-half"></i> <span id="capacidadeSemana">0/36</span>h
                                         </div>
                                         
                                         <!-- MELHORADO: Dropdown de Ações -->
@@ -1242,7 +1242,7 @@
                                     <small class="text-muted">
                                         <span id="horasConcluidas">0</span>h / <span id="horasTotal">0</span>h
                                         <span class="text-info ms-2">
-                                            (Capacidade: <span id="capacidadeUtilizada">0</span>/40h)
+                                            (Capacidade: <span id="capacidadeUtilizada">0</span>/36h)
                                         </span>
                                     </small>
                                 </div>
@@ -2510,10 +2510,10 @@
                 
                 if (resumo.dias_sobrecarregados > 0) {
                     alertaCapacidade.style.display = 'block';
-                    textoAlerta.textContent = `${resumo.dias_sobrecarregados} dia(s) com sobrecarga detectada (>8h/dia)`;
+                    textoAlerta.textContent = `${resumo.dias_sobrecarregados} dia(s) com sobrecarga detectada (>7.2h/dia)`;
                 } else if (resumo.percentual_ocupacao_semana > 100) {
                     alertaCapacidade.style.display = 'block';
-                    textoAlerta.textContent = `Semana com ${resumo.total_horas_semana}h (excede limite de 40h)`;
+                    textoAlerta.textContent = `Semana com ${resumo.total_horas_semana}h (excede limite de 36h)`;
                 } else {
                     alertaCapacidade.style.display = 'none';
                 }
@@ -2789,7 +2789,7 @@
                 document.getElementById('indicadorCapacidade').textContent = resumo.percentual_ocupacao_semana;
                 
                 // Atualiza badge de capacidade
-                document.getElementById('capacidadeSemana').textContent = `${resumo.total_horas_semana}/40`;
+                document.getElementById('capacidadeSemana').textContent = `${resumo.total_horas_semana}/36`;
                 document.getElementById('capacidadeUtilizada').textContent = resumo.total_horas_semana;
                 
                 // Define cor do badge baseado na utilização
@@ -2812,10 +2812,10 @@
                 
                 if (resumo.dias_sobrecarregados > 0) {
                     alertaCapacidade.style.display = 'block';
-                    textoAlerta.textContent = `${resumo.dias_sobrecarregados} dia(s) com sobrecarga detectada (>8h/dia)`;
+                    textoAlerta.textContent = `${resumo.dias_sobrecarregados} dia(s) com sobrecarga detectada (>7.2h/dia)`;
                 } else if (resumo.percentual_ocupacao_semana > 100) {
                     alertaCapacidade.style.display = 'block';
-                    textoAlerta.textContent = `Semana com ${resumo.total_horas_semana}h (excede limite de 40h)`;
+                    textoAlerta.textContent = `Semana com ${resumo.total_horas_semana}h (excede limite de 36h)`;
                 } else {
                     alertaCapacidade.style.display = 'none';
                 }
@@ -3059,7 +3059,7 @@
                 return;
             }
             
-            const confirmacao = confirm(`🔄 BALANCEAMENTO AUTOMÁTICO DE CAPACIDADE\n\nEsta função irá:\n\n✓ Analisar dias com sobrecarga (>8h)\n✓ Redistribuir tarefas automaticamente\n✓ Otimizar cronograma respeitando 8h/dia\n✓ Manter ordem de prioridades\n\nContinuar?`);
+            const confirmacao = confirm(`🔄 BALANCEAMENTO AUTOMÁTICO DE CAPACIDADE\n\nEsta função irá:\n\n✓ Analisar dias com sobrecarga (>7.2h)\n✓ Redistribuir tarefas automaticamente\n✓ Otimizar cronograma respeitando 7.2h/dia\n✓ Manter ordem de prioridades\n\nContinuar?`);
             
             if (!confirmacao) return;
             
@@ -3067,7 +3067,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    max_hours_per_day: 8.0,
+                    max_hours_per_day: 7.2,
                     weeks_to_balance: 4
                 })
             })
