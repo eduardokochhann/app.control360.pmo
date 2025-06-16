@@ -119,8 +119,8 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.8.0' = {
     tags: union(tags, { 'azd-service-name': 'app-control360-sou' })
     ipSecurityRestrictions: [
           {
-            name: 'allow-azure-services'
-            ipAddressRange: '48.214.20.129'
+            name: 'allow-bernardo-ip'
+            ipAddressRange: '45.230.235.125'
             action: 'Allow'
           }
     ]
