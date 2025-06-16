@@ -59,6 +59,7 @@ module fileShareStorageAccount 'br/public:avm/res/storage/storage-account:0.20.0
     skuName: 'Standard_LRS'
     secretsExportConfiguration: {
       keyVaultResourceId: keyVault.outputs.resourceId
+      accessKey1Name: 'stg-appcontrol-360-sou-key1'
     }
   }
 }
