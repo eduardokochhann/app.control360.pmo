@@ -27,7 +27,7 @@ steps:
   - task: AzureCLI@2
     displayName: Provision Infrastructure
     inputs:
-      azureSubscription: azconnection
+      azureSubscription: arm-mpn-subscription-bernardo-mesko
       scriptType: bash
       scriptLocation: inlineScript
       keepAzSessionActive: true
@@ -42,7 +42,7 @@ steps:
   - task: AzureCLI@2
     displayName: Deploy Application
     inputs:
-      azureSubscription: azconnection
+      azureSubscription: arm-mpn-subscription-bernardo-mesko
       scriptType: bash
       scriptLocation: inlineScript
       keepAzSessionActive: true
@@ -53,4 +53,3 @@ steps:
       AZURE_ENV_NAME: $(AZURE_ENV_NAME)
       AZURE_LOCATION: $(AZURE_LOCATION)
       SERVICE_APP_CONTROL360_SOU_RESOURCE_EXISTS: $(SERVICE_APP_CONTROL360_SOU_RESOURCE_EXISTS)
-
