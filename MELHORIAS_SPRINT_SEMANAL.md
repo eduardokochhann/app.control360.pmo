@@ -1,6 +1,6 @@
 # 🚀 MELHORIAS IMPLEMENTADAS - SISTEMA DE SPRINT SEMANAL
 
-Este documento detalha todas as melhorias implementadas no sistema de Sprint Semanal do módulo macro, considerando a **restrição de 8 horas de trabalho por dia por especialista**.
+Este documento detalha todas as melhorias implementadas no sistema de Sprint Semanal do módulo macro, considerando a **restrição de 7.2 horas de trabalho por dia por especialista** (36h por semana).
 
 ## 📋 ÍNDICE
 1. [Melhorias Funcionais](#melhorias-funcionais)
@@ -14,10 +14,10 @@ Este documento detalha todas as melhorias implementadas no sistema de Sprint Sem
 
 ## 🚀 MELHORIAS FUNCIONAIS
 
-### 1. **Planejamento por Capacidade (8h/dia)**
-- ✅ **Sistema de controle de capacidade diária**: Máximo de 8 horas por dia
-- ✅ **Monitoramento de sobrecarga**: Alertas automáticos quando excede 8h/dia
-- ✅ **Cálculo de capacidade semanal**: 40h máximo por semana (5 dias úteis)
+### 1. **Planejamento por Capacidade (7.2h/dia)**
+- ✅ **Sistema de controle de capacidade diária**: Máximo de 7.2 horas por dia
+- ✅ **Monitoramento de sobrecarga**: Alertas automáticos quando excede 7.2h/dia
+- ✅ **Cálculo de capacidade semanal**: 36h máximo por semana (5 dias úteis × 7.2h/dia)
 - ✅ **Verificação de conflitos**: API para verificar conflitos antes de alocar tarefas
 - ✅ **Sugestões inteligentes**: Recomendações de melhores horários baseado na capacidade
 
@@ -223,7 +223,7 @@ fetch('/api/analytics/team/optimization-score', {
 ## 🏆 BENEFÍCIOS ALCANÇADOS
 
 ### **Para Especialistas**
-- ⏰ **Controle de jornada**: Garante não ultrapassar 8h/dia
+- ⏰ **Controle de jornada**: Garante não ultrapassar 7.2h/dia
 - 📊 **Visibilidade clara**: Interface intuitiva para planejamento
 - 🎯 **Foco aumentado**: Modo foco para máxima produtividade
 - 🔄 **Flexibilidade**: Reorganização fácil com drag & drop

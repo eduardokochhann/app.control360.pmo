@@ -44,6 +44,12 @@ class Sprint(db.Model):
     end_date = db.Column(db.DateTime)
     goal = db.Column(db.Text) # Objetivo da Sprint
     criticality = db.Column(db.String(50), nullable=False, server_default='Normal') # Usa server_default
+    
+    # Campos de arquivamento
+    is_archived = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
+    archived_at = db.Column(db.DateTime, nullable=True)
+    archived_by = db.Column(db.String(150), nullable=True)
+    
     # Se tarefas pertencem a uma única sprint:
     tasks = db.relationship('Task', backref='sprint', lazy='dynamic', order_by='Task.position') # Ordena por posição
 
@@ -51,11 +57,7 @@ class Sprint(db.Model):
         return f'<Sprint {self.name}>'
 
     def to_dict(self):
-        # Importar serialize_task aqui para evitar importação circular no nível do módulo,
-        # assumindo que serialize_task pode depender de modelos definidos neste arquivo.
-        # Uma melhor prática seria ter serialize_task em um arquivo de utils ou helpers.
-        from app.backlog.routes import serialize_task 
-
+        """Serializa a sprint para dicionário sem importação circular."""
         sprint_data = {
             'id': self.id,
             'name': self.name,
@@ -63,20 +65,25 @@ class Sprint(db.Model):
             'end_date': self.end_date.isoformat() if self.end_date else None,
             'goal': self.goal,
             'criticality': self.criticality,
+            'is_archived': self.is_archived,
+            'archived_at': self.archived_at.isoformat() if self.archived_at else None,
+            'archived_by': self.archived_by,
             'tasks': [] # Inicializa com lista vazia
         }
+        
         try:
+            # Usa o serializer otimizado para evitar importação circular
+            from app.utils.serializers import serialize_task_for_sprints
             # .all() é necessário porque 'tasks' é lazy='dynamic'
             tasks_for_sprint = self.tasks.all() 
-            sprint_data['tasks'] = [serialize_task(task) for task in tasks_for_sprint]
+            sprint_data['tasks'] = [serialize_task_for_sprints(task) for task in tasks_for_sprint]
         except Exception as e:
-            # Logar o erro seria ideal aqui.
-            # Por enquanto, se houver erro na serialização das tarefas, 
-            # retornamos a sprint com uma lista de tarefas vazia e um campo de erro.
-            # Isso permite que o frontend ainda mostre a sprint, mesmo com erro nas tarefas.
-            print(f"Erro ao serializar tarefas para a sprint {self.id}: {e}") # Log no servidor
+            # Log do erro de forma segura
+            from flask import current_app
+            if current_app:
+                current_app.logger.error(f"Erro ao serializar tarefas para a sprint {self.id}: {e}")
             sprint_data['tasks'] = []
-            sprint_data['error_serializing_tasks'] = str(e) # Adiciona um campo de erro
+            sprint_data['error_serializing_tasks'] = str(e)
 
         return sprint_data
 
@@ -190,8 +197,8 @@ class ProjectMilestone(db.Model):
             'description': self.description,
             'planned_date': self.planned_date.strftime('%Y-%m-%d') if self.planned_date else None,
             'actual_date': self.actual_date.strftime('%Y-%m-%d') if self.actual_date else None,
-            'status': self.status.value,
-            'criticality': self.criticality.value,
+            'status': {'key': self.status.name, 'value': self.status.value},
+            'criticality': {'key': self.criticality.name, 'value': self.criticality.value},
             'is_checkpoint': self.is_checkpoint,
             'is_delayed': self.is_delayed,
             'backlog_id': self.backlog_id
@@ -204,9 +211,10 @@ class ProjectMilestone(db.Model):
 # --- NOVO MODELO PARA RISCOS DO PROJETO (Estrutura básica) ---
 # Enums para Riscos (se ainda não existirem)
 class RiskStatus(enum.Enum):
-    ACTIVE = 'Ativo'
+    IDENTIFIED = 'Identificado'
     MITIGATED = 'Mitigado'
     RESOLVED = 'Resolvido'
+    ACCEPTED = 'Aceito'
 
 class RiskImpact(enum.Enum):
     LOW = 'Baixo'
@@ -220,10 +228,11 @@ class RiskProbability(enum.Enum):
 
 class ProjectRisk(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    description = db.Column(db.Text, nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
     impact = db.Column(db.Enum(RiskImpact), default=RiskImpact.MEDIUM, nullable=False)
     probability = db.Column(db.Enum(RiskProbability), default=RiskProbability.MEDIUM, nullable=False)
-    status = db.Column(db.Enum(RiskStatus), default=RiskStatus.ACTIVE, nullable=False)
+    status = db.Column(db.Enum(RiskStatus), default=RiskStatus.IDENTIFIED, nullable=False)
     identified_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     resolved_date = db.Column(db.DateTime, nullable=True)
     mitigation_plan = db.Column(db.Text)
@@ -254,10 +263,11 @@ class ProjectRisk(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'title': self.title,
             'description': self.description,
-            'impact': self.impact.value,
-            'probability': self.probability.value,
-            'status': self.status.value,
+            'impact': {'key': self.impact.name, 'value': self.impact.value},
+            'probability': {'key': self.probability.name, 'value': self.probability.value},
+            'status': {'key': self.status.name, 'value': self.status.value},
             'identified_date': self.identified_date.strftime('%Y-%m-%d') if self.identified_date else None,
             'resolved_date': self.resolved_date.strftime('%Y-%m-%d') if self.resolved_date else None,
             'mitigation_plan': self.mitigation_plan,
@@ -269,7 +279,7 @@ class ProjectRisk(db.Model):
         }
 
     def __repr__(self):
-        return f'<ProjectRisk {self.id}: {self.description[:30]}...>'
+        return f'<ProjectRisk {self.id}: {self.title[:30]}...>'
 # --- FIM NOVO MODELO RISCOS ---
 
 # Enums para o sistema de notas

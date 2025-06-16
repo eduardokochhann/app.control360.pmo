@@ -4,7 +4,8 @@ from flask import Blueprint
 # O primeiro argumento é o nome do blueprint, usado internamente pelo Flask
 # O segundo argumento é o nome do módulo ou pacote onde o blueprint está localizado (__name__)
 # url_prefix adiciona um prefixo a todas as rotas definidas neste blueprint (ex: /backlog/tasks)
-backlog_bp = Blueprint('backlog', __name__, url_prefix='/backlog', template_folder='templates', static_folder='static')
+# Templates e static files agora são centralizados na raiz do projeto
+backlog_bp = Blueprint('backlog', __name__, url_prefix='/backlog')
 
 # Importa as rotas no final para evitar importações circulares
 from . import routes

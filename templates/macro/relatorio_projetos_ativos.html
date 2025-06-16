@@ -1007,6 +1007,22 @@
 
     // Inicialização da tabela
     $(document).ready(function() {
+        console.log('Inicializando Bootstrap Table...');
+        console.log('URL da API:', '/macro/api/projetos/ativos');
+        console.log('jQuery version:', $.fn.jquery);
+        console.log('Bootstrap Table available:', typeof $.fn.bootstrapTable);
+        
+        // Teste direto da API antes de inicializar a tabela
+        $.get('/macro/api/projetos/ativos')
+            .done(function(data) {
+                console.log('✅ API funcionando! Total de registros:', data.length);
+                console.log('Primeiros 3 registros:', data.slice(0, 3));
+            })
+            .fail(function(xhr, status, error) {
+                console.error('❌ Erro na API:', status, error);
+                console.error('Response:', xhr.responseText);
+            });
+        
         // Configuração inicial da tabela
         $('#tabelaProjetosAtivos').bootstrapTable({
             locale: 'pt-BR',
@@ -1018,15 +1034,88 @@
             loadingFontSize: '14px',
             loadingTemplate: loadingTemplate,
             onLoadError: function(status) {
-                console.error('Erro ao carregar dados da tabela:', status);
-                alert('Erro ao carregar dados. Tente novamente.');
+                console.error('Bootstrap Table Load Error:', status);
+                console.error('Status completo:', JSON.stringify(status));
+                
+                // FALLBACK: Criar tabela HTML simples se Bootstrap Table falhar
+                console.log('🔧 Iniciando fallback para tabela HTML simples...');
+                
+                $.get('/macro/api/projetos/ativos')
+                    .done(function(data) {
+                        console.log('✅ Fallback: API retornou', data.length, 'registros');
+                        
+                        if (data.length > 0) {
+                            // Remove o Bootstrap Table e cria uma tabela HTML simples
+                            $('#tabelaProjetosAtivos').replaceWith(`
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    Bootstrap Table falhou. Exibindo tabela simplificada com ${data.length} registros.
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover" id="tabelaSimples">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Número</th>
+                                                <th>Projeto</th>
+                                                <th>Status</th>
+                                                <th>Squad</th>
+                                                <th>Conclusão</th>
+                                                <th>Horas Rest.</th>
+                                                <th>Backlog</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="corpoTabela">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            `);
+                            
+                            // Popula a tabela com os dados
+                            const tbody = $('#corpoTabela');
+                            data.forEach(row => {
+                                tbody.append(`
+                                    <tr>
+                                        <td><a href="https://atendimento.sou.cloud/Ticket/Edit/${row.numero}" target="_blank">${row.numero || 'N/A'}</a></td>
+                                        <td title="${row.projeto}">${(row.projeto || 'N/A').substring(0, 40)}${row.projeto && row.projeto.length > 40 ? '...' : ''}</td>
+                                        <td><span class="badge bg-secondary">${row.status || 'N/A'}</span></td>
+                                        <td>${row.squad || 'N/A'}</td>
+                                        <td>${row.conclusao || 0}%</td>
+                                        <td>${row.horasRestantes || 0}h</td>
+                                        <td>${row.backlog_exists ? '✅' : '❌'}</td>
+                                    </tr>
+                                `);
+                            });
+                        } else {
+                            $('#tabelaProjetosAtivos').replaceWith(`
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    Nenhum projeto ativo encontrado.
+                                </div>
+                            `);
+                        }
+                    })
+                    .fail(function(xhr, status, error) {
+                        console.error('❌ Fallback também falhou:', status, error);
+                        $('#tabelaProjetosAtivos').replaceWith(`
+                            <div class="alert alert-danger">
+                                <i class="bi bi-x-circle me-2"></i>
+                                Erro ao carregar dados: ${error}
+                            </div>
+                        `);
+                    });
             },
             onRefresh: function() {
                 console.log('Tabela atualizada');
             },
             responseHandler: function(res) {
+                console.log('Response handler chamado');
+                console.log('Tipo de resposta:', typeof res);
+                console.log('É array?', Array.isArray(res));
+                console.log('Dados recebidos:', res);
+                
                 // Adiciona cálculo do tempo de vida se não vier da API
                 if (Array.isArray(res)) {
+                    console.log('Processando', res.length, 'registros');
                     return res.map(row => {
                         if (!row.tempo_vida && row.dataAbertura) {
                             try {

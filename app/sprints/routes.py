@@ -9,8 +9,30 @@ import os
 from . import sprints_bp
 from .. import db
 from ..models import Sprint, Task, Column, TaskStatus, Backlog
-from ..backlog.routes import serialize_task
+# from ..backlog.routes import serialize_task  # Removido para evitar problemas
 from ..utils.serializers import serialize_task_for_sprints
+
+# Função auxiliar local para serializar tarefas
+def serialize_task(task):
+    """Versão simplificada para uso local no módulo de sprints."""
+    if not task:
+        return None
+    
+    return {
+        'id': task.id,
+        'title': task.title or 'Sem título',
+        'description': task.description or '',
+        'priority': task.priority or 'Média',
+        'specialist_name': task.specialist_name or 'Não atribuído',
+        'estimated_effort': task.estimated_effort or 0,
+        'logged_time': task.logged_time or 0,
+        'position': task.position or 0,
+        'status': str(task.status) if task.status else 'TODO',
+        'is_generic': getattr(task, 'is_generic', False),
+        'backlog_id': task.backlog_id,
+        'column_id': task.column_id,
+        'sprint_id': task.sprint_id
+    }
 
 # --- Rotas de Frontend --- 
 
@@ -22,87 +44,31 @@ def sprint_management_page():
 
 # --- API Endpoints para Sprints --- 
 
-# GET /api/sprints - Listar todas as Sprints (VERSÃO SIMPLIFICADA PARA DEBUG)
+# GET /api/sprints - Listar todas as Sprints (VERSÃO OTIMIZADA)
 @sprints_bp.route('/api/sprints', methods=['GET'])
 def get_sprints():
     try:
-        # VERSÃO SIMPLIFICADA: Buscar sprints sem otimizações complexas
-        sprints = Sprint.query.order_by(Sprint.start_date).all()
+        # Parâmetro para incluir sprints arquivadas (padrão: apenas ativas)
+        include_archived = request.args.get('include_archived', 'false').lower() == 'true'
         
+        # Busca sprints sem otimizações problemáticas (tasks é lazy='dynamic')
+        if include_archived:
+            sprints = Sprint.query.order_by(Sprint.start_date).all()
+        else:
+            sprints = Sprint.query.filter_by(is_archived=False).order_by(Sprint.start_date).all()
+        
+        # Usa o método to_dict otimizado do modelo
         sprints_data = []
         for sprint in sprints:
             try:
-                # Dados básicos da sprint
-                sprint_dict = {
-                    'id': sprint.id,
-                    'name': sprint.name or 'Sprint sem nome',
-                    'start_date': sprint.start_date.isoformat() if sprint.start_date else None,
-                    'end_date': sprint.end_date.isoformat() if sprint.end_date else None,
-                    'goal': sprint.goal or '',
-                    'criticality': getattr(sprint, 'criticality', 'Normal'),
-                    'tasks': []  # Por enquanto, lista vazia para evitar erros
-                }
-                
-                # Buscar tarefas da sprint de forma simples
-                try:
-                    sprint_tasks = Task.query.filter_by(sprint_id=sprint.id).order_by(Task.position).all()
-                    for task in sprint_tasks:
-                        try:
-                            # Buscar informações do projeto de forma otimizada
-                            project_id = None
-                            project_name = 'Projeto não identificado'
-                            
-                            if task.backlog_id:
-                                try:
-                                    from app.models import Backlog
-                                    backlog = Backlog.query.get(task.backlog_id)
-                                    if backlog and backlog.project_id:
-                                        project_id = backlog.project_id
-                                        # Tentar obter o nome do projeto
-                                        try:
-                                            from app.macro.services import MacroService
-                                            macro_service = MacroService()
-                                            project_details = macro_service.obter_detalhes_projeto(backlog.project_id)
-                                            if project_details:
-                                                project_name = project_details.get('Projeto', f'Projeto {project_id}')
-                                            else:
-                                                project_name = f'Projeto {project_id}'
-                                        except:
-                                            project_name = f'Projeto {project_id}'
-                                except:
-                                    pass
-                            
-                            task_simple = {
-                                'id': task.id,
-                                'title': task.title or 'Tarefa sem título',
-                                'description': task.description or '',
-                                'priority': task.priority or 'Média',
-                                'specialist_name': task.specialist_name or 'Não atribuído',
-                                'estimated_effort': task.estimated_effort or 0,
-                                'position': task.position or 0,
-                                'status': str(task.status) if task.status else 'TODO',
-                                # Novas informações para o card
-                                'project_id': project_id,
-                                'project_name': project_name,
-                                'backlog_id': task.backlog_id
-                            }
-                            sprint_dict['tasks'].append(task_simple)
-                        except Exception as task_error:
-                            # Pula tarefas com erro
-                            current_app.logger.warning(f"Erro ao processar tarefa {task.id}: {task_error}")
-                            continue
-                except Exception as tasks_error:
-                    current_app.logger.warning(f"Erro ao buscar tarefas da sprint {sprint.id}: {tasks_error}")
-                    sprint_dict['tasks'] = []
-                
-                sprints_data.append(sprint_dict)
-                
+                sprint_data = sprint.to_dict()
+                sprints_data.append(sprint_data)
             except Exception as sprint_error:
                 current_app.logger.error(f"Erro ao processar sprint {sprint.id}: {sprint_error}")
                 # Adiciona sprint com erro básico
                 sprints_data.append({
                     'id': getattr(sprint, 'id', 'unknown'),
-                    'name': f"Erro ao carregar sprint",
+                    'name': f"Erro ao carregar sprint {getattr(sprint, 'id', '')}",
                     'start_date': None,
                     'end_date': None,
                     'goal': '',
@@ -188,6 +154,64 @@ def update_sprint(sprint_id):
     db.session.commit()
     return jsonify(sprint.to_dict())
 
+# PUT /api/sprints/<int:sprint_id>/archive - Arquivar uma Sprint
+@sprints_bp.route('/api/sprints/<int:sprint_id>/archive', methods=['PUT'])
+def archive_sprint(sprint_id):
+    sprint = Sprint.query.get_or_404(sprint_id)
+    
+    if sprint.is_archived:
+        return jsonify({'error': 'Sprint já está arquivada'}), 400
+    
+    # Arquiva a sprint
+    sprint.is_archived = True
+    sprint.archived_at = datetime.utcnow()
+    sprint.archived_by = request.json.get('archived_by', 'Sistema') if request.json else 'Sistema'
+    
+    db.session.commit()
+    return jsonify({
+        'message': f'Sprint "{sprint.name}" arquivada com sucesso',
+        'sprint': sprint.to_dict()
+    })
+
+# PUT /api/sprints/<int:sprint_id>/unarchive - Desarquivar uma Sprint
+@sprints_bp.route('/api/sprints/<int:sprint_id>/unarchive', methods=['PUT'])
+def unarchive_sprint(sprint_id):
+    sprint = Sprint.query.get_or_404(sprint_id)
+    
+    if not sprint.is_archived:
+        return jsonify({'error': 'Sprint não está arquivada'}), 400
+    
+    # Desarquiva a sprint
+    sprint.is_archived = False
+    sprint.archived_at = None
+    sprint.archived_by = None
+    
+    db.session.commit()
+    return jsonify({
+        'message': f'Sprint "{sprint.name}" desarquivada com sucesso',
+        'sprint': sprint.to_dict()
+    })
+
+# GET /api/sprints/archived - Listar apenas Sprints Arquivadas
+@sprints_bp.route('/api/sprints/archived', methods=['GET'])
+def get_archived_sprints():
+    try:
+        sprints = Sprint.query.filter_by(is_archived=True).order_by(Sprint.archived_at.desc()).all()
+        
+        sprints_data = []
+        for sprint in sprints:
+            try:
+                sprint_data = sprint.to_dict()
+                sprints_data.append(sprint_data)
+            except Exception as sprint_error:
+                current_app.logger.error(f"Erro ao processar sprint arquivada {sprint.id}: {sprint_error}")
+        
+        return jsonify(sprints_data)
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao buscar sprints arquivadas: {str(e)}", exc_info=True)
+        return jsonify({"message": f"Erro interno: {str(e)}"}), 500
+
 # DELETE /api/sprints/<int:sprint_id> - Deletar uma Sprint
 @sprints_bp.route('/api/sprints/<int:sprint_id>', methods=['DELETE'])
 def delete_sprint(sprint_id):
@@ -232,17 +256,8 @@ def get_generic_tasks_for_sprint_view():
                         backlog = Backlog.query.get(task.backlog_id)
                         if backlog and backlog.project_id:
                             project_id = backlog.project_id
-                            # Tentar obter o nome do projeto
-                            try:
-                                from app.macro.services import MacroService
-                                macro_service = MacroService()
-                                project_details = macro_service.obter_detalhes_projeto(backlog.project_id)
-                                if project_details:
-                                    project_name = project_details.get('Projeto', f'Projeto {project_id}')
-                                else:
-                                    project_name = f'Projeto {project_id}'
-                            except:
-                                project_name = f'Projeto {project_id}'
+                            # Simplificado - evita MacroService problemático
+                            project_name = f'Projeto {project_id}'
                     except:
                         pass
                 
@@ -407,7 +422,8 @@ def get_sprint_report(sprint_id):
 # GET /sprints/consolidated-report - Página de seleção de Sprints para relatório
 @sprints_bp.route('/consolidated-report', methods=['GET'])
 def consolidated_report_page():
-    sprints = Sprint.query.order_by(Sprint.start_date.desc()).all()
+    # CORREÇÃO: Filtra apenas sprints ativas (não arquivadas)
+    sprints = Sprint.query.filter(Sprint.is_archived != True).order_by(Sprint.start_date.desc()).all()
     return render_template(
         'sprints/consolidated_report_select.html',
         title="Relatório Consolidado de Sprints",
@@ -421,9 +437,13 @@ def generate_consolidated_report():
     if not sprint_ids:
         abort(400, description="Nenhuma sprint selecionada")
 
-    sprints = Sprint.query.filter(Sprint.id.in_(sprint_ids)).order_by(Sprint.start_date).all()
+    # CORREÇÃO: Filtra apenas sprints ativas (não arquivadas) mesmo quando IDs específicos são fornecidos
+    sprints = Sprint.query.filter(
+        Sprint.id.in_(sprint_ids),
+        Sprint.is_archived != True
+    ).order_by(Sprint.start_date).all()
     if not sprints:
-        abort(404, description="Nenhuma sprint encontrada")
+        abort(404, description="Nenhuma sprint ativa encontrada")
 
     # Cálculo de datas do período total
     start_date = min(sprint.start_date for sprint in sprints)
@@ -506,9 +526,13 @@ def export_consolidated_report():
     if not sprint_ids or not sprint_ids[0]:
         abort(400, description="Nenhuma sprint selecionada")
 
-    sprints = Sprint.query.filter(Sprint.id.in_(sprint_ids)).order_by(Sprint.start_date).all()
+    # CORREÇÃO: Filtra apenas sprints ativas (não arquivadas) mesmo quando IDs específicos são fornecidos
+    sprints = Sprint.query.filter(
+        Sprint.id.in_(sprint_ids),
+        Sprint.is_archived != True
+    ).order_by(Sprint.start_date).all()
     if not sprints:
-        abort(404, description="Nenhuma sprint encontrada")
+        abort(404, description="Nenhuma sprint ativa encontrada")
 
     # Criar um novo workbook
     wb = Workbook()

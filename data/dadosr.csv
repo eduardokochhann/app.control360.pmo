@@ -28,8 +28,8 @@ Número;Cliente (Completo);Serviço (2º Nível);Status;Esforço estimado;Tempo traba
 6525;TradersClub;M365;Fechado;60;52:16:00;50%;13/05/2025;Descontar do PLUS no inicio do projeto;Helen Machado;Erika Okada;17/07/2024;13/05/2025;30/06/2025
 7764;HT MICRON;M365;Fechado;40;39:06:00;75%;02/04/2025;Descontar do PLUS no inicio do projeto;Helen Machado;Denilson Barboza;24/09/2024;02/04/2025;31/03/2025
 8454;TW TRANSPORTES E LOGISTICA LTDA;Data e Power;Fechado;16;18:01:00;;28/01/2025;Faturar no inicio do projeto;CDB Data Solutions;Eder Rodrigues;30/10/2024;28/01/2025;
-8497;COMERCIAL ZAFFARI (GAUCHINHO);Data e Power;Em atendimento;597;426:30:00;75%;10/06/2025;Descontar do PLUS no inicio do projeto;CDB Data Solutions;Eder Rodrigues;01/11/2024;;30/05/2025
-9134;YOSEN;M365;Aguardando;20;25:52:00;75%;09/06/2025;Faturar no final do projeto;Gabriel de Menezes;Mateus Silva;05/12/2024;;23/06/2025
+8497;COMERCIAL ZAFFARI (GAUCHINHO);Data e Power;Em atendimento;597;430:34:00;75%;12/06/2025;Descontar do PLUS no inicio do projeto;CDB Data Solutions;Eder Rodrigues;01/11/2024;;30/05/2025
+9134;YOSEN;M365;Em atendimento;20;26:47:00;75%;12/06/2025;Faturar no final do projeto;Gabriel de Menezes;Mateus Silva;05/12/2024;;23/06/2025
 9147;A7 REALIZACOES;M365;Fechado;55;04:40:00;100%;21/01/2025;PRIME;Gabriel de Menezes;Jéssica Oliveira;05/12/2024;21/01/2025;21/01/2025
 9011;YOSEN;M365;Fechado;50;02:34:00;100%;15/03/2025;Faturar no final do projeto;Gabriel de Menezes;Mateus Silva;29/11/2024;15/03/2025;14/03/2025
 9550;BBMO SOCIEDADE DE ADVOGADOS;M365;Fechado;10;09:53:00;100%;06/02/2025;Faturar no final do projeto;Gabriel de Menezes;Gustavo Moyses;06/01/2025;06/02/2025;05/02/2025
@@ -102,8 +102,8 @@ Número;Cliente (Completo);Serviço (2º Nível);Status;Esforço estimado;Tempo traba
 11219;CAMPOS MELLO ADVOGADOS;M365;Aguardando;45;00:01:00;;28/04/2025;Faturado em outro projeto.;Tadeu Trajano;Thiago Alcantara;02/04/2025;;05/08/2025
 11220;CAMPOS MELLO ADVOGADOS;M365;Aguardando;40;00:03:00;;27/05/2025;Faturado em outro projeto.;Tadeu Trajano;Thiago Alcantara;02/04/2025;;13/06/2025
 10946;BILD;M365;Fechado;20;07:32:00;100%;27/05/2025;Engajamento;Tadeu Trajano;Mateus Silva;19/03/2025;27/05/2025;21/05/2025
-11124;ENFORCE GESTAO DE ATIVOS S.A.;M365;Aguardando;10;00:03:00;5%;10/06/2025;Engajamento;Tadeu Trajano;Thiago Alcantara;28/03/2025;;27/06/2025
-11125;ENFORCE GESTAO DE ATIVOS S.A.;M365;Aguardando;10;00:02:00;;10/06/2025;Engajamento;Tadeu Trajano;Thiago Alcantara;28/03/2025;;27/06/2025
+11124;ENFORCE GESTAO DE ATIVOS S.A.;M365;Aguardando;10;00:33:00;5%;12/06/2025;Engajamento;Tadeu Trajano;Thiago Alcantara;28/03/2025;;27/06/2025
+11125;ENFORCE GESTAO DE ATIVOS S.A.;M365;Aguardando;10;00:32:00;;12/06/2025;Engajamento;Tadeu Trajano;Thiago Alcantara;28/03/2025;;27/06/2025
 11000;CAIXA RESIDENCIAL;M365;Fechado;20;04:01:00;100%;28/05/2025;Engajamento;Tadeu Trajano;Diogo Lima;21/03/2025;28/05/2025;30/05/2025
 11013;CAIXA RESIDENCIAL;M365;Fechado;20;05:01:00;100%;27/05/2025;Engajamento;Tadeu Trajano;Diogo Lima;24/03/2025;27/05/2025;30/05/2025
 11128;SICOOB CREDICERIPA;M365;Aguardando;20;11:32:00;100%;03/06/2025;Engajamento;Tadeu Trajano;Erika Okada;28/03/2025;;24/06/2025
@@ -124,18 +124,18 @@ Número;Cliente (Completo);Serviço (2º Nível);Status;Esforço estimado;Tempo traba
 11345;SUPLEY;Azure;Aguardando;80;41:07:00;75%;10/06/2025;Faturado em outro projeto.;Erick Alex;Mateus Silva;09/04/2025;;16/06/2025
 10775;FSA SOLUCOES;Azure;Fechado;50;56:09:00;100%;30/05/2025;PRIME;Erick Alex;Thaise Albuquerque;11/03/2025;30/05/2025;30/05/2025
 10726;TENDA ATACADO;Azure;Fechado;45;03:06:00;100%;25/03/2025;Faturar no final do projeto;Erick Alex;Diogo Lima;10/03/2025;25/03/2025;26/03/2025
-12257;PORTOTECH;Data e Power;Novo;70;00:00:00;;03/06/2025;Faturar no inicio do projeto;Eduardo Fernandes;Gustavo Moyses;03/06/2025;;
-11774;STELLA - ULTRA FILIAL;M365;Fechado;0;00:00:00;;21/05/2025;Faturar no final do projeto;Eduardo Fernandes;Erika Okada;06/05/2025;21/05/2025;
+11774;STELLA - ULTRA FILIAL;M365;Fechado;0;00:00:00;;21/05/2025;Faturar no final do projeto;Eduardo Fernandes;Erika Okada;06/05/2025;45798;
 11704;SOU.cloud;Azure;Aguardando;;00:02:00;;07/05/2025;;Eduardo Kochhann;;02/05/2025;;
 12251;REDE OBA HORTIFRUTI;Data e Power;Novo;2;00:00:00;;03/06/2025;Faturar no inicio do projeto;Eduardo Kochhann;Edison Sprandel;02/06/2025;;
+12257;PORTOTECH;Data e Power;Novo;70;00:00:00;;03/06/2025;Faturar no inicio do projeto;Eduardo Kochhann;Gustavo Moyses;03/06/2025;;
 12142;REDE OBA HORTIFRUTI;M365;Aguardando;40;05:43:00;100%;06/06/2025;Engajamento;Gabriel de Menezes;Edison Sprandel;27/05/2025;;30/05/2025
 11887;COMPANHIA NACIONAL DE CIMENTO - CNC;M365;Aguardando;64;13:00:00;25%;10/06/2025;Faturar no inicio do projeto;Gabriel de Menezes;Thiago Alcantara;12/05/2025;;08/07/2025
-11966;Metha;M365;Em atendimento;10;03:53:00;75%;12/06/2025;Descontar do PLUS no inicio do projeto;Gabriel de Menezes;Eder Rodrigues;15/05/2025;;13/06/2025
+11966;Metha;M365;Resolvido;10;10:00:00;100%;12/06/2025;Descontar do PLUS no inicio do projeto;Gabriel de Menezes;Eder Rodrigues;15/05/2025;45820;13/06/2025
 11602;CAMPOS MELLO ADVOGADOS;Azure;Fechado;30;00:02:00;100%;20/05/2025;Engajamento;Mateus Augusto;Thiago Alcantara;25/04/2025;20/05/2025;19/05/2025
 11603;CAMPOS MELLO ADVOGADOS;Azure;Fechado;30;00:41:00;100%;20/05/2025;Faturar no inicio do projeto;Mateus Augusto;Thiago Alcantara;25/04/2025;20/05/2025;19/05/2025
 11624;Artabas;Azure;Fechado;25;25:11:00;100%;06/06/2025;PRIME;René Pretto de Braga ;Eder Rodrigues;28/04/2025;06/06/2025;30/05/2025
 11379;Via Certa;Azure;Em atendimento;34;00:03:00;;05/06/2025;Descontar do PLUS no inicio do projeto;René Pretto de Braga ;Erika Okada;11/04/2025;;20/06/2025
-11512;TUPY;Azure;Em atendimento;10;21:18:00;25%;06/06/2025;Faturado em outro projeto.;René Pretto de Braga ;Erika Okada;22/04/2025;;13/06/2025
+11512;TUPY;Azure;Em atendimento;10;22:13:00;25%;12/06/2025;Faturado em outro projeto.;René Pretto de Braga ;Erika Okada;22/04/2025;;13/06/2025
 12041;FROOTY;M365;Em atendimento;120;00:44:00;5%;03/06/2025;Descontar do PLUS no inicio do projeto;Luciano Seabra;Gustavo Moyses;21/05/2025;;29/07/2025
 11907;KPE Engenharia;M365;Fechado;10;04:00:00;100%;04/06/2025;Descontar do PLUS no inicio do projeto;Tadeu Trajano;Eder Rodrigues;13/05/2025;04/06/2025;04/06/2025
 11965;BARUEL;M365;Em atendimento;35;13:45:00;75%;05/06/2025;Faturar no final do projeto;Tadeu Trajano;Gustavo Moyses;15/05/2025;;09/06/2025
@@ -144,11 +144,13 @@ Número;Cliente (Completo);Serviço (2º Nível);Status;Esforço estimado;Tempo traba
 11838;MSM SOLUCOES PARA O SEGMENTO JURIDICO LTDA;M365;Fechado;110;07:15:00;100%;29/05/2025;PRIME;Tadeu Trajano;Thiago Alcantara;08/05/2025;29/05/2025;27/06/2025
 11381;Artabas;M365;Fechado;30;08:41:00;100%;02/05/2025;Faturar no inicio do projeto;Tadeu Trajano;Eder Rodrigues;14/04/2025;02/05/2025;
 11664;SOU.cloud;Data e Power;Em atendimento;;11:18:00;;20/05/2025;;Vitória Germann;;29/04/2025;;30/06/2025
-11688;SOU.cloud;M365;Em atendimento;;08:29:00;;11/06/2025;;Helen Machado;;30/04/2025;;30/06/2025
-11813;COMERCIAL ZAFFARI (GAUCHINHO);M365;Em atendimento;65;14:11:00;5%;09/06/2025;Descontar do PLUS no inicio do projeto;Helen Machado;Eder Rodrigues;07/05/2025;;03/07/2025
+11688;SOU.cloud;M365;Em atendimento;;11:29:00;;12/06/2025;;Helen Machado;;30/04/2025;;30/06/2025
+11813;COMERCIAL ZAFFARI (GAUCHINHO);M365;Em atendimento;65;14:11:00;5%;12/06/2025;Descontar do PLUS no inicio do projeto;Helen Machado;Eder Rodrigues;07/05/2025;;03/07/2025
 12062;Bastos Juntas Industria de Autopecas;Data e Power;Em atendimento;12;05:00:00;;11/06/2025;Faturar no inicio do projeto;CDB Data Solutions;Gustavo Moyses;22/05/2025;;
 12026;C.BRAZIEL DESIGN;Data e Power;Fechado;5;05:00:00;;23/05/2025;Faturar no inicio do projeto;CDB Data Solutions;Cleber Bastos;20/05/2025;23/05/2025;
-11700;C.BRAZIEL DESIGN;Azure;Fechado;15;15:00:00;;30/05/2025;Faturar no final do projeto;CDB Data Solutions;Cleber Bastos;30/04/2025;30/05/2025;
 12193;HEAD5 ENGENHARIA;Data e Power;Fechado;72;02:00:00;;30/05/2025;Descontar do PLUS no inicio do projeto;CDB Data Solutions;Eder Rodrigues;29/05/2025;30/05/2025;
+11700;C.BRAZIEL DESIGN;Azure;Fechado;15;15:00:00;;30/05/2025;Faturar no final do projeto;CDB Data Solutions;Cleber Bastos;30/04/2025;30/05/2025;
 11408;FORSHIP ENGENHARIA;M365;Fechado;10;0,664583333;5%;27/05/2025;Engajamento;Matheus Pacheco;Thiago Alcantara;14/04/2025;27/05/2025;28/05/2025
 11662;AUTO PARVI LTDA;Azure;Aguardando;10;0,055555556;;11/06/2025;Engajamento;Matheus Pacheco;Thiago Alcantara;29/04/2025;;13/06/2025
+12473;COMERCIAL ZAFFARI (GAUCHINHO);Azure;Novo;28;0,000694444;0,05;45820;Descontar do PLUS no inicio do projeto;Erick Alex;Eder Rodrigues;45820;;45838,75
+12479;SOU.cloud;Data e Power;Aguardando;;0,000694444;;45820;;Bernardo Mesko;;45820;;45832,75

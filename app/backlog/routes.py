@@ -272,18 +272,43 @@ def board_by_project(project_id):
         columns = Column.query.order_by(Column.position).all()
         current_app.logger.info(f"[DEBUG] Encontradas {len(columns)} colunas")
         
+        # Serializa as colunas para evitar erro de JSON
+        columns_list = [{'id': c.id, 'name': c.name, 'position': c.position} for c in columns]
+        
+        # Serializa os dados do projeto para evitar problemas de JSON
+        project_data = {
+            'id': str(project_details.get('Numero', project_id)),
+            'name': project_details.get('Projeto', 'Projeto Desconhecido'),
+            'squad': project_details.get('Squad', ''),
+            'status': project_details.get('Status', ''),
+            'specialist': project_details.get('Especialista', ''),
+            'hours': project_details.get('Horas', 0),
+            'worked_hours': project_details.get('HorasTrabalhadas', 0),
+            'completion': project_details.get('Conclusao', 0),
+            'account_manager': project_details.get('Account Manager', ''),
+            'start_date': project_details.get('DataInicio').isoformat() if project_details.get('DataInicio') and not pd.isna(project_details.get('DataInicio')) else None,
+            'due_date': project_details.get('VencimentoEm').isoformat() if project_details.get('VencimentoEm') and not pd.isna(project_details.get('VencimentoEm')) else None,
+            'billing': project_details.get('Faturamento', ''),
+            'remaining_hours': project_details.get('HorasRestantes', 0)
+        }
+        
+        # Serializa o backlog
+        backlog_data = {
+            'id': current_backlog.id,
+            'name': current_backlog.name,
+            'project_id': current_backlog.project_id
+        }
+        
         # 5. Renderiza o template do quadro passando os dados específicos
         current_app.logger.info(f"[DEBUG] Renderizando template board.html")
         return render_template(
             'backlog/board.html', 
-            columns=columns, 
-            # Passa a lista de tarefas serializadas diretamente para o JS consumir
-            # O template não precisará mais agrupar por coluna aqui
+            columns=columns_list,  # Passa lista serializada ao invés de objetos
             tasks_json=jsonify(tasks_list).get_data(as_text=True), 
-            current_project=project_details, # Passa os detalhes do projeto atual
+            current_project=project_data,  # Passa dados serializados
             current_backlog_id=backlog_id, 
             current_backlog_name=backlog_name,
-            backlog=current_backlog # Adiciona o objeto backlog completo
+            backlog=backlog_data  # Passa dados serializados
         )
 
     except Exception as e:
@@ -441,125 +466,99 @@ def get_tasks():
 # API para obter detalhes de uma tarefa específica
 @backlog_bp.route('/api/tasks/<int:task_id>', methods=['GET'])
 def get_task_details(task_id):
-    task = Task.query.get_or_404(task_id) # Busca a tarefa ou retorna 404 se não encontrar
-    return jsonify(serialize_task(task)) # Retorna os dados serializados da tarefa
+    task = Task.query.get_or_404(task_id)
+    return jsonify(task.to_dict())
 
 # API para atualizar detalhes de uma tarefa existente
 @backlog_bp.route('/api/tasks/<int:task_id>', methods=['PUT'])
 def update_task_details(task_id):
-    task = Task.query.get_or_404(task_id)
+    task = Task.query.get(task_id)
+    if not task:
+        return jsonify({'error': 'Task not found'}), 404
+
     data = request.get_json()
-
-    if not data:
-        return jsonify({'error': 'Nenhum dado fornecido'}), 400
-
     current_app.logger.info(f"Atualizando tarefa {task_id} com dados: {data}")
 
-    # Campos que podem ser atualizados diretamente
-    simple_update_fields = {
-        'title': 'title',
-        'description': 'description',
-        'priority': 'priority',
-        'estimated_hours': 'estimated_effort', # Frontend envia 'estimated_hours', modelo usa 'estimated_effort'
-        'logged_time': 'logged_time',
-        'specialist_name': 'specialist_name'
-        # 'is_generic' e 'is_unplanned' serão tratados abaixo
-    }
-
-    for front_key, model_key in simple_update_fields.items():
-        if front_key in data:
-            setattr(task, model_key, data[front_key])
-
-    # Tratamento para 'status'
-    if 'status' in data:
+    # Mapeamento de status ID para nome para validação
+    status_map = {col.id: col.name for col in Column.query.all()}
+    
+    # Validação e atualização dos campos
+    if 'title' in data:
+        task.title = data['title']
+    if 'description' in data:
+        task.description = data['description']
+    if 'priority' in data:
+        task.priority = data['priority']
+    
+    if 'estimated_hours' in data:
         try:
-            status_enum = TaskStatus[data['status']]
-            task.status = status_enum
-        except KeyError:
-            return jsonify({'error': f"Status inválido: {data['status']}"}), 400
+            # Permite valor nulo ou string vazia para limpar o campo
+            if data.get('estimated_hours') and str(data['estimated_hours']).strip():
+                task.estimated_effort = float(data['estimated_hours'])
+            else:
+                task.estimated_effort = None
+        except (ValueError, TypeError):
+            current_app.logger.warning(f"Valor inválido para estimated_hours: {data.get('estimated_hours')}")
+            task.estimated_effort = None
 
-    # Tratamento para 'is_generic'
-    if 'is_generic' in data:
-        if isinstance(data['is_generic'], bool):
-            task.is_generic = data['is_generic']
+    if 'specialist_name' in data:
+        # Permite "Não atribuído" ou nulo para limpar o campo
+        specialist = data['specialist_name']
+        if specialist and specialist.lower() != 'não atribuído':
+            task.specialist_name = specialist
         else:
-            current_app.logger.warning(f"Valor inválido para is_generic: {data['is_generic']}. Esperado um booleano.")
-            task.is_generic = str(data['is_generic']).lower() in ['true', '1', 'yes']
-
-    # Tratamento para 'is_unplanned' - NOVO
-    if 'is_unplanned' in data:
-        if isinstance(data['is_unplanned'], bool):
-            task.is_unplanned = data['is_unplanned']
-        else:
-            current_app.logger.warning(f"Valor inválido para is_unplanned: {data['is_unplanned']}. Esperado um booleano.")
-            task.is_unplanned = str(data['is_unplanned']).lower() in ['true', '1', 'yes']
-
-    # Tratamento para 'start_date'
-    if 'start_date' in data and data['start_date']:
-        try:
-            task.start_date = datetime.fromisoformat(data['start_date'].replace('Z', '+00:00'))
-        except ValueError:
-            try: # Tentar parsear apenas data YYYY-MM-DD
+            task.specialist_name = None
+    
+    # Novos campos adicionais
+    if 'start_date' in data:
+        if data['start_date']:
+            try:
                 task.start_date = datetime.strptime(data['start_date'], '%Y-%m-%d')
             except ValueError:
-                 return jsonify({'error': f"Formato de start_date inválido: {data['start_date']}"}), 400
-    elif 'start_date' in data and not data['start_date']: # Permitir limpar a data
-        task.start_date = None
-
-    # Tratamento para 'due_date'
-    if 'due_date' in data and data['due_date']:
-        try:
-            task.due_date = datetime.fromisoformat(data['due_date'].replace('Z', '+00:00'))
-        except ValueError:
-            try: # Tentar parsear apenas data YYYY-MM-DD
+                current_app.logger.warning(f"Formato inválido para start_date: {data['start_date']}")
+        else:
+            task.start_date = None
+    
+    if 'due_date' in data:
+        if data['due_date']:
+            try:
                 task.due_date = datetime.strptime(data['due_date'], '%Y-%m-%d')
             except ValueError:
-                return jsonify({'error': f"Formato de due_date inválido: {data['due_date']}"}), 400
-    elif 'due_date' in data and not data['due_date']: # Permitir limpar a data
-        task.due_date = None
-
-    # Tratamento para 'completed_at'
-    if 'completed_at' in data and data['completed_at']:
+                current_app.logger.warning(f"Formato inválido para due_date: {data['due_date']}")
+        else:
+            task.due_date = None
+    
+    if 'logged_time' in data:
         try:
-            task.completed_at = datetime.fromisoformat(data['completed_at'].replace('Z', '+00:00'))
-            # Se a tarefa está sendo marcada como concluída, atualiza o status para DONE
-            # a menos que já seja um status final (ex: ARCHIVED)
-            if task.status not in [TaskStatus.DONE, TaskStatus.ARCHIVED]: # CORRIGIDO AQUI
-                task.status = TaskStatus.DONE # CORRIGIDO AQUI
-        except ValueError:
-            try: # Tentar parsear apenas data YYYY-MM-DD
-                dt_obj = datetime.strptime(data['completed_at'], '%Y-%m-%d')
-                # Se apenas a data for fornecida, podemos definir a hora para o final do dia ou manter como meia-noite.
-                # Para consistência, manter meia-noite UTC se nenhuma hora for dada.
-                task.completed_at = dt_obj 
-                if task.status not in [TaskStatus.DONE, TaskStatus.ARCHIVED]: # CORRIGIDO AQUI
-                    task.status = TaskStatus.DONE # CORRIGIDO AQUI
-            except ValueError:
-                current_app.logger.error(f"Formato de data inválido para completed_at: {data['completed_at']}")
-                
-    elif 'completed_at' in data and not data['completed_at']:
-        task.completed_at = None
-        # Se a data de conclusão é removida, e o status era CONCLUIDO,
-        # pode ser necessário reverter o status para um anterior (ex: EM_ANDAMENTO ou A_FAZER).
-        # Isso depende da lógica de negócios. Por enquanto, apenas remove a data.
-        # Poderíamos adicionar: if task.status == TaskStatus.DONE: task.status = TaskStatus.IN_PROGRESS # Ou A_FAZER # CORRIGIDO AQUI (exemplo)
+            if data.get('logged_time') is not None and str(data['logged_time']).strip():
+                task.logged_time = float(data['logged_time'])
+            else:
+                task.logged_time = None
+        except (ValueError, TypeError):
+            current_app.logger.warning(f"Valor inválido para logged_time: {data.get('logged_time')}")
+            task.logged_time = None
+    
+    if 'is_unplanned' in data:
+        task.is_unplanned = bool(data['is_unplanned'])
+    
+    if 'status' in data:
+        try:
+            status_id = int(data['status'])
+            if status_id in status_map:
+                # O ID da coluna é o próprio status_id no novo modelo
+                task.column_id = status_id
+            else:
+                current_app.logger.error(f"Status ID '{status_id}' inválido recebido.")
+                return jsonify({'error': f"Status inválido: {data['status']}"}), 400
+        except (ValueError, TypeError):
+            current_app.logger.error(f"Valor de status inválido recebido: {data['status']}. Esperado um ID numérico.")
+            return jsonify({'error': f"Valor de status inválido: {data['status']}"}), 400
 
-    try:
-        db.session.commit()
-        # Log após o commit bem-sucedido
-        current_app.logger.info(f"Tarefa {task_id} atualizada com sucesso. Novo status: {task.status}, Título: {task.title}")
-        # Serializa a tarefa atualizada para retornar na resposta
-        updated_task_data = serialize_task(task)
-        if updated_task_data.get('error'): # Verifica se a serialização falhou
-            current_app.logger.error(f"Erro ao serializar tarefa {task_id} após atualização: {updated_task_data.get('error')}")
-            # Mesmo que a serialização falhe, a atualização no DB ocorreu.
-            # Retornar uma mensagem genérica de sucesso ou tentar um fallback.
-            return jsonify({'message': 'Tarefa atualizada, mas erro ao obter detalhes completos.'}), 200
-        return jsonify(updated_task_data), 200
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Erro ao atualizar tarefa {task_id}: {str(e)}", exc_info=True)
-        return jsonify({'error': f'Erro ao salvar alterações: {str(e)}'}), 500
+    db.session.commit()
+    current_app.logger.info(f"Tarefa {task_id} atualizada com sucesso.")
+    
+    # Usar serialize_task em vez de task.to_dict()
+    return jsonify(serialize_task(task))
 
 # API para excluir uma tarefa (VERSÃO OTIMIZADA)
 @backlog_bp.route('/api/tasks/<int:task_id>', methods=['DELETE'])
@@ -652,19 +651,29 @@ def create_task(backlog_id):
             due_date_obj = datetime.strptime(data['due_date'], '%Y-%m-%d') # Valida o formato
         except ValueError:
             abort(400, description="Formato inválido para 'due_date'. Use YYYY-MM-DD.")
+    
+    logged_time_val = None # Inicializa fora do try
+    if data.get('logged_time') is not None and data['logged_time'] != '':
+        try:
+            logged_time_val = float(data['logged_time'])
+            if logged_time_val < 0:
+                abort(400, description="'logged_time' não pode ser negativo.")
+        except ValueError:
+            abort(400, description="Valor inválido para 'logged_time'. Use um número.")
 
     new_task = Task(
-        title=data['name'].strip(),
+        title=data.get('title', 'Nova Tarefa').strip(),
         description=data.get('description'),
         status=TaskStatus.TODO, # Status inicial sempre TODO
         priority=data.get('priority', 'Média'), # Adiciona prioridade
         estimated_effort=estimated_effort_val, # <<< Usa a variável processada
+        logged_time=logged_time_val, # <<< NOVO CAMPO >>>
         position=new_position,
         start_date=start_date_obj, # <<< Usa a variável processada
         due_date=due_date_obj, # <<< CORREÇÃO: Usa o objeto datetime validado
         backlog_id=backlog.id,
         column_id=first_column.id, # Atribui à primeira coluna
-        specialist_name=default_specialist, # <<< Define o especialista padrão >>>
+        specialist_name=data.get('specialist_name') or default_specialist, # Usa o do payload ou o padrão
         is_unplanned=data.get('is_unplanned', False) # <<< NOVO CAMPO >>>
     )
     db.session.add(new_task)
@@ -685,10 +694,10 @@ def move_task(task_id):
         abort(400, description="Nenhum dado fornecido para atualização.")
 
     new_column_id = data.get('column_id')
-    new_position = data.get('position') # A posição enviada pelo frontend (ex: 0, 1, 2...)
+    new_position = data.get('position', 0) # Posição padrão se não fornecida
 
-    if new_column_id is None or new_position is None:
-        abort(400, description="'column_id' e 'position' são obrigatórios para mover.")
+    if new_column_id is None:
+        abort(400, description="'column_id' é obrigatório para mover.")
 
     target_column = Column.query.get(new_column_id)
     if not target_column:
@@ -830,6 +839,18 @@ def get_project_details(project_id):
         if not project_details: 
              # O método do serviço já logou o warning/erro
              return jsonify({'message': 'Detalhes do projeto não encontrados'}), 404
+        
+        # Adiciona informações do backlog se existir
+        backlog = Backlog.query.filter_by(project_id=project_id).first()
+        if backlog:
+            project_details['backlog'] = {
+                'id': backlog.id,
+                'name': backlog.name,
+                'available_for_sprint': backlog.available_for_sprint,
+                'created_at': backlog.created_at.isoformat() if backlog.created_at else None
+            }
+        else:
+            project_details['backlog'] = None
              
         return jsonify(project_details)
         
@@ -837,6 +858,47 @@ def get_project_details(project_id):
         current_app.logger.error(f"Erro ao buscar detalhes do projeto {project_id}: {e}", exc_info=True)
         abort(500, description="Erro interno ao buscar detalhes do projeto.")
 # ------------------------------------------------
+
+# --- NOVA ROTA PARA DADOS DO CABEÇALHO ---
+@backlog_bp.route('/api/projects/<string:project_id>/header-details', methods=['GET'])
+def get_project_header_details(project_id):
+    """
+    Retorna dados formatados para o cabeçalho do projeto no quadro Kanban.
+    """
+    current_app.logger.info(f"Buscando dados de cabeçalho para o projeto {project_id}")
+    macro_service = MacroService()
+    details = macro_service.obter_detalhes_projeto(project_id)
+
+    if not details:
+        current_app.logger.warning(f"Nenhum detalhe encontrado para o projeto {project_id} no MacroService.")
+        return jsonify({
+            'project_name': 'Projeto não encontrado',
+            'specialist': 'N/A',
+            'status': 'N/A',
+            'estimated_hours': '-',
+            'remaining_hours': '-',
+            'account_manager': 'N/A'
+        }), 404
+
+    # O serviço já deve retornar chaves minúsculas, mas garantimos aqui.
+    details = {str(k).lower(): v for k, v in details.items()}
+
+    # Formata os dados para o frontend, tratando valores nulos ou vazios
+    estimated_hours = details.get('horas', 0)
+    remaining_hours = details.get('horasrestantes', 0)
+
+    header_data = {
+        'project_name': details.get('projeto', 'Nome não disponível'),
+        'specialist': details.get('especialista', 'Não atribuído'),
+        'status': details.get('status', 'Status não definido'),
+        'estimated_hours': f"{estimated_hours:.0f}h" if pd.notna(estimated_hours) and estimated_hours > 0 else "-",
+        'remaining_hours': f"{remaining_hours:.0f}h" if pd.notna(remaining_hours) and remaining_hours > 0 else "-",
+        'account_manager': details.get('account_manager', 'N/A')
+    }
+    
+    current_app.logger.info(f"Dados do cabeçalho para o projeto {project_id}: {header_data}")
+    return jsonify(header_data)
+# --- FIM DA NOVA ROTA ---
 
 # Adicionar rotas para CRUD de Sprints se necessário... 
 
@@ -846,12 +908,14 @@ def get_unassigned_tasks():
     macro_service = MacroService() # Re-adiciona instância do serviço
     try:
         # 1. Busca todas as tarefas sem sprint_id E QUE NÃO SÃO GENÉRICAS,
+        #    APENAS de backlogs disponíveis para sprint,
         #    ordenadas por backlog e posição
         unassigned_tasks = Task.query.filter(
                                         Task.sprint_id == None,
                                         Task.is_generic == False # Simplifica a condição
                                       )\
                                       .join(Backlog)\
+                                      .filter(Backlog.available_for_sprint == True)\
                                       .order_by(Task.backlog_id, Task.position).all()
 
         # 2. Agrupa as tarefas por backlog_id
@@ -871,6 +935,24 @@ def get_unassigned_tasks():
 
             # Re-adiciona busca de detalhes dos projetos
             project_ids = list(set(b.project_id for b in backlogs)) # Evita buscar o mesmo ID várias vezes
+            
+            # NOVO: Filtra apenas projetos ativos
+            active_project_ids = set()
+            if project_ids:
+                try:
+                    # Carrega os dados primeiro
+                    dados_df = macro_service.carregar_dados()
+                    if not dados_df.empty:
+                        projects_data = macro_service.obter_projetos_ativos(dados_df)
+                        if projects_data:
+                            active_project_ids = set(str(p.get('numero', '')) for p in projects_data if p.get('numero'))
+                            current_app.logger.info(f"[Unassigned Tasks] Encontrados {len(active_project_ids)} projetos ativos")
+                    else:
+                        current_app.logger.warning("DataFrame vazio ao carregar dados para filtrar projetos ativos")
+                except Exception as e:
+                    current_app.logger.warning(f"Erro ao buscar projetos ativos: {e}")
+                    # Se falhar, considera todos os projetos como ativos
+                    active_project_ids = set(project_ids)
             
             # OTIMIZAÇÃO: Instanciar macro_service uma vez e usar cache interno
             if project_ids:
@@ -893,20 +975,25 @@ def get_unassigned_tasks():
             for backlog_id, tasks in tasks_by_backlog.items():
                 backlog = backlog_details_map.get(backlog_id)
                 if backlog:
+                    # NOVO: Verifica se o projeto está ativo
+                    if backlog.project_id not in active_project_ids:
+                        current_app.logger.debug(f"[Unassigned Tasks] Projeto {backlog.project_id} não está ativo, ignorando backlog")
+                        continue
+                    
                     project_details = project_details_map.get(backlog.project_id)
                     
                     # OTIMIZAÇÃO: Removido log excessivo de project details
                     # Pega o NOME DO PROJETO, usa 'Nome Indisponível' se não encontrar
-                    project_name = project_details.get('Projeto', 'Nome Indisponível') if project_details else 'Nome Indisponível'
-                    
-                    # OTIMIZAÇÃO: Removido log excessivo de nome do projeto
+                    # CORREÇÃO: A função _normalize_key converte 'Projeto' para 'projeto'
+                    project_name = project_details.get('projeto', 'Nome Indisponível') if project_details else 'Nome Indisponível'
 
                     result.append({
                         'backlog_id': backlog.id,
                         'backlog_name': backlog.name, # Nome do Backlog (Ex: Backlog Principal)
                         'project_id': backlog.project_id, # ID do Projeto associado
                         'project_name': project_name, # << NOME DO PROJETO CORRIGIDO
-                        'tasks': tasks
+                        'tasks': tasks,
+                        'available_for_sprint': backlog.available_for_sprint  # NOVO: Inclui flag de disponibilidade
                     })
                 else:
                     # OTIMIZAÇÃO: Log apenas em WARNING para casos raros
@@ -919,7 +1006,41 @@ def get_unassigned_tasks():
 
     except Exception as e:
         current_app.logger.error(f"Erro ao buscar tarefas não alocadas: {e}", exc_info=True)
-        return jsonify({"message": "Erro interno ao buscar tarefas não alocadas."}), 500 
+        return jsonify({"message": "Erro interno ao buscar tarefas não alocadas."}), 500
+
+# API para atualizar disponibilidade de backlog para sprints
+@backlog_bp.route('/api/backlogs/<int:backlog_id>/sprint-availability', methods=['PUT'])
+def update_backlog_sprint_availability(backlog_id):
+    """
+    Atualiza se um backlog deve aparecer no módulo de sprints
+    """
+    try:
+        backlog = Backlog.query.get_or_404(backlog_id)
+        data = request.get_json()
+        
+        if 'available_for_sprint' not in data:
+            return jsonify({'error': 'Campo available_for_sprint é obrigatório'}), 400
+        
+        old_value = backlog.available_for_sprint
+        new_value = bool(data['available_for_sprint'])
+        
+        backlog.available_for_sprint = new_value
+        db.session.commit()
+        
+        action = "habilitado" if new_value else "desabilitado"
+        current_app.logger.info(f"Backlog {backlog_id} (Projeto {backlog.project_id}) {action} para sprints")
+        
+        return jsonify({
+            'message': f'Backlog {action} para sprints com sucesso',
+            'backlog_id': backlog.id,
+            'project_id': backlog.project_id,
+            'available_for_sprint': backlog.available_for_sprint,
+            'changed': old_value != new_value
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao atualizar disponibilidade do backlog {backlog_id}: {e}", exc_info=True)
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500 
 
 # API para associar/desassociar uma tarefa a uma Sprint
 @backlog_bp.route('/api/tasks/<int:task_id>/assign', methods=['PUT'])
@@ -1088,87 +1209,11 @@ def get_milestones(backlog_id):
         current_app.logger.error(f"Erro ao buscar marcos para backlog {backlog_id}: {e}", exc_info=True)
         abort(500, description="Erro interno ao buscar marcos do projeto.")
 
-# Rota modificada para POST (sem backlog_id na URL)
-@backlog_bp.route('/api/milestones', methods=['POST'])
-def create_milestone():
-    """Cria um novo marco para o projeto associado ao backlog (ID do backlog vem no corpo)."""
-    # <<< LOG DE DEBUG >>>
-    current_app.logger.info("!!! ROTA POST /api/milestones ACESSADA !!!") 
-    # <<< FIM LOG DE DEBUG >>>
-    data = request.get_json()
-
-    # <<< NOVO: Obter backlog_id do corpo da requisição >>>
-    backlog_id = data.get('backlog_id')
-    if not backlog_id:
-        current_app.logger.error("Erro em create_milestone: backlog_id não encontrado no corpo JSON.")
-        abort(400, description="ID do Backlog (backlog_id) é obrigatório no corpo da requisição.")
-        
-    # Verifica se o backlog existe
-    try:
-        backlog = Backlog.query.get_or_404(backlog_id)
-    except Exception as e: # Captura erro se backlog_id não for um int válido para get_or_404
-        current_app.logger.error(f"Erro ao buscar backlog ID {backlog_id}: {e}")
-        abort(404, description=f"Backlog com ID {backlog_id} não encontrado.")
-    # <<< FIM NOVO >>>
-
-    if not data or not data.get('name') or not data.get('planned_date'):
-        current_app.logger.error("Erro em create_milestone: Dados obrigatórios (name, planned_date) faltando.")
-        abort(400, description="Nome e data planejada são obrigatórios.")
-
-    try:
-        # Processa dados obrigatórios
-        planned_date = datetime.strptime(data['planned_date'], '%Y-%m-%d').date()
-        name = data['name'].strip()
-        if not name:
-            abort(400, description="Nome não pode ser vazio.")
-        
-        # Processa dados opcionais
-        description = data.get('description', '')
-        actual_date_str = data.get('actual_date')
-        actual_date = datetime.strptime(actual_date_str, '%Y-%m-%d').date() if actual_date_str else None
-        
-        status_str = data.get('status', MilestoneStatus.PENDING.value) # Default PENDING
-        try:
-            status = MilestoneStatus(status_str)
-        except ValueError:
-            valid_statuses = [s.value for s in MilestoneStatus]
-            abort(400, description=f"Status inválido. Valores válidos: {valid_statuses}")
-
-        criticality_str = data.get('criticality', MilestoneCriticality.MEDIUM.value) # Default MEDIUM
-        try:
-            criticality = MilestoneCriticality(criticality_str)
-        except ValueError:
-            valid_criticalities = [c.value for c in MilestoneCriticality]
-            abort(400, description=f"Criticidade inválida. Valores válidos: {valid_criticalities}")
-            
-        is_checkpoint = data.get('is_checkpoint', False)
-
-        # Cria o novo marco
-        new_milestone = ProjectMilestone(
-            name=name,
-            description=description,
-            planned_date=planned_date,
-            actual_date=actual_date,
-            status=status,
-            criticality=criticality,
-            is_checkpoint=is_checkpoint,
-            backlog_id=backlog_id # Associa ao backlog (vindo do corpo agora)
-        )
-        
-        db.session.add(new_milestone)
-        db.session.commit()
-        
-        # Retorna o marco criado usando to_dict
-        return jsonify(new_milestone.to_dict()), 201
-
-    except ValueError as ve:
-        # Erro específico de conversão de data ou enum
-        db.session.rollback()
-        abort(400, description=str(ve))
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Erro ao criar marco para backlog {backlog_id}: {e}", exc_info=True)
-        abort(500, description="Erro interno ao criar marco do projeto.")
+@backlog_bp.route('/api/milestones/<int:milestone_id>', methods=['GET'])
+def get_milestone_details(milestone_id):
+    """Retorna os detalhes de um marco específico."""
+    milestone = ProjectMilestone.query.get_or_404(milestone_id)
+    return jsonify(milestone.to_dict())
 
 @backlog_bp.route('/api/milestones/<int:milestone_id>', methods=['PUT'])
 def update_milestone(milestone_id):
@@ -1198,21 +1243,28 @@ def update_milestone(milestone_id):
             milestone.actual_date = datetime.strptime(actual_date_str, '%Y-%m-%d').date() if actual_date_str else None
             
         if 'status' in data:
+            status_key = data['status']
+            if not status_key or status_key.strip() == '':
+                status_key = 'PENDING'
+            
             try:
-                milestone.status = MilestoneStatus(data['status'])
-                # Regra: Se marcar como concluído e não tiver data real, define data real
+                milestone.status = MilestoneStatus[status_key]
                 if milestone.status == MilestoneStatus.COMPLETED and not milestone.actual_date:
                     milestone.actual_date = datetime.utcnow().date()
-            except ValueError:
-                valid_statuses = [s.value for s in MilestoneStatus]
-                abort(400, description=f"Status inválido. Valores válidos: {valid_statuses}")
-                
+            except KeyError:
+                valid_statuses = [s.name for s in MilestoneStatus]
+                abort(400, description=f"Chave de Status inválida '{status_key}'. Válidas: {valid_statuses}")
+
         if 'criticality' in data:
+            criticality_key = data['criticality']
+            if not criticality_key or criticality_key.strip() == '':
+                criticality_key = 'MEDIUM'
+                
             try:
-                milestone.criticality = MilestoneCriticality(data['criticality'])
-            except ValueError:
-                valid_criticalities = [c.value for c in MilestoneCriticality]
-                abort(400, description=f"Criticidade inválida. Valores válidos: {valid_criticalities}")
+                milestone.criticality = MilestoneCriticality[criticality_key]
+            except KeyError:
+                valid_criticalities = [c.name for c in MilestoneCriticality]
+                abort(400, description=f"Chave de Criticidade inválida '{criticality_key}'. Válidas: {valid_criticalities}")
         
         if 'is_checkpoint' in data:
             milestone.is_checkpoint = bool(data['is_checkpoint'])
@@ -1277,32 +1329,50 @@ def create_risk():
         abort(400, description="Nenhum dado fornecido.")
 
     backlog_id = data.get('backlog_id')
+    title = data.get('title')
     description = data.get('description')
-    impact_str = data.get('impact', RiskImpact.MEDIUM.value) # Default MEDIUM
-    probability_str = data.get('probability', RiskProbability.MEDIUM.value) # Default MEDIUM
-    status_str = data.get('status', RiskStatus.ACTIVE.value) # Default ACTIVE
+    # --- CORREÇÃO: Usar .name para o padrão e esperar a CHAVE do frontend ---
+    impact_str = data.get('impact', RiskImpact.MEDIUM.name)
+    probability_str = data.get('probability', RiskProbability.MEDIUM.name)
+    status_str = data.get('status', RiskStatus.IDENTIFIED.name)
     responsible = data.get('responsible')
     mitigation_plan = data.get('mitigation_plan')
     contingency_plan = data.get('contingency_plan')
     trend = data.get('trend',
                      'Estável')
 
-    if not backlog_id or not description:
-        abort(400, description="'backlog_id' e 'description' são obrigatórios.")
+    if not backlog_id or not title:
+        abort(400, description="'backlog_id' e 'title' são obrigatórios.")
 
     backlog = Backlog.query.get_or_404(backlog_id)
 
     try:
-        impact = RiskImpact(impact_str)
-        probability = RiskProbability(probability_str)
-        status = RiskStatus(status_str)
-    except ValueError:
-        valid_impacts = [r.value for r in RiskImpact]
-        valid_probabilities = [r.value for r in RiskProbability]
-        valid_statuses = [r.value for r in RiskStatus]
-        abort(400, description=f"Valores inválidos para impacto, probabilidade ou status. Válidos: Impacto={valid_impacts}, Probabilidade={valid_probabilities}, Status={valid_statuses}")
+        # Validar e converter enums com tratamento de valores vazios
+        if not impact_str or impact_str.strip() == '':
+            impact_str = RiskImpact.MEDIUM.name
+        if not probability_str or probability_str.strip() == '':
+            probability_str = RiskProbability.MEDIUM.name
+        if not status_str or status_str.strip() == '':
+            status_str = RiskStatus.IDENTIFIED.name
+            
+        # --- CORREÇÃO: Acessar Enum pela chave (ex: RiskStatus['IDENTIFIED']) ---
+        impact = RiskImpact[impact_str]
+        probability = RiskProbability[probability_str]
+        status = RiskStatus[status_str]
+    except KeyError as e:
+        # Erro mais específico se a chave do Enum não for encontrada
+        valid_impacts = [r.name for r in RiskImpact]
+        valid_probabilities = [r.name for r in RiskProbability]
+        valid_statuses = [r.name for r in RiskStatus]
+        abort(400, description=f"Valores de chave inválidos para Enums. Chave não encontrada: {e}. Válidas: Impacto={valid_impacts}, Probabilidade={valid_probabilities}, Status={valid_statuses}")
+    except ValueError as e:
+        valid_impacts = [r.name for r in RiskImpact]
+        valid_probabilities = [r.name for r in RiskProbability]
+        valid_statuses = [r.name for r in RiskStatus]
+        abort(400, description=f"Valores inválidos. Impacto='{impact_str}' (válidos: {valid_impacts}), Probabilidade='{probability_str}' (válidos: {valid_probabilities}), Status='{status_str}' (válidos: {valid_statuses})")
 
     new_risk = ProjectRisk(
+        title=title,
         description=description,
         impact=impact,
         probability=probability,
@@ -1336,14 +1406,25 @@ def update_risk(risk_id):
 
     # Atualiza os campos (com validação para Enums)
     try:
+        if 'title' in data:
+            risk.title = data['title']
         if 'description' in data:
             risk.description = data['description']
         if 'impact' in data:
-            risk.impact = RiskImpact(data['impact'])
+            impact_value = data['impact']
+            if not impact_value or impact_value.strip() == '':
+                impact_value = RiskImpact.MEDIUM.name
+            risk.impact = RiskImpact[impact_value]  # Alterado para buscar pela chave
         if 'probability' in data:
-            risk.probability = RiskProbability(data['probability'])
+            probability_value = data['probability']
+            if not probability_value or probability_value.strip() == '':
+                probability_value = RiskProbability.MEDIUM.name
+            risk.probability = RiskProbability[probability_value]  # Alterado para buscar pela chave
         if 'status' in data:
-            risk.status = RiskStatus(data['status'])
+            status_value = data['status']
+            if not status_value or status_value.strip() == '':
+                status_value = RiskStatus.IDENTIFIED.name
+            risk.status = RiskStatus[status_value]  # Alterado para buscar pela chave
         if 'responsible' in data:
             risk.responsible = data.get('responsible')
         if 'mitigation_plan' in data:
@@ -1358,12 +1439,18 @@ def update_risk(risk_id):
         
         risk.updated_at = datetime.utcnow() # Atualiza a data de modificação
 
-    except ValueError:
+    except KeyError as e:
+        # Captura erro se alguma CHAVE de Enum for inválida
+        valid_impacts = [r.name for r in RiskImpact]
+        valid_probabilities = [r.name for r in RiskProbability]
+        valid_statuses = [r.name for r in RiskStatus]
+        abort(400, description=f"Chave de Enum inválida: {e}. Chaves válidas: Impacto={valid_impacts}, Probabilidade={valid_probabilities}, Status={valid_statuses}")
+    except ValueError as e:
         # Captura erro se algum valor de Enum for inválido
-        valid_impacts = [r.value for r in RiskImpact]
-        valid_probabilities = [r.value for r in RiskProbability]
-        valid_statuses = [r.value for r in RiskStatus]
-        abort(400, description=f"Valores inválidos para impacto, probabilidade ou status. Válidos: Impacto={valid_impacts}, Probabilidade={valid_probabilities}, Status={valid_statuses}")
+        valid_impacts = [r.name for r in RiskImpact]
+        valid_probabilities = [r.name for r in RiskProbability]
+        valid_statuses = [r.name for r in RiskStatus]
+        abort(400, description=f"Valores inválidos para enums. Detalhes: {str(e)}. Válidos: Impacto={valid_impacts}, Probabilidade={valid_probabilities}, Status={valid_statuses}")
     except Exception as e: # Outros erros de conversão, como data
         db.session.rollback()
         current_app.logger.error(f"[API UPDATE RISK] Erro de conversão de dados para risco {risk_id}: {e}", exc_info=True)
@@ -1483,72 +1570,7 @@ def get_timeline_tasks(backlog_id):
             'recently_started': []
         }), 500 
 
-@backlog_bp.route('/api/debug/timeline-tasks/<int:backlog_id>', methods=['GET'])
-def debug_timeline_tasks(backlog_id):
-    """
-    Rota de diagnóstico para a linha do tempo
-    """
-    try:
-        # Log para diagnóstico
-        current_app.logger.info(f"[Timeline DEBUG] Iniciando diagnóstico para backlog_id: {backlog_id}")
-        
-        # Verificar se o backlog existe
-        backlog = Backlog.query.get_or_404(backlog_id)
-        current_app.logger.info(f"[Timeline DEBUG] Backlog encontrado: ID={backlog.id}, Projeto={backlog.project_id}")
-        
-        # Listar colunas
-        columns = Column.query.all()
-        columns_info = []
-        for col in columns:
-            columns_info.append({
-                'id': col.id,
-                'name': col.name,
-                'position': col.position
-            })
-        
-        # Listar tarefas do backlog
-        tasks = Task.query.filter_by(backlog_id=backlog_id).all()
-        current_app.logger.info(f"[Timeline DEBUG] Tarefas encontradas: {len(tasks)}")
-        
-        # Tentar serializar cada tarefa individualmente
-        tasks_info = []
-        for i, task in enumerate(tasks):
-            try:
-                task_data = serialize_task(task)
-                tasks_info.append({
-                    'id': task.id,
-                    'title': task.title,
-                    'serialized_ok': True
-                })
-            except Exception as e:
-                current_app.logger.error(f"[Timeline DEBUG] Erro ao serializar tarefa {task.id}: {str(e)}")
-                tasks_info.append({
-                    'id': task.id,
-                    'title': task.title if hasattr(task, 'title') else "Desconhecido",
-                    'serialized_ok': False,
-                    'error': str(e)
-                })
-        
-        # Retornar informações de diagnóstico
-        return jsonify({
-            'backlog': {
-                'id': backlog.id,
-                'name': backlog.name,
-                'project_id': backlog.project_id
-            },
-            'columns': columns_info,
-            'tasks': tasks_info,
-            'stats': {
-                'total_tasks': len(tasks),
-                'serialized_ok': sum(1 for t in tasks_info if t['serialized_ok'])
-            }
-        })
-            
-    except Exception as e:
-        current_app.logger.error(f"[Timeline DEBUG] Erro ao realizar diagnóstico: {str(e)}", exc_info=True)
-        return jsonify({
-            'error': f"Erro durante diagnóstico: {str(e)}",
-        }), 500 
+ 
 
 # ROTA PARA A AGENDA TÉCNICA
 @backlog_bp.route('/agenda')
@@ -2128,7 +2150,7 @@ def auto_segment_task(task_id):
         max_hours_per_segment = data.get('max_hours_per_segment', 10)
         start_date = data.get('start_date')  # YYYY-MM-DD
         start_time = data.get('start_time', '09:00')  # HH:MM
-        daily_hours = data.get('daily_hours', 8)  # Horas por dia de trabalho
+        daily_hours = data.get('daily_hours', 7.2)  # Horas por dia de trabalho (36h/semana ÷ 5 dias)
         
         if not start_date:
             return jsonify({'error': 'Data de início é obrigatória'}), 400
@@ -2297,225 +2319,7 @@ def move_segment_to_week(segment_id):
 # --- FIM: APIs para Sprint Semanal do Especialista ---
 
 # --- INÍCIO: Debug Sprint Semanal ---
-@backlog_bp.route('/api/debug/sprint/<path:specialist_name>', methods=['GET'])
-def debug_sprint_specialist(specialist_name):
-    """
-    Rota de debug para investigar problemas no Sprint Semanal
-    """
-    try:
-        from urllib.parse import unquote
-        from datetime import datetime, timedelta
-        
-        specialist_name = unquote(specialist_name)
-        current_app.logger.info(f"[DEBUG Sprint] Investigando para especialista: {specialist_name}")
-        
-        debug_info = {
-            'specialist_name': specialist_name,
-            'issues_found': [],
-            'solutions': [],
-            'data': {}
-        }
-        
-        # **INVESTIGAÇÃO MELHORADA: Busca mais robusta**
-        
-        # 1. Primeiro, busca TODOS os especialistas únicos para comparação
-        all_specialists_raw = db.session.query(Task.specialist_name).distinct().all()
-        all_specialists = [row[0] for row in all_specialists_raw if row[0]]
-        
-        debug_info['data']['all_specialists_in_db'] = all_specialists
-        debug_info['data']['specialist_search_term'] = specialist_name
-        
-        # 2. Busca exata (como estava antes)
-        tasks_exact_match = Task.query.filter_by(specialist_name=specialist_name).all()
-        debug_info['data']['tasks_exact_match'] = len(tasks_exact_match)
-        
-        # 3. Busca case-insensitive
-        tasks_case_insensitive = Task.query.filter(
-            Task.specialist_name.ilike(f"%{specialist_name}%")
-        ).all()
-        debug_info['data']['tasks_case_insensitive'] = len(tasks_case_insensitive)
-        
-        # 4. Busca com trim (remove espaços)
-        specialist_trimmed = specialist_name.strip()
-        tasks_trimmed = Task.query.filter(
-            db.func.trim(Task.specialist_name) == specialist_trimmed
-        ).all()
-        debug_info['data']['tasks_trimmed'] = len(tasks_trimmed)
-        
-        # 5. Busca híbrida (trim + case-insensitive)
-        tasks_hybrid = Task.query.filter(
-            db.func.lower(db.func.trim(Task.specialist_name)) == specialist_trimmed.lower()
-        ).all()
-        debug_info['data']['tasks_hybrid'] = len(tasks_hybrid)
-        
-        # 6. Mostra correspondências próximas
-        similar_specialists = []
-        for spec in all_specialists:
-            if spec and specialist_name.lower() in spec.lower():
-                similar_specialists.append(spec)
-        debug_info['data']['similar_specialists'] = similar_specialists
-        
-        # Escolhe o melhor resultado para continuar a análise
-        tasks_for_specialist = tasks_hybrid if tasks_hybrid else tasks_case_insensitive
-        if not tasks_for_specialist:
-            tasks_for_specialist = tasks_exact_match
-            
-        debug_info['data']['total_tasks_for_specialist'] = len(tasks_for_specialist)
-        debug_info['data']['search_method_used'] = 'hybrid' if tasks_hybrid else ('case_insensitive' if tasks_case_insensitive else 'exact')
-        
-        if len(tasks_for_specialist) == 0:
-            debug_info['issues_found'].append("Nenhuma tarefa encontrada para este especialista")
-            debug_info['solutions'].append("Verifique se o nome do especialista está correto nas tarefas")
-            if similar_specialists:
-                debug_info['solutions'].append(f"Especialistas similares encontrados: {', '.join(similar_specialists)}")
-        
-        # **CONTINUAÇÃO DA ANÁLISE (só se encontrou tarefas)**
-        if tasks_for_specialist:
-            # Lista algumas tarefas encontradas para debug
-            sample_tasks = []
-            for task in tasks_for_specialist[:5]:  # Pega só as primeiras 5
-                sample_tasks.append({
-                    'id': task.id,
-                    'title': task.title,
-                    'specialist_name_db': task.specialist_name,
-                    'project_id': task.backlog.project_id if task.backlog else None,
-                    'backlog_id': task.backlog_id
-                })
-            debug_info['data']['sample_tasks'] = sample_tasks
-            
-            # 2. Verificar quantas tarefas têm segmentos
-            tasks_with_segments = []
-            tasks_without_segments = []
-            
-            for task in tasks_for_specialist:
-                segments = TaskSegment.query.filter_by(task_id=task.id).all()
-                if segments:
-                    tasks_with_segments.append({
-                        'task_id': task.id,
-                        'task_title': task.title,
-                        'segments_count': len(segments),
-                        'segments': [s.to_dict() for s in segments]
-                    })
-                else:
-                    tasks_without_segments.append({
-                        'task_id': task.id,
-                        'task_title': task.title,
-                        'project_id': task.backlog.project_id if task.backlog else 'No backlog'
-                    })
-            
-            debug_info['data']['tasks_with_segments'] = len(tasks_with_segments)
-            debug_info['data']['tasks_without_segments'] = len(tasks_without_segments)
-            debug_info['data']['tasks_with_segments_details'] = tasks_with_segments
-            debug_info['data']['tasks_without_segments_details'] = tasks_without_segments
-            
-            if len(tasks_without_segments) > 0:
-                debug_info['issues_found'].append(f"{len(tasks_without_segments)} tarefas não têm segmentos criados")
-                debug_info['solutions'].append("Use o botão 'Auto-Segmentar' ou crie segmentos manualmente para as tarefas")
-        
-        # **RESTO DA FUNÇÃO (projetos ativos, etc.) - mantém igual**
-        # 3. Verificar se os projetos estão ativos
-        macro_service = MacroService()
-        try:
-            active_projects_data = macro_service.carregar_dados()
-            if not active_projects_data.empty:
-                active_projects = macro_service.obter_projetos_ativos(active_projects_data)
-                active_project_ids = [str(p.get('numero', '')) for p in active_projects]
-                debug_info['data']['active_project_ids'] = active_project_ids
-                
-                if tasks_for_specialist:
-                    inactive_projects = []
-                    for task in tasks_for_specialist:
-                        if task.backlog and task.backlog.project_id not in active_project_ids:
-                            inactive_projects.append({
-                                'task_id': task.id,
-                                'task_title': task.title,
-                                'project_id': task.backlog.project_id
-                            })
-                    
-                    debug_info['data']['tasks_in_inactive_projects'] = len(inactive_projects)
-                    debug_info['data']['inactive_projects_details'] = inactive_projects
-                    
-                    if len(inactive_projects) > 0:
-                        debug_info['issues_found'].append(f"{len(inactive_projects)} tarefas estão em projetos inativos")
-                        debug_info['solutions'].append("Verifique se os projetos estão ativos no sistema macro")
-            else:
-                debug_info['issues_found'].append("Não foi possível carregar dados do MacroService")
-                debug_info['solutions'].append("Verifique a configuração do MacroService")
-                
-        except Exception as e:
-            debug_info['issues_found'].append(f"Erro ao verificar projetos ativos: {str(e)}")
-        
-        # 4. Verificar se os segmentos estão no período correto (só se tiver tarefas)
-        if tasks_for_specialist:
-            hoje = datetime.now()
-            week_start = hoje.date() - timedelta(days=hoje.weekday())  # Segunda-feira
-            week_end = week_start + timedelta(days=4)  # Sexta-feira
-            
-            week_start_br = week_start.strftime('%d/%m/%Y')
-            week_end_br = week_end.strftime('%d/%m/%Y')
-            hoje_br = hoje.strftime('%d/%m/%Y %H:%M:%S')
-            
-            segments_in_current_week = []
-            segments_outside_week = []
-            all_segments_with_dates = []
-            
-            for task_info in tasks_with_segments:
-                for segment_data in task_info['segments']:
-                    try:
-                        segment_start_dt = datetime.fromisoformat(segment_data['segment_start_datetime'])
-                        segment_start_date = segment_start_dt.date()
-                        segment_start_br = segment_start_dt.strftime('%d/%m/%Y %H:%M')
-                        
-                        segment_info = {
-                            **segment_data,
-                            'task_title': task_info['task_title'],
-                            'segment_start_formatted': segment_start_br
-                        }
-                        
-                        all_segments_with_dates.append(segment_info)
-                        
-                        if week_start <= segment_start_date <= week_end:
-                            segments_in_current_week.append(segment_info)
-                        else:
-                            segments_outside_week.append(segment_info)
-                            
-                    except Exception as e:
-                        current_app.logger.warning(f"[DEBUG Sprint] Erro ao processar data do segmento: {e}")
-            
-            debug_info['data']['today'] = hoje_br
-            debug_info['data']['current_week'] = f"{week_start_br} - {week_end_br}"
-            debug_info['data']['current_week_iso'] = f"{week_start} - {week_end}"
-            debug_info['data']['segments_in_current_week'] = len(segments_in_current_week)
-            debug_info['data']['segments_outside_week'] = len(segments_outside_week)
-            debug_info['data']['all_segments_with_dates'] = all_segments_with_dates
-            
-            if len(segments_in_current_week) == 0 and len(tasks_with_segments) > 0:
-                debug_info['issues_found'].append("Nenhum segmento está na semana atual")
-                debug_info['solutions'].append("Ajuste as datas dos segmentos para a semana atual ou navegue para outras semanas")
-        
-        # 5. Informações adicionais sobre o banco de dados
-        debug_info['data']['database_info'] = {
-            'total_tasks_in_db': Task.query.count(),
-            'total_segments_in_db': TaskSegment.query.count(),
-            'tasks_with_specialist': Task.query.filter(Task.specialist_name.isnot(None)).count(),
-            'unique_specialists': all_specialists
-        }
-        
-        # 6. Resumo
-        if len(debug_info['issues_found']) == 0:
-            debug_info['status'] = 'OK'
-            debug_info['message'] = 'Tudo parece estar configurado corretamente'
-        else:
-            debug_info['status'] = 'ISSUES_FOUND'
-            debug_info['message'] = f"Encontrados {len(debug_info['issues_found'])} problemas"
-        
-        return jsonify(debug_info)
-        
-    except Exception as e:
-        current_app.logger.error(f"[DEBUG Sprint] Erro: {str(e)}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
-
-# --- FIM: Debug Sprint Semanal ---
+# --- SPRINT SEMANAL: Função de debug removida para produção ---
 
 @backlog_bp.route('/api/specialists/<path:specialist_name>/redistribute-workload', methods=['POST'])
 def redistribute_specialist_workload(specialist_name):
@@ -3200,7 +3004,7 @@ def calculate_team_optimization_score():
         score_components['overload_prevention'] = round(overload_score, 1)
         
         # 4. Eficiência de capacidade
-        max_possible_capacity = len(team_members) * 40  # 40h por semana por pessoa
+        max_possible_capacity = len(team_members) * 36  # 36h por semana por pessoa
         capacity_efficiency = (total_capacity / max_possible_capacity) * 100 if max_possible_capacity > 0 else 0
         score_components['capacity_efficiency'] = round(capacity_efficiency, 1)
         
@@ -3271,3 +3075,74 @@ def _assess_prediction_risks(metricas: dict, tendencias: dict) -> dict:
         'level': 'alto' if len(risks) > 2 else 'medio' if len(risks) > 0 else 'baixo',
         'factors': risks
     }
+
+# Rota modificada para POST (sem backlog_id na URL)
+@backlog_bp.route('/api/milestones', methods=['POST'])
+def create_milestone():
+    """Cria um novo marco (milestone) para o projeto."""
+    current_app.logger.info("!!! ROTA POST /api/milestones ACESSADA !!!")
+    data = request.get_json()
+    if not data:
+        abort(400, description="Nenhum dado fornecido.")
+
+    # Extração e validação de dados
+    backlog_id = data.get('backlog_id')
+    name = data.get('name', '').strip()
+    planned_date_str = data.get('planned_date')
+
+    if not all([backlog_id, name, planned_date_str]):
+        abort(400, description="'backlog_id', 'name', e 'planned_date' são obrigatórios.")
+
+    backlog = Backlog.query.get_or_404(backlog_id)
+    
+    try:
+        planned_date = datetime.strptime(planned_date_str, '%Y-%m-%d').date()
+        
+        # --- CORREÇÃO: Usar chaves de Enum ---
+        status_key = data.get('status', 'PENDING').strip()
+        criticality_key = data.get('criticality', 'MEDIUM').strip()
+        
+        if not status_key: status_key = 'PENDING'
+        if not criticality_key: criticality_key = 'MEDIUM'
+
+        status = MilestoneStatus[status_key]
+        criticality = MilestoneCriticality[criticality_key]
+        # --- FIM CORREÇÃO ---
+
+        actual_date = None
+        if data.get('actual_date'):
+            actual_date = datetime.strptime(data['actual_date'], '%Y-%m-%d').date()
+
+        new_milestone = ProjectMilestone(
+            name=name,
+            description=data.get('description'),
+            planned_date=planned_date,
+            actual_date=actual_date,
+            status=status,
+            criticality=criticality,
+            is_checkpoint=data.get('is_checkpoint', False),
+            backlog_id=backlog.id
+        )
+
+        db.session.add(new_milestone)
+        db.session.commit()
+        current_app.logger.info(f"Marco '{name}' (ID: {new_milestone.id}) criado com sucesso para backlog {backlog_id}.")
+        return jsonify(new_milestone.to_dict()), 201
+
+    except (ValueError, KeyError) as e:
+        db.session.rollback()
+        # Log mais detalhado
+        error_msg = f"Erro de valor ou chave de enum inválida: {str(e)}"
+        current_app.logger.error(f"Erro ao criar marco para backlog {backlog_id}: {error_msg}", exc_info=True)
+        # Fornece uma mensagem de erro mais útil ao cliente
+        if isinstance(e, KeyError):
+            valid_statuses = [s.name for s in MilestoneStatus]
+            valid_criticalities = [c.name for c in MilestoneCriticality]
+            abort(400, description=f"Chave de enum inválida. Status válidos: {valid_statuses}. Criticidades válidas: {valid_criticalities}.")
+        else:
+            abort(400, description="Formato de data inválido. Use YYYY-MM-DD.")
+            
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro inesperado ao criar marco para backlog {backlog_id}: {e}", exc_info=True)
+        abort(500, description="Erro interno ao criar o marco.")

@@ -44,36 +44,6 @@
     overflow: hidden;
   }
 
-  /* Controles de Visibilidade */
-  .side-column {
-    transition: all 0.3s ease-in-out;
-    overflow: hidden;
-  }
-
-  .side-column.hidden {
-    width: 0 !important;
-    min-width: 0 !important;
-    max-width: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    opacity: 0;
-  }
-
-  /* Estados dos Botões de Toggle */
-  .btn-toggle-active {
-    background-color: var(--sprint-primary) !important;
-    border-color: var(--sprint-primary) !important;
-    color: white !important;
-  }
-
-  .btn-toggle-inactive {
-    background-color: transparent !important;
-    border-color: var(--sprint-secondary) !important;
-    color: var(--sprint-secondary) !important;
-    opacity: 0.6;
-  }
-
   /* Sprint Board */
   .sprint-board {
     flex-grow: 1;
@@ -395,27 +365,7 @@
             <h1 class="h3 mb-0">Gerenciamento de Sprints</h1>
             <p class="text-muted mb-0">Organize e gerencie suas sprints com drag & drop</p>
         </div>
-        <div class="d-flex gap-2 align-items-center">
-            <!-- Controles de Visibilidade -->
-            <div class="btn-group" role="group" aria-label="Controles de Visibilidade">
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="toggleBacklogBtn" 
-                        onclick="toggleColumnVisibility('backlog')" title="Mostrar/Ocultar Backlog">
-                    <i class="bi bi-list-ul"></i> Backlog
-                </button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="toggleGenericTasksBtn" 
-                        onclick="toggleColumnVisibility('genericTasks')" title="Mostrar/Ocultar Tarefas Genéricas">
-                    <i class="bi bi-gear"></i> Tarefas
-                </button>
-            </div>
-            
-            <div class="vr"></div>
-            
-            <button type="button" class="btn btn-outline-secondary" onclick="openArchivedSprintsModal()">
-                <i class="bi bi-archive"></i> Sprints Arquivadas
-            </button>
-            <a href="{{ url_for('sprints.consolidated_report_page') }}" class="btn btn-outline-info">
-                <i class="bi bi-file-earmark-text"></i> Relatório Consolidado
-            </a>
+        <div>
             <button type="button" class="btn btn-primary" onclick="openSprintModal()">
                 <i class="bi bi-plus-circle"></i> Nova Sprint
             </button>
@@ -680,41 +630,6 @@
         </div>
     </div>
 </div>
-
-<!-- Modal de Sprints Arquivadas -->
-<div class="modal fade" id="archivedSprintsModal" tabindex="-1" aria-labelledby="archivedSprintsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="archivedSprintsModalLabel">
-                    <i class="bi bi-archive"></i> Sprints Arquivadas
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <p class="text-muted mb-0">Gerencie sprints que foram arquivadas. Você pode desarquivar uma sprint para trazê-la de volta à visualização principal.</p>
-                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="refreshArchivedSprints()">
-                        <i class="bi bi-arrow-clockwise"></i> Atualizar
-                    </button>
-                </div>
-                
-                <div id="archivedSprintsContainer">
-                    <div class="text-center p-4">
-                        <div class="spinner-border" role="status">
-                            <span class="visually-hidden">Carregando...</span>
-                        </div>
-                        <p class="mt-2 text-muted">Carregando sprints arquivadas...</p>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 {% endblock %}
 
 {% block extra_js %}
