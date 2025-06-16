@@ -422,7 +422,8 @@ def get_sprint_report(sprint_id):
 # GET /sprints/consolidated-report - Página de seleção de Sprints para relatório
 @sprints_bp.route('/consolidated-report', methods=['GET'])
 def consolidated_report_page():
-    sprints = Sprint.query.order_by(Sprint.start_date.desc()).all()
+    # CORREÇÃO: Filtra apenas sprints ativas (não arquivadas)
+    sprints = Sprint.query.filter(Sprint.is_archived != True).order_by(Sprint.start_date.desc()).all()
     return render_template(
         'sprints/consolidated_report_select.html',
         title="Relatório Consolidado de Sprints",
@@ -436,9 +437,13 @@ def generate_consolidated_report():
     if not sprint_ids:
         abort(400, description="Nenhuma sprint selecionada")
 
-    sprints = Sprint.query.filter(Sprint.id.in_(sprint_ids)).order_by(Sprint.start_date).all()
+    # CORREÇÃO: Filtra apenas sprints ativas (não arquivadas) mesmo quando IDs específicos são fornecidos
+    sprints = Sprint.query.filter(
+        Sprint.id.in_(sprint_ids),
+        Sprint.is_archived != True
+    ).order_by(Sprint.start_date).all()
     if not sprints:
-        abort(404, description="Nenhuma sprint encontrada")
+        abort(404, description="Nenhuma sprint ativa encontrada")
 
     # Cálculo de datas do período total
     start_date = min(sprint.start_date for sprint in sprints)
@@ -521,9 +526,13 @@ def export_consolidated_report():
     if not sprint_ids or not sprint_ids[0]:
         abort(400, description="Nenhuma sprint selecionada")
 
-    sprints = Sprint.query.filter(Sprint.id.in_(sprint_ids)).order_by(Sprint.start_date).all()
+    # CORREÇÃO: Filtra apenas sprints ativas (não arquivadas) mesmo quando IDs específicos são fornecidos
+    sprints = Sprint.query.filter(
+        Sprint.id.in_(sprint_ids),
+        Sprint.is_archived != True
+    ).order_by(Sprint.start_date).all()
     if not sprints:
-        abort(404, description="Nenhuma sprint encontrada")
+        abort(404, description="Nenhuma sprint ativa encontrada")
 
     # Criar um novo workbook
     wb = Workbook()

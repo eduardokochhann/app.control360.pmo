@@ -839,6 +839,18 @@ def get_project_details(project_id):
         if not project_details: 
              # O método do serviço já logou o warning/erro
              return jsonify({'message': 'Detalhes do projeto não encontrados'}), 404
+        
+        # Adiciona informações do backlog se existir
+        backlog = Backlog.query.filter_by(project_id=project_id).first()
+        if backlog:
+            project_details['backlog'] = {
+                'id': backlog.id,
+                'name': backlog.name,
+                'available_for_sprint': backlog.available_for_sprint,
+                'created_at': backlog.created_at.isoformat() if backlog.created_at else None
+            }
+        else:
+            project_details['backlog'] = None
              
         return jsonify(project_details)
         
@@ -896,12 +908,14 @@ def get_unassigned_tasks():
     macro_service = MacroService() # Re-adiciona instância do serviço
     try:
         # 1. Busca todas as tarefas sem sprint_id E QUE NÃO SÃO GENÉRICAS,
+        #    APENAS de backlogs disponíveis para sprint,
         #    ordenadas por backlog e posição
         unassigned_tasks = Task.query.filter(
                                         Task.sprint_id == None,
                                         Task.is_generic == False # Simplifica a condição
                                       )\
                                       .join(Backlog)\
+                                      .filter(Backlog.available_for_sprint == True)\
                                       .order_by(Task.backlog_id, Task.position).all()
 
         # 2. Agrupa as tarefas por backlog_id
@@ -921,6 +935,24 @@ def get_unassigned_tasks():
 
             # Re-adiciona busca de detalhes dos projetos
             project_ids = list(set(b.project_id for b in backlogs)) # Evita buscar o mesmo ID várias vezes
+            
+            # NOVO: Filtra apenas projetos ativos
+            active_project_ids = set()
+            if project_ids:
+                try:
+                    # Carrega os dados primeiro
+                    dados_df = macro_service.carregar_dados()
+                    if not dados_df.empty:
+                        projects_data = macro_service.obter_projetos_ativos(dados_df)
+                        if projects_data:
+                            active_project_ids = set(str(p.get('numero', '')) for p in projects_data if p.get('numero'))
+                            current_app.logger.info(f"[Unassigned Tasks] Encontrados {len(active_project_ids)} projetos ativos")
+                    else:
+                        current_app.logger.warning("DataFrame vazio ao carregar dados para filtrar projetos ativos")
+                except Exception as e:
+                    current_app.logger.warning(f"Erro ao buscar projetos ativos: {e}")
+                    # Se falhar, considera todos os projetos como ativos
+                    active_project_ids = set(project_ids)
             
             # OTIMIZAÇÃO: Instanciar macro_service uma vez e usar cache interno
             if project_ids:
@@ -943,6 +975,11 @@ def get_unassigned_tasks():
             for backlog_id, tasks in tasks_by_backlog.items():
                 backlog = backlog_details_map.get(backlog_id)
                 if backlog:
+                    # NOVO: Verifica se o projeto está ativo
+                    if backlog.project_id not in active_project_ids:
+                        current_app.logger.debug(f"[Unassigned Tasks] Projeto {backlog.project_id} não está ativo, ignorando backlog")
+                        continue
+                    
                     project_details = project_details_map.get(backlog.project_id)
                     
                     # OTIMIZAÇÃO: Removido log excessivo de project details
@@ -955,7 +992,8 @@ def get_unassigned_tasks():
                         'backlog_name': backlog.name, # Nome do Backlog (Ex: Backlog Principal)
                         'project_id': backlog.project_id, # ID do Projeto associado
                         'project_name': project_name, # << NOME DO PROJETO CORRIGIDO
-                        'tasks': tasks
+                        'tasks': tasks,
+                        'available_for_sprint': backlog.available_for_sprint  # NOVO: Inclui flag de disponibilidade
                     })
                 else:
                     # OTIMIZAÇÃO: Log apenas em WARNING para casos raros
@@ -968,7 +1006,41 @@ def get_unassigned_tasks():
 
     except Exception as e:
         current_app.logger.error(f"Erro ao buscar tarefas não alocadas: {e}", exc_info=True)
-        return jsonify({"message": "Erro interno ao buscar tarefas não alocadas."}), 500 
+        return jsonify({"message": "Erro interno ao buscar tarefas não alocadas."}), 500
+
+# API para atualizar disponibilidade de backlog para sprints
+@backlog_bp.route('/api/backlogs/<int:backlog_id>/sprint-availability', methods=['PUT'])
+def update_backlog_sprint_availability(backlog_id):
+    """
+    Atualiza se um backlog deve aparecer no módulo de sprints
+    """
+    try:
+        backlog = Backlog.query.get_or_404(backlog_id)
+        data = request.get_json()
+        
+        if 'available_for_sprint' not in data:
+            return jsonify({'error': 'Campo available_for_sprint é obrigatório'}), 400
+        
+        old_value = backlog.available_for_sprint
+        new_value = bool(data['available_for_sprint'])
+        
+        backlog.available_for_sprint = new_value
+        db.session.commit()
+        
+        action = "habilitado" if new_value else "desabilitado"
+        current_app.logger.info(f"Backlog {backlog_id} (Projeto {backlog.project_id}) {action} para sprints")
+        
+        return jsonify({
+            'message': f'Backlog {action} para sprints com sucesso',
+            'backlog_id': backlog.id,
+            'project_id': backlog.project_id,
+            'available_for_sprint': backlog.available_for_sprint,
+            'changed': old_value != new_value
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao atualizar disponibilidade do backlog {backlog_id}: {e}", exc_info=True)
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500 
 
 # API para associar/desassociar uma tarefa a uma Sprint
 @backlog_bp.route('/api/tasks/<int:task_id>/assign', methods=['PUT'])

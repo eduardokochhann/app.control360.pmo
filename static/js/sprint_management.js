@@ -409,12 +409,18 @@ function renderBacklogProject(backlog) {
         }
     }
     
+    // Indicador de visibilidade
+    const visibilityBadge = backlog.available_for_sprint !== false ? 
+        '<span class="badge bg-success ms-2" title="Visível em Sprints"><i class="bi bi-eye"></i></span>' :
+        '<span class="badge bg-secondary ms-2" title="Oculto em Sprints"><i class="bi bi-eye-slash"></i></span>';
+    
     return `
         <div class="project-group mb-3">
             <div class="project-header" onclick="toggleProjectTasks(this)">
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="project-info">
                         <strong>${escapeHtml(displayName)}</strong>
+                        ${visibilityBadge}
                         <small class="text-muted d-block">${backlog.tasks ? backlog.tasks.length : 0} tarefas</small>
                     </div>
                     <div class="d-flex align-items-center gap-2">
