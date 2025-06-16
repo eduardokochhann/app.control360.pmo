@@ -7,24 +7,9 @@ param tags object = {}
 
 param appControl360SouExists bool
 
-@description('Id of the user or app to assign application roles')
-param principalId string
-
 var abbrs = loadJsonContent('./abbreviations.json')
 var resourceToken = uniqueString(subscription().id, resourceGroup().id, location)
 
-// Monitor application with Azure Monitor
-module monitoring 'br/public:avm/ptn/azd/monitoring:0.1.0' = {
-  name: 'monitoring'
-  params: {
-    logAnalyticsName: '${abbrs.operationalInsightsWorkspaces}${resourceToken}'
-    applicationInsightsName: '${abbrs.insightsComponents}${resourceToken}'
-    applicationInsightsDashboardName: '${abbrs.portalDashboards}${resourceToken}'
-    location: location
-    tags: tags
-    enableTelemetry: false
-  }
-}
 // Container registry
 module containerRegistry 'br/public:avm/res/container-registry/registry:0.1.1' = {
   name: 'registry'
@@ -43,14 +28,43 @@ module containerRegistry 'br/public:avm/res/container-registry/registry:0.1.1' =
   }
 }
 
+module containerVolumeFileShare 'br/public:avm/res/storage/storage-account:0.20.0' = {
+  name: 'container-volume-file-share'
+  params: {
+    // Required parameters
+    name: '${abbrs.storageStorageAccounts}${resourceToken}'
+    // Non-required parameters
+    fileServices: {
+      shares: [
+        {
+          enabledProtocols: 'NFS'
+          name: 'nfsfileshare'
+        }
+      ]
+    }
+    kind: 'FileStorage'
+    skuName: 'Standard_LRS'
+  }
+}
+
 // Container apps environment
-module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.4.5' = {
+module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.11.2' = {
   name: 'container-apps-environment'
   params: {
-    logAnalyticsWorkspaceResourceId: monitoring.outputs.logAnalyticsWorkspaceResourceId
+    appLogsConfiguration: {
+      destination: 'azure-monitor'
+    }
     name: '${abbrs.appManagedEnvironments}${resourceToken}'
     location: location
     zoneRedundant: false
+    storages: [
+      {
+        accessMode: 'ReadWrite'
+        kind: 'NFS'
+        shareName: 'app-control360-sou'
+        storageAccountName: containerVolumeFileShare.outputs.name
+      }
+    ]
   }
 }
 
@@ -68,6 +82,7 @@ module appControl360SouFetchLatestImage './modules/fetch-container-image.bicep' 
     name: 'app-control360-sou'
   }
 }
+
 
 module appControl360Sou 'br/public:avm/res/app/container-app:0.8.0' = {
   name: 'appControl360Sou'
@@ -90,10 +105,6 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.8.0' = {
         }
         env: [
           {
-            name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-            value: monitoring.outputs.applicationInsightsConnectionString
-          }
-          {
             name: 'AZURE_CLIENT_ID'
             value: appControl360SouIdentity.outputs.clientId
           }
@@ -102,6 +113,23 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.8.0' = {
             value: '5000'
           }
         ]
+        volumeMounts: [
+          {
+            volumeName: 'app-data'
+            mountPath: '/app/data'
+          }
+        ]
+      }
+    ]
+    // Docs: https://learn.microsoft.com/en-us/azure/templates/microsoft.app/containerapps?pivots=deployment-language-arm-template#volume-1
+    volumes: [
+      {
+        name: 'app-data'
+        azureFile: {
+          shareName: 'app-control360-sou'
+          storageAccountName: containerRegistry.outputs.name
+          storageAccountKeySecretName: 'storage-account-key'
+        }
       }
     ]
     managedIdentities:{
