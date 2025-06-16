@@ -5,14 +5,12 @@ trigger:
 pool:
   vmImage: ubuntu-latest
 
-steps:
-  # setup-azd@1 needs to be manually installed in your organization
-  # if you can't install it, you can use the below bash script to install azd
-  # and remove this step
-  # - task: setup-azd@1
-  #   displayName: Install azd
+variables:
+  AZURE_SUBSCRIPTION_ID: '6f97d0ea-fd4f-4149-9480-729e8f6a966f'
+  AZURE_ENV_NAME: 'app-control360-sou-dev'
+  AZURE_LOCATION: 'eastus2'
 
-  # If you can't install above task in your organization, you can comment it and uncomment below task to install azd
+steps:
   - task: Bash@3
     displayName: Install azd
     inputs:
@@ -37,7 +35,6 @@ steps:
       AZURE_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
       AZURE_ENV_NAME: $(AZURE_ENV_NAME)
       AZURE_LOCATION: $(AZURE_LOCATION)
-      SERVICE_APP_CONTROL360_SOU_RESOURCE_EXISTS: $(SERVICE_APP_CONTROL360_SOU_RESOURCE_EXISTS)
 
   - task: AzureCLI@2
     displayName: Deploy Application
@@ -52,4 +49,3 @@ steps:
       AZURE_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
       AZURE_ENV_NAME: $(AZURE_ENV_NAME)
       AZURE_LOCATION: $(AZURE_LOCATION)
-      SERVICE_APP_CONTROL360_SOU_RESOURCE_EXISTS: $(SERVICE_APP_CONTROL360_SOU_RESOURCE_EXISTS)
