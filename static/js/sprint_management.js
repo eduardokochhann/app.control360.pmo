@@ -82,15 +82,56 @@ function showToast(message, type = 'info') {
     // Implementação básica de toast
     console.log(`[${type.toUpperCase()}] ${message}`);
     
-    // Se houver uma função global de toast, usa ela
-    if (typeof window.showToast === 'function') {
-        window.showToast(message, type);
+    // Verifica se existe uma função de toast global diferente desta
+    if (typeof window.globalShowToast === 'function') {
+        window.globalShowToast(message, type);
+    } else if (typeof window.bootstrap !== 'undefined') {
+        // Usa Bootstrap Toast se disponível
+        createBootstrapToast(message, type);
     } else {
-        // Fallback para alert
+        // Fallback para alert apenas em caso de erro
         if (type === 'error') {
             alert(`Erro: ${message}`);
         }
     }
+}
+
+function createBootstrapToast(message, type) {
+    // Cria um toast usando Bootstrap se disponível
+    const toastContainer = document.getElementById('toast-container') || createToastContainer();
+    
+    const toastId = 'toast-' + Date.now();
+    const bgClass = type === 'error' ? 'bg-danger' : type === 'success' ? 'bg-success' : 'bg-info';
+    
+    const toastHtml = `
+        <div id="${toastId}" class="toast ${bgClass} text-white" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-body">
+                ${escapeHtml(message)}
+            </div>
+        </div>
+    `;
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    
+    const toastElement = document.getElementById(toastId);
+    if (toastElement && window.bootstrap) {
+        const toast = new window.bootstrap.Toast(toastElement, { delay: 3000 });
+        toast.show();
+        
+        // Remove o toast após ser ocultado
+        toastElement.addEventListener('hidden.bs.toast', () => {
+            toastElement.remove();
+        });
+    }
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '9999';
+    document.body.appendChild(container);
+    return container;
 }
 
 // Funções de carregamento de dados
@@ -318,7 +359,9 @@ function renderSprintTask(task) {
              data-estimated-hours="${task.estimated_effort || 0}"
              data-specialist-name="${escapeHtml(task.specialist_name || '')}"
              data-project-id="${task.project_id || ''}"
-             data-backlog-id="${task.backlog_id || ''}">
+             data-backlog-id="${task.backlog_id || ''}"
+             onclick="openTaskDetailsModal(this, ${JSON.stringify(task).replace(/"/g, '&quot;')})"
+             style="cursor: pointer;">
             <div class="task-header">
                 <div class="task-id-badge">${escapeHtml(fullTaskId)}</div>
                 <span class="task-priority-badge ${getPriorityClass(task.priority)}">${escapeHtml(task.priority || 'Média')}</span>
@@ -467,6 +510,18 @@ function setupEventListeners() {
     const genericTaskForm = document.getElementById('genericTaskForm');
     if (genericTaskForm) {
         genericTaskForm.addEventListener('submit', handleGenericTaskFormSubmit);
+    }
+    
+    // Handler para formulário de detalhes da tarefa
+    const taskDetailsForm = document.getElementById('taskDetailsForm');
+    if (taskDetailsForm) {
+        taskDetailsForm.addEventListener('submit', handleTaskDetailsFormSubmit);
+    }
+    
+    // Handler para botão de excluir tarefa
+    const taskDeleteBtn = document.getElementById('taskDeleteBtn');
+    if (taskDeleteBtn) {
+        taskDeleteBtn.addEventListener('click', handleTaskDelete);
     }
     
     // Inicializar popovers após renderização
@@ -899,6 +954,266 @@ async function handleGenericTaskFormSubmit(event) {
     } catch (error) {
         console.error('❌ Erro ao salvar tarefa genérica:', error);
         showToast(`Erro ao salvar tarefa: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Abre o modal de detalhes da tarefa para edição
+ * @param {HTMLElement} taskElement - Elemento da tarefa clicada
+ * @param {Object} task - Dados da tarefa
+ */
+function openTaskDetailsModal(taskElement, task) {
+    console.log('🔄 Abrindo modal de detalhes da tarefa:', task);
+    
+    const modal = document.getElementById('taskDetailsModal');
+    const form = document.getElementById('taskDetailsForm');
+    const modalTitle = document.getElementById('taskDetailsModalLabel');
+    
+    if (!modal || !form) {
+        console.error('❌ Modal ou formulário de detalhes da tarefa não encontrado');
+        return;
+    }
+    
+    // Preenche o formulário com os dados da tarefa
+    document.getElementById('taskId').value = task.id || '';
+    document.getElementById('taskType').value = task.is_generic ? 'generic' : 'backlog';
+    document.getElementById('taskTitle').value = task.title || '';
+    document.getElementById('taskPriority').value = task.priority || 'Média';
+    document.getElementById('taskSpecialist').value = task.specialist_name || '';
+    document.getElementById('taskEstimatedHours').value = task.estimated_effort || '';
+    document.getElementById('taskDescription').value = task.description || '';
+    
+    // Preenche campos específicos do backlog se não for tarefa genérica
+    if (!task.is_generic) {
+        document.getElementById('taskProjectId').value = task.project_id || '';
+        // Usa column_name (nome em português) em vez de column_identifier (identificador em inglês)
+        document.getElementById('taskColumnIdentifier').value = task.column_name || task.column_identifier || '';
+        
+        // Mostra campos específicos do backlog
+        const backlogFields = document.getElementById('backlogSpecificFields');
+        if (backlogFields) {
+            backlogFields.style.display = 'block';
+        }
+    } else {
+        // Esconde campos específicos do backlog para tarefas genéricas
+        const backlogFields = document.getElementById('backlogSpecificFields');
+        if (backlogFields) {
+            backlogFields.style.display = 'none';
+        }
+    }
+    
+    // Define o status se disponível
+    const statusSelect = document.getElementById('taskStatus');
+    if (statusSelect && task.status) {
+        // Mapeia os valores do enum para os valores do select
+        let statusValue = task.status;
+        
+        // Se o status vier como string do enum, mapeia para os valores corretos
+        if (typeof task.status === 'string') {
+            const statusMapping = {
+                'A Fazer': 'TODO',
+                'Em Andamento': 'IN_PROGRESS', 
+                'Revisão': 'REVIEW',
+                'Concluído': 'DONE',
+                'Arquivado': 'ARCHIVED'
+            };
+            
+            // Se o status já está no formato correto (TODO, IN_PROGRESS, etc), usa direto
+            // Se está no formato de texto (A Fazer, Em Andamento, etc), converte
+            statusValue = statusMapping[task.status] || task.status;
+        }
+        
+        console.log('🔄 Definindo status:', { original: task.status, mapped: statusValue });
+        statusSelect.value = statusValue;
+    }
+    
+    // Atualiza título do modal
+    const taskId = task.project_id ? `${task.project_id}-${(task.column_identifier || 'UNK').substring(0, 3).toUpperCase()}-${task.id}` : `GEN-${task.id}`;
+    modalTitle.textContent = `Editar Tarefa: ${taskId}`;
+    
+    // Mostra o modal
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+}
+
+/**
+ * Handler para submissão do formulário de detalhes da tarefa
+ */
+async function handleTaskDetailsFormSubmit(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    const taskId = formData.get('taskId');
+    const taskType = formData.get('taskType');
+    
+    if (!taskId) {
+        showToast('ID da tarefa não encontrado', 'error');
+        return;
+    }
+    
+    // Prepara dados para envio
+    const data = {
+        title: formData.get('title'),
+        priority: formData.get('priority'),
+        specialist_name: formData.get('specialist_name') || null,
+        estimated_hours: formData.get('estimated_hours') ? parseFloat(formData.get('estimated_hours')) : null,
+        description: formData.get('description') || ''
+    };
+    
+    // Para tarefas do backlog, precisamos mapear o status para o ID da coluna correspondente
+    const statusValue = formData.get('status');
+    if (statusValue && statusValue !== 'None' && statusValue !== '' && taskType !== 'generic') {
+        // Mapeia status para ID da coluna correspondente
+        const columnId = await getColumnIdFromStatus(statusValue);
+        if (columnId) {
+            data.status = columnId;
+        }
+    } else if (taskType === 'generic' && statusValue && statusValue !== 'None' && statusValue !== '') {
+        // Para tarefas genéricas, envia o status diretamente
+        data.status = statusValue;
+    }
+    
+    console.log('💾 Salvando alterações da tarefa:', { taskId, taskType, data });
+    
+    try {
+        // Determina a URL da API baseada no tipo de tarefa
+        let apiUrl;
+        if (taskType === 'generic') {
+            apiUrl = `/sprints/api/generic-tasks/${taskId}`;
+        } else {
+            apiUrl = `/backlog/api/tasks/${taskId}`;
+        }
+        
+        const response = await fetch(apiUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || `Erro ${response.status}`);
+        }
+        
+        // Fecha o modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('taskDetailsModal'));
+        if (modal) modal.hide();
+        
+        // Recarrega os dados para refletir as mudanças
+        console.log('✅ Tarefa atualizada com sucesso, recarregando dados...');
+        await Promise.all([
+            loadSprints(),
+            taskType === 'generic' ? loadGenericTasks() : loadBacklogTasks()
+        ]);
+        
+        showToast('Tarefa atualizada com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Erro ao salvar alterações da tarefa:', error);
+        showToast(`Erro ao salvar alterações: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Handler para exclusão de tarefa
+ */
+async function handleTaskDelete() {
+    const taskId = document.getElementById('taskId').value;
+    const taskType = document.getElementById('taskType').value;
+    const taskTitle = document.getElementById('taskTitle').value;
+    
+    if (!taskId) {
+        showToast('ID da tarefa não encontrado', 'error');
+        return;
+    }
+    
+    if (!confirm(`Tem certeza que deseja excluir a tarefa "${taskTitle}"?`)) {
+        return;
+    }
+    
+    console.log('🗑️ Excluindo tarefa:', { taskId, taskType });
+    
+    try {
+        // Determina a URL da API baseada no tipo de tarefa
+        let apiUrl;
+        if (taskType === 'generic') {
+            apiUrl = `/sprints/api/generic-tasks/${taskId}`;
+        } else {
+            apiUrl = `/backlog/api/tasks/${taskId}`;
+        }
+        
+        const response = await fetch(apiUrl, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || `Erro ${response.status}`);
+        }
+        
+        // Fecha o modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('taskDetailsModal'));
+        if (modal) modal.hide();
+        
+        // Recarrega os dados
+        console.log('✅ Tarefa excluída com sucesso, recarregando dados...');
+        await Promise.all([
+            loadSprints(),
+            taskType === 'generic' ? loadGenericTasks() : loadBacklogTasks()
+        ]);
+        
+        showToast('Tarefa excluída com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Erro ao excluir tarefa:', error);
+        showToast(`Erro ao excluir tarefa: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Mapeia status para ID da coluna correspondente
+ * @param {string} status - Status da tarefa (TODO, IN_PROGRESS, etc.)
+ * @returns {Promise<number>} - ID da coluna correspondente
+ */
+async function getColumnIdFromStatus(status) {
+    try {
+        // Cache das colunas para evitar múltiplas requisições
+        if (!window.columnsCache) {
+            const response = await fetch('/backlog/api/columns');
+            if (!response.ok) {
+                throw new Error('Erro ao buscar colunas');
+            }
+            window.columnsCache = await response.json();
+        }
+        
+        // Mapeamento de status para nomes de coluna (em português)
+        const statusToColumnName = {
+            'TODO': ['a fazer', 'afazer', 'todo', 'pendente'],
+            'IN_PROGRESS': ['em andamento', 'andamento', 'progresso', 'desenvolvimento'],
+            'REVIEW': ['revisão', 'revisao', 'review', 'validação', 'teste'],
+            'DONE': ['concluído', 'concluido', 'done', 'finalizado', 'pronto'],
+            'ARCHIVED': ['arquivado', 'archived', 'cancelado']
+        };
+        
+        const possibleNames = statusToColumnName[status] || [];
+        
+        // Busca a coluna correspondente
+        for (const column of window.columnsCache) {
+            const columnNameLower = column.name.toLowerCase();
+            if (possibleNames.some(name => columnNameLower.includes(name) || name.includes(columnNameLower))) {
+                console.log(`🔄 Mapeando status '${status}' para coluna '${column.name}' (ID: ${column.id})`);
+                return column.id;
+            }
+        }
+        
+        // Se não encontrou, retorna null para não enviar o status
+        console.warn(`⚠️ Não foi possível mapear status '${status}' para uma coluna`);
+        return null;
+        
+    } catch (error) {
+        console.error('❌ Erro ao mapear status para coluna:', error);
+        return null;
     }
 }
 

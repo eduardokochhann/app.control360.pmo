@@ -423,12 +423,14 @@ function initializeSortable() {
     
     // --- Utilitários ---
     function showToast(message, type = 'info') {
-        // Usa a função do board.js se disponível
-        if (typeof window.showToast === 'function') {
-            window.showToast(message, type);
+        // Evita recursão infinita - usa função global diferente se disponível
+        if (typeof window.globalShowToast === 'function') {
+            window.globalShowToast(message, type);
         } else {
             console.log(`[${type.toUpperCase()}] TOAST: ${message}`);
-            alert(message);
+            if (type === 'error') {
+                alert(message);
+            }
         }
     }
     
