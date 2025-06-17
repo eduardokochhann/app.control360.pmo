@@ -63,7 +63,6 @@ module fileShareStorageAccount 'br/public:avm/res/storage/storage-account:0.20.0
         }
       ]
     }
-    publicNetworkAccess: 'Enabled'
     kind: 'StorageV2'
     skuName: 'Standard_LRS'
     secretsExportConfiguration: {
