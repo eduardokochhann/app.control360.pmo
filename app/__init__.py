@@ -2,7 +2,7 @@
 
 from flask import Flask, redirect, url_for
 import logging
-from logging.handlers import RotatingFileHandler # Para melhor gerenciamento de logs
+# Logging handlers removidos para evitar problemas de rotação no Windows
 import os # Pode ser útil para caminhos ou variáveis de ambiente
 from pathlib import Path
 from flask_sqlalchemy import SQLAlchemy
@@ -114,9 +114,8 @@ def create_app():
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s [in %(pathname)s:%(lineno)d]'
     )
 
-    file_handler = RotatingFileHandler(
-        log_file, maxBytes=1024*1024*5, backupCount=3, encoding='utf-8'
-    )
+    # Usa FileHandler simples para evitar problemas de rotação no Windows
+    file_handler = logging.FileHandler(log_file, encoding='utf-8')
     file_handler.setFormatter(log_format)
     file_handler.setLevel(log_level)
 

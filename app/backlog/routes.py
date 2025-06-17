@@ -96,7 +96,11 @@ def serialize_task(task):
                 from ..macro.services import MacroService
                 macro_service = MacroService()
                 project_details = macro_service.obter_detalhes_projeto(backlog.project_id)
-                task_data['project_name'] = project_details.get('Projeto', 'Projeto Desconhecido') if project_details else 'Projeto Desconhecido'
+                if project_details:
+                    # As chaves são normalizadas (minúsculas), então usa 'projeto' em vez de 'Projeto'
+                    task_data['project_name'] = project_details.get('projeto', project_details.get('Projeto', 'Projeto Desconhecido'))
+                else:
+                    task_data['project_name'] = 'Projeto Desconhecido'
             except Exception as proj_ex:
                 current_app.logger.warning(f"Erro ao buscar nome do projeto {backlog.project_id}: {proj_ex}")
                 task_data['project_name'] = 'Projeto Desconhecido'

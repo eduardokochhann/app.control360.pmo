@@ -195,6 +195,55 @@
     transition: all 0.2s ease;
   }
 
+  /* Botão de Retorno à Origem */
+  .task-return-btn {
+    transition: all 0.2s ease;
+    border-radius: 0.25rem !important;
+    font-size: 0.65rem !important;
+    padding: 1px 4px !important;
+    opacity: 0;
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid rgba(108, 117, 125, 0.4) !important;
+    color: #6c757d !important;
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    z-index: 10;
+    min-width: auto;
+    line-height: 1;
+  }
+
+  .task-return-btn:hover {
+    opacity: 1 !important;
+    background-color: #ffffff !important;
+    border-color: #6c757d !important;
+    color: #495057 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  }
+
+  .task-return-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Responsividade do botão */
+  @media (max-width: 768px) {
+    .task-return-btn {
+      padding: 1px 3px !important;
+      font-size: 0.6rem !important;
+    }
+  }
+
+  /* Hover effect no card da tarefa para mostrar o botão */
+  .sprint-task-card:hover .task-return-btn {
+    opacity: 0.7;
+  }
+
+  .sprint-task-card .task-return-btn:hover {
+    opacity: 1 !important;
+  }
+
   /* Linha Inferior do Cabeçalho */
   .sprint-header-bottom {
     display: flex;

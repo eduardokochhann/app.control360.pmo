@@ -79,8 +79,17 @@ def serialize_task_for_sprints(task):
                         from app.macro.services import MacroService
                         macro_service = MacroService()
                         project_details = macro_service.obter_detalhes_projeto(task_data['project_id'])
-                        if project_details and 'Projeto' in project_details:
-                            task_data['project_name'] = project_details['Projeto']
+                        if project_details:
+                            # As chaves são normalizadas (minúsculas), então usa 'projeto' em vez de 'Projeto'
+                            # Verifica múltiplas possibilidades para garantir que encontre o nome
+                            project_name = (
+                                project_details.get('projeto') or 
+                                project_details.get('Projeto') or 
+                                project_details.get('cliente_(completo)') or
+                                project_details.get('Cliente (Completo)') or
+                                f'Projeto {task_data["project_id"]}'
+                            )
+                            task_data['project_name'] = project_name
                         else:
                             task_data['project_name'] = f'Projeto {task_data["project_id"]}'
                     except:

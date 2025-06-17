@@ -362,6 +362,12 @@ function renderSprintTask(task) {
     const isCompleted = task.column_identifier === 'concluido';
     const fullTaskId = `${projectPart}-${columnPart}-${task.id}`;
     
+    // Determina o tipo de origem da tarefa
+    const isGenericTask = !task.project_id || !task.backlog_id;
+    const originType = isGenericTask ? 'generic' : 'backlog';
+    const returnTitle = isGenericTask ? 'Retornar para Tarefas Genéricas' : 'Retornar para Backlog do Projeto';
+    const returnIcon = isGenericTask ? 'bi-gear' : 'bi-kanban';
+    
     return `
         <div class="backlog-task-card sprint-task-card" 
              data-task-id="${task.id}"
@@ -369,17 +375,26 @@ function renderSprintTask(task) {
              data-specialist-name="${escapeHtml(task.specialist_name || '')}"
              data-project-id="${task.project_id || ''}"
              data-backlog-id="${task.backlog_id || ''}"
+             data-origin-type="${originType}"
              onclick="openTaskDetailsModal(this, ${JSON.stringify(task).replace(/"/g, '&quot;')})"
-             style="cursor: pointer;">
+             style="cursor: pointer; position: relative;">
+            
+            <!-- Botão sutil de retorno -->
+            <button class="btn btn-sm btn-outline-secondary task-return-btn" 
+                    onclick="event.stopPropagation(); returnTaskToOrigin(${task.id}, '${originType}')" 
+                    title="${returnTitle}">
+                <i class="bi ${returnIcon}"></i>
+            </button>
+            
             <div class="task-header">
                 <div class="task-id-badge">${escapeHtml(fullTaskId)}</div>
                 <span class="task-priority-badge ${getPriorityClass(task.priority)}">${escapeHtml(task.priority || 'Média')}</span>
             </div>
             <div class="task-content">
                 <div class="task-title">${escapeHtml(task.title || 'Sem título')}</div>
-                ${task.project_name ? `<div class="task-project">${escapeHtml(task.project_name)}</div>` : ''}
-                ${task.specialist_name ? `<div class="task-specialist">${escapeHtml(task.specialist_name)}</div>` : ''}
-                ${task.estimated_effort ? `<div class="task-hours">${task.estimated_effort}h</div>` : ''}
+                ${task.project_name ? `<div class="task-project">📁 ${escapeHtml(task.project_name)}</div>` : ''}
+                ${task.specialist_name ? `<div class="task-specialist">👤 ${escapeHtml(task.specialist_name)}</div>` : ''}
+                ${task.estimated_effort ? `<div class="task-hours">⏱️ ${task.estimated_effort}h</div>` : ''}
             </div>
             ${isCompleted ? '<div class="task-completed-overlay"><i class="bi bi-check-circle-fill"></i></div>' : ''}
         </div>
@@ -1695,5 +1710,57 @@ function updateSpecialistPopover(sprintCard, hoursBySpecialist) {
         }
     }
 }
+
+/**
+ * Retorna uma tarefa para sua origem (backlog do projeto ou tarefas genéricas)
+ * @param {number} taskId - ID da tarefa
+ * @param {string} originType - Tipo de origem ('backlog' ou 'generic')
+ */
+async function returnTaskToOrigin(taskId, originType) {
+    try {
+        console.log(`🔄 Retornando tarefa ${taskId} para origem: ${originType}`);
+        
+        let apiUrl, successMessage;
+        
+        if (originType === 'generic') {
+            // Para tarefas genéricas, remove da sprint
+            apiUrl = `/sprints/api/sprints/tasks/${taskId}/move-to-backlog`;
+            successMessage = 'Tarefa retornada para Tarefas Genéricas';
+        } else {
+            // Para tarefas de backlog, remove da sprint (volta para o backlog do projeto)
+            apiUrl = `/sprints/api/sprints/tasks/${taskId}/move-to-backlog`;
+            successMessage = 'Tarefa retornada para o Backlog do Projeto';
+        }
+        
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `Erro ${response.status}`);
+        }
+        
+        // Feedback visual
+        showToast(successMessage, 'success');
+        
+        // Recarrega dados para atualizar a interface
+        await Promise.all([
+            loadSprints(),
+            loadBacklogTasks(),
+            loadGenericTasks()
+        ]);
+        
+        console.log(`✅ Tarefa ${taskId} retornada com sucesso para ${originType}`);
+        
+    } catch (error) {
+        console.error('❌ Erro ao retornar tarefa:', error);
+        showToast(`Erro ao retornar tarefa: ${error.message}`, 'error');
+    }
+}
+
+// Expõe a função globalmente para uso nos botões
+window.returnTaskToOrigin = returnTaskToOrigin;
 
 console.log('✅ Sprint Management JavaScript carregado'); 
