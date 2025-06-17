@@ -150,6 +150,9 @@ async function loadSprints() {
         const sprints = await response.json();
         console.log(`✅ ${sprints.length} sprints carregadas`);
         
+        // Armazena os dados das sprints globalmente para uso em cálculos
+        window.sprintsData = sprints;
+        
         renderSprints(sprints);
         initializeSortable();
         initializePopovers();
@@ -648,16 +651,27 @@ function updateSprintHoursDisplay(listElement) {
     
     const tasks = listElement.querySelectorAll('.backlog-task-card');
     let totalHours = 0;
+    let hoursBySpecialist = {};
     
     tasks.forEach(task => {
         const hours = parseFloat(task.dataset.estimatedHours) || 0;
         totalHours += hours;
+        
+        // Calcula horas por especialista
+        const specialist = task.dataset.specialistName;
+        if (specialist && specialist.trim()) {
+            hoursBySpecialist[specialist] = (hoursBySpecialist[specialist] || 0) + hours;
+        }
     });
     
+    // Atualiza o total de horas
     const hoursSpan = sprintCard.querySelector('.sprint-total-hours');
     if (hoursSpan) {
         hoursSpan.innerHTML = `<i class="bi bi-clock"></i> ${totalHours.toFixed(1)}h`;
     }
+    
+    // Atualiza o popover dos especialistas
+    updateSpecialistPopover(sprintCard, hoursBySpecialist);
 }
 
 // Funções de modal
@@ -1605,5 +1619,81 @@ function initializeColumnVisibility() {
 
 // Expõe a função globalmente para uso nos botões
 window.toggleColumnVisibility = toggleColumnVisibility;
+
+/**
+ * Atualiza o popover de horas por especialista de uma sprint
+ * @param {HTMLElement} sprintCard - Elemento do card da sprint
+ * @param {Object} hoursBySpecialist - Objeto com horas por especialista
+ */
+function updateSpecialistPopover(sprintCard, hoursBySpecialist) {
+    if (!sprintCard) return;
+
+    // Obtém a capacidade da sprint baseada na duração
+    const sprintId = sprintCard.dataset.sprintId;
+    let sprintCapacity = 36; // Default 1 semana
+    
+    // Busca a sprint nos dados carregados para calcular capacidade correta
+    if (window.sprintsData && sprintId) {
+        const sprint = window.sprintsData.find(s => s.id == sprintId);
+        if (sprint) {
+            sprintCapacity = calculateSprintCapacity(sprint);
+        }
+    }
+
+    // Formata o conteúdo do popover com informações baseadas na capacidade real
+    let popoverContent = Object.entries(hoursBySpecialist)
+        .map(([name, allocatedHours]) => {
+            const remainingHours = Math.max(0, sprintCapacity - allocatedHours);
+            const utilizationPercent = (allocatedHours / sprintCapacity) * 100;
+            
+            // Badge de alerta baseado na capacidade real da sprint
+            let alertBadge = '';
+            if (utilizationPercent > 100) {
+                alertBadge = '<span class="badge bg-danger ms-2">⚠️ Sobrecarga</span>';
+            } else if (utilizationPercent > 80) {
+                alertBadge = '<span class="badge bg-warning ms-2">⚠️ Limite</span>';
+            } else {
+                alertBadge = '<span class="badge bg-success ms-2">✅ OK</span>';
+            }
+            
+            return `
+                <div class="mb-1">
+                    <strong>${escapeHtml(name)}</strong><br>
+                    <small>Consumo: ${allocatedHours.toFixed(1)}h | Saldo: ${remainingHours.toFixed(1)}h</small>
+                    <br><small class="text-muted">Capacidade: ${sprintCapacity.toFixed(1)}h</small>
+                    ${alertBadge}
+                </div>
+            `;
+        })
+        .join('');
+    
+    if (!popoverContent) {
+        popoverContent = '<small class="text-muted">Nenhum especialista alocado</small>';
+    }
+
+    // Atualiza o popover
+    const popoverButton = sprintCard.querySelector('.specialist-hours-popover');
+    if (popoverButton) {
+        // Destrói o popover existente
+        const popoverInstance = bootstrap.Popover.getInstance(popoverButton);
+        if (popoverInstance) {
+            popoverInstance.dispose();
+        }
+
+        if (Object.keys(hoursBySpecialist).length > 0) {
+            // Cria um novo popover com o conteúdo atualizado
+            new bootstrap.Popover(popoverButton, {
+                content: popoverContent,
+                html: true,
+                placement: 'bottom',
+                trigger: 'hover focus',
+                title: 'Especialistas'
+            });
+            popoverButton.style.display = 'inline-flex';
+        } else {
+            popoverButton.style.display = 'none';
+        }
+    }
+}
 
 console.log('✅ Sprint Management JavaScript carregado'); 
