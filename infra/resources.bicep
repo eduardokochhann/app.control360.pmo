@@ -70,6 +70,10 @@ module fileShareStorageAccount 'br/public:avm/res/storage/storage-account:0.20.0
       accessKey1Name: 'stg-appcontrol-360-sou-key1'
     }
     publicNetworkAccess: 'Enabled'
+    networkAcls: {
+      bypass: 'AzureServices'
+      defaultAction: 'Allow'
+    }
   }
 }
 
