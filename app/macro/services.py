@@ -25,6 +25,9 @@ from typing import Dict, Any, Optional
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Instância global do leitor de tipos de serviço
+type_service_reader = None
+
 # Constantes de status atualizadas
 STATUS_NAO_ATIVOS = ['FECHADO', 'ENCERRADO', 'RESOLVIDO', 'CANCELADO']
 STATUS_EM_ANDAMENTO = ['NOVO', 'AGUARDANDO', 'BLOQUEADO', 'EM ATENDIMENTO']
@@ -116,6 +119,13 @@ class MacroService(BaseService):
         data_dir = base_dir / 'data'
         self.csv_path = data_dir / 'dadosr.csv'
         logger.info(f"Caminho do CSV definido para: {self.csv_path}")
+        
+        # Inicializa o leitor de tipos de serviço
+        global type_service_reader
+        if type_service_reader is None:
+            from .typeservice_reader import TypeServiceReader
+            type_service_reader = TypeServiceReader()
+            logger.info("TypeServiceReader inicializado no MacroService")
 
     def carregar_dados(self, fonte=None):
         """
@@ -517,11 +527,15 @@ class MacroService(BaseService):
         col_horas_rest = 'HorasRestantes' # Calculado em preparar_dados_base
         col_horas_prev = 'Horas' # Nome após renomeação de 'Esforço estimado'
 
+        # Importa o leitor de tipos de serviço
+        from .typeservice_reader import type_service_reader
+        
         resultados = []
+        hoje = datetime.now().date()
+        
         try:
             for _, row in projetos.iterrows():
                 # Usa .get(col_name, default_value) para evitar KeyError se uma coluna não existir
-                # por algum motivo inesperado no processamento anterior.
                 numero_val = row.get(col_numero, '')
                 # Fallback para 'Número' original se 'Numero' não existir
                 if numero_val == '' and 'Número' in row:
@@ -530,43 +544,96 @@ class MacroService(BaseService):
                 # Trata Account Manager com e sem espaço no final
                 account_val = row.get(col_account, row.get('Account Manager ', ''))
                 
+                # CORREÇÃO 1: Cliente real (não projeto)
+                cliente_val = row.get('Cliente', 'N/A')
+                projeto_val = row.get(col_projeto, 'N/A')
+                
+                # CORREÇÃO 2: Categoria do tipo de serviço
+                # Busca o tipo de serviço em várias colunas possíveis (incluindo nomes pré e pós renomeação)
+                colunas_tipo_servico = [
+                    'TipoServico', 'Tipo de Serviço', 'Tipo de servico',   # Nomes possíveis no CSV atual
+                    'Serviço (2º Nível)', 'Servico 2 Nivel',               # Nomes nos CSVs históricos  
+                    'Serviço (3º Nível)', 'Servico 3 Nivel',               # Nomes alternativos
+                    'Projeto'                                               # Nome após renomeação (pode conter o tipo)
+                ]
+                tipo_servico_raw = ''
+                for col in colunas_tipo_servico:
+                    if col in row.index and pd.notna(row[col]) and str(row[col]).strip():
+                        valor = str(row[col]).strip()
+                        # Se for a coluna 'Projeto' e contém apenas categoria simples (M365, Azure, etc.), usa
+                        if col == 'Projeto' and valor in ['M365', 'Azure', 'Data e Power', 'Outros']:
+                            tipo_servico_raw = valor
+                            break
+                        elif col != 'Projeto':  # Para outras colunas, usa diretamente
+                            tipo_servico_raw = valor
+                            break
+                
+                categoria_servico = type_service_reader.obter_categoria(tipo_servico_raw) if tipo_servico_raw else 'N/A'
+                
+                # CORREÇÃO 3: Cálculo do tempo de vida do projeto
+                tempo_vida_dias = 0
+                data_abertura = None
+                
+                # Tenta encontrar data de abertura em diferentes colunas possíveis
+                colunas_abertura = ['DataInicio', 'DataAbertura', 'Data Abertura', 'data_abertura', 'Aberto em']
+                for col in colunas_abertura:
+                    if col in row.index and pd.notna(row[col]):
+                        data_abertura = row[col]
+                        break
+                
+                if data_abertura and pd.notna(data_abertura):
+                    try:
+                        if isinstance(data_abertura, str):
+                            # Tenta converter string para data
+                            data_abertura = pd.to_datetime(data_abertura, errors='coerce')
+                        
+                        if pd.notna(data_abertura):
+                            data_abertura_date = data_abertura.date() if hasattr(data_abertura, 'date') else data_abertura
+                            tempo_vida_dias = (hoje - data_abertura_date).days
+                    except Exception as e:
+                        logger.debug(f"Erro ao calcular tempo de vida para projeto {numero_val}: {str(e)}")
+                        tempo_vida_dias = 0
+                
                 # Formata as datas com verificação
                 data_inicio_str = row.get(col_data_inicio, pd.NaT)
                 data_inicio_fmt = data_inicio_str.strftime('%d/%m/%Y') if pd.notna(data_inicio_str) else ''
                 
+                # CORREÇÃO 4: Vencimento com "-" se vazio
                 data_vencimento_str = row.get(col_data_vencimento, pd.NaT)
-                data_vencimento_fmt = data_vencimento_str.strftime('%d/%m/%Y') if pd.notna(data_vencimento_str) else 'N/A'
+                data_vencimento_fmt = data_vencimento_str.strftime('%d/%m/%Y') if pd.notna(data_vencimento_str) else '-'
                 
-                # Obtém dados adicionais para o relatório geral
-                cliente_val = row.get('Cliente', 'N/A')
-                servico_val = row.get('Tipo de servico', row.get('Tipo de Serviço', 'N/A'))  # Aceita ambas as grafias
-                faturamento_val = row.get('Faturamento', 'N/A')
-                data_resolvido = row.get('DataResolvido', pd.NaT)
-                data_resolvido_fmt = data_resolvido.strftime('%d/%m/%Y') if pd.notna(data_resolvido) else 'N/A'
-                tempo_vida_val = row.get('TempoVida', 0)  # Assumindo que este campo será calculado
+                # CORREÇÃO 5: Data resolvido com "-" se vazio
+                # Nota: 'Resolvido em' é renomeado para 'DataTermino' no processamento
+                data_resolvido = row.get('DataTermino', row.get('Resolvido em', pd.NaT))
+                data_resolvido_fmt = data_resolvido.strftime('%d/%m/%Y') if pd.notna(data_resolvido) else '-'
+                
+                # Outros dados
+                faturamento_val = row.get('Faturamento', row.get('TipoFaturamento', 'N/A'))
                 
                 resultados.append({
                     'numero': numero_val,
-                    'projeto': row.get(col_projeto, 'N/A'),
+                    'projeto': projeto_val,  # Nome do projeto
                     'status': row.get(col_status, 'N/A'),
                     'squad': row.get(col_squad, 'N/A'),
                     'especialista': row.get(col_especialista, 'N/A'),
                     'account': account_val,
                     'data_inicio': data_inicio_fmt,
-                    'dataPrevEnc': data_vencimento_fmt,  # CORRIGIDO: usar dataPrevEnc que o JS espera
+                    'dataPrevEnc': data_vencimento_fmt,  # CORRIGIDO: usar "-" se vazio
                     'conclusao': float(row.get(col_conclusao, 0.0)) if pd.notna(row.get(col_conclusao)) else 0.0,
                     'horas_trabalhadas': float(row.get(col_horas_trab, 0.0)) if pd.notna(row.get(col_horas_trab)) else 0.0,
-                    'horasRestantes': float(row.get(col_horas_rest, 0.0)) if pd.notna(row.get(col_horas_rest)) else 0.0,  # CORRIGIDO: usar horasRestantes que o JS espera
-                    'Horas': float(row.get(col_horas_prev, 0.0)) if pd.notna(row.get(col_horas_prev)) else 0.0,  # CORRIGIDO: usar Horas que o JS espera
-                    'backlog_exists': row.get('backlog_exists', False),  # Adiciona coluna backlog se existir
-                    # Campos adicionais para o relatório geral
-                    'cliente': cliente_val,
-                    'servico': servico_val,
+                    'horasRestantes': float(row.get(col_horas_rest, 0.0)) if pd.notna(row.get(col_horas_rest)) else 0.0,
+                    'Horas': float(row.get(col_horas_prev, 0.0)) if pd.notna(row.get(col_horas_prev)) else 0.0,
+                    'backlog_exists': row.get('backlog_exists', False),
+                    # Campos corrigidos para o relatório geral
+                    'cliente': cliente_val,  # CORRIGIDO: cliente real
+                    'servico': categoria_servico,  # CORRIGIDO: categoria do tipo de serviço
                     'tipo_faturamento': faturamento_val,
-                    'data_resolvido': data_resolvido_fmt,
-                    'account_manager': account_val,  # Alias para AM
-                    'tempo_vida': tempo_vida_val
+                    'data_resolvido': data_resolvido_fmt,  # CORRIGIDO: "-" se vazio
+                    'account_manager': account_val,
+                    'tempo_vida': tempo_vida_dias  # CORRIGIDO: dias calculados
                 })
+            
+            logger.info(f"Formatados {len(resultados)} projetos para relatório geral")
             return resultados
             
         except Exception as e:

@@ -446,19 +446,68 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Função para exportar para Excel
+    function exportToExcel() {
+        const table = $('#table').bootstrapTable('getData');
+        
+        if (table.length === 0) {
+            alert('Nenhum dado disponível para exportação.');
+            return;
+        }
+
+        // Prepara os dados para exportação
+        const excelData = table.map(row => ({
+            'Número': row.numero || 'N/A',
+            'Cliente': row.cliente || 'N/A',
+            'Squad': row.squad || 'N/A', 
+            'Serviço': row.servico || 'N/A',
+            'Status': row.status || 'N/A',
+            'Esforço Estimado': row.esforco_estimado || '0h',
+            'Horas Trabalhadas': row.horas_trabalhadas || '0h',
+            'Horas Restantes': row.horas_restantes || '0h',
+            'Faturamento': row.faturamento || 'N/A',
+            'Data Abertura': row.data_abertura || 'N/A',
+            'Data Vencimento': row.data_vencimento || '-',
+            'Data Resolução': row.data_resolvido || '-',
+            'Account Manager': row.account_manager || 'N/A',
+            'Tempo de Vida (dias)': row.tempo_vida || 0
+        }));
+
+        // Cria o workbook
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        const workbook = XLSX.utils.book_new();
+        
+        // Ajusta a largura das colunas
+        if (!ws['!cols']) ws['!cols'] = [];
+        ws['!cols'][0] = { wch: 10 }; // Número
+        ws['!cols'][1] = { wch: 25 }; // Cliente
+        ws['!cols'][2] = { wch: 15 }; // Squad
+        ws['!cols'][3] = { wch: 20 }; // Serviço
+        ws['!cols'][4] = { wch: 15 }; // Status
+        ws['!cols'][5] = { wch: 12 }; // Esforço
+        ws['!cols'][6] = { wch: 12 }; // H. Trab.
+        ws['!cols'][7] = { wch: 12 }; // H. Rest.
+        ws['!cols'][8] = { wch: 15 }; // Faturamento
+        ws['!cols'][9] = { wch: 12 }; // Abertura
+        ws['!cols'][10] = { wch: 12 }; // Vencimento
+        ws['!cols'][11] = { wch: 12 }; // Resolução
+        ws['!cols'][12] = { wch: 20 }; // Account Manager
+        ws['!cols'][13] = { wch: 10 }; // Dias
+        
+        XLSX.utils.book_append_sheet(workbook, ws, "Relatório Geral");
+
+        // Baixa o arquivo
+        const fileName = `relatorio_geral_projetos_${new Date().toISOString().split('T')[0]}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+    }
+
     // Event handlers para exportação
     document.getElementById('exportExcel').addEventListener('click', function() {
-        $('#table').tableExport({
-            type: 'excel',
-            fileName: 'relatorio_geral_projetos'
-        });
+        exportToExcel();
     });
     
     document.getElementById('exportPdf').addEventListener('click', function() {
-        $('#table').tableExport({
-            type: 'pdf',
-            fileName: 'relatorio_geral_projetos'
-        });
+        window.print();
     });
 
     // Inicializa a tabela
@@ -483,18 +532,18 @@ document.addEventListener('DOMContentLoaded', function() {
         // Processa dados para o formato da tabela
         const dadosProcessados = data.map(projeto => ({
             numero: projeto.numero || 'N/A',
-            cliente: projeto.projeto || 'N/A',
+            cliente: projeto.cliente || 'N/A',  // CORRIGIDO: usar campo cliente
             squad: projeto.squad || 'N/A',
-            servico: projeto.servico || 'N/A',
+            servico: projeto.servico || 'N/A',  // Agora vai trazer a categoria
             status: projeto.status || 'N/A',
             esforco_estimado: projeto.Horas ? `${Math.round(projeto.Horas * 100) / 100}h` : '0h',
             horas_trabalhadas: projeto.horas_trabalhadas ? `${Math.round(projeto.horas_trabalhadas * 100) / 100}h` : '0h',
             horas_restantes: projeto.horasRestantes ? `${Math.round(projeto.horasRestantes * 100) / 100}h` : '0h',
             faturamento: projeto.tipo_faturamento || 'N/A',
             data_abertura: projeto.data_inicio || 'N/A',
-            data_vencimento: projeto.dataPrevEnc || 'N/A',
-            data_resolvido: projeto.data_resolvido || 'N/A',
-            account_manager: projeto.account || 'N/A',
+            data_vencimento: projeto.dataPrevEnc || '-',  // CORRIGIDO: usar "-" como padrão
+            data_resolvido: projeto.data_resolvido || '-',  // CORRIGIDO: usar "-" como padrão
+            account_manager: projeto.account_manager || projeto.account || 'N/A',
             tempo_vida: projeto.tempo_vida || 0
         }));
         

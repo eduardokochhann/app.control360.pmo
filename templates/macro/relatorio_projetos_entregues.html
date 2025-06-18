@@ -425,19 +425,66 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Função para exportar para Excel
+    function exportToExcel() {
+        const table = $('#table').bootstrapTable('getData');
+        
+        if (table.length === 0) {
+            alert('Nenhum dado disponível para exportação.');
+            return;
+        }
+
+        // Prepara os dados para exportação
+        const excelData = table.map(row => ({
+            'Número': row.numero || 'N/A',
+            'Projeto': row.projeto || 'N/A',
+            'Squad': row.squad || 'N/A',
+            'Serviço': row.servico || 'N/A',
+            'Status': row.status || 'N/A',
+            'Tipo Faturamento': row.tipo_faturamento || 'N/A',
+            'Horas Trabalhadas': row.horas_trabalhadas || 0,
+            'Horas Previstas': row.horas_previstas || 0,
+            'Conclusão (%)': row.conclusao || 0,
+            'Data Entrega': row.data_entrega || 'N/A',
+            'Especialista': row.especialista || 'N/A',
+            'Account Manager': row.account || 'N/A',
+            'Tem Backlog': row.backlog_exists ? 'Sim' : 'Não'
+        }));
+
+        // Cria o workbook
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        const workbook = XLSX.utils.book_new();
+        
+        // Ajusta a largura das colunas
+        if (!ws['!cols']) ws['!cols'] = [];
+        ws['!cols'][0] = { wch: 10 }; // Número
+        ws['!cols'][1] = { wch: 25 }; // Projeto
+        ws['!cols'][2] = { wch: 15 }; // Squad
+        ws['!cols'][3] = { wch: 20 }; // Serviço
+        ws['!cols'][4] = { wch: 15 }; // Status
+        ws['!cols'][5] = { wch: 18 }; // Tipo Faturamento
+        ws['!cols'][6] = { wch: 12 }; // H. Trabalhadas
+        ws['!cols'][7] = { wch: 12 }; // H. Previstas
+        ws['!cols'][8] = { wch: 12 }; // Conclusão
+        ws['!cols'][9] = { wch: 12 }; // Data Entrega
+        ws['!cols'][10] = { wch: 20 }; // Especialista
+        ws['!cols'][11] = { wch: 20 }; // Account Manager
+        ws['!cols'][12] = { wch: 10 }; // Backlog
+        
+        XLSX.utils.book_append_sheet(workbook, ws, "Projetos Entregues");
+
+        // Baixa o arquivo
+        const fileName = `projetos_entregues_${new Date().toISOString().split('T')[0]}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+    }
+
     // Event handlers para exportação
     document.getElementById('exportExcel').addEventListener('click', function() {
-        $('#table').tableExport({
-            type: 'excel',
-            fileName: 'relatorio_projetos_entregues'
-        });
+        exportToExcel();
     });
     
     document.getElementById('exportPdf').addEventListener('click', function() {
-        $('#table').tableExport({
-            type: 'pdf',
-            fileName: 'relatorio_projetos_entregues'
-        });
+        window.print();
     });
 });
 </script>
