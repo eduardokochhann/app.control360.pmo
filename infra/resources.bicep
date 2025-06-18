@@ -49,6 +49,13 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.13.0' = {
   }
 }
 
+module appRegistrationSecret 'modules/fetch-app-registration-secret.bicep' = {
+  name: 'appRegistrationSecret'
+  params: {
+    keyVaultName: keyVault.outputs.name
+  }
+}
+
 module fileShareStorageAccount 'br/public:avm/res/storage/storage-account:0.20.0' = {
   name: 'file-share-storage-account'
   params: {
