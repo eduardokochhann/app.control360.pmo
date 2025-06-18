@@ -40,6 +40,9 @@ CORES_CONCLUSAO = {
 # Colunas obrigatórias (usando os nomes do CSV)
 COLUNAS_OBRIGATORIAS = ['Cliente (Completo)', 'Status', 'Serviço (2º Nível)', 'Tipo de faturamento', 'Tempo trabalhado']
 
+# Colunas opcionais (novas estruturas de dados)
+COLUNAS_OPCIONAIS = ['Assunto', 'Serviço (3º Nível)']
+
 # Colunas para conversão numérica
 COLUNAS_NUMERICAS = ['Esforço estimado', 'Tempo trabalhado', 'Andamento']
 

@@ -139,8 +139,10 @@ class GerencialService(BaseService):
             # --- Passo 1.3: Renomeação (Novos Nomes -> Nomes Antigos/Apelidos) ---
             rename_map_new_to_old = {
                 'Número': 'Numero',
-                'Cliente (Completo)': 'Projeto',
+                'Cliente (Completo)': 'Cliente',
+                'Assunto': 'Projeto',
                 'Serviço (2º Nível)': 'Squad',
+                'Serviço (3º Nível)': 'TipoServico',
                 'Status': 'Status', # Mantém o nome
                 'Esforço estimado': 'Horas',
                 'Tempo trabalhado': 'HorasTrabalhadas',
@@ -157,6 +159,22 @@ class GerencialService(BaseService):
             # Verifica quais colunas do mapa realmente existem no DataFrame antes de renomear
             colunas_para_renomear = {k: v for k, v in rename_map_new_to_old.items() if k in dados.columns}
             dados.rename(columns=colunas_para_renomear, inplace=True)
+            
+            # --- Passo 1.3.1: Fallback para coluna Projeto (NOVO) ---
+            # Se Assunto está vazio ou não existe, usa Cliente como fallback
+            if 'Projeto' in dados.columns and 'Cliente' in dados.columns:
+                mask_projeto_vazio = dados['Projeto'].isna() | (dados['Projeto'] == '') | (dados['Projeto'] == 'nan')
+                if mask_projeto_vazio.any():
+                    dados.loc[mask_projeto_vazio, 'Projeto'] = dados.loc[mask_projeto_vazio, 'Cliente']
+                    # Log apenas se houver fallbacks aplicados
+                    num_fallbacks = mask_projeto_vazio.sum()
+                    if num_fallbacks > 0:
+                        logger.info(f"Aplicado fallback Cliente→Projeto em {num_fallbacks} registros")
+            elif 'Cliente' in dados.columns and 'Projeto' not in dados.columns:
+                # Se a coluna Assunto não existe ainda, cria Projeto copiando de Cliente
+                dados['Projeto'] = dados['Cliente']
+                logger.info("Criada coluna 'Projeto' usando dados de 'Cliente' (coluna Assunto não encontrada)")
+            
             logger.info(f"Colunas renomeadas para nomes antigos/apelidos: {list(colunas_para_renomear.values())}")
             # --- Fim do Passo 1.3 ---
             
@@ -1782,8 +1800,10 @@ class GerencialService(BaseService):
             rename_map_new_to_old = { ... } # Usar o mesmo mapa de carregar_dados
             rename_map_new_to_old = {
                 'Número': 'Numero',
-                'Cliente (Completo)': 'Projeto',
+                'Cliente (Completo)': 'Cliente',
+                'Assunto': 'Projeto',
                 'Serviço (2º Nível)': 'Squad',
+                'Serviço (3º Nível)': 'TipoServico',
                 'Status': 'Status',
                 'Esforço estimado': 'Horas',
                 'Tempo trabalhado': 'HorasTrabalhadas',
@@ -2732,8 +2752,10 @@ class GerencialService(BaseService):
             rename_map_new_to_old = { ... } # Usar o mesmo mapa de carregar_dados
             rename_map_new_to_old = {
                 'Número': 'Numero',
-                'Cliente (Completo)': 'Projeto',
+                'Cliente (Completo)': 'Cliente',
+                'Assunto': 'Projeto',
                 'Serviço (2º Nível)': 'Squad',
+                'Serviço (3º Nível)': 'TipoServico',
                 'Status': 'Status',
                 'Esforço estimado': 'Horas',
                 'Tempo trabalhado': 'HorasTrabalhadas',

@@ -353,8 +353,19 @@ function initializeSortable() {
 
         try {
             const response = await fetch(`/backlog/api/tasks/${taskId}`, { method: 'DELETE' });
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error || 'Falha ao excluir a tarefa.');
+            
+            if (!response.ok) {
+                // Tenta obter erro da resposta se houver conteúdo
+                let errorMessage = 'Falha ao excluir a tarefa.';
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error || errorMessage;
+                } catch {
+                    // Se não conseguir fazer parse do JSON, usa mensagem padrão
+                    errorMessage = `Erro ${response.status}: ${response.statusText}`;
+                }
+                throw new Error(errorMessage);
+            }
 
             taskModal.hide();
             showToast('Tarefa excluída com sucesso!', 'success');

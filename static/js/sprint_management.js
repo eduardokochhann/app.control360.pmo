@@ -554,6 +554,12 @@ function setupEventListeners() {
         taskDeleteBtn.addEventListener('click', handleTaskDelete);
     }
     
+    // Handler para botão de excluir tarefa genérica
+    const genericTaskDeleteBtn = document.getElementById('genericTaskDeleteBtn');
+    if (genericTaskDeleteBtn) {
+        genericTaskDeleteBtn.addEventListener('click', handleGenericTaskDelete);
+    }
+    
     // Inicializar popovers após renderização
     initializePopovers();
 }
@@ -920,6 +926,7 @@ window.openGenericTaskModal = function(task = null) {
     const modal = document.getElementById('genericTaskModal');
     const form = document.getElementById('genericTaskForm');
     const modalTitle = document.getElementById('genericTaskModalLabel');
+    const deleteBtn = document.getElementById('genericTaskDeleteBtn');
     
     if (!modal || !form) {
         console.error('Modal ou formulário de tarefa genérica não encontrado');
@@ -940,10 +947,16 @@ window.openGenericTaskModal = function(task = null) {
         
         // Armazena ID para edição
         form.dataset.editingId = task.id;
+        
+        // Mostra botão de exclusão
+        if (deleteBtn) deleteBtn.style.display = 'block';
     } else {
         // Modo criação
         modalTitle.textContent = 'Nova Tarefa Genérica';
         delete form.dataset.editingId;
+        
+        // Esconde botão de exclusão
+        if (deleteBtn) deleteBtn.style.display = 'none';
     }
     
     // Mostra o modal
@@ -1433,6 +1446,54 @@ async function handleTaskDelete() {
     } catch (error) {
         console.error('❌ Erro ao excluir tarefa:', error);
         showToast(`Erro ao excluir tarefa: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Handler para exclusão de tarefa genérica
+ */
+async function handleGenericTaskDelete() {
+    const form = document.getElementById('genericTaskForm');
+    const taskId = form.dataset.editingId;
+    const taskTitle = document.getElementById('genericTaskTitle').value;
+    
+    if (!taskId) {
+        showToast('ID da tarefa não encontrado', 'error');
+        return;
+    }
+    
+    if (!confirm(`Tem certeza que deseja excluir a tarefa genérica "${taskTitle}"?`)) {
+        return;
+    }
+    
+    console.log('🗑️ Excluindo tarefa genérica:', taskId);
+    
+    try {
+        const response = await fetch(`/sprints/api/generic-tasks/${taskId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || `Erro ${response.status}`);
+        }
+        
+        // Fecha o modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('genericTaskModal'));
+        if (modal) modal.hide();
+        
+        // Recarrega os dados
+        console.log('✅ Tarefa genérica excluída com sucesso, recarregando dados...');
+        await Promise.all([
+            loadSprints(),
+            loadGenericTasks()
+        ]);
+        
+        showToast('Tarefa genérica excluída com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Erro ao excluir tarefa genérica:', error);
+        showToast(`Erro ao excluir tarefa genérica: ${error.message}`, 'error');
     }
 }
 

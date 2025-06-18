@@ -80,11 +80,15 @@ def serialize_task_for_sprints(task):
                         macro_service = MacroService()
                         project_details = macro_service.obter_detalhes_projeto(task_data['project_id'])
                         if project_details:
-                            # As chaves são normalizadas (minúsculas), então usa 'projeto' em vez de 'Projeto'
-                            # Verifica múltiplas possibilidades para garantir que encontre o nome
+                            # Busca o nome do projeto com fallback inteligente
+                            # 1º: coluna 'projeto' (renomeada de 'Assunto') 
+                            # 2º: coluna 'cliente' (renomeada de 'Cliente (Completo)')
+                            # 3º: fallbacks para compatibilidade com dados antigos
                             project_name = (
                                 project_details.get('projeto') or 
                                 project_details.get('Projeto') or 
+                                project_details.get('cliente') or
+                                project_details.get('Cliente') or
                                 project_details.get('cliente_(completo)') or
                                 project_details.get('Cliente (Completo)') or
                                 f'Projeto {task_data["project_id"]}'
