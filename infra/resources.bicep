@@ -37,6 +37,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.13.0' = {
     name: '${abbrs.keyVaultVaults}${resourceToken}'
     // Non-required parameters
     sku: 'standard'
+    enableVaultForTemplateDeployment: true // Allows Bicep to access the vault's secrets
     enablePurgeProtection: false
     roleAssignments: [
       {
