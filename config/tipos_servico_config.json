@@ -1,0 +1,122 @@
+{
+  "categorias": {
+    "azure_infrastructure": {
+      "nome": "Azure Infrastructure",
+      "cor": "#0078D4",
+      "icone": "bi-cloud",
+      "descricao": "Serviços de infraestrutura Azure",
+      "tipos": [
+        "Azure Active Directory",
+        "Azure App Services",
+        "Azure Application Gateway",
+        "Azure Backup",
+        "Azure Database Migration Service",
+        "Azure Landing Zones",
+        "Azure Marketplace",
+        "Azure Automation",
+        "Azure Kubernetes Service (AKS)",
+        "Azure Firewall",
+        "Azure Content Delivery Network (CDN)",
+        "Azure DDoS Protection",
+        "Active Directory Domain Services (ADDS)",
+        "Azure DevOps",
+        "Azure ExpressRoute",
+        "Azure Resource Manager",
+        "Azure Migrate",
+        "Azure Training",
+        "Azure Site Recovery",
+        "Azure Storage",
+        "Azure Virtual Desktop",
+        "Azure VPN Gateway"
+      ]
+    },
+    "microsoft_365": {
+      "nome": "Microsoft 365",
+      "cor": "#FF8C00",
+      "icone": "bi-microsoft",
+      "descricao": "Serviços e soluções Microsoft 365",
+      "tipos": [
+        "Exchange Online",
+        "Microsoft 365 Admin Center",
+        "Azure Marketplace",
+        "Microsoft Copilot Studio",
+        "Microsoft Fabric",
+        "Microsoft Power Pages",
+        "Microsoft Power Apps",
+        "Microsoft Power Automate",
+        "Microsoft Power BI",
+        "Microsoft 365 Migration",
+        "Microsoft Teams",
+        "Windows 365",
+        "SharePoint Online",
+        "SharePoint Online Center"
+      ]
+    },
+    "security_compliance": {
+      "nome": "Security & Compliance",
+      "cor": "#E74856",
+      "icone": "bi-shield-check",
+      "descricao": "Segurança e conformidade",
+      "tipos": [
+        "Microsoft Defender for Cloud",
+        "Fast Track",
+        "Threat protection engagement",
+        "Microsoft Defender for Office 365",
+        "Microsoft Entra ID",
+        "Microsoft Information Protection (MIP)",
+        "Microsoft Intune",
+        "Microsoft Intune, Microsoft AIP",
+        "Microsoft Intune, Microsoft Defender",
+        "Microsoft Intune, Microsoft DLP",
+        "Microsoft Purview",
+        "Data security engagement",
+        "Microsoft Sentinel",
+        "Web Application Firewall (WAF)"
+      ]
+    },
+    "data_analytics": {
+      "nome": "Data & Analytics",
+      "cor": "#107C10",
+      "icone": "bi-graph-up",
+      "descricao": "Soluções de dados e análise",
+      "tipos": [
+        "Azure Data Factory, Synapse Analytics, Databricks, Stream Analytics, SQL Database, Microsoft Purview (para governança) e outros",
+        "Azure Logic Apps",
+        "Microsoft Power Automate RPA"
+      ]
+    },
+    "migration_services": {
+      "nome": "Migration Services",
+      "cor": "#8B4B9B",
+      "icone": "bi-arrow-repeat",
+      "descricao": "Serviços de migração e modernização",
+      "tipos": [
+        "Azure AI Document Intelligence",
+        "Azure OpenAI"
+      ]
+    },
+    "custom_development": {
+      "nome": "Desenvolvimento Personalizado",
+      "cor": "#FF6B35",
+      "icone": "bi-code-slash",
+      "descricao": "Soluções personalizadas e consultoria",
+      "tipos": [
+        "N/A (serviço personalizado)"
+      ]
+    }
+  },
+  "configuracoes_exibicao": {
+    "cards_por_linha": 6,
+    "mostrar_detalhes_expandidos": false,
+    "ordenacao_padrao": "total_projetos",
+    "cores_graficos": [
+      "#0078D4", "#FF8C00", "#E74856", "#107C10", 
+      "#8B4B9B", "#FF6B35", "#00BCF2", "#FFB900"
+    ]
+  },
+  "metricas_personalizadas": {
+    "complexidade_baixa": {"max_horas": 50, "cor": "#107C10"},
+    "complexidade_media": {"max_horas": 200, "cor": "#FF8C00"},
+    "complexidade_alta": {"max_horas": 999999, "cor": "#E74856"}
+  }
+} 

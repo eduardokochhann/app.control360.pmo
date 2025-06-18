@@ -7,31 +7,47 @@ import pandas as pd
 from io import BytesIO
 import os # Removido para debug - PATH OK
 
-# Tenta importar WeasyPrint e define uma flag
-try:
-    from weasyprint import HTML, CSS
-    weasyprint_installed = True
-    logger = logging.getLogger(__name__)  # Inicializa o logger aqui
-    logger.info("WeasyPrint importado com sucesso e disponível para gerar PDFs.")
-except ImportError as e:
-    weasyprint_installed = False
-    HTML = None # Define como None se não instalado
-    CSS = None
-    logger = logging.getLogger(__name__)  # Inicializa o logger aqui
-    logger.warning(f"WeasyPrint não disponível: {str(e)}. Tentando pdfkit como alternativa...")
+# Inicializa logger
+logger = logging.getLogger(__name__)
 
-# Tenta importar pdfkit como alternativa
-try:
-    import pdfkit
-    pdfkit_installed = True
-    logger.info("pdfkit importado com sucesso como alternativa para geração de PDFs.")
-except ImportError as e:
-    pdfkit_installed = False
-    logger.warning(f"pdfkit não disponível: {str(e)}. Funcionalidade de PDF será limitada.")
-    logger.info("Dica: Para usar pdfkit, instale wkhtmltopdf em: https://wkhtmltopdf.org/downloads.html")
+# Flags para geradores PDF - imports serão feitos sob demanda para evitar travamento na inicialização
+weasyprint_installed = False
+pdfkit_installed = False
+HTML = None
+CSS = None
+pdf_generator_available = False
 
-# Variável que indica se algum gerador de PDF está disponível
-pdf_generator_available = weasyprint_installed or pdfkit_installed
+def _check_pdf_generators():
+    """Verifica e importa geradores de PDF sob demanda"""
+    global weasyprint_installed, pdfkit_installed, HTML, CSS, pdf_generator_available
+    
+    if pdf_generator_available:
+        return True  # Já verificado anteriormente
+    
+    # Tenta WeasyPrint primeiro
+    try:
+        from weasyprint import HTML as WeasyHTML, CSS as WeasyCSS
+        weasyprint_installed = True
+        HTML = WeasyHTML
+        CSS = WeasyCSS
+        pdf_generator_available = True
+        logger.info("WeasyPrint importado com sucesso (sob demanda)")
+        return True
+    except ImportError as e:
+        logger.warning(f"WeasyPrint não disponível: {str(e)}")
+    
+    # Tenta pdfkit como alternativa
+    try:
+        import pdfkit
+        pdfkit_installed = True
+        pdf_generator_available = True
+        logger.info("pdfkit importado como alternativa (sob demanda)")
+        return True
+    except ImportError as e:
+        logger.warning(f"pdfkit também não disponível: {str(e)}")
+    
+    logger.warning("Nenhum gerador de PDF disponível")
+    return False
 
 # Use o logger configurado no app factory (se aplicável)
 # logger = current_app.logger
@@ -1446,7 +1462,7 @@ def status_report(project_id):
             'titulo_pagina': f"Status Report - {report_data['info_geral'].get('nome', project_id)}",
             'data_geracao': datetime.now().strftime('%d/%m/%Y %H:%M'),
             'pdf_generator_available': pdf_generator_available,
-            'generator_type': 'weasyprint' if weasyprint_installed else ('pdfkit' if pdfkit_installed else 'none'),
+            'generator_type': 'weasyprint' if _check_pdf_generators() and weasyprint_installed else ('pdfkit' if pdfkit_installed else 'none'),
             'for_pdf': False  # Explicitly set to False for browser view
         }
         
@@ -1497,6 +1513,10 @@ def download_status_report(project_id):
         safe_project_name = report_data['info_geral'].get('nome', str(project_id)).replace(' ', '_').lower()
         pdf_filename = f"status_report_{safe_project_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
 
+        # Verifica e importa geradores PDF sob demanda
+        if not _check_pdf_generators():
+            raise Exception("Nenhum gerador de PDF disponível")
+        
         logger.info(f"[PDF Download] Tentando gerar PDF com WeasyPrint.")
         html_string = render_template('macro/status_report.html', **context)
         
@@ -1738,3 +1758,287 @@ def api_resumo_especialistas():
     except Exception as e:
         logger.error(f"Erro na API resumo especialistas: {str(e)}", exc_info=True)
         return jsonify([]), 500
+
+@macro_bp.route('/api/tipos-servico-simples')
+def api_tipos_servico_simples():
+    """API simples para testar tipos de serviço com CSV"""
+    try:
+        logger.info("🔄 API Tipos Serviço Simples - iniciando...")
+        
+        # Carrega dados
+        dados = macro_service.carregar_dados()
+        if dados.empty:
+            logger.warning("Dados vazios")
+            return jsonify({
+                'success': False,
+                'message': 'Nenhum dado disponível',
+                'data': {}
+            })
+        
+        # Calcula métricas simples
+        metricas = macro_service.calcular_metricas_tipos_servico_simples(dados)
+        
+        # Verifica se houve erro
+        if 'erro' in metricas:
+            logger.error(f"Erro nas métricas: {metricas['erro']}")
+            return jsonify({
+                'success': False,
+                'message': metricas['erro'],
+                'data': metricas
+            })
+        
+        logger.info(f"✅ API concluída: {metricas['resumo']['total_tipos']} tipos, {metricas['resumo']['total_categorias']} categorias")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Dados calculados com sucesso',
+            'data': metricas
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Erro na API tipos serviço simples: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Erro interno: {str(e)}',
+            'data': {}
+        }), 500
+
+@macro_bp.route('/api/mapeamento-dexpra')
+def api_mapeamento_dexpra():
+    """API para análise DexPra - tipos de serviço nos projetos vs CSV"""
+    try:
+        logger.info("🔄 API Mapeamento DexPra - iniciando...")
+        
+        # Carrega dados dos projetos
+        dados = macro_service.carregar_dados()
+        if dados.empty:
+            return jsonify({
+                'success': False,
+                'message': 'Nenhum dado de projeto disponível',
+                'data': {}
+            })
+        
+        # Chama função específica para mapeamento
+        mapeamento = macro_service.analisar_mapeamento_tipos_servico(dados)
+        
+        logger.info(f"✅ Mapeamento concluído: {mapeamento.get('resumo', {})}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Análise de mapeamento concluída',
+            'data': mapeamento
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Erro na API mapeamento DexPra: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Erro interno: {str(e)}',
+            'data': {}
+        }), 500
+
+@macro_bp.route('/api/refresh-tipos-servico', methods=['POST'])
+def api_refresh_tipos_servico():
+    """API para forçar refresh do cache de tipos de serviço"""
+    try:
+        logger.info("🔄 Refresh manual dos tipos de serviço...")
+        
+        from app.macro.typeservice_reader import type_service_reader
+        
+        # Limpa cache e recarrega
+        type_service_reader.limpar_cache()
+        tipos_recarregados = type_service_reader.recarregar_csv()
+        
+        # Valida o arquivo
+        valido, mensagem = type_service_reader.validar_arquivo()
+        
+        resultado = {
+            'tipos_carregados': len(tipos_recarregados),
+            'arquivo_valido': valido,
+            'mensagem_validacao': mensagem,
+            'amostra_tipos': list(tipos_recarregados.keys())[:5] if tipos_recarregados else []
+        }
+        
+        logger.info(f"✅ Refresh concluído: {len(tipos_recarregados)} tipos carregados")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Cache atualizado com sucesso - {len(tipos_recarregados)} tipos carregados',
+            'data': resultado
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Erro no refresh tipos de serviço: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Erro interno: {str(e)}',
+            'data': {}
+        }), 500
+
+@macro_bp.route('/api/debug-normalizacao')
+def api_debug_normalizacao():
+    """API para debug da normalização de tipos de serviço - ajuda a identificar problemas de mapeamento"""
+    try:
+        logger.info("🔍 Debug da normalização - iniciando...")
+        
+        from app.macro.typeservice_reader import type_service_reader
+        import unicodedata
+        
+        # Função auxiliar para normalizar strings (igual à do services.py)
+        def normalizar_string(s):
+            """Normaliza string removendo espaços extras, acentos e padronizando case"""
+            if pd.isna(s) or s == '':
+                return ''
+            # Remove acentos
+            s = unicodedata.normalize('NFD', str(s)).encode('ascii', 'ignore').decode('ascii')
+            # Remove espaços extras e converte para lowercase
+            return ' '.join(str(s).strip().lower().split())
+        
+        # Carrega dados
+        dados = macro_service.carregar_dados()
+        if dados.empty:
+            return jsonify({
+                'success': False,
+                'message': 'Nenhum dado de projeto disponível',
+                'data': {}
+            })
+        
+        # Carrega mapeamento do CSV
+        mapeamento_csv = type_service_reader.carregar_tipos_servico()
+        if not mapeamento_csv:
+            return jsonify({
+                'success': False,
+                'message': 'Erro ao carregar arquivo CSV',
+                'data': {}
+            })
+        
+        # Coleta tipos dos projetos
+        dados_limpos = dados[dados['TipoServico'].notna() & (dados['TipoServico'] != '')].copy()
+        tipos_projetos = dados_limpos['TipoServico'].unique()
+        
+        # Analisa normalização
+        debug_info = {
+            'tipos_projetos': [],
+            'tipos_csv': [],
+            'conflitos_potenciais': []
+        }
+        
+        # Mapeia tipos dos projetos
+        tipos_proj_norm = {}
+        for tipo in tipos_projetos:
+            tipo_normalizado = normalizar_string(tipo)
+            debug_info['tipos_projetos'].append({
+                'original': tipo,
+                'normalizado': tipo_normalizado,
+                'tamanho_original': len(tipo),
+                'tamanho_normalizado': len(tipo_normalizado)
+            })
+            tipos_proj_norm[tipo_normalizado] = tipo
+        
+        # Mapeia tipos do CSV
+        tipos_csv_norm = {}
+        for tipo, categoria in mapeamento_csv.items():
+            tipo_normalizado = normalizar_string(tipo)
+            debug_info['tipos_csv'].append({
+                'original': tipo,
+                'normalizado': tipo_normalizado,
+                'categoria': categoria,
+                'tamanho_original': len(tipo),
+                'tamanho_normalizado': len(tipo_normalizado)
+            })
+            tipos_csv_norm[tipo_normalizado] = {'original': tipo, 'categoria': categoria}
+        
+        # Identifica conflitos (normalizações iguais)
+        for tipo_norm in tipos_proj_norm:
+            if tipo_norm in tipos_csv_norm:
+                tipo_projeto = tipos_proj_norm[tipo_norm]
+                info_csv = tipos_csv_norm[tipo_norm]
+                
+                if tipo_projeto != info_csv['original']:
+                    debug_info['conflitos_potenciais'].append({
+                        'normalizado': tipo_norm,
+                        'tipo_projeto': tipo_projeto,
+                        'tipo_csv': info_csv['original'],
+                        'categoria_csv': info_csv['categoria'],
+                        'mesmo_texto': tipo_projeto == info_csv['original']
+                    })
+        
+        # Ordena por tamanho para facilitar análise
+        debug_info['tipos_projetos'].sort(key=lambda x: x['tamanho_original'], reverse=True)
+        debug_info['tipos_csv'].sort(key=lambda x: x['tamanho_original'], reverse=True)
+        
+        resultado = {
+            'total_tipos_projetos': len(tipos_projetos),
+            'total_tipos_csv': len(mapeamento_csv),
+            'total_conflitos': len(debug_info['conflitos_potenciais']),
+            'debug_info': debug_info
+        }
+        
+        logger.info(f"✅ Debug concluído: {len(tipos_projetos)} tipos projetos, {len(mapeamento_csv)} tipos CSV, {len(debug_info['conflitos_potenciais'])} conflitos")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Debug da normalização concluído',
+            'data': resultado
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Erro no debug normalização: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Erro interno: {str(e)}',
+            'data': {}
+        }), 500
+
+@macro_bp.route('/api/test-reader')
+def api_test_reader():
+    """API para testar especificamente o reader de tipos de serviço"""
+    try:
+        logger.info("🔍 Testando reader...")
+        
+        from app.macro.typeservice_reader import type_service_reader
+        
+        # Força reload
+        type_service_reader.limpar_cache()
+        mapeamento = type_service_reader.recarregar_csv()
+        
+        # Tipos específicos para testar
+        tipos_teste = [
+            'Migração de tenant CSP para EA',
+            'Assessment for Rapid Migration',
+            'Migração de workload de Cloud privada para Azure'
+        ]
+        
+        resultado = {
+            'total_tipos_carregados': len(mapeamento),
+            'tipos_teste': []
+        }
+        
+        for tipo in tipos_teste:
+            encontrado = tipo in mapeamento
+            categoria = mapeamento.get(tipo, 'N/A')
+            
+            resultado['tipos_teste'].append({
+                'tipo': tipo,
+                'encontrado': encontrado,
+                'categoria': categoria
+            })
+            
+            logger.info(f"🔍 Tipo: '{tipo}' - Encontrado: {encontrado} - Categoria: {categoria}")
+        
+        # Mostra alguns tipos do mapeamento para debug
+        resultado['amostra_mapeamento'] = list(mapeamento.items())[:5]
+        
+        return jsonify({
+            'success': True,
+            'message': 'Teste do reader concluído',
+            'data': resultado
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Erro no teste reader: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Erro interno: {str(e)}',
+            'data': {}
+        }), 500

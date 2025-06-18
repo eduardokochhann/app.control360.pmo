@@ -1,0 +1,80 @@
+TipoServico;Categoria
+Desenvolvimento e implementação de projeto de Integração AD com AAD;Azure Active Directory
+Desenvolvimento e implementação de projeto App Services;Azure App Services
+Desenvolvimento e implementação de projeto Application Gateway;Azure Application Gateway
+Desenvolvimento e implementação de projeto Azure Backup;Azure Backup
+Desenvolvimento e implementação de projeto de Migração de Banco de Dados;Azure Database Migration Service
+Configuração de Landing Zone;Azure Landing Zones
+Ativação de item de Marketplace;Azure Marketplace
+Configuração ou Adição de script;Azure Automation
+Desenvolvimento e implementação de projeto AKS;Azure Kubernetes Service (AKS)
+Desenvolvimento e implementação de projeto Azure Firewall;Azure Firewall
+Desenvolvimento e implementação de projeto CDN;Azure Content Delivery Network (CDN)
+Desenvolvimento e implementação de projeto DDOS;Azure DDoS Protection
+Desenvolvimento e implementação de projeto de AAD;Azure Active Directory
+Desenvolvimento e implementação de projeto de ADDS;Active Directory Domain Services (ADDS)
+Desenvolvimento e implementação de projeto Defender for Cloud;Microsoft Defender for Cloud
+Desenvolvimento e implementação de projeto Devops;Azure DevOps
+Desenvolvimento e implementação de projeto ExpressRoute;Azure ExpressRoute
+Desenvolvimento e implementação de projeto Kubernetes;Azure Kubernetes Service (AKS)
+Migração de tenant MOSP para CSP;Azure Resource Manager
+Migração Workload GCP para Azure;Azure Migrate
+Workshop Azure Day;Azure Training
+Migracao de workload de Cloud privada para Azure;Azure Migrate
+Migração Workload AWS para Azure;Azure Migrate
+Migração Workload Hyper-v para Azure;Azure Migrate
+Migracao Workload On Premises para Azure;Azure Migrate
+Migração Workload VMWare para Azure;Azure Migrate
+Desenvolvimento e implementação de projeto de mudança de região;Azure Resource Manager
+Atualização/Upgrade de ambiente;Azure Resource Manager
+Migracao de tenant CSP para EA;Azure Migrate
+Desenvolvimento e implementação de projeto Disaster Recovery;Azure Site Recovery
+Criação e Configuração Storage Account - Blob, File Share, Queues ou Tables;Azure Storage
+Desenvolvimento e implementação de projeto Virtual Desktop;Azure Virtual Desktop
+Desenvolvimento e implementação de projeto VPN Gateway;Azure VPN Gateway
+Migracao Exchange para M365;Microsoft 365 Migration
+Assessment de Segurança;FasTrack M365
+Criação de ambiente M365;Microsoft 365 Admin Center
+Criação e ativação Marketplace - Sendgrid PRO 100K;Azure Marketplace
+Consultoria técnica;N/A (serviço personalizado)
+Desenvolvimento e implementação de projeto Copilot Studio;Microsoft Copilot Studio
+Desenvolvimento e implementação de projeto Data Platform;Azure Data Factory
+Desenvolvimento e implementação de projeto Microsoft Fabric;Microsoft Fabric
+Desenvolvimento e implementação de projeto Azure AI Document Intelligence;Azure AI Document Intelligence
+Desenvolvimento e implementação de projeto Open AI;Azure OpenAI
+Desenvolvimento e implementação de projeto Power Pages;Microsoft Power Pages
+Desenvolvimento e implementação de projeto Power App;Microsoft Power Apps
+Desenvolvimento e implementação de projeto Power Automate;Microsoft Power Automate
+Desenvolvimento e implementação de projeto Power BI;Microsoft Power BI
+Desenvolvimento e implementação de projeto Logic Apps;Azure Logic Apps
+Desenvolvimento e implementação de projeto RPA;Microsoft Power Automate RPA
+Workshops/Eventos para clientes;N/A (serviço personalizado)
+Migração Híbrida Exchange para M365;Microsoft 365 Migration
+Migracao de tenant para tenant;Microsoft 365 Migration
+Migracao E-mails IMAP para M365;Microsoft 365 Migration
+Migracao GSuite para M365;Microsoft 365 Migration
+Engajamento - Threat protection engagement;Threat protection engagement
+Desenvolvimento e implementação de projeto DEFENDER;Microsoft Defender for Office 365
+Desenvolvimento e implementação de projeto de Gerenciamento de Identidade;Microsoft Entra ID
+Desenvolvimento e implementação de projeto DLP e AIP (MIP);Microsoft Information Protection (MIP)
+Desenvolvimento e implementação de projeto INTUNE;Microsoft Intune
+Desenvolvimento e implementação de projeto INTUNE AIP;Microsoft Intune
+Desenvolvimento e implementação de projeto INTUNE com DEFENDER;Microsoft Intune
+Desenvolvimento e implementação de projeto INTUNE DLP;Microsoft Intune
+Desenvolvimento e implementação de projeto Purview e conformidade;Microsoft Purview
+Desenvolvimento e implementação de projeto TEAMS;Microsoft Teams
+Desenvolvimento e implementação de projeto Windows 365;Windows 365
+Engajamento - Data security;Data security engagement
+Migração SharePoint server para SPO;Microsoft 365 Migration
+Migracao Zimbra para M365;Microsoft 365 Migration
+Migração Zona DNS - Nameservers Microsoft 365;Microsoft 365 Admin Center
+Desenvolvimento e implementação de projeto Power BI Embedded;Microsoft Power BI Embedded
+Desenvolvimento e implementação de projeto Sentinel;Microsoft Sentinel
+Desenvolvimento e implementação de projeto de migração para Sharepoint;SharePoint Online
+Desenvolvimento e implementação de projeto INTRANET;SharePoint Online
+Desenvolvimento e implementação de projeto Sharepoint;SharePoint Online
+Desenvolvimento e implementação de projeto WAF;Web Application Firewall (WAF)
+Desenvolvimento e implementação de projeto Data;Data e Power
+Demandas Internas;Demandas Internas
+Assessment for Rapid Migration;Assessment Azure
+Storage;Azure Storage

@@ -4067,6 +4067,356 @@ class MacroService(BaseService):
             
         return dataframe
 
+    def calcular_metricas_tipos_servico_simples(self, dados):
+        """
+        Calcula métricas básicas por tipo de serviço usando categorização CSV.
+        Versão simples e incremental.
+        
+        Args:
+            dados (pd.DataFrame): DataFrame com os projetos
+            
+        Returns:
+            dict: Métricas organizadas por categoria
+        """
+        try:
+            from .typeservice_reader import type_service_reader
+            
+            logger.info("🔄 Calculando métricas simples dos tipos de serviço...")
+            
+            # Valida arquivo CSV primeiro
+            valido, mensagem = type_service_reader.validar_arquivo()
+            if not valido:
+                logger.error(f"❌ Arquivo CSV inválido: {mensagem}")
+                return {'erro': mensagem, 'categorias': {}, 'tipos': {}}
+            
+            logger.info(f"✅ {mensagem}")
+            
+            # Verifica coluna TipoServico nos dados
+            if 'TipoServico' not in dados.columns:
+                logger.warning("Coluna 'TipoServico' não encontrada nos dados")
+                return {'erro': 'Coluna TipoServico não encontrada', 'categorias': {}, 'tipos': {}}
+            
+            # Prepara dados básicos
+            dados_limpos = dados[dados['TipoServico'].notna() & (dados['TipoServico'] != '')].copy()
+            
+            if dados_limpos.empty:
+                logger.warning("Nenhum projeto com tipo de serviço válido")
+                return {'erro': 'Nenhum projeto com tipo de serviço válido', 'categorias': {}, 'tipos': {}}
+            
+            # Carrega mapeamento do CSV
+            mapeamento_tipos = type_service_reader.carregar_tipos_servico()
+            
+            # Calcula métricas por tipo
+            metricas_tipos = {}
+            metricas_categorias = {}
+            
+            tipos_unicos = dados_limpos['TipoServico'].unique()
+            
+            for tipo in tipos_unicos:
+                dados_tipo = dados_limpos[dados_limpos['TipoServico'] == tipo]
+                categoria = type_service_reader.obter_categoria(tipo)
+                
+                # Métricas básicas do tipo
+                metricas_tipo = {
+                    'nome': tipo,
+                    'categoria': categoria,
+                    'total_projetos': len(dados_tipo),
+                    'projetos_ativos': len(dados_tipo[~dados_tipo['Status'].isin(['FECHADO', 'ENCERRADO', 'RESOLVIDO', 'CANCELADO'])]),
+                    'projetos_concluidos': len(dados_tipo[dados_tipo['Status'].isin(['FECHADO', 'ENCERRADO', 'RESOLVIDO', 'CANCELADO'])])
+                }
+                
+                # Adiciona horas se disponível
+                if 'Horas' in dados_tipo.columns:
+                    metricas_tipo['horas_totais'] = float(dados_tipo['Horas'].sum())
+                else:
+                    metricas_tipo['horas_totais'] = 0.0
+                
+                metricas_tipos[tipo] = metricas_tipo
+                
+                # Agrega por categoria
+                if categoria not in metricas_categorias:
+                    metricas_categorias[categoria] = {
+                        'nome': categoria,
+                        'total_projetos': 0,
+                        'projetos_ativos': 0,
+                        'projetos_concluidos': 0,
+                        'horas_totais': 0.0,
+                        'tipos_na_categoria': []
+                    }
+                
+                metricas_categorias[categoria]['total_projetos'] += metricas_tipo['total_projetos']
+                metricas_categorias[categoria]['projetos_ativos'] += metricas_tipo['projetos_ativos']
+                metricas_categorias[categoria]['projetos_concluidos'] += metricas_tipo['projetos_concluidos']
+                metricas_categorias[categoria]['horas_totais'] += metricas_tipo['horas_totais']
+                metricas_categorias[categoria]['tipos_na_categoria'].append(tipo)
+            
+            # Adiciona informações de período
+            import datetime
+            data_atual = datetime.datetime.now()
+            
+            # Pega datas mínima e máxima dos dados se disponível
+            periodo_info = {
+                'data_analise': data_atual.strftime('%d/%m/%Y %H:%M'),
+                'mes_referencia': data_atual.strftime('%m/%Y'),
+                'total_registros_analisados': len(dados_limpos)
+            }
+            
+            # Tenta obter período dos dados se houver coluna de data
+            if 'DataCriacao' in dados_limpos.columns or 'DataInicio' in dados_limpos.columns:
+                coluna_data = 'DataCriacao' if 'DataCriacao' in dados_limpos.columns else 'DataInicio'
+                try:
+                    # Converte para datetime se necessário
+                    datas_validas = pd.to_datetime(dados_limpos[coluna_data], errors='coerce').dropna()
+                    if not datas_validas.empty:
+                        periodo_info['data_inicio'] = datas_validas.min().strftime('%d/%m/%Y')
+                        periodo_info['data_fim'] = datas_validas.max().strftime('%d/%m/%Y')
+                        periodo_info['periodo_dias'] = (datas_validas.max() - datas_validas.min()).days
+                except:
+                    pass
+            
+            resultado = {
+                'tipos': metricas_tipos,
+                'categorias': metricas_categorias,
+                'resumo': {
+                    'total_tipos': len(tipos_unicos),
+                    'total_categorias': len(metricas_categorias),
+                    'total_projetos': len(dados_limpos),
+                    'tipos_cadastrados_csv': len(mapeamento_tipos)
+                },
+                'periodo': periodo_info,
+                'status': 'sucesso'
+            }
+            
+            logger.info(f"✅ Métricas calculadas: {len(tipos_unicos)} tipos, {len(metricas_categorias)} categorias")
+            return resultado
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao calcular métricas tipos de serviço: {str(e)}", exc_info=True)
+            return {
+                'erro': str(e),
+                'categorias': {},
+                'tipos': {},
+                'status': 'erro'
+            }
+
+    def analisar_mapeamento_tipos_servico(self, dados):
+        """
+        Analisa o mapeamento entre tipos de serviço nos projetos vs CSV.
+        Funcionalidade "DexPra" para identificar não mapeados.
+        
+        Args:
+            dados (pd.DataFrame): DataFrame com os projetos
+            
+        Returns:
+            dict: Análise completa do mapeamento
+        """
+        try:
+            from .typeservice_reader import type_service_reader
+            
+            logger.info("🔄 Analisando mapeamento DexPra...")
+            
+            # Carrega mapeamento do CSV
+            mapeamento_csv = type_service_reader.carregar_tipos_servico()
+            if not mapeamento_csv:
+                return {'erro': 'Erro ao carregar arquivo CSV', 'status': 'erro'}
+            
+            # Verifica coluna TipoServico nos dados
+            if 'TipoServico' not in dados.columns:
+                return {'erro': 'Coluna TipoServico não encontrada', 'status': 'erro'}
+            
+            # Prepara dados
+            dados_limpos = dados[dados['TipoServico'].notna() & (dados['TipoServico'] != '')].copy()
+            if dados_limpos.empty:
+                return {'erro': 'Nenhum projeto com tipo de serviço válido', 'status': 'erro'}
+            
+            # Função auxiliar para normalizar strings
+            def normalizar_string(s):
+                """Normaliza string removendo espaços extras, acentos e padronizando case"""
+                if pd.isna(s) or s == '':
+                    return ''
+                import unicodedata
+                # Remove acentos
+                s = unicodedata.normalize('NFD', str(s)).encode('ascii', 'ignore').decode('ascii')
+                # Remove espaços extras e converte para lowercase
+                return ' '.join(str(s).strip().lower().split())
+            
+            # Analisa tipos nos projetos
+            tipos_projetos = dados_limpos['TipoServico'].value_counts().to_dict()
+            
+            # DEBUG: Log dos tipos encontrados nos projetos
+            logger.info(f"🔍 Tipos encontrados nos projetos ({len(tipos_projetos)}):")
+            for tipo, qtd in list(tipos_projetos.items())[:5]:
+                logger.info(f"  - '{tipo}' ({qtd} projetos)")
+            
+            # Função auxiliar para normalizar strings
+            def normalizar_string(s):
+                """Normaliza string removendo espaços extras, acentos e padronizando case"""
+                if pd.isna(s) or s == '':
+                    return ''
+                import unicodedata
+                # Remove acentos
+                s = unicodedata.normalize('NFD', str(s)).encode('ascii', 'ignore').decode('ascii')
+                # Remove espaços extras e converte para lowercase
+                return ' '.join(str(s).strip().lower().split())
+            
+            # DEBUG: Log dos tipos do CSV
+            logger.info(f"🔍 Tipos encontrados no CSV ({len(mapeamento_csv)}):")
+            for tipo, categoria in list(mapeamento_csv.items())[:5]:
+                logger.info(f"  - '{tipo}' -> '{categoria}'")
+            
+            # Cria mapeamento normalizado para comparação
+            csv_normalizado = {}
+            for tipo_original, categoria in mapeamento_csv.items():
+                tipo_norm = normalizar_string(tipo_original)
+                if tipo_norm:  # Só adiciona se não estiver vazio após normalização
+                    csv_normalizado[tipo_norm] = {
+                        'original': tipo_original,
+                        'categoria': categoria
+                    }
+            
+            # DEBUG: Log dos tipos normalizados do CSV
+            logger.info(f"🔍 Tipos normalizados do CSV ({len(csv_normalizado)}):")
+            for tipo_norm, info in list(csv_normalizado.items())[:5]:
+                logger.info(f"  - '{tipo_norm}' -> '{info['categoria']}'")
+            
+            # Cria sets para análise (usando versões normalizadas)
+            tipos_projetos_norm = {normalizar_string(tipo): tipo for tipo in tipos_projetos.keys()}
+            tipos_csv_norm = set(csv_normalizado.keys())
+            tipos_reais_norm = set(tipos_projetos_norm.keys())
+            
+            # Remove strings vazias
+            tipos_csv_norm.discard('')
+            tipos_reais_norm.discard('')
+            
+            # DEBUG: Verifica tipos específicos problemáticos
+            tipos_problema = ['Migração de tenant CSP para EA', 'Assessment for Rapid Migration']
+            for tipo in tipos_problema:
+                tipo_norm = normalizar_string(tipo)
+                logger.info(f"🔍 Verificando '{tipo}':")
+                logger.info(f"  - Normalizado: '{tipo_norm}'")
+                logger.info(f"  - No CSV normalizado: {tipo_norm in csv_normalizado}")
+                logger.info(f"  - Nos projetos: {tipo in tipos_projetos}")
+                
+                # Procura por versões similares nos projetos
+                tipos_similares = [t for t in tipos_projetos.keys() if tipo.lower() in t.lower() or t.lower() in tipo.lower()]
+                if tipos_similares:
+                    logger.info(f"  - Tipos similares nos projetos: {tipos_similares}")
+            
+            # Identifica mapeamentos usando versões normalizadas
+            tipos_mapeados_norm = tipos_reais_norm.intersection(tipos_csv_norm)
+            tipos_nao_mapeados_norm = tipos_reais_norm - tipos_csv_norm
+            tipos_csv_nao_usados_norm = tipos_csv_norm - tipos_reais_norm
+            
+            # Constrói listas detalhadas usando tipos originais
+            nao_mapeados = []
+            for tipo_norm in tipos_nao_mapeados_norm:
+                tipo_original = tipos_projetos_norm[tipo_norm]
+                qtd_projetos = tipos_projetos.get(tipo_original, 0)
+                categoria_atual = type_service_reader.obter_categoria(tipo_original)  # Retorna "Outros"
+                
+                # Sugere ação baseada no nome do tipo
+                acao_sugerida = self._sugerir_acao_tipo(tipo_original)
+                
+                nao_mapeados.append({
+                    'tipo': tipo_original,
+                    'qtd_projetos': qtd_projetos,
+                    'categoria_atual': categoria_atual,
+                    'acao_sugerida': acao_sugerida
+                })
+            
+            # Ordena por quantidade de projetos (mais críticos primeiro)
+            nao_mapeados.sort(key=lambda x: x['qtd_projetos'], reverse=True)
+            
+            mapeados = []
+            for tipo_norm in tipos_mapeados_norm:
+                tipo_original = tipos_projetos_norm[tipo_norm]
+                qtd_projetos = tipos_projetos.get(tipo_original, 0)
+                categoria = csv_normalizado[tipo_norm]['categoria']
+                
+                mapeados.append({
+                    'tipo': tipo_original,
+                    'qtd_projetos': qtd_projetos,
+                    'categoria': categoria
+                })
+            
+            mapeados.sort(key=lambda x: x['qtd_projetos'], reverse=True)
+            
+            csv_nao_usados = []
+            for tipo_norm in tipos_csv_nao_usados_norm:
+                info_csv = csv_normalizado[tipo_norm]
+                tipo_original = info_csv['original']
+                categoria = info_csv['categoria']
+                
+                csv_nao_usados.append({
+                    'tipo': tipo_original,
+                    'categoria': categoria,
+                    'status': 'Não utilizado nos projetos atuais'
+                })
+            
+            csv_nao_usados.sort(key=lambda x: x['tipo'])
+            
+            # Log para debug
+            logger.info(f"📊 Análise normalizada:")
+            logger.info(f"  - Tipos nos projetos: {len(tipos_reais_norm)}")
+            logger.info(f"  - Tipos no CSV: {len(tipos_csv_norm)}")
+            logger.info(f"  - Mapeados: {len(tipos_mapeados_norm)}")
+            logger.info(f"  - Não mapeados: {len(tipos_nao_mapeados_norm)}")
+            logger.info(f"  - CSV não usados: {len(tipos_csv_nao_usados_norm)}")
+            
+            # Monta resultado
+            resultado = {
+                'nao_mapeados': nao_mapeados,
+                'mapeados': mapeados,
+                'csv_nao_usados': csv_nao_usados,
+                'resumo': {
+                    'total_tipos_projetos': len(tipos_reais_norm),
+                    'total_tipos_csv': len(tipos_csv_norm),
+                    'total_nao_mapeados': len(tipos_nao_mapeados_norm),
+                    'total_mapeados': len(tipos_mapeados_norm),
+                    'total_csv_nao_usados': len(tipos_csv_nao_usados_norm),
+                    'percentual_mapeado': round((len(tipos_mapeados_norm) / len(tipos_reais_norm)) * 100, 1) if tipos_reais_norm else 0
+                },
+                'status': 'sucesso'
+            }
+            
+            logger.info(f"✅ Mapeamento analisado: {len(tipos_nao_mapeados_norm)} não mapeados, {len(tipos_mapeados_norm)} mapeados")
+            return resultado
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao analisar mapeamento: {str(e)}", exc_info=True)
+            return {
+                'erro': str(e),
+                'status': 'erro'
+            }
+    
+    def _sugerir_acao_tipo(self, tipo):
+        """Sugere ação baseada no nome do tipo de serviço"""
+        tipo_lower = tipo.lower()
+        
+        if 'migra' in tipo_lower and 'm365' in tipo_lower or 'office 365' in tipo_lower:
+            return 'Adicionar ao CSV como "Microsoft 365 Migration"'
+        elif 'migra' in tipo_lower and ('exchange' in tipo_lower or 'email' in tipo_lower):
+            return 'Adicionar ao CSV como "Exchange Online"'
+        elif 'migra' in tipo_lower and ('sharepoint' in tipo_lower or 'spo' in tipo_lower):
+            return 'Adicionar ao CSV como "SharePoint Online"'
+        elif 'migra' in tipo_lower and ('azure' in tipo_lower or 'cloud' in tipo_lower):
+            return 'Adicionar ao CSV como "Azure Migrate"'
+        elif 'backup' in tipo_lower:
+            return 'Adicionar ao CSV como "Azure Backup"'
+        elif 'security' in tipo_lower or 'seguran' in tipo_lower:
+            return 'Adicionar ao CSV como "Microsoft Defender for Cloud"'
+        elif 'power' in tipo_lower:
+            if 'bi' in tipo_lower:
+                return 'Adicionar ao CSV como "Microsoft Power BI"'
+            elif 'app' in tipo_lower:
+                return 'Adicionar ao CSV como "Microsoft Power Apps"'
+            elif 'automate' in tipo_lower:
+                return 'Adicionar ao CSV como "Microsoft Power Automate"'
+            else:
+                return 'Adicionar ao CSV como categoria "Power Platform"'
+        else:
+            return 'Analisar e adicionar categoria apropriada ao CSV'
+
 
 # Funções auxiliares fora da classe
 def normalize_status(status):
