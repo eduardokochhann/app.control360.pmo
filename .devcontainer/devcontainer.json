@@ -12,7 +12,14 @@
 		}
 	},
 	"features": {
-		"ghcr.io/azure/azure-dev/azd:0": {}
+		"ghcr.io/azure/azure-dev/azd:0": {
+			"version": "stable"
+		},
+		"ghcr.io/devcontainers/features/azure-cli:1": {
+			"installBicep": true,
+			"version": "latest",
+			"bicepVersion": "latest"
+		}
 	}
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
