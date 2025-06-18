@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 from io import BytesIO
 import os # Removido para debug - PATH OK
+import json
 
 # Inicializa logger
 logger = logging.getLogger(__name__)
@@ -316,7 +317,224 @@ def relatorio_projetos_criticos():
                              error=str(e),
                              hora_atualizacao=datetime.now())
 
-# --- Rotas de API (Mantidas exatamente como estavam) ---
+# === NOVA ABA DE RELATÓRIOS ===
+
+@macro_bp.route('/relatorios')
+def relatorios_dashboard():
+    """Dashboard principal da aba de relatórios"""
+    try:
+        logger.info("Acessando dashboard de relatórios")
+        
+        # Prepara contexto para o template
+        context = {
+            'title': 'Relatórios Macro',
+            'hora_atualizacao': datetime.now()
+        }
+        
+        return render_template('macro/relatorios_dashboard.html', **context)
+        
+    except Exception as e:
+        logger.exception(f"Erro na rota relatorios_dashboard: {str(e)}")
+        return render_template('macro/relatorios_dashboard.html', 
+                             title="Relatórios Macro",
+                             error=str(e),
+                             hora_atualizacao=datetime.now())
+
+@macro_bp.route('/relatorios/geral')
+def relatorio_geral():
+    """Página de seleção de meses para o relatório geral"""
+    try:
+        logger.info("Acessando seleção de relatório geral")
+        
+        # Obter fontes disponíveis para seleção
+        fontes_disponiveis = macro_service.obter_fontes_disponiveis()
+        
+        context = {
+            'title': 'Relatório Geral - Seleção de Período',
+            'fontes_disponiveis': fontes_disponiveis,
+            'hora_atualizacao': datetime.now()
+        }
+        
+        return render_template('macro/relatorio_geral_selecao.html', **context)
+        
+    except Exception as e:
+        logger.exception(f"Erro na rota relatorio_geral: {str(e)}")
+        return render_template('macro/relatorio_geral_selecao.html', 
+                             title="Relatório Geral - Seleção de Período",
+                             error=str(e),
+                             hora_atualizacao=datetime.now())
+
+@macro_bp.route('/relatorios/geral/gerar', methods=['POST'])
+def gerar_relatorio_geral():
+    """Gera o relatório geral com base nos meses selecionados e filtros aplicados"""
+    try:
+        # Obtém os meses selecionados do formulário
+        meses_selecionados = request.form.getlist('meses_selecionados[]')
+        
+        if not meses_selecionados:
+            logger.warning("Nenhum mês selecionado para o relatório geral")
+            return redirect(url_for('macro.relatorio_geral'))
+        
+        # Coleta filtros avançados
+        filtros = {
+            'data_abertura_inicio': request.form.get('data_abertura_inicio'),
+            'data_abertura_fim': request.form.get('data_abertura_fim'),
+            'data_fechamento_inicio': request.form.get('data_fechamento_inicio'),
+            'data_fechamento_fim': request.form.get('data_fechamento_fim'),
+            'squad': request.form.get('filtro_squad'),
+            'servico': request.form.get('filtro_servico'),
+            'status': request.form.get('filtro_status'),
+            'faturamento': request.form.get('filtro_faturamento')
+        }
+        
+        # Remove filtros vazios
+        filtros = {k: v for k, v in filtros.items() if v and str(v).strip()}
+        
+        logger.info(f"Gerando relatório geral para os meses: {meses_selecionados}")
+        if filtros:
+            logger.info(f"Filtros aplicados: {filtros}")
+        
+        # Passa os meses selecionados e filtros como parâmetros
+        meses_param = ','.join(meses_selecionados)
+        
+        context = {
+            'title': 'Relatório Geral de Projetos',
+            'meses_selecionados': meses_param,
+            'filtros_aplicados': json.dumps(filtros) if filtros else '{}',
+            'hora_atualizacao': datetime.now()
+        }
+        
+        return render_template('macro/relatorio_geral.html', **context)
+        
+    except Exception as e:
+        logger.exception(f"Erro ao gerar relatório geral: {str(e)}")
+        return redirect(url_for('macro.relatorio_geral'))
+
+@macro_bp.route('/relatorios/entregues')
+def relatorio_projetos_entregues():
+    """Rota para o relatório de projetos entregues"""
+    try:
+        logger.info("Acessando relatório de projetos entregues")
+        
+        # Carrega dados atuais
+        dados_atuais = macro_service.carregar_dados(fonte=None)
+        
+        if dados_atuais.empty:
+            logger.warning("Dados vazios para o relatório de projetos entregues")
+            return render_template('macro/relatorio_projetos_entregues.html', 
+                                 title="Relatório de Projetos Entregues",
+                                 error="Nenhum dado disponível para exibição",
+                                 hora_atualizacao=datetime.now())
+        
+        # Prepara contexto para o template
+        context = {
+            'title': 'Relatório de Projetos Entregues',
+            'hora_atualizacao': datetime.now()
+        }
+        
+        logger.info(f"Renderizando relatório de projetos entregues com {len(dados_atuais)} registros")
+        return render_template('macro/relatorio_projetos_entregues.html', **context)
+        
+    except Exception as e:
+        logger.exception(f"Erro na rota relatorio_projetos_entregues: {str(e)}")
+        return render_template('macro/relatorio_projetos_entregues.html', 
+                             title="Relatório de Projetos Entregues",
+                             error=str(e),
+                             hora_atualizacao=datetime.now())
+
+# === APIs PARA OS NOVOS RELATÓRIOS ===
+
+@macro_bp.route('/api/projetos/entregues')
+def get_projetos_entregues():
+    """API para obter projetos entregues"""
+    try:
+        logger.info("API: Carregando projetos entregues")
+        dados = macro_service.carregar_dados()
+        
+        if dados.empty:
+            logger.warning("Dados vazios para projetos entregues")
+            return jsonify([])
+        
+        # Filtra projetos entregues (concluídos)
+        projetos_entregues = macro_service.obter_projetos_concluidos(dados)
+        
+        logger.info(f"API: Retornando {len(projetos_entregues)} projetos entregues")
+        return jsonify(projetos_entregues)
+        
+    except Exception as e:
+        logger.exception(f"Erro na API de projetos entregues: {str(e)}")
+        return jsonify([])
+
+@macro_bp.route('/api/filter-options')
+def api_filter_options():
+    """API para obter opções dos filtros do relatório geral"""
+    try:
+        dados = macro_service.carregar_dados()
+        
+        if dados.empty:
+            return jsonify({'success': False, 'message': 'Dados não disponíveis'})
+        
+        # Obtém valores únicos para os filtros
+        squads = sorted(dados['Squad'].dropna().unique().tolist()) if 'Squad' in dados.columns else []
+        servicos = sorted(dados['Tipo de servico'].dropna().unique().tolist()) if 'Tipo de servico' in dados.columns else (
+            sorted(dados['Tipo de Serviço'].dropna().unique().tolist()) if 'Tipo de Serviço' in dados.columns else []
+        )
+        faturamentos = sorted(dados['Faturamento'].dropna().unique().tolist()) if 'Faturamento' in dados.columns else []
+        
+        # Remove valores vazios e limpa dados
+        squads = [s for s in squads if s and str(s).strip() != '']
+        servicos = [s for s in servicos if s and str(s).strip() != '']
+        faturamentos = [f for f in faturamentos if f and str(f).strip() != '']
+        
+        return jsonify({
+            'success': True,
+            'squads': squads,
+            'servicos': servicos,
+            'faturamentos': faturamentos
+        })
+        
+    except Exception as e:
+        logger.exception(f"Erro ao obter opções de filtros: {str(e)}")
+        return jsonify({'success': False, 'message': 'Erro interno do servidor'})
+
+@macro_bp.route('/api/relatorio/geral')
+def api_relatorio_geral_dados():
+    """API para obter dados do relatório geral com base nos meses selecionados e filtros"""
+    try:
+        # Obtém os meses selecionados dos parâmetros da query
+        meses_param = request.args.get('meses', '')
+        meses_selecionados = meses_param.split(',') if meses_param else []
+        
+        if not meses_selecionados:
+            return jsonify([])
+        
+        logger.info(f"API Relatório Geral: Carregando dados para meses {meses_selecionados}")
+        
+        # Carrega e combina dados de todos os meses selecionados
+        dados_combinados = []
+        
+        for mes_fonte in meses_selecionados:
+            if mes_fonte == 'atual':
+                dados_mes = macro_service.carregar_dados(fonte=None)
+            else:
+                dados_mes = macro_service.carregar_dados(fonte=mes_fonte)
+            
+            if not dados_mes.empty:
+                dados_combinados.append(dados_mes)
+        
+        # Combina todos os dataframes
+        if dados_combinados:
+            dados_relatorio = pd.concat(dados_combinados, ignore_index=True)
+            # Converte para formato JSON
+            projetos_formatados = macro_service._formatar_projetos(dados_relatorio)
+            return jsonify(projetos_formatados)
+        else:
+            return jsonify([])
+        
+    except Exception as e:
+        logger.exception(f"Erro na API do relatório geral: {str(e)}")
+        return jsonify([])
+
 @macro_bp.route('/api/especialistas')
 def api_especialistas():
     logger.info("Acessando rota /api/especialistas")

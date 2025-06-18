@@ -1,0 +1,263 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="bi bi-calendar-range me-2"></i>{{ title }}
+            </h6>
+            <a href="{{ url_for('macro.relatorios_dashboard') }}" class="btn btn-sm btn-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Voltar aos Relatórios
+            </a>
+        </div>
+        <div class="card-body">
+            <form action="{{ url_for('macro.gerar_relatorio_geral') }}" method="POST">
+                <div class="mb-4">
+                    <label class="form-label">Selecione os Períodos para o Relatório</label>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50px;">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="selectAllPeriods">
+                                        </div>
+                                    </th>
+                                    <th>Período</th>
+                                    <th>Fonte de Dados</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Dados Atuais -->
+                                <tr>
+                                    <td>
+                                        <div class="form-check">
+                                            <input class="form-check-input periodo-checkbox" type="checkbox" name="meses_selecionados[]" value="atual">
+                                        </div>
+                                    </td>
+                                    <td><strong>Visão Atual</strong><br><small class="text-muted">Todos os dados consolidados</small></td>
+                                    <td>dadosr.csv (coleta completa)</td>
+                                    <td>
+                                        <span class="badge bg-primary">Visão Atual</span>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Fontes Históricas -->
+                                {% if fontes_disponiveis %}
+                                    {% for fonte in fontes_disponiveis %}
+                                    <tr>
+                                        <td>
+                                            <div class="form-check">
+                                                <input class="form-check-input periodo-checkbox" type="checkbox" name="meses_selecionados[]" value="{{ fonte.arquivo }}">
+                                            </div>
+                                        </td>
+                                        <td><strong>{{ fonte.nome_exibicao }}</strong><br><small class="text-muted">Espelho específico do mês ({{ fonte.abreviacao }})</small></td>
+                                        <td>{{ fonte.arquivo }}.csv</td>
+                                        <td>
+                                            <span class="badge bg-success">Histórico</span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        Nenhum período histórico disponível. Apenas visão atual pode ser selecionada.
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Seção de Filtros Avançados -->
+                <div class="mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <button class="btn btn-link p-0 text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#filtrosAvancados" aria-expanded="false">
+                                    <i class="bi bi-funnel me-2"></i>Filtros Avançados
+                                    <i class="bi bi-chevron-down ms-1"></i>
+                                </button>
+                            </h6>
+                        </div>
+                        <div id="filtrosAvancados" class="collapse">
+                            <div class="card-body">
+                                <div class="row">
+                                    <!-- Filtros de Data -->
+                                    <div class="col-md-6">
+                                        <h6>Filtros por Data</h6>
+                                        <div class="mb-3">
+                                            <label class="form-label">Projetos Abertos Entre:</label>
+                                            <div class="row">
+                                                <div class="col">
+                                                    <input type="date" class="form-control" name="data_abertura_inicio" placeholder="Data início">
+                                                </div>
+                                                <div class="col">
+                                                    <input type="date" class="form-control" name="data_abertura_fim" placeholder="Data fim">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Projetos Fechados Entre:</label>
+                                            <div class="row">
+                                                <div class="col">
+                                                    <input type="date" class="form-control" name="data_fechamento_inicio" placeholder="Data início">
+                                                </div>
+                                                <div class="col">
+                                                    <input type="date" class="form-control" name="data_fechamento_fim" placeholder="Data fim">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Filtros por Categorias -->
+                                    <div class="col-md-6">
+                                        <h6>Filtros por Categoria</h6>
+                                        <div class="mb-3">
+                                            <label class="form-label">Squad</label>
+                                            <select class="form-select" name="filtro_squad" id="filtroSquad">
+                                                <option value="">Todas as Squads</option>
+                                                <!-- Será preenchido dinamicamente -->
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Tipo de Serviço</label>
+                                            <select class="form-select" name="filtro_servico" id="filtroServico">
+                                                <option value="">Todos os Serviços</option>
+                                                <!-- Será preenchido dinamicamente -->
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Status</label>
+                                            <select class="form-select" name="filtro_status" id="filtroStatus">
+                                                <option value="">Todos os Status</option>
+                                                <option value="NOVO">Novo</option>
+                                                <option value="EM ATENDIMENTO">Em Atendimento</option>
+                                                <option value="AGUARDANDO">Aguardando</option>
+                                                <option value="BLOQUEADO">Bloqueado</option>
+                                                <option value="FECHADO">Fechado</option>
+                                                <option value="ENCERRADO">Encerrado</option>
+                                                <option value="RESOLVIDO">Resolvido</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Tipo de Faturamento</label>
+                                            <select class="form-select" name="filtro_faturamento" id="filtroFaturamento">
+                                                <option value="">Todos os Tipos</option>
+                                                <!-- Será preenchido dinamicamente -->
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="text-end">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="limparFiltros()">
+                                        <i class="bi bi-arrow-clockwise me-1"></i>Limpar Filtros
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-end">
+                    <button type="submit" class="btn btn-primary" id="generateReportBtn" disabled>
+                        <i class="bi bi-file-earmark-text me-1"></i>Gerar Relatório
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAllPeriods');
+    const periodoCheckboxes = document.querySelectorAll('.periodo-checkbox');
+    const generateReportBtn = document.getElementById('generateReportBtn');
+
+    // Função para atualizar estado do botão
+    function updateGenerateButton() {
+        const anyChecked = Array.from(periodoCheckboxes).some(cb => cb.checked);
+        generateReportBtn.disabled = !anyChecked;
+    }
+
+    // Listener para o checkbox "Selecionar Todos"
+    selectAllCheckbox.addEventListener('change', function() {
+        periodoCheckboxes.forEach(cb => {
+            cb.checked = this.checked;
+        });
+        updateGenerateButton();
+    });
+
+    // Listeners para os checkboxes individuais
+    periodoCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            const allChecked = Array.from(periodoCheckboxes).every(cb => cb.checked);
+            selectAllCheckbox.checked = allChecked;
+            updateGenerateButton();
+        });
+    });
+
+    // Carrega opções dos filtros dinamicamente
+    carregarOpcoesFilttros();
+});
+
+function carregarOpcoesFilttros() {
+    // Carrega dados para preencher os selects dos filtros
+    fetch('/macro/api/filter-options')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Preenche Squad
+                const squadSelect = document.getElementById('filtroSquad');
+                data.squads.forEach(squad => {
+                    const option = document.createElement('option');
+                    option.value = squad;
+                    option.textContent = squad;
+                    squadSelect.appendChild(option);
+                });
+
+                // Preenche Serviços
+                const servicoSelect = document.getElementById('filtroServico');
+                data.servicos.forEach(servico => {
+                    const option = document.createElement('option');
+                    option.value = servico;
+                    option.textContent = servico;
+                    servicoSelect.appendChild(option);
+                });
+
+                // Preenche Tipos de Faturamento
+                const faturamentoSelect = document.getElementById('filtroFaturamento');
+                data.faturamentos.forEach(faturamento => {
+                    const option = document.createElement('option');
+                    option.value = faturamento;
+                    option.textContent = faturamento;
+                    faturamentoSelect.appendChild(option);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao carregar opções de filtros:', error);
+        });
+}
+
+function limparFiltros() {
+    // Limpa todos os campos de filtro
+    document.querySelectorAll('#filtrosAvancados input').forEach(input => {
+        input.value = '';
+    });
+    document.querySelectorAll('#filtrosAvancados select').forEach(select => {
+        select.selectedIndex = 0;
+    });
+}
+</script>
+{% endblock %}

@@ -537,6 +537,14 @@ class MacroService(BaseService):
                 data_vencimento_str = row.get(col_data_vencimento, pd.NaT)
                 data_vencimento_fmt = data_vencimento_str.strftime('%d/%m/%Y') if pd.notna(data_vencimento_str) else 'N/A'
                 
+                # Obtém dados adicionais para o relatório geral
+                cliente_val = row.get('Cliente', 'N/A')
+                servico_val = row.get('Tipo de servico', row.get('Tipo de Serviço', 'N/A'))  # Aceita ambas as grafias
+                faturamento_val = row.get('Faturamento', 'N/A')
+                data_resolvido = row.get('DataResolvido', pd.NaT)
+                data_resolvido_fmt = data_resolvido.strftime('%d/%m/%Y') if pd.notna(data_resolvido) else 'N/A'
+                tempo_vida_val = row.get('TempoVida', 0)  # Assumindo que este campo será calculado
+                
                 resultados.append({
                     'numero': numero_val,
                     'projeto': row.get(col_projeto, 'N/A'),
@@ -550,7 +558,14 @@ class MacroService(BaseService):
                     'horas_trabalhadas': float(row.get(col_horas_trab, 0.0)) if pd.notna(row.get(col_horas_trab)) else 0.0,
                     'horasRestantes': float(row.get(col_horas_rest, 0.0)) if pd.notna(row.get(col_horas_rest)) else 0.0,  # CORRIGIDO: usar horasRestantes que o JS espera
                     'Horas': float(row.get(col_horas_prev, 0.0)) if pd.notna(row.get(col_horas_prev)) else 0.0,  # CORRIGIDO: usar Horas que o JS espera
-                    'backlog_exists': row.get('backlog_exists', False)  # Adiciona coluna backlog se existir
+                    'backlog_exists': row.get('backlog_exists', False),  # Adiciona coluna backlog se existir
+                    # Campos adicionais para o relatório geral
+                    'cliente': cliente_val,
+                    'servico': servico_val,
+                    'tipo_faturamento': faturamento_val,
+                    'data_resolvido': data_resolvido_fmt,
+                    'account_manager': account_val,  # Alias para AM
+                    'tempo_vida': tempo_vida_val
                 })
             return resultados
             
@@ -1288,6 +1303,13 @@ class MacroService(BaseService):
                         dados_base[col] = dados_base[col].fillna('NÃO DEFINIDO')
                 elif col == 'Account Manager':
                     dados_base[col] = 'NÃO DEFINIDO'  # Garante que a coluna Account Manager sempre existe
+            
+            # Calcula tempo de vida do projeto (em dias)
+            if 'DataInicio' in dados_base.columns:
+                hoje = datetime.now()
+                dados_base['TempoVida'] = (hoje - dados_base['DataInicio']).dt.days.fillna(0).astype(int)
+            else:
+                dados_base['TempoVida'] = 0
             
             logger.debug(f"Dados base preparados. Colunas: {dados_base.columns.tolist()}")
             logger.debug(f"Account Managers após preparação: {dados_base['Account Manager'].unique().tolist() if 'Account Manager' in dados_base.columns else 'Coluna não existe'}")
@@ -3413,13 +3435,13 @@ class MacroService(BaseService):
 
     def obter_fontes_disponiveis(self):
         """
-        Detecta automaticamente arquivos dadosr_apt_* disponíveis no diretório de dados
-        e retorna uma lista de meses/anos que podem ser usados para criar abas dinamicamente.
-        NÃO inclui dadosr.csv pois este é sempre usado para a Visão Atual.
+        Detecta automaticamente arquivos dadosr_apt_* disponíveis no diretório de dados.
+        Estes são arquivos "legados" que representam um espelho específico do mês.
+        NÃO inclui dadosr.csv pois este contém todos os dados (visão atual para Status Report).
         
         Returns:
             list: Lista de dicionários com informações sobre fontes disponíveis
-                  Formato: [{'mes': 1, 'ano': 2025, 'nome_arquivo': 'dadosr_apt_jan', 'label': 'Jan/2025'}, ...]
+                  Formato: [{'arquivo': 'dadosr_apt_jan', 'nome_exibicao': 'Janeiro/2025', 'mes': 1, 'ano': 2025}, ...]
                   Ordenado do mais recente para o mais antigo
         """
         try:
@@ -3448,19 +3470,20 @@ class MacroService(BaseService):
                         mes_num, ano = self._mapear_abreviacao_para_data(abrev_mes)
                         
                         if mes_num and ano:
-                            label = f"{self._obter_nome_mes_pt(mes_num)}/{ano}"
+                            nome_mes_completo = self._obter_nome_mes_completo(mes_num)
                             fontes.append({
+                                'arquivo': nome_arquivo,
+                                'nome_exibicao': f"{nome_mes_completo}/{ano}",
                                 'mes': mes_num,
                                 'ano': ano,
-                                'nome_arquivo': nome_arquivo,
-                                'label': label
+                                'abreviacao': abrev_mes.upper()
                             })
-                            logger.info(f"Fonte detectada: {nome_arquivo} -> {label}")
+                            logger.info(f"Fonte detectada: {nome_arquivo} -> {nome_mes_completo}/{ano}")
             
             # Ordena por ano e mês (mais recente primeiro)
             fontes.sort(key=lambda x: (x['ano'], x['mes']), reverse=True)
             
-            logger.info(f"Total de fontes detectadas: {len(fontes)}")
+            logger.info(f"Total de fontes históricas detectadas: {len(fontes)}")
             return fontes
             
         except Exception as e:
@@ -3527,6 +3550,23 @@ class MacroService(BaseService):
         }
         
         return mes_num_to_label.get(mes_num, f"Mês{mes_num}")
+    
+    def _obter_nome_mes_completo(self, mes_num):
+        """
+        Obtém o nome completo do mês em português para o número do mês.
+        
+        Args:
+            mes_num (int): Número do mês (1-12)
+            
+        Returns:
+            str: Nome completo do mês em português
+        """
+        mes_num_to_nome_completo = {
+            1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 5: 'Maio', 6: 'Junho',
+            7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
+        }
+        
+        return mes_num_to_nome_completo.get(mes_num, f"Mês {mes_num}")
 
     def get_specialist_list(self):
         """Carrega os dados e retorna uma lista única e ordenada de especialistas."""
@@ -4416,6 +4456,101 @@ class MacroService(BaseService):
                 return 'Adicionar ao CSV como categoria "Power Platform"'
         else:
             return 'Analisar e adicionar categoria apropriada ao CSV'
+
+    def aplicar_filtros_relatorio(self, dados, filtros):
+        """
+        Aplica filtros avançados nos dados do relatório geral.
+        
+        Args:
+            dados (DataFrame): Dados a serem filtrados
+            filtros (dict): Dicionário com os filtros a aplicar
+            
+        Returns:
+            DataFrame: Dados filtrados
+        """
+        try:
+            logger.info(f"Aplicando filtros ao relatório: {filtros}")
+            dados_filtrados = dados.copy()
+            
+            # Filtro por Squad
+            if 'squad' in filtros and filtros['squad']:
+                dados_filtrados = dados_filtrados[dados_filtrados['Squad'].str.upper() == filtros['squad'].upper()]
+                logger.info(f"Filtro Squad aplicado: {filtros['squad']} - Registros restantes: {len(dados_filtrados)}")
+            
+            # Filtro por Serviço
+            if 'servico' in filtros and filtros['servico']:
+                # Verifica ambas as possíveis colunas de serviço
+                if 'Tipo de servico' in dados_filtrados.columns:
+                    dados_filtrados = dados_filtrados[dados_filtrados['Tipo de servico'].str.upper() == filtros['servico'].upper()]
+                elif 'Tipo de Serviço' in dados_filtrados.columns:
+                    dados_filtrados = dados_filtrados[dados_filtrados['Tipo de Serviço'].str.upper() == filtros['servico'].upper()]
+                logger.info(f"Filtro Serviço aplicado: {filtros['servico']} - Registros restantes: {len(dados_filtrados)}")
+            
+            # Filtro por Status
+            if 'status' in filtros and filtros['status']:
+                dados_filtrados = dados_filtrados[dados_filtrados['Status'].str.upper() == filtros['status'].upper()]
+                logger.info(f"Filtro Status aplicado: {filtros['status']} - Registros restantes: {len(dados_filtrados)}")
+            
+            # Filtro por Faturamento
+            if 'faturamento' in filtros and filtros['faturamento']:
+                if 'Faturamento' in dados_filtrados.columns:
+                    dados_filtrados = dados_filtrados[dados_filtrados['Faturamento'].str.upper() == filtros['faturamento'].upper()]
+                    logger.info(f"Filtro Faturamento aplicado: {filtros['faturamento']} - Registros restantes: {len(dados_filtrados)}")
+            
+            # Filtros por Data de Abertura
+            if 'data_abertura_inicio' in filtros and filtros['data_abertura_inicio']:
+                try:
+                    data_inicio = pd.to_datetime(filtros['data_abertura_inicio'])
+                    if 'DataInicio' in dados_filtrados.columns:
+                        dados_filtrados = dados_filtrados[pd.to_datetime(dados_filtrados['DataInicio']) >= data_inicio]
+                        logger.info(f"Filtro Data Abertura Início aplicado: {filtros['data_abertura_inicio']} - Registros restantes: {len(dados_filtrados)}")
+                except Exception as e:
+                    logger.warning(f"Erro ao aplicar filtro de data de abertura início: {e}")
+            
+            if 'data_abertura_fim' in filtros and filtros['data_abertura_fim']:
+                try:
+                    data_fim = pd.to_datetime(filtros['data_abertura_fim'])
+                    if 'DataInicio' in dados_filtrados.columns:
+                        dados_filtrados = dados_filtrados[pd.to_datetime(dados_filtrados['DataInicio']) <= data_fim]
+                        logger.info(f"Filtro Data Abertura Fim aplicado: {filtros['data_abertura_fim']} - Registros restantes: {len(dados_filtrados)}")
+                except Exception as e:
+                    logger.warning(f"Erro ao aplicar filtro de data de abertura fim: {e}")
+            
+            # Filtros por Data de Fechamento
+            if 'data_fechamento_inicio' in filtros and filtros['data_fechamento_inicio']:
+                try:
+                    data_inicio = pd.to_datetime(filtros['data_fechamento_inicio'])
+                    if 'DataTermino' in dados_filtrados.columns:
+                        # Filtra apenas projetos que foram fechados no período
+                        dados_fechados = dados_filtrados[dados_filtrados['Status'].str.upper().isin(['FECHADO', 'ENCERRADO', 'RESOLVIDO'])]
+                        dados_fechados = dados_fechados[pd.to_datetime(dados_fechados['DataTermino']) >= data_inicio]
+                        # Mantém também projetos que não foram fechados (DataTermino nula)
+                        dados_nao_fechados = dados_filtrados[~dados_filtrados['Status'].str.upper().isin(['FECHADO', 'ENCERRADO', 'RESOLVIDO'])]
+                        dados_filtrados = pd.concat([dados_fechados, dados_nao_fechados], ignore_index=True)
+                        logger.info(f"Filtro Data Fechamento Início aplicado: {filtros['data_fechamento_inicio']} - Registros restantes: {len(dados_filtrados)}")
+                except Exception as e:
+                    logger.warning(f"Erro ao aplicar filtro de data de fechamento início: {e}")
+            
+            if 'data_fechamento_fim' in filtros and filtros['data_fechamento_fim']:
+                try:
+                    data_fim = pd.to_datetime(filtros['data_fechamento_fim'])
+                    if 'DataTermino' in dados_filtrados.columns:
+                        # Filtra apenas projetos que foram fechados no período
+                        dados_fechados = dados_filtrados[dados_filtrados['Status'].str.upper().isin(['FECHADO', 'ENCERRADO', 'RESOLVIDO'])]
+                        dados_fechados = dados_fechados[pd.to_datetime(dados_fechados['DataTermino']) <= data_fim]
+                        # Mantém também projetos que não foram fechados (DataTermino nula)
+                        dados_nao_fechados = dados_filtrados[~dados_filtrados['Status'].str.upper().isin(['FECHADO', 'ENCERRADO', 'RESOLVIDO'])]
+                        dados_filtrados = pd.concat([dados_fechados, dados_nao_fechados], ignore_index=True)
+                        logger.info(f"Filtro Data Fechamento Fim aplicado: {filtros['data_fechamento_fim']} - Registros restantes: {len(dados_filtrados)}")
+                except Exception as e:
+                    logger.warning(f"Erro ao aplicar filtro de data de fechamento fim: {e}")
+            
+            logger.info(f"Filtros aplicados com sucesso. Registros finais: {len(dados_filtrados)}")
+            return dados_filtrados
+            
+        except Exception as e:
+            logger.error(f"Erro ao aplicar filtros: {e}")
+            return dados  # Retorna dados originais em caso de erro
 
 
 # Funções auxiliares fora da classe
