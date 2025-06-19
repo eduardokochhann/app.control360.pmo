@@ -457,14 +457,147 @@ def get_projetos_entregues():
             logger.warning("Dados vazios para projetos entregues")
             return jsonify([])
         
-        # Filtra projetos entregues (concluídos)
-        projetos_entregues = macro_service.obter_projetos_concluidos(dados)
+        # Usa a função específica para calcular projetos concluídos (que filtra pelo mês atual)
+        resultado_projetos = macro_service.calcular_projetos_concluidos(dados)
+        projetos_entregues = resultado_projetos.get('dados', [])
         
-        logger.info(f"API: Retornando {len(projetos_entregues)} projetos entregues")
-        return jsonify(projetos_entregues)
+        # Se for DataFrame, converte para lista de dicionários
+        if hasattr(projetos_entregues, 'to_dict'):
+            projetos_entregues = projetos_entregues.to_dict('records')
+        
+        # Formata os dados igual ao Relatório Geral
+        dados_formatados = []
+        for projeto in projetos_entregues:
+            # Tratamento de horas com formatação padrão (dados já vêm formatados do service)
+            horas_trabalhadas = projeto.get('horasTrabalhadas', projeto.get('HorasTrabalhadas', 0))
+            horas_previstas = projeto.get('horasContratadas', projeto.get('Horas', 0))
+            
+            # Os dados já vêm formatados corretamente do service calcular_projetos_concluidos
+            # Mas garantimos a consistência
+            try:
+                horas_trabalhadas = round(float(horas_trabalhadas), 2) if horas_trabalhadas else 0.0
+                horas_previstas = round(float(horas_previstas), 2) if horas_previstas else 0.0
+            except (ValueError, TypeError):
+                horas_trabalhadas = 0.0
+                horas_previstas = 0.0
+            
+            # Padroniza campos de texto para "-" quando vazios
+            def padronizar_campo(valor):
+                if valor in [None, 'N/A', 'NÃO DEFINIDO', 'NÃO ALOCADO', '']:
+                    return '-'
+                return valor
+            
+            dados_formatados.append({
+                'numero': projeto.get('numero', projeto.get('Numero', '-')),
+                'projeto': padronizar_campo(projeto.get('projeto', projeto.get('Projeto'))),
+                'squad': padronizar_campo(projeto.get('squad', projeto.get('Squad'))),
+                'servico': padronizar_campo(projeto.get('servico', projeto.get('Servico'))),
+                'status': padronizar_campo(projeto.get('status', projeto.get('Status'))),
+                'tipo_faturamento': padronizar_campo(projeto.get('tipo_faturamento', projeto.get('Faturamento'))),
+                'horas_trabalhadas': horas_trabalhadas,
+                'horas_previstas': horas_previstas,
+                'conclusao': projeto.get('conclusao', projeto.get('Conclusao', 0)),
+                'data_entrega': projeto.get('dataTermino', projeto.get('DataTermino', '-')),
+                'especialista': padronizar_campo(projeto.get('especialista', projeto.get('Especialista'))),
+                'account': padronizar_campo(projeto.get('account', projeto.get('Account Manager'))),
+                'backlog_exists': projeto.get('backlog_exists', False)
+            })
+        
+        logger.info(f"API: Retornando {len(dados_formatados)} projetos entregues formatados")
+        return jsonify(dados_formatados)
         
     except Exception as e:
         logger.exception(f"Erro na API de projetos entregues: {str(e)}")
+        return jsonify([])
+
+@macro_bp.route('/api/projetos/entregues/todos')
+def get_todos_projetos_entregues():
+    """API para obter todos os projetos entregues (histórico completo)"""
+    try:
+        logger.info("API: Carregando todos os projetos entregues")
+        dados = macro_service.carregar_dados()
+        
+        if dados.empty:
+            logger.warning("Dados vazios para todos os projetos entregues")
+            return jsonify([])
+        
+        # Usa dados já tratados
+        dados_base = macro_service.preparar_dados_base(dados)
+        
+        # Filtra TODOS os projetos concluídos (sem filtro de data) e exclui CDB DATA SOLUTIONS
+        todos_projetos_entregues = dados_base[
+            (dados_base['Status'].isin(macro_service.status_concluidos)) &
+            (dados_base['Squad'] != 'CDB DATA SOLUTIONS')
+        ].copy()
+        
+        # Adiciona verificação de backlog
+        todos_projetos_entregues = macro_service._adicionar_verificacao_backlog(todos_projetos_entregues)
+        
+        # Converte para lista de dicionários
+        if hasattr(todos_projetos_entregues, 'to_dict'):
+            projetos_lista = todos_projetos_entregues.to_dict('records')
+        else:
+            projetos_lista = todos_projetos_entregues
+        
+        # Formata os dados igual ao Relatório Geral
+        dados_formatados = []
+        for projeto in projetos_lista:
+            # Tratamento de horas com formatação padrão
+            horas_trabalhadas = projeto.get('HorasTrabalhadas', projeto.get('horas_trabalhadas', 0))
+            horas_previstas = projeto.get('Horas', projeto.get('horas_previstas', 0))
+            conclusao = projeto.get('Conclusao', projeto.get('conclusao', 0))
+            
+            # Formatação numérica igual ao Relatório Geral
+            try:
+                horas_trabalhadas = round(float(horas_trabalhadas), 2) if horas_trabalhadas else 0.0
+                horas_previstas = round(float(horas_previstas), 2) if horas_previstas else 0.0
+                conclusao = round(float(conclusao), 1) if conclusao else 0.0
+                conclusao = max(0, min(100, conclusao))  # Limita entre 0-100
+            except (ValueError, TypeError):
+                horas_trabalhadas = 0.0
+                horas_previstas = 0.0
+                conclusao = 0.0
+            
+            # Formatação de data igual ao Relatório Geral
+            data_entrega = projeto.get('DataTermino', projeto.get('data_entrega', 'N/A'))
+            if data_entrega and data_entrega != 'N/A':
+                try:
+                    import pandas as pd
+                    data_formatada = pd.to_datetime(data_entrega, errors='coerce')
+                    if pd.notna(data_formatada):
+                        data_entrega = data_formatada.strftime('%d/%m/%Y')
+                    else:
+                        data_entrega = '-'
+                except:
+                    data_entrega = '-'
+            
+            # Padroniza campos de texto para "-" quando vazios
+            def padronizar_campo(valor):
+                if valor in [None, 'N/A', 'NÃO DEFINIDO', 'NÃO ALOCADO', '']:
+                    return '-'
+                return valor
+            
+            dados_formatados.append({
+                'numero': projeto.get('Numero', projeto.get('numero', '-')),
+                'projeto': padronizar_campo(projeto.get('Projeto', projeto.get('projeto'))),
+                'squad': padronizar_campo(projeto.get('Squad', projeto.get('squad'))),
+                'servico': padronizar_campo(projeto.get('Servico', projeto.get('servico'))),
+                'status': padronizar_campo(projeto.get('Status', projeto.get('status'))),
+                'tipo_faturamento': padronizar_campo(projeto.get('Faturamento', projeto.get('tipo_faturamento'))),
+                'horas_trabalhadas': horas_trabalhadas,
+                'horas_previstas': horas_previstas,
+                'conclusao': conclusao,
+                'data_entrega': data_entrega,
+                'especialista': padronizar_campo(projeto.get('Especialista', projeto.get('especialista'))),
+                'account': padronizar_campo(projeto.get('Account Manager', projeto.get('account'))),
+                'backlog_exists': projeto.get('backlog_exists', False)
+            })
+        
+        logger.info(f"API: Retornando {len(dados_formatados)} projetos entregues (histórico completo)")
+        return jsonify(dados_formatados)
+        
+    except Exception as e:
+        logger.exception(f"Erro na API de todos os projetos entregues: {str(e)}")
         return jsonify([])
 
 @macro_bp.route('/api/filter-options')
@@ -1153,7 +1286,7 @@ def apresentacao():
         
         # --- INÍCIO: Detectar fontes disponíveis automaticamente ---
         fontes_disponiveis = macro_service.obter_fontes_disponiveis()
-        logger.info(f"Fontes detectadas automaticamente: {[f['label'] for f in fontes_disponiveis]}")
+        logger.info(f"Fontes detectadas automaticamente: {[f['nome_exibicao'] for f in fontes_disponiveis]}")
         # --- FIM: Detectar fontes disponíveis automaticamente ---
         
         # Obter parâmetros de consulta para mês e ano
@@ -1223,7 +1356,7 @@ def apresentacao():
             # Procura a fonte correspondente nas fontes detectadas
             for fonte in fontes_disponiveis:
                 if fonte['mes'] == mes_referencia.month and fonte['ano'] == mes_referencia.year:
-                    fonte_dados_ref = fonte['nome_arquivo']
+                    fonte_dados_ref = fonte['arquivo']
                     logger.info(f"Fonte detectada automaticamente para {mes_referencia.strftime('%m/%Y')}: {fonte_dados_ref}")
                     break
             
@@ -1283,7 +1416,7 @@ def apresentacao():
                 # Procura a fonte nas fontes detectadas automaticamente
                 for fonte in fontes_disponiveis:
                     if fonte['mes'] == mes_loop and fonte['ano'] == ano_loop:
-                        fonte_mes_loop = fonte['nome_arquivo']
+                        fonte_mes_loop = fonte['arquivo']
                         break
                 
                 if fonte_mes_loop:
@@ -1340,7 +1473,7 @@ def apresentacao():
                 # Procura a fonte nas fontes detectadas automaticamente  
                 for fonte in fontes_disponiveis:
                     if fonte['mes'] == mes_loop and fonte['ano'] == ano_loop:
-                        fonte_mes_loop = fonte['nome_arquivo']
+                        fonte_mes_loop = fonte['arquivo']
                         break
                 
                 if fonte_mes_loop:

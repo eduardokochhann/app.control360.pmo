@@ -86,7 +86,7 @@
         border-radius: 12px;
         box-shadow: var(--light-shadow);
         margin: 1rem auto;
-        max-width: 1600px;
+        max-width: 98%;
         padding: 0;
         overflow: hidden;
         position: relative;
@@ -193,16 +193,19 @@
     }
     
     .bootstrap-table .fixed-table-header {
-        background: var(--bg-light);
+        background: var(--sou-azul);
     }
     
     .bootstrap-table th {
-        background: var(--bg-light) !important;
-        color: var(--text-primary) !important;
+        background: var(--sou-azul) !important;
+        color: white !important;
         font-weight: 600 !important;
         border-bottom: 1px solid var(--border-light) !important;
         font-size: 0.875rem !important;
         padding: 12px 8px !important;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+        text-align: center;
     }
     
     .bootstrap-table td {
@@ -253,49 +256,152 @@
             text-align: center;
         }
     }
+    
+    /* Cabeçalho executivo com gradiente */
+    .card-header.bg-primary {
+        background: var(--sou-azul-gradient) !important;
+        color: white;
+        border-radius: 12px 12px 0 0 !important;
+        padding: 1.5rem 2rem;
+        position: relative;
+        border: none;
+    }
+    
+    .card-header h5 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 0;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .card-header small {
+        color: rgba(255, 255, 255, 0.85) !important;
+        font-size: 0.875rem;
+        font-weight: 400;
+        margin-top: 0.25rem;
+        display: block;
+    }
+    
+    /* Botões do cabeçalho */
+    .card-header .btn-custom {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        backdrop-filter: blur(10px);
+        transition: all 0.2s ease;
+    }
+    
+    .card-header .btn-custom:hover {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.5);
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    /* Toolbar executivo */
+    #toolbar {
+        margin-bottom: 1.5rem;
+        padding: 1rem 1.25rem;
+        background: var(--bg-light);
+        border-radius: 8px;
+        border: 1px solid var(--border-light);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    #report-summary {
+        font-weight: 500;
+        color: var(--text-secondary);
+        flex: 1;
+    }
+    
+    /* Estilos para os filtros de período */
+    .btn-check:checked + .btn-outline-primary {
+        background: var(--sou-azul) !important;
+        border-color: var(--sou-azul) !important;
+        color: white !important;
+    }
+    
+    .btn-outline-primary {
+        border-color: var(--sou-azul);
+        color: var(--sou-azul);
+        transition: all 0.2s ease;
+    }
+    
+    .btn-outline-primary:hover {
+        background: var(--sou-azul-light);
+        border-color: var(--sou-azul-light);
+        color: white;
+    }
+    
+    #periodo-info {
+        font-size: 0.875rem;
+        padding: 0.5rem 0.75rem;
+        background: var(--sou-azul) !important;
+        border-color: var(--sou-azul) !important;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
+<div class="container-fluid">
     <div class="card">
-        <!-- Cabeçalho -->
-        <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
             <div>
-                <h1 class="h3 mb-0 text-white">
-                    <i class="bi bi-check-circle me-2"></i>{{ title }}
-                </h1>
-                <p class="text-muted mb-0">
-                    Projetos concluídos e entregues com sucesso
-                </p>
+                <h5 class="mb-0">
+                    <i class="bi bi-check-circle"></i>{{ title }}
+                </h5>
+                <small id="report-description">Projetos concluídos e entregues com sucesso.</small>
             </div>
             <div class="screen-only">
-                <a href="{{ url_for('macro.relatorios_dashboard') }}" class="btn btn-sm btn-outline-light">
-                    <i class="bi bi-arrow-left me-1"></i>Voltar aos Relatórios
+                <a href="{{ url_for('macro.relatorios_dashboard') }}" class="btn btn-custom me-2">
+                    <i class="bi bi-arrow-left"></i> Voltar
                 </a>
-                <button type="button" class="btn btn-sm btn-outline-light ms-2" onclick="window.print()">
-                    <i class="bi bi-printer me-1"></i>Imprimir
+                <button onclick="window.print();" class="btn btn-custom">
+                    <i class="bi bi-printer"></i> Imprimir
                 </button>
             </div>
         </div>
-        
-        <!-- Container da Tabela -->
-        <div class="table-container">
-            <!-- Toolbar -->
-            <div id="toolbar" class="screen-only">
-                <div>
-                    <strong>Projetos Entregues</strong>
-                    <span class="text-muted ms-2" id="totalCount">Carregando...</span>
-                </div>
-                <div class="btn-group">
-                    <button class="btn btn-sm" id="exportExcel">
-                        <i class="bi bi-file-excel me-1"></i>Excel
-                    </button>
-                    <button class="btn btn-sm" id="exportPdf">
-                        <i class="bi bi-file-pdf me-1"></i>PDF
-                    </button>
+        <div class="card-body">
+            <!-- Filtros de Período -->
+            <div class="row mb-3">
+                <div class="col-12">
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <label class="form-label mb-0 me-2"><strong>Período:</strong></label>
+                        <div class="btn-group" role="group" aria-label="Filtros de período">
+                            <input type="radio" class="btn-check" name="filtro-periodo" id="filtro-mes-atual" value="mes-atual" checked>
+                            <label class="btn btn-outline-primary" for="filtro-mes-atual">
+                                <i class="bi bi-calendar-month me-1"></i> Entregues no Mês Atual
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="filtro-periodo" id="filtro-todos" value="todos">
+                            <label class="btn btn-outline-primary" for="filtro-todos">
+                                <i class="bi bi-calendar-range me-1"></i> Todos os Projetos Entregues
+                            </label>
+                        </div>
+                        
+                        <div class="ms-auto">
+                            <span class="badge bg-info" id="periodo-info">Mês Atual</span>
+                        </div>
+                    </div>
                 </div>
             </div>
+            
+            <div id="toolbar">
+                <span id="report-summary" class="text-muted">Carregando dados...</span>
+                <button id="export-excel" class="btn btn-success">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Exportar para Excel
+                </button>
+            </div>
+            
+            <div class="table-responsive">
             
             <!-- Tabela Principal -->
             <table id="table" 
@@ -336,6 +442,7 @@
                     </tr>
                 </thead>
             </table>
+            </div>
         </div>
     </div>
 </div>
@@ -356,37 +463,95 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Carrega dados via API
-    fetch('/macro/api/projetos/entregues')
-        .then(response => response.json())
-        .then(data => {
-            // Processa dados para o formato da tabela
-            const dadosProcessados = data.map(projeto => ({
-                numero: projeto.numero || 'N/A',
-                projeto: projeto.projeto || 'N/A',
-                squad: projeto.squad || 'N/A',
-                servico: projeto.servico || 'N/A',
-                status: projeto.status || 'N/A',
-                tipo_faturamento: projeto.tipo_faturamento || 'N/A',
-                horas_trabalhadas: projeto.horas_trabalhadas || 0,
-                horas_previstas: projeto.Horas || 0,
-                conclusao: projeto.conclusao || 0,
-                data_entrega: projeto.data_entrega || 'N/A',
-                especialista: projeto.especialista || 'N/A',
-                account: projeto.account || 'N/A',
-                backlog_exists: projeto.backlog_exists || false
-            }));
-            
-            // Inicializa a tabela com os dados
-            $('#table').bootstrapTable('load', dadosProcessados);
-            
-            // Atualiza contador
-            document.getElementById('totalCount').textContent = `${dadosProcessados.length} projetos entregues`;
-        })
-        .catch(error => {
-            console.error('Erro ao carregar dados:', error);
-            document.getElementById('totalCount').textContent = 'Erro ao carregar dados';
+    var $table = $('#table');
+    var filtroAtual = 'mes-atual'; // Filtro padrão
+
+    // Evento de sucesso executivo
+    $table.on('load-success.bs.table', function (e, data) {
+        const filtroTexto = filtroAtual === 'mes-atual' ? 'Mês Atual' : 'Histórico Completo';
+        $('#report-summary').html(`
+            <i class="bi bi-check-circle-fill text-success me-2"></i>
+            <strong>Relatório de Projetos Entregues (${filtroTexto})</strong>: ${data.length} projetos encontrados (todos exibidos).
+        `);
+    });
+
+    // Evento de erro executivo
+    $table.on('load-error.bs.table', function (e, status, jqXHR) {
+        $('#report-summary').html(`
+            <i class="bi bi-x-circle-fill text-danger me-2"></i>
+            Erro ao carregar os dados. Tente atualizar a página.
+        `);
+    });
+    
+    // Exportação executiva para Excel
+    $('#export-excel').on('click', function() {
+        const filtroTexto = filtroAtual === 'mes-atual' ? 'Mes_Atual' : 'Historico_Completo';
+        $table.bootstrapTable('exportTable', {
+            type: 'excel',
+            fileName: `Projetos_Entregues_${filtroTexto}_Control360_${new Date().toISOString().split('T')[0]}`
         });
+    });
+
+    // Função para carregar dados baseado no filtro
+    function carregarDados(filtro) {
+        filtroAtual = filtro;
+        const apiUrl = filtro === 'mes-atual' ? '/macro/api/projetos/entregues' : '/macro/api/projetos/entregues/todos';
+        const periodoInfo = filtro === 'mes-atual' ? 'Mês Atual' : 'Histórico Completo';
+        
+        // Atualiza badge de período
+        $('#periodo-info').text(periodoInfo);
+        
+        // Mostra loading
+        $('#report-summary').html(`
+            <i class="bi bi-hourglass-split text-warning me-2"></i>
+            Carregando dados do período: ${periodoInfo}...
+        `);
+        
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                // Processa dados para o formato da tabela
+                const dadosProcessados = data.map(projeto => ({
+                    numero: projeto.numero || 'N/A',
+                    projeto: projeto.projeto || 'N/A',
+                    squad: projeto.squad || 'N/A',
+                    servico: projeto.servico || 'N/A',
+                    status: projeto.status || 'N/A',
+                    tipo_faturamento: projeto.tipo_faturamento || 'N/A',
+                    horas_trabalhadas: projeto.horas_trabalhadas || 0,
+                    horas_previstas: projeto.horas_previstas || 0,
+                    conclusao: projeto.conclusao || 0,
+                    data_entrega: projeto.data_entrega || 'N/A',
+                    especialista: projeto.especialista || 'N/A',
+                    account: projeto.account || 'N/A',
+                    backlog_exists: projeto.backlog_exists || false
+                }));
+                
+                // Recarrega a tabela com os novos dados
+                $table.bootstrapTable('load', dadosProcessados);
+                
+                console.log(`Dados carregados para filtro ${filtro}:`, dadosProcessados.length, 'projetos');
+            })
+            .catch(error => {
+                console.error('Erro ao carregar dados:', error);
+                $('#report-summary').html(`
+                    <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                    Erro ao carregar os dados. Tente atualizar a página.
+                `);
+            });
+    }
+
+    // Event listeners para os filtros
+    document.querySelectorAll('input[name="filtro-periodo"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                carregarDados(this.value);
+            }
+        });
+    });
+
+    // Carrega dados iniciais (mês atual)
+    carregarDados('mes-atual');
     
     // Formatador para status
     window.statusFormatter = function(value, row, index) {
@@ -478,14 +643,9 @@ document.addEventListener('DOMContentLoaded', function() {
         XLSX.writeFile(workbook, fileName);
     }
 
-    // Event handlers para exportação
-    document.getElementById('exportExcel').addEventListener('click', function() {
-        exportToExcel();
-    });
-    
-    document.getElementById('exportPdf').addEventListener('click', function() {
-        window.print();
-    });
+    // Event handlers para exportação (botão já configurado acima)
+    // Botão Excel já configurado com $('#export-excel')
+    // Botão Print já configurado na toolbar do cabeçalho
 });
 </script>
 {% endblock %}

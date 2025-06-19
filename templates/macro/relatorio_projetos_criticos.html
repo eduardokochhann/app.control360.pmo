@@ -46,7 +46,7 @@
     body {
         padding-top: 0 !important;
         margin-top: 0 !important;
-        background: linear-gradient(135deg, #fef7f7 0%, #ffe6e6 100%);
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         background-attachment: fixed;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         color: #2d3748;
@@ -62,25 +62,22 @@
         margin-top: 0 !important;
     }
     
-    /* Variáveis de design SOU.Cloud com tema crítico */
+    /* Variáveis de design SOU.Cloud */
     :root {
         --sou-rosa: #FF2D5F;
         --sou-azul: #07304F;
         --sou-rosa-light: #ff4d7a;
         --sou-azul-light: #0a4a78;
-        --critico-vermelho: #dc3545;
-        --critico-vermelho-light: #e55d6b;
         --sou-rosa-gradient: linear-gradient(135deg, #FF2D5F 0%, #ff4d7a 100%);
         --sou-azul-gradient: linear-gradient(135deg, #07304F 0%, #0a4a78 100%);
-        --critico-gradient: linear-gradient(135deg, #dc3545 0%, #e55d6b 100%);
-        --light-shadow: 0 2px 12px rgba(220, 53, 69, 0.15);
-        --premium-shadow: 0 4px 24px rgba(220, 53, 69, 0.2);
+        --light-shadow: 0 2px 12px rgba(7, 48, 79, 0.1);
+        --premium-shadow: 0 4px 24px rgba(7, 48, 79, 0.15);
         --text-primary: #2d3748;
         --text-secondary: #4a5568;
         --text-muted: #718096;
-        --bg-light: #fef7f7;
+        --bg-light: #f8fafc;
         --bg-white: #ffffff;
-        --border-light: #f5c6cb;
+        --border-light: #e2e8f0;
     }
     
     /* Container principal otimizado */
@@ -89,12 +86,11 @@
         border-radius: 12px;
         box-shadow: var(--light-shadow);
         margin: 1rem auto;
-        max-width: 1600px;
+        max-width: 98%;
         padding: 0;
         overflow: hidden;
         position: relative;
         width: calc(100% - 2rem);
-        border: 2px solid var(--critico-vermelho);
     }
     
     /* Card principal com design crítico */
@@ -262,9 +258,9 @@
         color: var(--text-primary);
     }
     
-    /* Cabeçalho da tabela com tema crítico */
+    /* Cabeçalho da tabela padrão SOU.Cloud */
     .table thead th {
-        background: var(--critico-vermelho) !important;
+        background: var(--sou-azul) !important;
         color: white !important;
         font-weight: 600;
         font-size: 0.8rem;
@@ -691,32 +687,109 @@
             display: none !important;
         }
     }
+    
+    /* Cabeçalho executivo com gradiente */
+    .card-header.bg-primary {
+        background: var(--sou-azul-gradient) !important;
+        color: white;
+        border-radius: 12px 12px 0 0 !important;
+        padding: 1.5rem 2rem;
+        position: relative;
+        border: none;
+    }
+    
+    .card-header h5 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 0;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    /* Título específico para projetos críticos com cor rosa SOU.Cloud */
+    .card-header h5 .titulo-criticos {
+        color: var(--sou-rosa) !important;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        font-weight: 700;
+    }
+    
+    .card-header small {
+        color: rgba(255, 255, 255, 0.85) !important;
+        font-size: 0.875rem;
+        font-weight: 400;
+        margin-top: 0.25rem;
+        display: block;
+    }
+    
+    /* Botões do cabeçalho */
+    .card-header .btn-custom {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        backdrop-filter: blur(10px);
+        transition: all 0.2s ease;
+    }
+    
+    .card-header .btn-custom:hover {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.5);
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    /* Toolbar executivo */
+    #toolbar {
+        margin-bottom: 1.5rem;
+        padding: 1rem 1.25rem;
+        background: var(--bg-light);
+        border-radius: 8px;
+        border: 1px solid var(--border-light);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    #report-summary {
+        font-weight: 500;
+        color: var(--text-secondary);
+        flex: 1;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0"><i class="bi bi-exclamation-triangle me-2"></i>{{ title }}</h1>
-        <span class="text-muted small">
-             {% if hora_atualizacao %}
-                Atualizado em: {{ hora_atualizacao.strftime('%d/%m/%Y %H:%M:%S') }}
-             {% endif %}
-        </span>
-    </div>
-
+<div class="container-fluid">
     <div class="card">
-        <div class="card-body table-container">
-            <div id="toolbar" class="screen-only">
-                <div class="btn-group-export" role="group" aria-label="Exportação">
-                    <button type="button" class="btn btn-success btn-sm" onclick="exportToExcel()">
-                        <i class="bi bi-file-earmark-excel"></i> Exportar Excel
-                    </button>
-                    <button type="button" class="btn btn-danger btn-sm" onclick="exportToPDF()">
-                        <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
-                    </button>
-                </div>
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-0">
+                    <i class="bi bi-exclamation-triangle"></i><span class="titulo-criticos">{{ title }}</span>
+                </h5>
+                <small id="report-description">Projetos identificados como críticos que necessitam atenção especial.</small>
             </div>
+            <div class="screen-only">
+                <a href="{{ url_for('macro.relatorios_dashboard') }}" class="btn btn-custom me-2">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </a>
+                <button onclick="window.print();" class="btn btn-custom">
+                    <i class="bi bi-printer"></i> Imprimir
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div id="toolbar">
+                <span id="report-summary" class="text-muted">Carregando dados...</span>
+                <button id="export-excel" class="btn btn-success">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Exportar para Excel
+                </button>
+            </div>
+            
+            <div class="table-responsive">
             <table
               id="tabelaProjetosCriticos"
               data-url="/macro/api/projetos/criticos"
@@ -741,6 +814,7 @@
                 </tr>
               </thead>
             </table>
+            </div>
         </div>
     </div>
 </div>
@@ -972,7 +1046,33 @@
     }
 
     $(document).ready(function() {
-        $('#tabelaProjetosCriticos').bootstrapTable({
+        var $table = $('#tabelaProjetosCriticos');
+
+        // Evento de sucesso executivo
+        $table.on('load-success.bs.table', function (e, data) {
+            $('#report-summary').html(`
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                <strong>Relatório de Projetos Críticos</strong>: ${data.length} projetos encontrados (todos exibidos).
+            `);
+        });
+
+        // Evento de erro executivo
+        $table.on('load-error.bs.table', function (e, status, jqXHR) {
+            $('#report-summary').html(`
+                <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                Erro ao carregar os dados. Tente atualizar a página.
+            `);
+        });
+        
+        // Exportação executiva para Excel
+        $('#export-excel').on('click', function() {
+            $table.bootstrapTable('exportTable', {
+                type: 'excel',
+                fileName: 'Projetos_Criticos_Control360_' + new Date().toISOString().split('T')[0]
+            });
+        });
+
+        $table.bootstrapTable({
             locale: 'pt-BR',
             searchHighlight: true,
             showSearchButton: false,

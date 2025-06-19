@@ -86,7 +86,7 @@
         border-radius: 12px;
         box-shadow: var(--light-shadow);
         margin: 1rem auto;
-        max-width: 1600px;
+        max-width: 98%;
         padding: 0;
         overflow: hidden;
         position: relative;
@@ -198,6 +198,72 @@
     
     .fixed-table-toolbar .btn.active {
         background: var(--sou-azul);
+    }
+    
+    /* Cabeçalho executivo com gradiente */
+    .card-header.bg-primary {
+        background: var(--sou-azul-gradient) !important;
+        color: white;
+        border-radius: 12px 12px 0 0 !important;
+        padding: 1.5rem 2rem;
+        position: relative;
+        border: none;
+    }
+    
+    .card-header h5 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 0;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .card-header small {
+        color: rgba(255, 255, 255, 0.85) !important;
+        font-size: 0.875rem;
+        font-weight: 400;
+        margin-top: 0.25rem;
+        display: block;
+    }
+    
+    /* Botões do cabeçalho */
+    .card-header .btn-custom {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        backdrop-filter: blur(10px);
+        transition: all 0.2s ease;
+    }
+    
+    .card-header .btn-custom:hover {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.5);
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    /* Toolbar executivo */
+    #toolbar {
+        margin-bottom: 1.5rem;
+        padding: 1rem 1.25rem;
+        background: var(--bg-light);
+        border-radius: 8px;
+        border: 1px solid var(--border-light);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    #report-summary {
+        font-weight: 500;
+        color: var(--text-secondary);
+        flex: 1;
+    }
         color: white;
         border-color: var(--sou-azul);
     }
@@ -680,29 +746,33 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0"><i class="bi bi-list-task me-2"></i>{{ title }}</h1>
-        <span class="text-muted small">
-             {% if hora_atualizacao %}
-                Atualizado em: {{ hora_atualizacao.strftime('%d/%m/%Y %H:%M:%S') }}
-             {% endif %}
-        </span>
-    </div>
-
+<div class="container-fluid">
     <div class="card">
-        <div class="card-body table-container">
-            <div id="toolbar" class="screen-only">
-                <div class="btn-group-export" role="group" aria-label="Exportação">
-                    <button type="button" class="btn btn-success btn-sm" onclick="exportToExcel()">
-                        <i class="bi bi-file-earmark-excel"></i> Exportar Excel
-                    </button>
-                    <button type="button" class="btn btn-danger btn-sm" onclick="exportToPDF()">
-                        <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
-                    </button>
-                </div>
-                <!-- Os botões de controle do Bootstrap Table serão inseridos aqui automaticamente -->
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-0">
+                    <i class="bi bi-list-task"></i>{{ title }}
+                </h5>
+                <small id="report-description">Projetos ativos no sistema com informações detalhadas de status e progresso.</small>
             </div>
+            <div class="screen-only">
+                <a href="{{ url_for('macro.relatorios_dashboard') }}" class="btn btn-custom me-2">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </a>
+                <button onclick="window.print();" class="btn btn-custom">
+                    <i class="bi bi-printer"></i> Imprimir
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div id="toolbar">
+                <span id="report-summary" class="text-muted">Carregando dados...</span>
+                <button id="export-excel" class="btn btn-success">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Exportar para Excel
+                </button>
+            </div>
+            
+            <div class="table-responsive">
             <table
               id="tabelaProjetosAtivos"
               data-url="/macro/api/projetos/ativos"
@@ -727,6 +797,7 @@
                 </tr>
               </thead>
             </table>
+            </div>
         </div>
     </div>
 </div>
@@ -1024,8 +1095,34 @@
                 console.error('Response:', xhr.responseText);
             });
         
+        var $table = $('#tabelaProjetosAtivos');
+
+        // Evento de sucesso executivo
+        $table.on('load-success.bs.table', function (e, data) {
+            $('#report-summary').html(`
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                <strong>Relatório de Projetos Ativos</strong>: ${data.length} projetos encontrados (todos exibidos).
+            `);
+        });
+
+        // Evento de erro executivo
+        $table.on('load-error.bs.table', function (e, status, jqXHR) {
+            $('#report-summary').html(`
+                <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                Erro ao carregar os dados. Tente atualizar a página.
+            `);
+        });
+        
+        // Exportação executiva para Excel
+        $('#export-excel').on('click', function() {
+            $table.bootstrapTable('exportTable', {
+                type: 'excel',
+                fileName: 'Projetos_Ativos_Control360_' + new Date().toISOString().split('T')[0]
+            });
+        });
+
         // Configuração inicial da tabela
-        $('#tabelaProjetosAtivos').bootstrapTable({
+        $table.bootstrapTable({
             locale: 'pt-BR',
             searchHighlight: true,
             showSearchButton: false,

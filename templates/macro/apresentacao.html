@@ -399,14 +399,14 @@
         </div>
         -->
         
-        <!-- NOVO TITULO E SELETOR DE MES -->
-         <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <!-- TITULO PRINCIPAL -->
+        <div class="d-sm-flex align-items-center justify-content-between mb-4">
             <div>
-                 <h1 class="h3 mb-0 text-gray-800"><i class="bi bi-file-earmark-slides me-2"></i>Status Report</h1>
-                 <p class="text-muted small mb-0">Fonte de dados: {{ fonte_dados }}</p>
+                <h1 class="h3 mb-0" style="color: var(--primary-color);"><i class="bi bi-file-earmark-slides me-2"></i>Status Report</h1>
+                <p class="text-muted small mb-0">Fonte de dados: {{ fonte_dados }}</p>
             </div>
         </div>
-        <!-- FIM NOVO TITULO E SELETOR DE MES -->
+        <!-- FIM TITULO PRINCIPAL -->
 
         <!-- Exibição de Erro -->
         {% if error %}
@@ -437,7 +437,7 @@
                             {% set is_active = request.args.get('mes') == fonte.mes|string and request.args.get('ano') == fonte.ano|string %}
                             <a class="nav-link {{ 'active' if is_active else '' }}" 
                                href="{{ url_for('macro.apresentacao', mes=fonte.mes, ano=fonte.ano) }}">
-                               {{ fonte.label }}
+                               {{ fonte.nome_exibicao }}
                             </a>
                         </li>
                     {% endfor %}

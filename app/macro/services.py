@@ -1175,12 +1175,19 @@ class MacroService(BaseService):
             # Adiciona verificação de backlog usando a função auxiliar
             projetos_concluidos = self._adicionar_verificacao_backlog(projetos_concluidos)
             
-            # Prepara dados para o modal
-            colunas_modal = ['Numero', 'Projeto', 'Status', 'Squad', 'Horas', 'HorasTrabalhadas', 'HorasRestantes', 'VencimentoEm', 'DataTermino', 'backlog_exists']
-            dados_modal = projetos_concluidos[colunas_modal].copy()
+            # Prepara dados para o modal - INCLUINDO TODAS AS COLUNAS NECESSÁRIAS
+            colunas_necessarias = ['Numero', 'Projeto', 'Status', 'Squad', 'Horas', 'HorasTrabalhadas', 'HorasRestantes', 'VencimentoEm', 'DataTermino', 'backlog_exists']
+            
+            # Adiciona colunas importantes que podem existir nos dados
+            colunas_opcionais = ['Especialista', 'Account Manager', 'TipoServico', 'Faturamento', 'Conclusao']
+            for col in colunas_opcionais:
+                if col in projetos_concluidos.columns:
+                    colunas_necessarias.append(col)
+            
+            dados_modal = projetos_concluidos[colunas_necessarias].copy()
             
             # Renomeia colunas para o formato esperado pelo frontend
-            dados_modal = dados_modal.rename(columns={
+            mapeamento_colunas = {
                 'Numero': 'numero',
                 'Projeto': 'projeto',
                 'Status': 'status',
@@ -1190,19 +1197,48 @@ class MacroService(BaseService):
                 'HorasRestantes': 'horasRestantes',
                 'VencimentoEm': 'dataPrevEnc',
                 'DataTermino': 'dataTermino',
-                'backlog_exists': 'backlog_exists'  # Mantém o nome
-            })
+                'backlog_exists': 'backlog_exists',  # Mantém o nome
+                'Especialista': 'especialista',
+                'Account Manager': 'account',
+                'TipoServico': 'servico',
+                'Faturamento': 'tipo_faturamento',
+                'Conclusao': 'conclusao'
+            }
             
-            # Arredonda as horas para uma casa decimal
-            dados_modal['horasContratadas'] = dados_modal['horasContratadas'].round(1)
-            dados_modal['horasTrabalhadas'] = dados_modal['horasTrabalhadas'].round(1)
-            dados_modal['horasRestantes'] = dados_modal['horasRestantes'].round(1)
+            # Aplica apenas os mapeamentos para colunas que existem
+            mapeamento_existente = {k: v for k, v in mapeamento_colunas.items() if k in dados_modal.columns}
+            dados_modal = dados_modal.rename(columns=mapeamento_existente)
             
-            # Formata a data de término para o padrão brasileiro
-            dados_modal['dataTermino'] = pd.to_datetime(dados_modal['dataTermino']).dt.strftime('%d/%m/%Y')
+            # Adiciona colunas que podem estar faltando com valores padrão
+            if 'especialista' not in dados_modal.columns:
+                dados_modal['especialista'] = '-'
+            if 'account' not in dados_modal.columns:
+                dados_modal['account'] = '-'
+            if 'servico' not in dados_modal.columns:
+                dados_modal['servico'] = '-'
+            if 'tipo_faturamento' not in dados_modal.columns:
+                dados_modal['tipo_faturamento'] = '-'
+            if 'conclusao' not in dados_modal.columns:
+                dados_modal['conclusao'] = 0
             
-            # Formata a data de vencimento para o padrão brasileiro
-            dados_modal['dataPrevEnc'] = pd.to_datetime(dados_modal['dataPrevEnc']).dt.strftime('%d/%m/%Y')
+            # Padroniza valores vazios ou N/A para "-"
+            colunas_texto = ['especialista', 'account', 'servico', 'tipo_faturamento']
+            for col in colunas_texto:
+                if col in dados_modal.columns:
+                    dados_modal[col] = dados_modal[col].fillna('-')
+                    dados_modal[col] = dados_modal[col].replace(['N/A', 'NÃO DEFINIDO', 'NÃO ALOCADO', ''], '-')
+            
+            # Formatação de horas igual ao Relatório Geral (duas casas decimais)
+            dados_modal['horasContratadas'] = pd.to_numeric(dados_modal['horasContratadas'], errors='coerce').fillna(0).round(2)
+            dados_modal['horasTrabalhadas'] = pd.to_numeric(dados_modal['horasTrabalhadas'], errors='coerce').fillna(0).round(2)
+            dados_modal['horasRestantes'] = pd.to_numeric(dados_modal['horasRestantes'], errors='coerce').fillna(0).round(2)
+            
+            # Formatação de datas igual ao Relatório Geral (sem timestamp/timezone)
+            dados_modal['dataTermino'] = pd.to_datetime(dados_modal['dataTermino'], errors='coerce').dt.strftime('%d/%m/%Y')
+            dados_modal['dataTermino'] = dados_modal['dataTermino'].replace('NaT', None)
+            
+            dados_modal['dataPrevEnc'] = pd.to_datetime(dados_modal['dataPrevEnc'], errors='coerce').dt.strftime('%d/%m/%Y')
+            dados_modal['dataPrevEnc'] = dados_modal['dataPrevEnc'].replace('NaT', None)
             
             # Calcula métricas adicionais
             metricas = {
