@@ -383,6 +383,7 @@ def gerar_relatorio_geral():
             'data_fechamento_fim': request.form.get('data_fechamento_fim'),
             'squad': request.form.get('filtro_squad'),
             'servico': request.form.get('filtro_servico'),
+            'categoria': request.form.get('filtro_categoria'),
             'status': request.form.get('filtro_status'),
             'faturamento': request.form.get('filtro_faturamento')
         }
@@ -401,6 +402,7 @@ def gerar_relatorio_geral():
             'title': 'Relatório Geral de Projetos',
             'meses_selecionados': meses_param,
             'filtros_aplicados': json.dumps(filtros) if filtros else '{}',
+            'categoria_filtrada': filtros.get('categoria') if filtros else None,
             'hora_atualizacao': datetime.now()
         }
         
@@ -474,11 +476,9 @@ def api_filter_options():
         if dados.empty:
             return jsonify({'success': False, 'message': 'Dados não disponíveis'})
         
-        # Obtém valores únicos para os filtros
+        # Obtém valores únicos para os filtros básicos
         squads = sorted(dados['Squad'].dropna().unique().tolist()) if 'Squad' in dados.columns else []
-        servicos = sorted(dados['Tipo de servico'].dropna().unique().tolist()) if 'Tipo de servico' in dados.columns else (
-            sorted(dados['Tipo de Serviço'].dropna().unique().tolist()) if 'Tipo de Serviço' in dados.columns else []
-        )
+        servicos = sorted(dados['TipoServico'].dropna().unique().tolist()) if 'TipoServico' in dados.columns else []
         faturamentos = sorted(dados['Faturamento'].dropna().unique().tolist()) if 'Faturamento' in dados.columns else []
         
         # Remove valores vazios e limpa dados
@@ -486,11 +486,25 @@ def api_filter_options():
         servicos = [s for s in servicos if s and str(s).strip() != '']
         faturamentos = [f for f in faturamentos if f and str(f).strip() != '']
         
+        # Obtém categorias dos tipos de serviço usando o TypeServiceReader
+        categorias = []
+        if servicos:
+            try:
+                from .typeservice_reader import TypeServiceReader
+                reader = TypeServiceReader()
+                categorias_disponiveis = reader.obter_categorias_disponiveis()
+                categorias = sorted(categorias_disponiveis)
+                logger.info(f"Categorias carregadas: {len(categorias)}")
+            except Exception as e:
+                logger.warning(f"Erro ao carregar categorias: {str(e)}")
+                categorias = []
+        
         return jsonify({
             'success': True,
             'squads': squads,
             'servicos': servicos,
-            'faturamentos': faturamentos
+            'faturamentos': faturamentos,
+            'categorias': categorias
         })
         
     except Exception as e:
@@ -499,44 +513,203 @@ def api_filter_options():
 
 @macro_bp.route('/api/relatorio/geral')
 def api_relatorio_geral_dados():
-    """API para obter dados do relatório geral com base nos meses selecionados e filtros"""
-    try:
-        # Obtém os meses selecionados dos parâmetros da query
-        meses_param = request.args.get('meses', '')
-        meses_selecionados = meses_param.split(',') if meses_param else []
-        
-        if not meses_selecionados:
-            return jsonify([])
-        
-        logger.info(f"API Relatório Geral: Carregando dados para meses {meses_selecionados}")
-        
-        # Carrega e combina dados de todos os meses selecionados
-        dados_combinados = []
-        
-        for mes_fonte in meses_selecionados:
-            if mes_fonte == 'atual':
-                dados_mes = macro_service.carregar_dados(fonte=None)
-            else:
-                dados_mes = macro_service.carregar_dados(fonte=mes_fonte)
-            
-            if not dados_mes.empty:
-                dados_combinados.append(dados_mes)
-        
-        # Combina todos os dataframes
-        if dados_combinados:
-            dados_relatorio = pd.concat(dados_combinados, ignore_index=True)
-            # Converte para formato JSON
-            projetos_formatados = macro_service._formatar_projetos(dados_relatorio)
-            return jsonify(projetos_formatados)
-        else:
-            return jsonify([])
-        
-    except Exception as e:
-        logger.exception(f"Erro na API do relatório geral: {str(e)}")
+    """
+    API para fornecer os dados para o Relatório Geral.
+    Carrega os dados dos meses selecionados, aplica os filtros e retorna
+    os dados consolidados (mostrando a entrada mais recente de cada projeto).
+    """
+    meses_selecionados_str = request.args.get('meses', '')
+    filtros_json = request.args.get('filtros')  # Pega o valor sem default
+
+    # Garante que filtros_json seja um JSON válido, mesmo se estiver vazio ou ausente
+    if not filtros_json:
+        filtros_json = '{}'
+    
+    logger.info(f"API Relatório Geral chamada com meses: {meses_selecionados_str} e filtros: {filtros_json}")
+
+    meses = unquote(meses_selecionados_str).split(',') if meses_selecionados_str else []
+    filtros_dict = json.loads(unquote(filtros_json))
+
+    if not meses:
+        logger.warning("Nenhum mês selecionado para o relatório.")
         return jsonify([])
+
+    # Carrega dados de todos os meses selecionados
+    try:
+        dataframes_periodo = []
+        
+        for mes in meses:
+            mes = mes.strip()
+            if mes == 'atual':
+                # Carrega dados atuais (dadosr.csv)
+                dados_mes = macro_service.carregar_dados(fonte=None)
+                if not dados_mes.empty:
+                    dados_mes['Período'] = 'atual'
+                    dataframes_periodo.append(dados_mes)
+                    logger.info(f"Dados atuais carregados: {len(dados_mes)} registros")
+            else:
+                # Carrega dados históricos (ex: dadosr_apt_mai)
+                dados_mes = macro_service.carregar_dados(fonte=mes)
+                if not dados_mes.empty:
+                    dados_mes['Período'] = mes
+                    dataframes_periodo.append(dados_mes)
+                    logger.info(f"Dados históricos '{mes}' carregados: {len(dados_mes)} registros")
+        
+        if not dataframes_periodo:
+            logger.warning("Nenhum dado foi carregado para os meses selecionados.")
+            return jsonify([])
+        
+        # Combina todos os dados
+        dados_relatorio = pd.concat(dataframes_periodo, ignore_index=True)
+        logger.info(f"Total de dados combinados: {len(dados_relatorio)} registros")
+        
+        # Aplica filtros se existirem
+        if filtros_dict:
+            dados_relatorio = macro_service.aplicar_filtros_relatorio(dados_relatorio, filtros_dict)
+            logger.info(f"Dados após filtros: {len(dados_relatorio)} registros")
+        
+        if dados_relatorio.empty:
+            logger.info("Nenhum dado encontrado após a filtragem.")
+            return jsonify([])
+
+        # --- Lógica de Consolidação ---
+        # Garante que 'Período' exista e cria uma chave para ordenação
+        if 'Período' in dados_relatorio.columns:
+            # Converte 'Período' para um formato de data. 'atual' recebe uma data futura para ficar no topo da ordenação.
+            dados_relatorio['sort_key'] = pd.to_datetime(
+                dados_relatorio['Período'].apply(lambda x: x if x != 'atual' else '2999-12'),
+                format='%Y-%m',
+                errors='coerce'
+            )
+        else:
+            # Fallback se a coluna 'Período' não existir
+            dados_relatorio['sort_key'] = pd.Timestamp.now()
+
+        # Ordena pelo ID do projeto e pela data (sort_key)
+        if 'Numero' in dados_relatorio.columns:
+            dados_relatorio.sort_values(by=['Numero', 'sort_key'], ascending=[True, True], inplace=True)
+            # Mantém apenas a última ocorrência de cada projeto, que é a mais recente
+            dados_consolidados_df = dados_relatorio.drop_duplicates(subset=['Numero'], keep='last')
+        else:
+            # Fallback se não houver coluna Numero
+            dados_consolidados_df = dados_relatorio
+        
+        # Remove a coluna temporária usada para ordenação
+        dados_consolidados_df = dados_consolidados_df.drop(columns=['sort_key'])
+
+        # === FORMATAÇÃO E AJUSTE DE DADOS ===
+        
+        # Calcula tempo de vida se não existir
+        if 'TempoVida' not in dados_consolidados_df.columns and 'DataInicio' in dados_consolidados_df.columns:
+            def calcular_dias_vida(data_inicio):
+                try:
+                    if pd.isna(data_inicio):
+                        return None
+                    hoje = pd.Timestamp.now()
+                    if isinstance(data_inicio, str):
+                        data_inicio = pd.to_datetime(data_inicio, errors='coerce')
+                    if pd.isna(data_inicio):
+                        return None
+                    dias = (hoje - data_inicio).days
+                    return max(0, dias)  # Não permite dias negativos
+                except:
+                    return None
+            
+            dados_consolidados_df['TempoVida'] = dados_consolidados_df['DataInicio'].apply(calcular_dias_vida)
+        
+        # Formata datas para o formato brasileiro
+        colunas_data = ['DataInicio', 'VencimentoEm', 'DataTermino']
+        for col in colunas_data:
+            if col in dados_consolidados_df.columns:
+                dados_consolidados_df[col] = pd.to_datetime(dados_consolidados_df[col], errors='coerce')
+                dados_consolidados_df[col] = dados_consolidados_df[col].dt.strftime('%d/%m/%Y')
+                dados_consolidados_df[col] = dados_consolidados_df[col].replace('NaT', None)
+        
+        # Garante que valores numéricos estão formatados corretamente
+        colunas_numericas = ['Horas', 'HorasTrabalhadas', 'HorasRestantes']
+        for col in colunas_numericas:
+            if col in dados_consolidados_df.columns:
+                dados_consolidados_df[col] = pd.to_numeric(dados_consolidados_df[col], errors='coerce').fillna(0)
+                dados_consolidados_df[col] = dados_consolidados_df[col].round(2)
+        
+        # Garante que Conclusao (porcentagem) está entre 0 e 100
+        if 'Conclusao' in dados_consolidados_df.columns:
+            dados_consolidados_df['Conclusao'] = pd.to_numeric(dados_consolidados_df['Conclusao'], errors='coerce').fillna(0)
+            dados_consolidados_df['Conclusao'] = dados_consolidados_df['Conclusao'].clip(0, 100).round(1)
+        
+        # Limpa valores de texto
+        colunas_texto = ['Cliente', 'Projeto', 'Squad', 'TipoServico', 'Especialista', 'Account Manager', 'Faturamento']
+        for col in colunas_texto:
+            if col in dados_consolidados_df.columns:
+                dados_consolidados_df[col] = dados_consolidados_df[col].astype(str).str.strip()
+                dados_consolidados_df[col] = dados_consolidados_df[col].replace(['nan', 'NaN', 'None', ''], None)
+        
+        # === ADIÇÃO DE INFORMAÇÕES DE CATEGORIA ===
+        # Adiciona coluna de categoria se há filtro por categoria ou sempre para referência
+        categoria_filtrada = None
+        if filtros_dict and 'categoria' in filtros_dict and filtros_dict['categoria']:
+            categoria_filtrada = filtros_dict['categoria']
+        
+        # Sempre adiciona informação de categoria para cada serviço
+        if 'TipoServico' in dados_consolidados_df.columns:
+            try:
+                from .typeservice_reader import TypeServiceReader
+                reader = TypeServiceReader()
+                
+                # Adiciona coluna com a categoria de cada serviço
+                dados_consolidados_df['Categoria'] = dados_consolidados_df['TipoServico'].apply(
+                    lambda servico: reader.obter_categoria(servico) if servico else 'N/A'
+                )
+                
+                # Se há filtro de categoria, adiciona também uma coluna de indicação
+                if categoria_filtrada:
+                    dados_consolidados_df['CategoriaSelecionada'] = categoria_filtrada
+                    logger.info(f"Adicionada informação de categoria filtrada: {categoria_filtrada}")
+                
+            except Exception as e:
+                logger.warning(f"Erro ao adicionar informações de categoria: {str(e)}")
+                # Fallback: adiciona coluna vazia
+                dados_consolidados_df['Categoria'] = 'N/A'
+        
+        # Prepara dados para o frontend (renomeia colunas para compatibilidade)
+        colunas_frontend = {
+            'Numero': 'Nº',
+            'Cliente': 'Cliente',
+            'Squad': 'Squad',
+            'TipoServico': 'Serviço',
+            'Categoria': 'Categoria',
+            'Status': 'Status',
+            'Horas': 'Esforço',
+            'HorasTrabalhadas': 'H. Trab.',
+            'HorasRestantes': 'H. Rest.',
+            'Faturamento': 'Faturamento',
+            'DataInicio': 'Abertura',
+            'VencimentoEm': 'Vencimento',
+            'DataTermino': 'Resolvido',
+            'Account Manager': 'Account Manager',
+            'TempoVida': 'Dias',
+            'Conclusao': 'Conclusão'
+        }
+        
+        # Renomeia apenas as colunas que existem
+        colunas_para_renomear = {k: v for k, v in colunas_frontend.items() if k in dados_consolidados_df.columns}
+        dados_consolidados_df.rename(columns=colunas_para_renomear, inplace=True)
+        
+        # Substitui valores NaN por None para melhor serialização JSON
+        dados_consolidados_df = dados_consolidados_df.where(pd.notnull(dados_consolidados_df), None)
+
+        logger.info(f"Dados consolidados com sucesso. Total de {len(dados_consolidados_df)} projetos únicos retornados.")
+        
+        json_result = dados_consolidados_df.to_json(orient='records', date_format='iso')
+        return Response(json_result, mimetype='application/json')
+
+    except Exception as e:
+        logger.error(f"Erro ao processar dados consolidados no relatório geral: {e}", exc_info=True)
+        return jsonify({"error": "Erro interno ao processar os dados."}), 500
 
 @macro_bp.route('/api/especialistas')
 def api_especialistas():
+    """Retorna uma lista de especialistas e seus projetos."""
     logger.info("Acessando rota /api/especialistas")
     dados = macro_service.carregar_dados()
     if dados.empty:

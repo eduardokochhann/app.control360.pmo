@@ -5,21 +5,17 @@
 {% block extra_css %}
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.1/dist/bootstrap-table.min.css" rel="stylesheet">
 <style>
-    /* ===== DESIGN PROFISSIONAL SOU.CLOUD - RELATÓRIO GERAL ===== */
+    /* ===== DESIGN PROFISSIONAL SOU.CLOUD - RELATÓRIO EXECUTIVO ===== */
     
     /* Importa fonte elegante do Google Fonts */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
-    /* Classes para controlar visibilidade na tela e no PDF */
-    .pdf-only {
-        display: none; /* Oculta elementos que devem aparecer apenas no PDF */
-    }
-    
+    /* Classes para controlar visibilidade */
     .screen-only {
-        display: block; /* Elementos que só aparecem na tela */
+        display: block;
     }
     
-    /* Ocultar navbar/header do sistema */
+    /* Ocultar navbar/header do sistema para layout clean */
     .navbar,
     .navbar-brand,
     .navbar-nav,
@@ -42,7 +38,7 @@
         overflow: hidden !important;
     }
     
-    /* Resetar body para remover qualquer padding/margin do navbar */
+    /* Resetar body para layout clean */
     body {
         padding-top: 0 !important;
         margin-top: 0 !important;
@@ -61,8 +57,8 @@
         padding-top: 0 !important;
         margin-top: 0 !important;
     }
-    
-    /* Variáveis de design SOU.Cloud */
+
+    /* Variáveis de design SOU.Cloud corretas */
     :root {
         --sou-rosa: #FF2D5F;
         --sou-azul: #07304F;
@@ -79,21 +75,21 @@
         --bg-white: #ffffff;
         --border-light: #e2e8f0;
     }
-    
+
     /* Container principal otimizado */
     .container-fluid {
         background: var(--bg-white);
         border-radius: 12px;
         box-shadow: var(--light-shadow);
         margin: 1rem auto;
-        max-width: 1800px;
+        max-width: 98%;
         padding: 0;
         overflow: hidden;
         position: relative;
         width: calc(100% - 2rem);
     }
     
-    /* Card principal com design clean */
+    /* Card principal com design executivo */
     .card {
         background: var(--bg-white);
         border: 1px solid var(--border-light);
@@ -103,40 +99,61 @@
         margin-bottom: 2rem;
     }
     
-    /* Cabeçalho do relatório */
-    .d-sm-flex.align-items-center {
-        background: var(--sou-azul-gradient);
+    /* Cabeçalho executivo com gradiente */
+    .card-header.bg-primary {
+        background: var(--sou-azul-gradient) !important;
         color: white;
+        border-radius: 12px 12px 0 0 !important;
         padding: 1.5rem 2rem;
-        border-radius: 12px 12px 0 0;
-        margin: 0 0 2rem 0;
         position: relative;
+        border: none;
     }
     
-    .d-sm-flex.align-items-center h1 {
+    .card-header h5 {
         font-size: 1.25rem;
         font-weight: 600;
         margin: 0;
         color: white;
-        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
     }
     
-    .d-sm-flex.align-items-center .text-muted {
-        color: rgba(255, 255, 255, 0.8) !important;
+    .card-header small {
+        color: rgba(255, 255, 255, 0.85) !important;
         font-size: 0.875rem;
         font-weight: 400;
+        margin-top: 0.25rem;
+        display: block;
+    }
+    
+    /* Botões do cabeçalho */
+    .card-header .btn-custom {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        backdrop-filter: blur(10px);
+        transition: all 0.2s ease;
+    }
+    
+    .card-header .btn-custom:hover {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.5);
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
     
     /* Container da tabela premium */
-    .table-container {
+    .card-body {
         padding: 2rem;
         background: var(--bg-white);
     }
     
-    /* Toolbar com botões modernos */
+    /* Toolbar executivo */
     #toolbar {
         margin-bottom: 1.5rem;
-        padding: 1rem;
+        padding: 1rem 1.25rem;
         background: var(--bg-light);
         border-radius: 8px;
         border: 1px solid var(--border-light);
@@ -147,419 +164,724 @@
         flex-wrap: wrap;
     }
     
-    .btn-group {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: nowrap;
+    #report-summary {
+        font-weight: 500;
+        color: var(--text-secondary);
+        flex: 1;
     }
     
-    /* Estilização dos botões */
+    /* Botões modernos */
     .btn {
         font-family: 'Inter', sans-serif;
         font-weight: 500;
         border-radius: 8px;
         padding: 0.5rem 1rem;
         transition: all 0.2s ease;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    
+    .btn-success {
+        background: #28a745;
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background: #218838;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    }
+
+    /* Tabela executiva e limpa */
+    .table {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        color: var(--text-primary);
+        margin-bottom: 0;
+        width: 100%;
+        table-layout: fixed;
+    }
+    
+    /* Cabeçalho da tabela executivo */
+    .table thead th {
+        background: var(--sou-azul) !important;
+        color: white !important;
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+        padding: 1rem 0.75rem;
+        border: none;
+        text-align: center;
+        position: relative;
+    }
+    
+    /* Linhas da tabela */
+    .table tbody td {
+        padding: 0.875rem 0.75rem;
+        border-color: var(--border-light);
+        vertical-align: middle;
+        font-weight: 400;
+        text-align: center;
+    }
+    
+    /* Alinhamentos específicos à esquerda */
+    .table tbody td:nth-child(2), /* Cliente */
+    .table tbody td:nth-child(4), /* Serviço */
+    .table tbody td:nth-child(5), /* Categoria */
+    .table tbody td:nth-child(15) /* Account Manager */ {
+        text-align: left !important;
+    }
+    
+    .table tbody tr:hover {
+        background: var(--bg-light);
+        transition: background-color 0.15s ease;
+    }
+    
+    .table tbody tr:nth-child(even) {
+        background: #fafbfc;
+    }
+
+    /* Status badges executivos */
+    .status-badge {
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border: none;
+        white-space: nowrap;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+    }
+    
+    .bg-primary {
+        background: var(--sou-azul) !important;
+        color: white;
+    }
+    
+    .bg-success {
+        background: #28a745 !important;
+        color: white;
+    }
+    
+    .bg-warning {
+        background: #ffc107 !important;
+        color: #212529;
+    }
+    
+    .bg-danger {
+        background: #dc3545 !important;
+        color: white;
+    }
+    
+    .bg-info {
+        background: var(--sou-rosa) !important;
+        color: white;
+    }
+    
+    .bg-secondary {
+        background: #6c757d !important;
+        color: white;
+    }
+    
+    /* Badges de squad mais sutis */
+    .bg-light {
+        background: #f8f9fa !important;
+        color: var(--text-secondary) !important;
+        border: 1px solid var(--border-light) !important;
+    }
+
+    /* Barras de progresso elegantes */
+    .progress-thin {
+        height: 6px;
+        margin-top: 4px;
+        background-color: #e9ecef;
+        border-radius: 3px;
+        overflow: hidden;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+    }
+    
+    .progress-thin .progress-bar {
+        border-radius: 3px;
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+    
+    .progress-value {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-bottom: 3px;
+        color: var(--text-primary);
+    }
+    
+    .progress-value-text {
+        font-family: 'Inter', monospace;
+        font-weight: 600;
+    }
+    
+    /* Gradientes sofisticados para barras */
+    .progress-danger .progress-bar { 
+        background: linear-gradient(90deg, #dc3545 0%, #c82333 100%) !important; 
+    }
+    .progress-warning .progress-bar { 
+        background: linear-gradient(90deg, #ffc107 0%, #e0a800 100%) !important; 
+    }
+    .progress-success .progress-bar { 
+        background: linear-gradient(90deg, #28a745 0%, #20c997 100%) !important; 
+    }
+    .progress-info .progress-bar { 
+        background: linear-gradient(90deg, var(--sou-rosa) 0%, var(--sou-rosa-light) 100%) !important; 
+    }
+
+    /* Texto cortado elegante */
+    .truncate-text {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+        max-width: 100%;
+        margin: 0 auto;
+    }
+    
+    /* Texto que quebra para colunas alinhadas à esquerda */
+    .text-wrap {
+        word-wrap: break-word;
+        white-space: normal;
+        overflow: hidden;
+        display: block;
+    }
+    
+    /* Texto de horas negativas destacado */
+    .text-danger-bold {
+        color: #dc3545 !important;
+        font-weight: 700;
+        text-shadow: 0 1px 2px rgba(220, 53, 69, 0.2);
+    }
+    
+    /* Links executivos */
+    .text-primary {
+        color: var(--sou-azul) !important;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    
+    .text-primary:hover {
+        color: var(--sou-azul-light) !important;
+        text-decoration: underline;
+    }
+    
+    /* Campos de busca executivos */
+    .fixed-table-toolbar .search-input {
+        min-width: 300px;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        border: 1px solid var(--border-light);
+        font-family: 'Inter', sans-serif;
+        font-size: 0.875rem;
+        background: var(--bg-white);
+        color: var(--text-primary);
+        box-shadow: var(--light-shadow);
+        transition: all 0.2s ease;
+    }
+    
+    .fixed-table-toolbar .search-input:focus {
+        outline: none;
+        border-color: var(--sou-azul);
+        box-shadow: 0 0 0 0.2rem rgba(7, 48, 79, 0.15);
+    }
+
+    /* Botões do Bootstrap Table executivos */
+    .fixed-table-toolbar .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        border-radius: 8px;
         border: 1px solid var(--border-light);
         background: var(--bg-white);
         color: var(--text-primary);
-        font-size: 0.875rem;
+        transition: all 0.2s ease;
+        font-weight: 500;
     }
     
-    .btn:hover {
+    .fixed-table-toolbar .btn:hover {
         background: var(--sou-azul);
         color: white;
         border-color: var(--sou-azul);
         transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(7, 48, 79, 0.2);
     }
-    
-    .btn-primary {
-        background: var(--sou-rosa-gradient);
-        color: white;
-        border-color: var(--sou-rosa);
+
+    /* Loading elegante */
+    .loading-template {
+        font-style: italic;
+        color: var(--text-muted);
     }
     
-    .btn-primary:hover {
-        background: var(--sou-rosa-light);
-        border-color: var(--sou-rosa-light);
-    }
-    
-    /* Bootstrap Table customizado */
-    .bootstrap-table .fixed-table-container {
-        border: 1px solid var(--border-light);
+    /* Responsivo */
+    .table-responsive {
         border-radius: 8px;
-        overflow: hidden;
+        box-shadow: var(--light-shadow);
+        overflow: visible;
+        width: 100%;
+        min-height: 400px;
     }
-    
-    .bootstrap-table .fixed-table-header {
-        background: var(--bg-light);
+
+    /* Estilos para impressão executiva */
+    @media print {
+        .screen-only, .navbar, .sidebar, #toolbar .btn-group {
+            display: none !important;
+        }
+        .card {
+            box-shadow: none;
+            border: 1px solid #dee2e6;
+        }
+        body, .container-fluid {
+            margin: 0;
+            padding: 0;
+        }
+        .progress-thin, .progress-value {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+        }
+        .table thead th {
+            background: var(--sou-azul) !important;
+            color: white !important;
+        }
     }
-    
-    .bootstrap-table th {
-        background: var(--bg-light) !important;
-        color: var(--text-primary) !important;
-        font-weight: 600 !important;
-        border-bottom: 1px solid var(--border-light) !important;
-        font-size: 0.875rem !important;
-        padding: 10px 6px !important;
-    }
-    
-    .bootstrap-table td {
-        padding: 8px 6px !important;
-        border-bottom: 1px solid #f0f0f0 !important;
-        font-size: 0.8rem !important;
-        vertical-align: middle !important;
-    }
-    
-    .bootstrap-table tbody tr:hover {
-        background-color: rgba(7, 48, 79, 0.03) !important;
-    }
-    
-    /* Status badges */
-    .status-badge {
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        font-size: 0.75rem;
+
+    /* Customização específica para apresentação executiva */
+    .fw-monospace {
+        font-family: 'Inter', monospace !important;
         font-weight: 500;
-        text-transform: uppercase;
-        white-space: nowrap;
     }
     
-    .status-ativo { background-color: #10b981; color: white; }
-    .status-aguardando { background-color: #f59e0b; color: white; }
-    .status-bloqueado { background-color: #ef4444; color: white; }
-    .status-concluido { background-color: #6b7280; color: white; }
-    .status-novo { background-color: #3b82f6; color: white; }
-    
-    /* Responsive */
-    @media (max-width: 768px) {
-        .container-fluid {
-            margin: 0.5rem;
-            width: calc(100% - 1rem);
-        }
-        
-        .table-container {
-            padding: 1rem;
-        }
-        
-        #toolbar {
-            flex-direction: column;
-            align-items: stretch;
-        }
-        
-        .d-sm-flex.align-items-center {
-            flex-direction: column;
-            gap: 1rem;
-            text-align: center;
-        }
+    .badge {
+        font-size: 0.7rem;
+        padding: 0.35rem 0.65rem;
+        font-weight: 600;
     }
+    
+    /* Melhorias no espaçamento para leitura executiva */
+    th[data-field="Nº"] { width: 55px; }
+    th[data-field="Cliente"] { width: 165px; text-align: left !important; }
+    th[data-field="Squad"] { width: 75px; }
+    th[data-field="Serviço"] { width: 125px; text-align: left !important; }
+    th[data-field="Categoria"] { width: 120px; text-align: left !important; }
+    th[data-field="Status"] { width: 85px; }
+    th[data-field="Esforço"] { width: 65px; }
+    th[data-field="H. Trab."] { width: 65px; }
+    th[data-field="H. Rest."] { width: 80px; }
+    th[data-field="Conclusão"] { width: 75px; }
+    th[data-field="Faturamento"] { width: 80px; }
+    th[data-field="Abertura"] { width: 75px; }
+    th[data-field="Vencimento"] { width: 80px; }
+    th[data-field="Resolvido"] { width: 75px; }
+    th[data-field="Account Manager"] { width: 115px; text-align: left !important; }
+    th[data-field="Dias"] { width: 55px; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
+<div class="container-fluid">
     <div class="card">
-        <!-- Cabeçalho -->
-        <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
             <div>
-                <h1 class="h3 mb-0 text-white">
-                    <i class="bi bi-graph-up-arrow me-2"></i>{{ title }}
-                </h1>
-                <p class="text-muted mb-0">
-                    {% if fontes_carregadas %}
-                        Fontes: {{ fontes_carregadas|join(', ') }}
-                    {% endif %}
-                </p>
+                <h5 class="mb-0">
+                    <i class="bi bi-table"></i>{{ title }}
+                </h5>
+                <small id="report-description">Relatório consolidado com os dados mais recentes dos períodos selecionados.</small>
             </div>
             <div class="screen-only">
-                <a href="{{ url_for('macro.relatorio_geral') }}" class="btn btn-sm btn-outline-light">
-                    <i class="bi bi-arrow-left me-1"></i>Nova Seleção
+                <a href="{{ url_for('macro.relatorio_geral') }}" class="btn btn-custom me-2">
+                    <i class="bi bi-arrow-left"></i> Nova Seleção
                 </a>
-                <button type="button" class="btn btn-sm btn-outline-light ms-2" onclick="window.print()">
-                    <i class="bi bi-printer me-1"></i>Imprimir
+                <button onclick="window.print();" class="btn btn-custom">
+                    <i class="bi bi-printer"></i> Imprimir
                 </button>
             </div>
         </div>
-        
-        <!-- Container da Tabela -->
-        <div class="table-container">
-            <!-- Toolbar -->
-            <div id="toolbar" class="screen-only">
-                <div>
-                    <strong>Relatório Geral de Projetos</strong>
-                    <span class="text-muted ms-2" id="totalCount">Carregando...</span>
+        <div class="card-body">
+            {% if categoria_filtrada %}
+                <div class="alert alert-info d-flex align-items-center mb-3" role="alert">
+                    <i class="bi bi-funnel-fill me-2"></i>
+                    <div>
+                        <strong>Filtro por Categoria Ativo:</strong> {{ categoria_filtrada }}
+                        <br><small class="text-muted">Os serviços exibidos pertencem à categoria selecionada</small>
+                    </div>
                 </div>
-                <div class="btn-group">
-                    <button class="btn btn-sm" id="exportExcel">
-                        <i class="bi bi-file-excel me-1"></i>Excel
-                    </button>
-                    <button class="btn btn-sm" id="exportPdf">
-                        <i class="bi bi-file-pdf me-1"></i>PDF
-                    </button>
-                </div>
+            {% endif %}
+            
+            <div id="toolbar">
+                <span id="report-summary" class="text-muted">Carregando dados...</span>
+                <button id="export-excel" class="btn btn-success">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Exportar para Excel
+                </button>
             </div>
             
-            <!-- Tabela Principal -->
-                        <table id="table"
-                   data-toggle="table"
-                   data-search="true"
-                   data-show-refresh="true"
-                   data-show-toggle="true"
-                   data-show-columns="true"
-                   data-sort-name="numero"
-                   data-sort-order="asc"
-                   data-toolbar="#toolbar"
-                   data-pagination="false"
-                   data-search-highlight="true"
-                   data-show-export="true"
-                   data-export-types="['excel', 'pdf']"
-                   data-export-options='{
-                       "fileName": "relatorio_geral_projetos",
-                       "worksheetName": "Relatório Geral"
-                   }'
-                   class="table table-striped table-hover">
-                <thead>
-                    <tr>
-                        <th data-field="numero" data-sortable="true" data-width="80" data-width-unit="px">Nº</th>
-                        <th data-field="cliente" data-sortable="true" data-width="180" data-width-unit="px">Cliente</th>
-                        <th data-field="squad" data-sortable="true" data-width="100" data-width-unit="px">Squad</th>
-                        <th data-field="servico" data-sortable="true" data-width="80" data-width-unit="px">Serviço</th>
-                        <th data-field="status" data-sortable="true" data-formatter="statusFormatter" data-width="160" data-width-unit="px">Status</th>
-                        <th data-field="esforco_estimado" data-sortable="true" data-align="right" data-width="90" data-width-unit="px">Esforço</th>
-                        <th data-field="horas_trabalhadas" data-sortable="true" data-align="right" data-width="90" data-width-unit="px">H. Trab.</th>
-                        <th data-field="horas_restantes" data-sortable="true" data-align="right" data-width="90" data-width-unit="px">H. Rest.</th>
-                        <th data-field="faturamento" data-sortable="true" data-width="120" data-width-unit="px">Faturamento</th>
-                        <th data-field="data_abertura" data-sortable="true" data-width="100" data-width-unit="px">Abertura</th>
-                        <th data-field="data_vencimento" data-sortable="true" data-width="100" data-width-unit="px">Vencimento</th>
-                        <th data-field="data_resolvido" data-sortable="true" data-width="100" data-width-unit="px">Resolvido</th>
-                        <th data-field="account_manager" data-sortable="true" data-width="120" data-width-unit="px">Account Manager</th>
-                        <th data-field="tempo_vida" data-sortable="true" data-align="right" data-width="80" data-width-unit="px">Dias</th>
-                    </tr>
-                </thead>
-            </table>
+            <div class="table-responsive">
+                <table id="table"
+                       data-toggle="table"
+                       data-url="{{ url_for('macro.api_relatorio_geral_dados', meses=meses_selecionados, filtros=filtros_aplicados) }}"
+                       data-pagination="false"
+                       data-search="true"
+                       data-show-refresh="true"
+                       data-show-columns="true"
+                       data-show-columns-toggle-all="true"
+                       data-toolbar="#toolbar"
+                       data-locale="pt-BR"
+                       data-show-export="false" 
+                       data-loading-template="loadingTemplate"
+                       data-classes="table table-hover"
+                       data-search-highlight="true"
+                       data-sort-name="Nº"
+                       data-sort-order="asc">
+                    <thead>
+                        <tr>
+                            <th data-field="Nº" data-sortable="true" data-formatter="numeroFormatter">Nº</th>
+                            <th data-field="Cliente" data-sortable="true" data-formatter="textoLeftFormatter">Cliente</th>
+                            <th data-field="Squad" data-sortable="true" data-formatter="squadFormatter">Squad</th>
+                            <th data-field="Serviço" data-sortable="true" data-formatter="servicoLeftFormatter">Serviço</th>
+                            <th data-field="Categoria" data-sortable="true" data-formatter="categoriaFormatter">Categoria</th>
+                            <th data-field="Status" data-sortable="true" data-formatter="statusFormatter">Status</th>
+                            <th data-field="Esforço" data-sortable="true" data-formatter="horasSimpleFormatter">Esforço</th>
+                            <th data-field="H. Trab." data-sortable="true" data-formatter="horasSimpleFormatter">H. Trab.</th>
+                            <th data-field="H. Rest." data-sortable="true" data-formatter="horasRestantesFormatter">H. Rest.</th>
+                            <th data-field="Conclusão" data-sortable="true" data-formatter="conclusaoFormatter">Conclusão</th>
+                            <th data-field="Faturamento" data-sortable="true" data-formatter="faturamentoFormatter">Faturamento</th>
+                            <th data-field="Abertura" data-sortable="true" data-formatter="dataFormatter">Abertura</th>
+                            <th data-field="Vencimento" data-sortable="true" data-formatter="dataFormatter">Vencimento</th>
+                            <th data-field="Resolvido" data-sortable="true" data-formatter="dataFormatter">Resolvido</th>
+                            <th data-field="Account Manager" data-sortable="true" data-formatter="textoLeftFormatter">Account Manager</th>
+                            <th data-field="Dias" data-sortable="true" data-formatter="diasFormatter">Dias</th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<!-- jQuery (required for Bootstrap Table) -->
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-
-<!-- Bootstrap Table -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.1/dist/bootstrap-table.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.1/dist/locale/bootstrap-table-pt-BR.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tableexport.jquery.plugin@1.28.0/tableExport.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.1/dist/extensions/export/bootstrap-table-export.min.js"></script>
-
-<!-- SheetJS para Excel export -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.1/dist/extensions/search-highlight/bootstrap-table-search-highlight.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-<!-- jsPDF para PDF export -->
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
-
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Carrega os dados via AJAX
-    function carregarDados() {
-        const mesesSelecionados = "{{ meses_selecionados|safe }}";
-        const filtrosAplicados = {{ filtros_aplicados|safe }};
+    // Loading template executivo
+    function loadingTemplate(message) {
+        return `
+            <div class="text-center p-5">
+                <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem; border-color: #07304F; border-right-color: transparent;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-3 text-muted fw-medium">Carregando dados do relatório...</p>
+                <small class="text-muted">Processando informações dos períodos selecionados</small>
+            </div>
+        `;
+    }
+
+    // Função auxiliar para escape de HTML
+    function escapeHtml(unsafe) {
+        if (unsafe === null || typeof unsafe === 'undefined') return '';
+        return String(unsafe)
+             .replace(/&/g, "&amp;")
+             .replace(/</g, "&lt;")
+             .replace(/>/g, "&gt;")
+             .replace(/"/g, "&quot;")
+             .replace(/'/g, "&#039;");
+    }
+
+    // Função para obter cor do status
+    function getStatusColor(status) {
+        const cores = {
+            'NOVO': 'info',
+            'EM ATENDIMENTO': 'primary',
+            'AGUARDANDO': 'warning',
+            'BLOQUEADO': 'danger',
+            'FECHADO': 'success',
+            'ENCERRADO': 'success',
+            'RESOLVIDO': 'success',
+            'CANCELADO': 'secondary'
+        };
+        return cores[status?.toUpperCase()] || 'secondary';
+    }
+
+    // === FORMATADORES EXECUTIVOS ===
+
+    // Formatador para números (com link para o SOU Cloud)
+    function numeroFormatter(value, row) {
+        if (!value) return '<span class="text-muted">-</span>';
+        return `<a href="https://atendimento.sou.cloud/Ticket/Edit/${value}" target="_blank" 
+                   class="text-primary fw-bold" 
+                   title="Abrir no SOU Cloud">${value}</a>`;
+    }
+
+    // Formatador de texto executivo
+    function textoFormatter(value, row) {
+        if (!value || String(value).toUpperCase() === 'N/A') {
+            return '<span class="text-muted">-</span>';
+        }
+        const texto = escapeHtml(value);
+        return `<span class="fw-medium" title="${texto}">${texto}</span>`;
+    }
+    
+    // Formatador para texto alinhado à esquerda (com quebra)
+    function textoLeftFormatter(value, row) {
+        if (!value || String(value).toUpperCase() === 'N/A') {
+            return '<span class="text-muted">-</span>';
+        }
+        const texto = escapeHtml(value);
+        return `<span class="fw-medium text-wrap" title="${texto}">${texto}</span>`;
+    }
+
+    // Formatador para Squad executivo
+    function squadFormatter(value, row) {
+        if (!value || String(value).toUpperCase() === 'N/A') {
+            return '<span class="text-muted">-</span>';
+        }
+        const squad = escapeHtml(value);
+        return `<span class="badge bg-light text-dark truncate-text" title="${squad}">${squad}</span>`;
+    }
+
+    // Formatador para Serviço executivo
+    function servicoFormatter(value, row) {
+        if (!value || String(value).toUpperCase() === 'N/A') {
+            return '<span class="text-muted">-</span>';
+        }
+        const servico = escapeHtml(value);
+        return `<small class="text-muted fw-medium" title="${servico}">${servico}</small>`;
+    }
+    
+    // Formatador para Serviço alinhado à esquerda
+    function servicoLeftFormatter(value, row) {
+        if (!value || String(value).toUpperCase() === 'N/A') {
+            return '<span class="text-muted">-</span>';
+        }
+        const servico = escapeHtml(value);
+        return `<small class="text-muted fw-medium text-wrap" title="${servico}">${servico}</small>`;
+    }
+
+    // Formatador para Categoria
+    function categoriaFormatter(value, row) {
+        if (!value || String(value).toUpperCase() === 'N/A') {
+            return '<span class="text-muted">-</span>';
+        }
+        const categoria = escapeHtml(value);
         
-        if (!mesesSelecionados) {
-            console.warn('Nenhum mês selecionado para carregar dados');
-            return;
+        // Cores específicas para algumas categorias conhecidas
+        const coresCategorias = {
+            'Azure Migrate': 'primary',
+            'Microsoft 365 Migration': 'warning',
+            'Azure Active Directory': 'info',
+            'Azure Backup': 'success',
+            'Microsoft Power BI': 'danger',
+            'SharePoint Online': 'secondary'
+        };
+        
+        const cor = coresCategorias[categoria] || 'dark';
+        return `<span class="badge bg-${cor} text-white" style="font-size: 0.7em;" title="${categoria}">${categoria}</span>`;
+    }
+
+    // Formatador para Status executivo
+    function statusFormatter(value, row) {
+        if (!value || String(value).toUpperCase() === 'N/A') {
+            return '<span class="text-muted">-</span>';
+        }
+        const status = escapeHtml(value);
+        const cor = getStatusColor(status);
+        return `<span class="badge status-badge bg-${cor}">${status}</span>`;
+    }
+
+    // Formatador simples para horas executivo
+    function horasSimpleFormatter(value, row) {
+        if (!value || isNaN(parseFloat(value))) return '<span class="text-muted">0h</span>';
+        
+        const horas = parseFloat(value);
+        const horasInteiras = Math.floor(Math.abs(horas));
+        const minutos = Math.round((Math.abs(horas) - horasInteiras) * 60);
+        const sinal = horas < 0 ? '-' : '';
+        
+        return `<span class="fw-monospace fw-medium">${sinal}${horasInteiras}h${String(minutos).padStart(2, '0')}m</span>`;
+    }
+
+    // Formatador executivo para Horas Restantes
+    function horasRestantesFormatter(value, row) {
+        const horasRestantes = !isNaN(parseFloat(value)) ? parseFloat(value) : 0;
+        const esforco = !isNaN(parseFloat(row.Esforço)) ? parseFloat(row.Esforço) : 0;
+
+        // Formatação executiva do valor
+        const sinal = horasRestantes < 0 ? "-" : "";
+        const horasAbs = Math.abs(horasRestantes);
+        const horasInteiras = Math.floor(horasAbs);
+        const minutosDecimais = (horasAbs - horasInteiras) * 60;
+        const minutosInteiros = Math.round(minutosDecimais);
+
+        const displayValue = `${sinal}${horasInteiras}h${String(minutosInteiros).padStart(2, '0')}m`;
+
+        // Lógica de cores executiva
+        let horasClass = 'progress-success';
+        let percentualHoras = 0;
+
+        if (horasRestantes < 0) {
+            horasClass = 'progress-danger';
+            percentualHoras = 100;
+        } else if (horasRestantes < 10 && esforco > 0) {
+            horasClass = 'progress-warning';
+            percentualHoras = Math.min(100, Math.max(0, (horasRestantes / esforco) * 100));
+        } else if (esforco > 0) {
+            percentualHoras = Math.min(100, Math.max(0, (horasRestantes / esforco) * 100));
+        }
+
+        return `
+            <div class="progress-value">
+                <span class="progress-value-text ${horasRestantes < 0 ? 'text-danger-bold' : ''}">${displayValue}</span>
+            </div>
+            <div class="progress-thin ${horasClass}">
+                <div class="progress-bar" style="width: ${percentualHoras.toFixed(1)}%;"></div>
+            </div>
+        `;
+    }
+
+    // Formatador executivo para Conclusão
+    function conclusaoFormatter(value, row) {
+        const conclusao = !isNaN(parseFloat(value)) ? parseFloat(value) : 0;
+        
+        // Lógica de cores executiva
+        let progressClass = 'progress-info';
+        if (conclusao < 30) {
+            progressClass = 'progress-danger';
+        } else if (conclusao < 70) {
+            progressClass = 'progress-warning';
+        } else if (conclusao >= 70) {
+            progressClass = 'progress-success';
+        }
+
+        return `
+            <div class="progress-value">
+                <span class="progress-value-text">${conclusao.toFixed(1)}%</span>
+            </div>
+            <div class="progress-thin ${progressClass}">
+                <div class="progress-bar" style="width: ${conclusao}%;"></div>
+            </div>
+        `;
+    }
+
+    // Formatador executivo para Faturamento
+    function faturamentoFormatter(value, row) {
+        if (!value || String(value).toUpperCase() === 'N/A') {
+            return '<span class="text-muted">-</span>';
         }
         
-        console.log('Carregando dados para meses:', mesesSelecionados);
-        if (filtrosAplicados && Object.keys(filtrosAplicados).length > 0) {
-            console.log('Filtros aplicados:', filtrosAplicados);
+        const faturamento = escapeHtml(value);
+        const cores = {
+            'PRIME': 'primary',
+            'PLUS': 'success', 
+            'INICIO': 'info',
+            'TERMINO': 'warning',
+            'ENGAJAMENTO': 'secondary'
+        };
+        
+        const cor = cores[faturamento.toUpperCase()] || 'light';
+        return `<span class="badge bg-${cor} ${cor === 'light' ? 'text-dark' : ''}">${faturamento}</span>`;
+    }
+
+    // Formatador executivo para datas
+    function dataFormatter(value, row) {
+        if (!value || value === 'N/A' || value === '' || String(value).toUpperCase() === 'N/A') {
+            return '<span class="text-muted">-</span>';
         }
         
-        // Monta URL com parâmetros
-        let url = `/macro/api/relatorio/geral?meses=${encodeURIComponent(mesesSelecionados)}`;
-        if (filtrosAplicados && Object.keys(filtrosAplicados).length > 0) {
-            url += `&filtros=${encodeURIComponent(JSON.stringify(filtrosAplicados))}`;
+        try {
+            let data;
+            if (value.includes('T')) {
+                data = new Date(value);
+            } else if (value.includes('/')) {
+                const [dia, mes, ano] = value.split('/');
+                data = new Date(ano, mes - 1, dia);
+            } else {
+                data = new Date(value);
+            }
+            
+            if (isNaN(data.getTime())) {
+                return `<span class="fw-medium">${escapeHtml(value)}</span>`;
+            }
+            
+            return `<span class="fw-medium">${data.toLocaleDateString('pt-BR')}</span>`;
+        } catch (e) {
+            return `<span class="fw-medium">${escapeHtml(value)}</span>`;
+        }
+    }
+
+    // Formatador executivo para dias
+    function diasFormatter(value, row) {
+        if (!value || isNaN(parseInt(value))) return '<span class="text-muted">-</span>';
+        
+        const dias = parseInt(value);
+        let badgeClass = 'bg-success';
+        let icone = 'bi-check-circle';
+        
+        if (dias > 365) {
+            badgeClass = 'bg-danger';
+            icone = 'bi-exclamation-triangle';
+        } else if (dias > 180) {
+            badgeClass = 'bg-warning text-dark';
+            icone = 'bi-clock';
+        } else if (dias > 90) {
+            badgeClass = 'bg-info';
+            icone = 'bi-info-circle';
         }
         
-        console.log('Fazendo requisição para:', url);
+        return `
+            <span class="badge status-badge ${badgeClass}">
+                <i class="${icone} me-1"></i>${dias}d
+            </span>
+        `;
+    }
+
+    // === EVENTOS E INICIALIZAÇÃO EXECUTIVA ===
+    $(document).ready(function() {
+        var $table = $('#table');
+
+        // Evento de sucesso executivo
+        $table.on('load-success.bs.table', function (e, data) {
+            $('#report-summary').html(`
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                <strong>Relatório Consolidado</strong>: ${data.length} projetos únicos encontrados (todos exibidos).
+            `);
+        });
+
+        // Evento de erro executivo
+        $table.on('load-error.bs.table', function (e, status, jqXHR) {
+            $('#report-summary').html(`
+                <i class="bi bi-x-circle-fill text-danger me-2"></i>
+                Erro ao carregar os dados. Tente atualizar a página.
+            `);
+        });
         
-        fetch(url)
-            .then(response => {
-                console.log('Response status:', response.status);
-                return response.json();
-            })
-            .then(data => {
-                console.log('Dados recebidos:', data.length);
-                console.log('Primeiros 3 projetos:', data.slice(0, 3));
-                
-                if (data.length === 0) {
-                    $('.table-container').html(`
-                        <div class="text-center py-5">
-                            <i class="bi bi-inbox fs-1 text-muted"></i>
-                            <h5 class="mt-3 text-muted">Nenhum dado encontrado</h5>
-                            <p class="text-muted">Não há projetos para os períodos e filtros selecionados.</p>
-                        </div>
-                    `);
-                    return;
-                }
-                
-                atualizarTabela(data);
-            })
-            .catch(error => {
-                console.error('Erro ao carregar dados:', error);
-                $('.table-container').html(`
-                    <div class="alert alert-danger">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        Erro ao carregar dados: ${error.message}
-                    </div>
-                `);
+        // Exportação executiva para Excel
+        $('#export-excel').on('click', function() {
+            $table.bootstrapTable('exportTable', {
+                type: 'excel',
+                fileName: 'Relatorio_Executivo_Control360_' + new Date().toISOString().split('T')[0]
             });
-    }
-    
-    // Formatador para status
-    window.statusFormatter = function(value, row, index) {
-        if (!value) return '<span class="status-badge">N/A</span>';
-        
-        const statusClass = getStatusClass(value);
-        return `<span class="status-badge ${statusClass}">${value}</span>`;
-    };
-    
-    function getStatusClass(status) {
-        const statusUpper = status.toUpperCase();
-        switch (statusUpper) {
-            case 'EM ATENDIMENTO':
-            case 'ATIVO':
-                return 'status-ativo';
-            case 'AGUARDANDO':
-                return 'status-aguardando';
-            case 'BLOQUEADO':
-                return 'status-bloqueado';
-            case 'FECHADO':
-            case 'ENCERRADO':
-            case 'RESOLVIDO':
-                return 'status-concluido';
-            case 'NOVO':
-                return 'status-novo';
-            default:
-                return 'status-novo';
-        }
-    }
-    
-    // Função para exportar para Excel
-    function exportToExcel() {
-        const table = $('#table').bootstrapTable('getData');
-        
-        if (table.length === 0) {
-            alert('Nenhum dado disponível para exportação.');
-            return;
-        }
+        });
 
-        // Prepara os dados para exportação
-        const excelData = table.map(row => ({
-            'Número': row.numero || 'N/A',
-            'Cliente': row.cliente || 'N/A',
-            'Squad': row.squad || 'N/A', 
-            'Serviço': row.servico || 'N/A',
-            'Status': row.status || 'N/A',
-            'Esforço Estimado': row.esforco_estimado || '0h',
-            'Horas Trabalhadas': row.horas_trabalhadas || '0h',
-            'Horas Restantes': row.horas_restantes || '0h',
-            'Faturamento': row.faturamento || 'N/A',
-            'Data Abertura': row.data_abertura || 'N/A',
-            'Data Vencimento': row.data_vencimento || '-',
-            'Data Resolução': row.data_resolvido || '-',
-            'Account Manager': row.account_manager || 'N/A',
-            'Tempo de Vida (dias)': row.tempo_vida || 0
-        }));
-
-        // Cria o workbook
-        const ws = XLSX.utils.json_to_sheet(excelData);
-        const workbook = XLSX.utils.book_new();
-        
-        // Ajusta a largura das colunas
-        if (!ws['!cols']) ws['!cols'] = [];
-        ws['!cols'][0] = { wch: 10 }; // Número
-        ws['!cols'][1] = { wch: 25 }; // Cliente
-        ws['!cols'][2] = { wch: 15 }; // Squad
-        ws['!cols'][3] = { wch: 20 }; // Serviço
-        ws['!cols'][4] = { wch: 15 }; // Status
-        ws['!cols'][5] = { wch: 12 }; // Esforço
-        ws['!cols'][6] = { wch: 12 }; // H. Trab.
-        ws['!cols'][7] = { wch: 12 }; // H. Rest.
-        ws['!cols'][8] = { wch: 15 }; // Faturamento
-        ws['!cols'][9] = { wch: 12 }; // Abertura
-        ws['!cols'][10] = { wch: 12 }; // Vencimento
-        ws['!cols'][11] = { wch: 12 }; // Resolução
-        ws['!cols'][12] = { wch: 20 }; // Account Manager
-        ws['!cols'][13] = { wch: 10 }; // Dias
-        
-        XLSX.utils.book_append_sheet(workbook, ws, "Relatório Geral");
-
-        // Baixa o arquivo
-        const fileName = `relatorio_geral_projetos_${new Date().toISOString().split('T')[0]}.xlsx`;
-        XLSX.writeFile(workbook, fileName);
-    }
-
-    // Event handlers para exportação
-    document.getElementById('exportExcel').addEventListener('click', function() {
-        exportToExcel();
+        // Responsividade executiva
+        $(window).resize(function() {
+            $table.bootstrapTable('resetView');
+        });
     });
-    
-    document.getElementById('exportPdf').addEventListener('click', function() {
-        window.print();
-    });
-
-    // Inicializa a tabela
-    $('#table').bootstrapTable({
-        height: 'auto',
-        pagination: false,
-        search: true,
-        showColumns: true,
-        showRefresh: true,
-        showToggle: true,
-        showExport: true,
-        exportTypes: ['json', 'xml', 'csv', 'txt', 'sql', 'excel', 'pdf'],
-        exportOptions: {
-            fileName: 'relatorio_geral_projetos'
-        },
-        locale: 'pt-BR'
-    });
-    
-    function atualizarTabela(data) {
-        console.log('Atualizando tabela com', data.length, 'registros');
-        
-        // Processa dados para o formato da tabela
-        const dadosProcessados = data.map(projeto => ({
-            numero: projeto.numero || 'N/A',
-            cliente: projeto.cliente || 'N/A',  // CORRIGIDO: usar campo cliente
-            squad: projeto.squad || 'N/A',
-            servico: projeto.servico || 'N/A',  // Agora vai trazer a categoria
-            status: projeto.status || 'N/A',
-            esforco_estimado: projeto.Horas ? `${Math.round(projeto.Horas * 100) / 100}h` : '0h',
-            horas_trabalhadas: projeto.horas_trabalhadas ? `${Math.round(projeto.horas_trabalhadas * 100) / 100}h` : '0h',
-            horas_restantes: projeto.horasRestantes ? `${Math.round(projeto.horasRestantes * 100) / 100}h` : '0h',
-            faturamento: projeto.tipo_faturamento || 'N/A',
-            data_abertura: projeto.data_inicio || 'N/A',
-            data_vencimento: projeto.dataPrevEnc || '-',  // CORRIGIDO: usar "-" como padrão
-            data_resolvido: projeto.data_resolvido || '-',  // CORRIGIDO: usar "-" como padrão
-            account_manager: projeto.account_manager || projeto.account || 'N/A',
-            tempo_vida: projeto.tempo_vida || 0
-        }));
-        
-        console.log('Dados processados:', dadosProcessados.slice(0, 2));
-        
-        // Atualiza a tabela com os dados
-        $('#table').bootstrapTable('load', dadosProcessados);
-        
-        // Atualiza contador
-        document.getElementById('totalCount').textContent = `${dadosProcessados.length} projetos (todos exibidos)`;
-        
-        console.log('Tabela atualizada com sucesso!');
-    }
-    
-    // Carrega os dados iniciais
-    carregarDados();
-});
 </script>
 {% endblock %}

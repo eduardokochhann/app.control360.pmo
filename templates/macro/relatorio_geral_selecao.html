@@ -15,15 +15,32 @@
         </div>
         <div class="card-body">
             <form action="{{ url_for('macro.gerar_relatorio_geral') }}" method="POST">
+                
+                <!-- Dados Atuais -->
                 <div class="mb-4">
-                    <label class="form-label">Selecione os Períodos para o Relatório</label>
+                    <h5 class="mb-3">Visão Atual (Dados Dinâmicos)</h5>
+                    <p class="text-muted small">Esta é a fonte de dados principal, refletindo o estado atual de todos os projetos. Marque a caixa para incluir os dados atuais no seu relatório.</p>
+                    <div class="form-check p-3 border rounded">
+                        <input class="form-check-input periodo-checkbox" type="checkbox" name="meses_selecionados[]" value="atual" id="checkAtual">
+                        <label class="form-check-label" for="checkAtual">
+                            <strong>Incluir Visão Atual</strong>
+                            <small class="text-muted d-block">Fonte: dadosr.csv (coleta completa)</small>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Fontes Históricas -->
+                {% if fontes_disponiveis %}
+                <div class="mb-4">
+                    <h5 class="mb-3">Espelho Mensal (Snapshots Históricos)</h5>
+                    <p class="text-muted small">Selecione um ou mais snapshots para analisar a evolução ou comparar estados passados dos projetos.</p>
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
                                 <tr>
                                     <th style="width: 50px;">
                                         <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="selectAllPeriods">
+                                            <input class="form-check-input" type="checkbox" id="selectAllHistoricos">
                                         </div>
                                     </th>
                                     <th>Período</th>
@@ -32,48 +49,33 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- Dados Atuais -->
+                                {% for fonte in fontes_disponiveis %}
                                 <tr>
                                     <td>
                                         <div class="form-check">
-                                            <input class="form-check-input periodo-checkbox" type="checkbox" name="meses_selecionados[]" value="atual">
+                                            <input class="form-check-input periodo-checkbox historico-checkbox" type="checkbox" name="meses_selecionados[]" value="{{ fonte.arquivo }}">
                                         </div>
                                     </td>
-                                    <td><strong>Visão Atual</strong><br><small class="text-muted">Todos os dados consolidados</small></td>
-                                    <td>dadosr.csv (coleta completa)</td>
+                                    <td><strong>{{ fonte.nome_exibicao }}</strong><br><small class="text-muted">Espelho específico do mês ({{ fonte.abreviacao }})</small></td>
+                                    <td>{{ fonte.arquivo }}.csv</td>
                                     <td>
-                                        <span class="badge bg-primary">Visão Atual</span>
+                                        <span class="badge bg-success">Histórico</span>
                                     </td>
                                 </tr>
-                                
-                                <!-- Fontes Históricas -->
-                                {% if fontes_disponiveis %}
-                                    {% for fonte in fontes_disponiveis %}
-                                    <tr>
-                                        <td>
-                                            <div class="form-check">
-                                                <input class="form-check-input periodo-checkbox" type="checkbox" name="meses_selecionados[]" value="{{ fonte.arquivo }}">
-                                            </div>
-                                        </td>
-                                        <td><strong>{{ fonte.nome_exibicao }}</strong><br><small class="text-muted">Espelho específico do mês ({{ fonte.abreviacao }})</small></td>
-                                        <td>{{ fonte.arquivo }}.csv</td>
-                                        <td>
-                                            <span class="badge bg-success">Histórico</span>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                {% else %}
-                                <tr>
-                                    <td colspan="4" class="text-center text-muted">
-                                        <i class="bi bi-info-circle me-2"></i>
-                                        Nenhum período histórico disponível. Apenas visão atual pode ser selecionada.
-                                    </td>
-                                </tr>
-                                {% endif %}
+                                {% endfor %}
                             </tbody>
                         </table>
                     </div>
                 </div>
+                {% else %}
+                <div class="mb-4">
+                     <h5 class="mb-3">Espelho Mensal (Snapshots Históricos)</h5>
+                     <div class="alert alert-secondary text-center">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Nenhum período histórico (snapshot) foi encontrado.
+                    </div>
+                </div>
+                {% endif %}
                 
                 <!-- Seção de Filtros Avançados -->
                 <div class="mb-4">
@@ -123,6 +125,13 @@
                                             <label class="form-label">Squad</label>
                                             <select class="form-select" name="filtro_squad" id="filtroSquad">
                                                 <option value="">Todas as Squads</option>
+                                                <!-- Será preenchido dinamicamente -->
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Categoria</label>
+                                            <select class="form-select" name="filtro_categoria" id="filtroCategoria">
+                                                <option value="">Todas as Categorias</option>
                                                 <!-- Será preenchido dinamicamente -->
                                             </select>
                                         </div>
@@ -180,83 +189,95 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const selectAllCheckbox = document.getElementById('selectAllPeriods');
+    const selectAllHistoricos = document.getElementById('selectAllHistoricos');
     const periodoCheckboxes = document.querySelectorAll('.periodo-checkbox');
+    const historicoCheckboxes = document.querySelectorAll('.historico-checkbox');
     const generateReportBtn = document.getElementById('generateReportBtn');
 
-    // Função para atualizar estado do botão
+    // Função para atualizar estado do botão Gerar Relatório
     function updateGenerateButton() {
         const anyChecked = Array.from(periodoCheckboxes).some(cb => cb.checked);
         generateReportBtn.disabled = !anyChecked;
     }
 
-    // Listener para o checkbox "Selecionar Todos"
-    selectAllCheckbox.addEventListener('change', function() {
-        periodoCheckboxes.forEach(cb => {
-            cb.checked = this.checked;
-        });
-        updateGenerateButton();
-    });
-
-    // Listeners para os checkboxes individuais
-    periodoCheckboxes.forEach(cb => {
-        cb.addEventListener('change', function() {
-            const allChecked = Array.from(periodoCheckboxes).every(cb => cb.checked);
-            selectAllCheckbox.checked = allChecked;
+    // Listener para o checkbox "Selecionar Todos" dos históricos
+    if(selectAllHistoricos) {
+        selectAllHistoricos.addEventListener('change', function() {
+            historicoCheckboxes.forEach(cb => {
+                cb.checked = this.checked;
+            });
             updateGenerateButton();
         });
+    }
+
+    // Adiciona listener para todos os checkboxes de período para atualizar o botão
+    periodoCheckboxes.forEach(cb => {
+        cb.addEventListener('change', updateGenerateButton);
+    });
+    
+    // Listener para os checkboxes históricos individuais para atualizar o "Selecionar Todos"
+    historicoCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            if(selectAllHistoricos) {
+                const allChecked = Array.from(historicoCheckboxes).every(hcb => hcb.checked);
+                selectAllHistoricos.checked = allChecked;
+            }
+        });
     });
 
-    // Carrega opções dos filtros dinamicamente
-    carregarOpcoesFilttros();
-});
+    // Estado inicial do botão
+    updateGenerateButton();
 
-function carregarOpcoesFilttros() {
-    // Carrega dados para preencher os selects dos filtros
-    fetch('/macro/api/filter-options')
+    // --- Lógica para filtros dinâmicos (corrigida) ---
+    fetch("{{ url_for('macro.api_filter_options') }}")
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 // Preenche Squad
-                const squadSelect = document.getElementById('filtroSquad');
-                data.squads.forEach(squad => {
-                    const option = document.createElement('option');
-                    option.value = squad;
-                    option.textContent = squad;
-                    squadSelect.appendChild(option);
-                });
+                if (data.squads && data.squads.length > 0) {
+                    const squadFilter = document.getElementById('filtroSquad');
+                    data.squads.forEach(squad => {
+                        squadFilter.innerHTML += `<option value="${squad}">${squad}</option>`;
+                    });
+                }
 
                 // Preenche Serviços
-                const servicoSelect = document.getElementById('filtroServico');
-                data.servicos.forEach(servico => {
-                    const option = document.createElement('option');
-                    option.value = servico;
-                    option.textContent = servico;
-                    servicoSelect.appendChild(option);
-                });
+                if (data.servicos && data.servicos.length > 0) {
+                    const serviceFilter = document.getElementById('filtroServico');
+                    data.servicos.forEach(service => {
+                        serviceFilter.innerHTML += `<option value="${service}">${service}</option>`;
+                    });
+                }
 
-                // Preenche Tipos de Faturamento
-                const faturamentoSelect = document.getElementById('filtroFaturamento');
-                data.faturamentos.forEach(faturamento => {
-                    const option = document.createElement('option');
-                    option.value = faturamento;
-                    option.textContent = faturamento;
-                    faturamentoSelect.appendChild(option);
-                });
+                // Preenche Faturamento
+                if (data.faturamentos && data.faturamentos.length > 0) {
+                    const fatFilter = document.getElementById('filtroFaturamento');
+                    data.faturamentos.forEach(fat => {
+                        fatFilter.innerHTML += `<option value="${fat}">${fat}</option>`;
+                    });
+                }
+
+                // Preenche Categorias
+                if (data.categorias && data.categorias.length > 0) {
+                    const catFilter = document.getElementById('filtroCategoria');
+                    data.categorias.forEach(categoria => {
+                        catFilter.innerHTML += `<option value="${categoria}">${categoria}</option>`;
+                    });
+                }
+            } else {
+                console.warn('Erro ao carregar opções dos filtros:', data.message);
             }
         })
         .catch(error => {
-            console.error('Erro ao carregar opções de filtros:', error);
+            console.error('Erro ao carregar dados dos filtros:', error);
         });
-}
+});
 
 function limparFiltros() {
-    // Limpa todos os campos de filtro
-    document.querySelectorAll('#filtrosAvancados input').forEach(input => {
-        input.value = '';
-    });
-    document.querySelectorAll('#filtrosAvancados select').forEach(select => {
-        select.selectedIndex = 0;
+    document.querySelector('form').querySelectorAll('input[type=date], select').forEach(el => {
+        if (!el.closest('.form-check')) { // não limpa os checkboxes de período
+            el.value = '';
+        }
     });
 }
 </script>

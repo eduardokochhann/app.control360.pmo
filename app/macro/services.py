@@ -610,7 +610,8 @@ class MacroService(BaseService):
                 # Outros dados
                 faturamento_val = row.get('Faturamento', row.get('TipoFaturamento', 'N/A'))
                 
-                resultados.append({
+                # Dicionário base do projeto
+                projeto_dict = {
                     'numero': numero_val,
                     'projeto': projeto_val,  # Nome do projeto
                     'status': row.get(col_status, 'N/A'),
@@ -631,7 +632,22 @@ class MacroService(BaseService):
                     'data_resolvido': data_resolvido_fmt,  # CORRIGIDO: "-" se vazio
                     'account_manager': account_val,
                     'tempo_vida': tempo_vida_dias  # CORRIGIDO: dias calculados
-                })
+                }
+                
+                # Adiciona campos auxiliares se existirem (para relatórios evolutivo, comparativo, etc.)
+                if '_fonte_periodo' in row.index:
+                    projeto_dict['_fonte_periodo'] = row.get('_fonte_periodo', 'N/A')
+                
+                if '_ordem_periodo' in row.index:
+                    projeto_dict['_ordem_periodo'] = row.get('_ordem_periodo', 0)
+                
+                if '_mudancas' in row.index:
+                    projeto_dict['_mudancas'] = row.get('_mudancas', '')
+                
+                if '_status_anterior' in row.index:
+                    projeto_dict['_status_anterior'] = row.get('_status_anterior', '')
+                
+                resultados.append(projeto_dict)
             
             logger.info(f"Formatados {len(resultados)} projetos para relatório geral")
             return resultados
@@ -4539,6 +4555,25 @@ class MacroService(BaseService):
             logger.info(f"Aplicando filtros ao relatório: {filtros}")
             dados_filtrados = dados.copy()
             
+            # Filtro por Categoria
+            if 'categoria' in filtros and filtros['categoria']:
+                try:
+                    from .typeservice_reader import TypeServiceReader
+                    reader = TypeServiceReader()
+                    
+                    # Obtém todos os tipos de serviço da categoria selecionada
+                    tipos_por_categoria = reader.obter_tipos_por_categoria()
+                    tipos_da_categoria = tipos_por_categoria.get(filtros['categoria'], [])
+                    
+                    if tipos_da_categoria and 'TipoServico' in dados_filtrados.columns:
+                        # Filtra projetos que têm tipos de serviço pertencentes à categoria
+                        dados_filtrados = dados_filtrados[dados_filtrados['TipoServico'].isin(tipos_da_categoria)]
+                        logger.info(f"Filtro Categoria aplicado: {filtros['categoria']} ({len(tipos_da_categoria)} tipos) - Registros restantes: {len(dados_filtrados)}")
+                    else:
+                        logger.warning(f"Categoria '{filtros['categoria']}' não possui tipos de serviço ou coluna TipoServico não encontrada")
+                except Exception as e:
+                    logger.error(f"Erro ao aplicar filtro de categoria: {str(e)}")
+            
             # Filtro por Squad
             if 'squad' in filtros and filtros['squad']:
                 dados_filtrados = dados_filtrados[dados_filtrados['Squad'].str.upper() == filtros['squad'].upper()]
@@ -4546,12 +4581,9 @@ class MacroService(BaseService):
             
             # Filtro por Serviço
             if 'servico' in filtros and filtros['servico']:
-                # Verifica ambas as possíveis colunas de serviço
-                if 'Tipo de servico' in dados_filtrados.columns:
-                    dados_filtrados = dados_filtrados[dados_filtrados['Tipo de servico'].str.upper() == filtros['servico'].upper()]
-                elif 'Tipo de Serviço' in dados_filtrados.columns:
-                    dados_filtrados = dados_filtrados[dados_filtrados['Tipo de Serviço'].str.upper() == filtros['servico'].upper()]
-                logger.info(f"Filtro Serviço aplicado: {filtros['servico']} - Registros restantes: {len(dados_filtrados)}")
+                if 'TipoServico' in dados_filtrados.columns:
+                    dados_filtrados = dados_filtrados[dados_filtrados['TipoServico'].str.upper() == filtros['servico'].upper()]
+                    logger.info(f"Filtro Serviço aplicado: {filtros['servico']} - Registros restantes: {len(dados_filtrados)}")
             
             # Filtro por Status
             if 'status' in filtros and filtros['status']:
