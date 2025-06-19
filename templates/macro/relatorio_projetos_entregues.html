@@ -485,11 +485,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Exportação executiva para Excel
     $('#export-excel').on('click', function() {
-        const filtroTexto = filtroAtual === 'mes-atual' ? 'Mes_Atual' : 'Historico_Completo';
-        $table.bootstrapTable('exportTable', {
-            type: 'excel',
-            fileName: `Projetos_Entregues_${filtroTexto}_Control360_${new Date().toISOString().split('T')[0]}`
-        });
+        exportToExcel();
     });
 
     // Função para carregar dados baseado no filtro
@@ -590,6 +586,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Formatador universal para horas no Excel (valores numéricos)
+    function horasParaExcel(valor) {
+        if (!valor || isNaN(parseFloat(valor))) return 0;
+        return parseFloat(valor);
+    }
+
     // Função para exportar para Excel
     function exportToExcel() {
         const table = $('#table').bootstrapTable('getData');
@@ -599,20 +601,22 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Prepara os dados para exportação
+        const filtroTexto = filtroAtual === 'mes-atual' ? 'Mes_Atual' : 'Historico_Completo';
+
+        // Prepara os dados para exportação com valores numéricos para horas
         const excelData = table.map(row => ({
-            'Número': row.numero || 'N/A',
-            'Projeto': row.projeto || 'N/A',
-            'Squad': row.squad || 'N/A',
-            'Serviço': row.servico || 'N/A',
-            'Status': row.status || 'N/A',
-            'Tipo Faturamento': row.tipo_faturamento || 'N/A',
-            'Horas Trabalhadas': row.horas_trabalhadas || 0,
-            'Horas Previstas': row.horas_previstas || 0,
-            'Conclusão (%)': row.conclusao || 0,
-            'Data Entrega': row.data_entrega || 'N/A',
-            'Especialista': row.especialista || 'N/A',
-            'Account Manager': row.account || 'N/A',
+            'Número': row.numero || '-',
+            'Projeto': row.projeto || '-',
+            'Squad': row.squad || '-',
+            'Serviço': row.servico || '-',
+            'Status': row.status || '-',
+            'Tipo Faturamento': row.tipo_faturamento || '-',
+            'Horas Trabalhadas': horasParaExcel(row.horas_trabalhadas),
+            'Horas Previstas': horasParaExcel(row.horas_previstas),
+            'Conclusão (%)': parseFloat(row.conclusao || 0),
+            'Data Entrega': row.data_entrega || '-',
+            'Especialista': row.especialista || '-',
+            'Account Manager': row.account || '-',
             'Tem Backlog': row.backlog_exists ? 'Sim' : 'Não'
         }));
 
@@ -628,18 +632,43 @@ document.addEventListener('DOMContentLoaded', function() {
         ws['!cols'][3] = { wch: 20 }; // Serviço
         ws['!cols'][4] = { wch: 15 }; // Status
         ws['!cols'][5] = { wch: 18 }; // Tipo Faturamento
-        ws['!cols'][6] = { wch: 12 }; // H. Trabalhadas
-        ws['!cols'][7] = { wch: 12 }; // H. Previstas
+        ws['!cols'][6] = { wch: 15 }; // H. Trabalhadas
+        ws['!cols'][7] = { wch: 15 }; // H. Previstas
         ws['!cols'][8] = { wch: 12 }; // Conclusão
         ws['!cols'][9] = { wch: 12 }; // Data Entrega
         ws['!cols'][10] = { wch: 20 }; // Especialista
         ws['!cols'][11] = { wch: 20 }; // Account Manager
         ws['!cols'][12] = { wch: 10 }; // Backlog
+
+        // Aplica formatação numérica para colunas de horas
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        for (let rowNum = range.s.r + 1; rowNum <= range.e.r; rowNum++) {
+            // Horas Trabalhadas (coluna G, índice 6)
+            const cellHorasTrab = XLSX.utils.encode_cell({ r: rowNum, c: 6 });
+            if (ws[cellHorasTrab]) {
+                ws[cellHorasTrab].t = 'n'; // Tipo numérico
+                ws[cellHorasTrab].z = '0.00'; // Formato: 2 casas decimais
+            }
+            
+            // Horas Previstas (coluna H, índice 7)
+            const cellHorasPrev = XLSX.utils.encode_cell({ r: rowNum, c: 7 });
+            if (ws[cellHorasPrev]) {
+                ws[cellHorasPrev].t = 'n'; // Tipo numérico
+                ws[cellHorasPrev].z = '0.00'; // Formato: 2 casas decimais
+            }
+            
+            // Conclusão (coluna I, índice 8)
+            const cellConclusao = XLSX.utils.encode_cell({ r: rowNum, c: 8 });
+            if (ws[cellConclusao]) {
+                ws[cellConclusao].t = 'n'; // Tipo numérico
+                ws[cellConclusao].z = '0.0"%"'; // Formato: percentual com 1 casa decimal
+            }
+        }
         
         XLSX.utils.book_append_sheet(workbook, ws, "Projetos Entregues");
 
         // Baixa o arquivo
-        const fileName = `projetos_entregues_${new Date().toISOString().split('T')[0]}.xlsx`;
+        const fileName = `projetos_entregues_${filtroTexto}_${new Date().toISOString().split('T')[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
     }
 

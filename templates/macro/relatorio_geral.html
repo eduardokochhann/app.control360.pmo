@@ -850,6 +850,110 @@
         `;
     }
 
+    // Formatador universal para horas no Excel (valores numéricos)
+    function horasParaExcel(valor) {
+        if (!valor || isNaN(parseFloat(valor))) return 0;
+        return parseFloat(valor);
+    }
+
+    // Função para exportar para Excel
+    function exportToExcel() {
+        const table = $('#table').bootstrapTable('getData');
+        
+        if (table.length === 0) {
+            alert('Nenhum dado disponível para exportação.');
+            return;
+        }
+
+        // Prepara os dados para exportação com valores numéricos
+        const excelData = table.map(row => ({
+            'Número': row['Nº'] || '-',
+            'Cliente': row['Cliente'] || '-',
+            'Squad': row['Squad'] || '-',
+            'Serviço': row['Serviço'] || '-',
+            'Categoria': row['Categoria'] || '-',
+            'Status': row['Status'] || '-',
+            'Esforço (h)': horasParaExcel(row['Esforço']),
+            'Horas Trabalhadas': horasParaExcel(row['H. Trab.']),
+            'Horas Restantes': horasParaExcel(row['H. Rest.']),
+            'Conclusão (%)': parseFloat(row['Conclusão'] || 0),
+            'Tipo Faturamento': row['Faturamento'] || '-',
+            'Data Abertura': row['Abertura'] || '-',
+            'Vencimento': row['Vencimento'] || '-',
+            'Data Resolução': row['Resolvido'] || '-',
+            'Account Manager': row['Account Manager'] || '-',
+            'Dias': parseInt(row['Dias'] || 0)
+        }));
+
+        // Cria o workbook
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        const workbook = XLSX.utils.book_new();
+        
+        // Ajusta largura das colunas
+        if (!ws['!cols']) ws['!cols'] = [];
+        ws['!cols'][0] = { wch: 10 }; // Número
+        ws['!cols'][1] = { wch: 25 }; // Cliente
+        ws['!cols'][2] = { wch: 15 }; // Squad
+        ws['!cols'][3] = { wch: 25 }; // Serviço
+        ws['!cols'][4] = { wch: 20 }; // Categoria
+        ws['!cols'][5] = { wch: 15 }; // Status
+        ws['!cols'][6] = { wch: 12 }; // Esforço
+        ws['!cols'][7] = { wch: 15 }; // H. Trabalhadas
+        ws['!cols'][8] = { wch: 15 }; // H. Restantes
+        ws['!cols'][9] = { wch: 12 }; // Conclusão
+        ws['!cols'][10] = { wch: 15 }; // Tipo Faturamento
+        ws['!cols'][11] = { wch: 12 }; // Data Abertura
+        ws['!cols'][12] = { wch: 12 }; // Vencimento
+        ws['!cols'][13] = { wch: 12 }; // Data Resolução
+        ws['!cols'][14] = { wch: 20 }; // Account Manager
+        ws['!cols'][15] = { wch: 10 }; // Dias
+
+        // Aplica formatação numérica para colunas específicas
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        for (let rowNum = range.s.r + 1; rowNum <= range.e.r; rowNum++) {
+            // Esforço (coluna G, índice 6)
+            const cellEsforco = XLSX.utils.encode_cell({ r: rowNum, c: 6 });
+            if (ws[cellEsforco]) {
+                ws[cellEsforco].t = 'n'; // Tipo numérico
+                ws[cellEsforco].z = '0.00'; // Formato: 2 casas decimais
+            }
+            
+            // Horas Trabalhadas (coluna H, índice 7)
+            const cellHorasTrab = XLSX.utils.encode_cell({ r: rowNum, c: 7 });
+            if (ws[cellHorasTrab]) {
+                ws[cellHorasTrab].t = 'n'; // Tipo numérico
+                ws[cellHorasTrab].z = '0.00'; // Formato: 2 casas decimais
+            }
+            
+            // Horas Restantes (coluna I, índice 8)
+            const cellHorasRest = XLSX.utils.encode_cell({ r: rowNum, c: 8 });
+            if (ws[cellHorasRest]) {
+                ws[cellHorasRest].t = 'n'; // Tipo numérico
+                ws[cellHorasRest].z = '0.00'; // Formato: 2 casas decimais
+            }
+            
+            // Conclusão (coluna J, índice 9)
+            const cellConclusao = XLSX.utils.encode_cell({ r: rowNum, c: 9 });
+            if (ws[cellConclusao]) {
+                ws[cellConclusao].t = 'n'; // Tipo numérico
+                ws[cellConclusao].z = '0.0"%"'; // Formato: percentual
+            }
+            
+            // Dias (coluna P, índice 15)
+            const cellDias = XLSX.utils.encode_cell({ r: rowNum, c: 15 });
+            if (ws[cellDias]) {
+                ws[cellDias].t = 'n'; // Tipo numérico
+                ws[cellDias].z = '0'; // Formato: número inteiro
+            }
+        }
+        
+        XLSX.utils.book_append_sheet(workbook, ws, "Relatório Geral");
+
+        // Baixa o arquivo
+        const fileName = `relatorio_geral_control360_${new Date().toISOString().split('T')[0]}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+    }
+
     // === EVENTOS E INICIALIZAÇÃO EXECUTIVA ===
     $(document).ready(function() {
         var $table = $('#table');
@@ -872,10 +976,7 @@
         
         // Exportação executiva para Excel
         $('#export-excel').on('click', function() {
-            $table.bootstrapTable('exportTable', {
-                type: 'excel',
-                fileName: 'Relatorio_Executivo_Control360_' + new Date().toISOString().split('T')[0]
-            });
+            exportToExcel();
         });
 
         // Responsividade executiva

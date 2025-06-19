@@ -929,19 +929,10 @@
         return escapeHtml(value) || 'N/A';
     }
 
-    // Formatador específico para exportação Excel das horas
-    function horasExcelFormatter(value, row) {
-        const totalHorasDecimal = !isNaN(parseFloat(value)) ? parseFloat(value) : 0;
-        
-        // Converte para formato de tempo do Excel (HH:MM)
-        const sinal = totalHorasDecimal < 0 ? "-" : "";
-        const horasAbs = Math.abs(totalHorasDecimal);
-        const horasInteiras = Math.floor(horasAbs);
-        const minutosDecimais = (horasAbs - horasInteiras) * 60;
-        const minutosInteiros = Math.round(minutosDecimais);
-        
-        // Formato Excel: -20:00 ou 20:00
-        return `${sinal}${horasInteiras}:${String(minutosInteiros).padStart(2, '0')}`;
+    // Formatador universal para horas no Excel (valores numéricos)
+    function horasParaExcel(valor) {
+        if (!valor || isNaN(parseFloat(valor))) return 0;
+        return parseFloat(valor);
     }
 
     // Formatador para tempo de vida com tema crítico
@@ -1006,14 +997,14 @@
         }
 
         const excelData = table.map(row => ({
-            'Número': row.numero || 'N/A',
-            'Projeto': row.projeto || 'N/A',
-            'Status': row.status || 'N/A',
-            'Squad': row.squad || 'N/A',
-            'Conclusão (%)': row.conclusao || 0,
-            'Horas Restantes': horasExcelFormatter(row.horasRestantes, row),
-            'Previsão Encerramento': row.dataPrevEnc || 'N/A',
-            'Tempo de Vida (dias)': row.tempo_vida || 'N/A',
+            'Número': row.numero || '-',
+            'Projeto': row.projeto || '-',
+            'Status': row.status || '-',
+            'Squad': row.squad || '-',
+            'Conclusão (%)': parseFloat(row.conclusao || 0),
+            'Horas Restantes': horasParaExcel(row.horasRestantes),
+            'Previsão Encerramento': row.dataPrevEnc || '-',
+            'Tempo de Vida (dias)': parseInt(row.tempo_vida || 0),
             'Tem Backlog': row.backlog_exists ? 'Sim' : 'Não'
         }));
 
@@ -1022,16 +1013,40 @@
         // Configurar a coluna de horas como formato de tempo no Excel
         const workbook = XLSX.utils.book_new();
         
-        // Define o formato da coluna Horas Restantes (coluna F, índice 5)
+        // Ajusta largura das colunas
         if (!ws['!cols']) ws['!cols'] = [];
-        ws['!cols'][5] = { wch: 15 }; // Largura da coluna
+        ws['!cols'][0] = { wch: 10 }; // Número
+        ws['!cols'][1] = { wch: 25 }; // Projeto
+        ws['!cols'][2] = { wch: 15 }; // Status
+        ws['!cols'][3] = { wch: 15 }; // Squad
+        ws['!cols'][4] = { wch: 12 }; // Conclusão
+        ws['!cols'][5] = { wch: 15 }; // Horas Restantes
+        ws['!cols'][6] = { wch: 15 }; // Previsão Encerramento
+        ws['!cols'][7] = { wch: 12 }; // Tempo de Vida
+        ws['!cols'][8] = { wch: 10 }; // Backlog
         
-        // Aplicar formato de tempo nas células de horas
+        // Aplica formatação numérica para colunas específicas
         const range = XLSX.utils.decode_range(ws['!ref']);
         for (let rowNum = range.s.r + 1; rowNum <= range.e.r; rowNum++) {
-            const cellAddress = XLSX.utils.encode_cell({ r: rowNum, c: 5 }); // Coluna F (Horas Restantes)
-            if (ws[cellAddress]) {
-                ws[cellAddress].z = '[h]:mm'; // Formato de horas que permite valores > 24h
+            // Conclusão (coluna E, índice 4)
+            const cellConclusao = XLSX.utils.encode_cell({ r: rowNum, c: 4 });
+            if (ws[cellConclusao]) {
+                ws[cellConclusao].t = 'n'; // Tipo numérico
+                ws[cellConclusao].z = '0.0"%"'; // Formato: percentual
+            }
+            
+            // Horas Restantes (coluna F, índice 5)
+            const cellHoras = XLSX.utils.encode_cell({ r: rowNum, c: 5 });
+            if (ws[cellHoras]) {
+                ws[cellHoras].t = 'n'; // Tipo numérico
+                ws[cellHoras].z = '0.00'; // Formato: 2 casas decimais
+            }
+            
+            // Tempo de Vida (coluna H, índice 7)
+            const cellTempo = XLSX.utils.encode_cell({ r: rowNum, c: 7 });
+            if (ws[cellTempo]) {
+                ws[cellTempo].t = 'n'; // Tipo numérico
+                ws[cellTempo].z = '0'; // Formato: número inteiro
             }
         }
         
@@ -1066,10 +1081,7 @@
         
         // Exportação executiva para Excel
         $('#export-excel').on('click', function() {
-            $table.bootstrapTable('exportTable', {
-                type: 'excel',
-                fileName: 'Projetos_Criticos_Control360_' + new Date().toISOString().split('T')[0]
-            });
+            exportToExcel();
         });
 
         $table.bootstrapTable({
