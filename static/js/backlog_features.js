@@ -1726,22 +1726,9 @@ function initializeProjectTools() {
     function formatDateForWBS(date) {
         if (!date) return '';
         
-        // Se já é string, tenta converter
-        if (typeof date === 'string') {
-            date = new Date(date);
-        }
-        
-        // Verifica se é uma data válida
-        if (isNaN(date.getTime())) {
-            return '';
-        }
-        
-        // Formata para DD/MM/YYYY
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
-        
-        return `${day}/${month}/${year}`;
+        // Usa a mesma função formatDate da interface para manter consistência
+        // Isso evita problemas de fuso horário que causavam diferença de 1 dia entre interface e WBS
+        return formatDate(date);
     }
 
     async function copyWBSToClipboard() {
