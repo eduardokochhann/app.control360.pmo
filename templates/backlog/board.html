@@ -429,6 +429,15 @@
                         </div>
                     </button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="pills-wbs-tab" data-bs-toggle="pill" data-bs-target="#pills-wbs" type="button" role="tab" aria-controls="pills-wbs" aria-selected="false">
+                        <div class="tab-content-wrapper">
+                            <i class="bi bi-diagram-3-fill fs-5"></i>
+                            <span class="tab-label">WBS - Estrutura Analítica</span>
+                            <span class="badge bg-success ms-1" id="wbs-badge" style="display: none;">0</span>
+                        </div>
+                    </button>
+                </li>
             </ul>
 
             <!-- Tab content -->
@@ -567,6 +576,78 @@
                                 <div class="text-center text-muted py-4">
                                     <i class="bi bi-bar-chart fs-1"></i>
                                     <p>Carregando informações de complexidade...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Painel WBS - Estrutura Analítica do Projeto -->
+                <div class="tab-pane fade" id="pills-wbs" role="tabpanel" aria-labelledby="pills-wbs-tab">
+                    <div class="row mb-4">
+                        <div class="col-12 d-flex gap-2 flex-wrap">
+                            <button class="btn pmo-action-btn" onclick="generateWBS()">
+                                <i class="bi bi-diagram-3-fill"></i> Gerar WBS
+                            </button>
+                            <button class="btn pmo-action-btn" onclick="exportWBSToExcel()">
+                                <i class="bi bi-file-earmark-excel"></i> Exportar Excel
+                            </button>
+                            <button class="btn pmo-action-btn" onclick="refreshWBS()">
+                                <i class="bi bi-arrow-clockwise"></i> Atualizar
+                            </button>
+                            <button class="btn pmo-action-btn" onclick="previewWBS()">
+                                <i class="bi bi-eye"></i> Visualizar
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Configurações da WBS -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Data de Início do Projeto:</label>
+                            <input type="date" class="form-control" id="wbs-start-date" value="">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Incluir Marcos:</label>
+                            <select class="form-select" id="wbs-include-milestones">
+                                <option value="true" selected>Sim, incluir marcos</option>
+                                <option value="false">Não incluir marcos</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Ordenação:</label>
+                            <select class="form-select" id="wbs-sort-order">
+                                <option value="priority" selected>Por Prioridade</option>
+                                <option value="date">Por Data</option>
+                                <option value="specialist">Por Especialista</option>
+                                <option value="column">Por Coluna</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Prévia da WBS -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0 fw-bold">
+                                        <i class="bi bi-diagram-3-fill me-2"></i>
+                                        Estrutura Analítica do Projeto (WBS)
+                                        <span class="badge bg-success ms-2" id="wbs-total-items">0 itens</span>
+                                    </h6>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div id="wbsContainer">
+                                        <div class="text-center text-muted py-5">
+                                            <i class="bi bi-diagram-3 fs-1"></i>
+                                            <h5 class="mt-3">WBS - Work Breakdown Structure</h5>
+                                            <p class="mb-3">Clique em "Gerar WBS" para criar a estrutura analítica do projeto</p>
+                                            <p class="text-sm text-muted">
+                                                A WBS incluirá todas as tarefas do quadro com:<br>
+                                                • ID da Tarefa • Descrição • Datas • Intervalos • Especialista • Marcos
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1015,6 +1096,13 @@
         
         // Carrega estado do toggle de visibilidade
         loadSprintVisibilityState();
+        
+        // Inicializa a data de hoje no campo de data de início da WBS
+        const today = new Date().toISOString().split('T')[0];
+        const wbsStartDate = document.getElementById('wbs-start-date');
+        if (wbsStartDate) {
+            wbsStartDate.value = today;
+        }
         
         // Inicializa o drag-and-drop do quadro
         if (typeof initializeSortable === 'function') {

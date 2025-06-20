@@ -3385,4 +3385,235 @@ def get_project_complexity_history(project_id):
         current_app.logger.error(f"Erro ao buscar histórico de complexidade para projeto {project_id}: {str(e)}", exc_info=True)
         return jsonify({'error': 'Erro interno do servidor'}), 500
 
-# Função duplicada removida - usar apenas a versão com decorator @backlog_bp.route
+# ========================================
+# APIS WBS - WORK BREAKDOWN STRUCTURE
+# ========================================
+
+@backlog_bp.route('/api/projects/<string:project_id>/tasks', methods=['GET'])
+def get_project_tasks_for_wbs(project_id):
+    """
+    Retorna todas as tarefas de um projeto para geração da WBS
+    """
+    try:
+        from ..models import ProjectComplexityAssessment
+        
+        current_app.logger.info(f"[WBS API] Buscando tarefas do projeto: {project_id}")
+        
+        # Busca o backlog do projeto
+        backlog = Backlog.query.filter_by(project_id=project_id).first()
+        if not backlog:
+            return jsonify({'error': 'Projeto não encontrado'}), 404
+
+        # Busca todas as tarefas do projeto
+        tasks = Task.query.filter_by(backlog_id=backlog.id).all()
+        
+        tasks_data = []
+        for task in tasks:
+            # Busca complexidade se existir
+            complexity_assessment = ProjectComplexityAssessment.query.filter_by(
+                project_id=project_id
+            ).order_by(ProjectComplexityAssessment.created_at.desc()).first()
+            
+            complexity_level = None
+            if complexity_assessment and complexity_assessment.complexity_category:
+                complexity_level = complexity_assessment.complexity_category
+
+            tasks_data.append({
+                'id': task.id,
+                'title': task.title,
+                'name': task.title,  # Alias para compatibilidade
+                'description': task.description or '',
+                'status': task.status.value if task.status else 'TODO',
+                'priority': task.priority or 'MEDIUM',
+                'assigned_to': task.specialist_name or 'Não atribuído',
+                'estimated_effort': task.estimated_effort,
+                'start_date': task.start_date.isoformat() if task.start_date else None,
+                'due_date': task.due_date.isoformat() if task.due_date else None,
+                'complexity': complexity_level,
+                'column_name': task.column.name if task.column else 'A Fazer',
+                'created_at': task.created_at.isoformat() if task.created_at else None
+            })
+
+        current_app.logger.info(f"[WBS API] Retornando {len(tasks_data)} tarefas")
+        return jsonify(tasks_data)
+
+    except Exception as e:
+        current_app.logger.error(f"[WBS API] Erro ao buscar tarefas: {str(e)}")
+        return jsonify({'error': 'Erro interno do servidor'}), 500
+
+
+@backlog_bp.route('/api/projects/<string:project_id>/milestones', methods=['GET'])
+def get_project_milestones_for_wbs(project_id):
+    """
+    Retorna todos os marcos de um projeto para geração da WBS
+    """
+    try:
+        from ..models import ProjectMilestone
+        
+        current_app.logger.info(f"[WBS API] Buscando marcos do projeto: {project_id}")
+        
+        # Busca o backlog do projeto
+        backlog = Backlog.query.filter_by(project_id=project_id).first()
+        if not backlog:
+            return jsonify({'error': 'Projeto não encontrado'}), 404
+
+        # Busca todos os marcos do projeto
+        milestones = ProjectMilestone.query.filter_by(backlog_id=backlog.id).all()
+        
+        milestones_data = []
+        for milestone in milestones:
+            milestones_data.append({
+                'id': milestone.id,
+                'name': milestone.name,
+                'description': milestone.description or '',
+                'planned_date': milestone.planned_date.isoformat() if milestone.planned_date else None,
+                'actual_date': milestone.actual_date.isoformat() if milestone.actual_date else None,
+                'status': milestone.status.value if milestone.status else 'PENDING',
+                'criticality': milestone.criticality.value if milestone.criticality else 'MEDIUM',
+                'is_checkpoint': milestone.is_checkpoint or False,
+                'created_at': milestone.created_at.isoformat() if milestone.created_at else None
+            })
+
+        current_app.logger.info(f"[WBS API] Retornando {len(milestones_data)} marcos")
+        return jsonify(milestones_data)
+
+    except Exception as e:
+        current_app.logger.error(f"[WBS API] Erro ao buscar marcos: {str(e)}")
+        return jsonify({'error': 'Erro interno do servidor'}), 500
+
+
+@backlog_bp.route('/api/wbs/export', methods=['POST'])
+def export_wbs_to_excel():
+    """
+    Exporta a WBS para um arquivo Excel
+    """
+    try:
+        import pandas as pd
+        from io import BytesIO
+        from flask import send_file
+        
+        data = request.get_json()
+        project_id = data.get('project_id')
+        wbs_data = data.get('wbs_data', [])
+        
+        current_app.logger.info(f"[WBS Export] Exportando WBS do projeto {project_id} com {len(wbs_data)} itens")
+        
+        if not wbs_data:
+            return jsonify({'error': 'Nenhum dado para exportar'}), 400
+
+        # Cria DataFrame com os dados da WBS
+        df = pd.DataFrame(wbs_data)
+        
+        # Renomeia colunas para português
+        column_mapping = {
+            'WBS_ID': 'ID WBS',
+            'Tipo': 'Tipo',
+            'ID_Tarefa': 'ID da Tarefa',
+            'Tarefa': 'Tarefa/Marco',
+            'Descrição': 'Descrição',
+            'Data_Inicio': 'Data de Início',
+            'Data_Prevista_Fim': 'Data Prevista para Fim',
+            'Intervalo_Dias': 'Intervalo (Dias)',
+            'Especialista': 'Especialista',
+            'Status': 'Status',
+            'Prioridade': 'Prioridade',
+            'Coluna': 'Coluna Kanban'
+        }
+        
+        df = df.rename(columns=column_mapping)
+        
+        # Cria arquivo Excel em memória
+        output = BytesIO()
+        
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            # Escreve a planilha principal
+            df.to_excel(writer, sheet_name='WBS - Estrutura Analítica', index=False)
+            
+            # Adiciona planilha de resumo
+            summary_data = {
+                'Métrica': [
+                    'Total de Itens',
+                    'Total de Tarefas', 
+                    'Total de Marcos',
+                    'Duração Total Estimada (dias)',
+                    'Especialistas Envolvidos'
+                ],
+                'Valor': [
+                    len(wbs_data),
+                    len([item for item in wbs_data if item.get('Tipo') == 'Tarefa']),
+                    len([item for item in wbs_data if item.get('Tipo') == 'Marco']),
+                    sum([item.get('Intervalo_Dias', 0) for item in wbs_data if item.get('Tipo') == 'Tarefa']),
+                    len(set([item.get('Especialista') for item in wbs_data if item.get('Especialista') and item.get('Especialista') != 'Marco do Projeto']))
+                ]
+            }
+            
+            summary_df = pd.DataFrame(summary_data)
+            summary_df.to_excel(writer, sheet_name='Resumo do Projeto', index=False)
+            
+            # Formatar planilhas
+            workbook = writer.book
+            
+            # Formata planilha WBS
+            wbs_sheet = writer.sheets['WBS - Estrutura Analítica']
+            
+            # Define larguras das colunas
+            column_widths = {
+                'A': 10,  # ID WBS
+                'B': 8,   # Tipo
+                'C': 12,  # ID da Tarefa
+                'D': 40,  # Tarefa/Marco
+                'E': 50,  # Descrição
+                'F': 15,  # Data de Início
+                'G': 20,  # Data Prevista para Fim
+                'H': 15,  # Intervalo (Dias)
+                'I': 20,  # Especialista
+                'J': 12,  # Status
+                'K': 12,  # Prioridade
+                'L': 15   # Coluna Kanban
+            }
+            
+            for col, width in column_widths.items():
+                wbs_sheet.column_dimensions[col].width = width
+            
+            # Formata cabeçalho
+            from openpyxl.styles import Font, PatternFill, Alignment
+            
+            header_font = Font(bold=True, color='FFFFFF')
+            header_fill = PatternFill(start_color='07304F', end_color='07304F', fill_type='solid')
+            center_alignment = Alignment(horizontal='center', vertical='center')
+            
+            for cell in wbs_sheet[1]:
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center_alignment
+            
+            # Formata planilha de resumo
+            summary_sheet = writer.sheets['Resumo do Projeto']
+            summary_sheet.column_dimensions['A'].width = 30
+            summary_sheet.column_dimensions['B'].width = 20
+            
+            for cell in summary_sheet[1]:
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center_alignment
+
+        output.seek(0)
+        
+        # Nome do arquivo
+        filename = f"WBS_Projeto_{project_id}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        
+        current_app.logger.info(f"[WBS Export] Arquivo {filename} gerado com sucesso")
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+
+    except ImportError as e:
+        current_app.logger.error(f"[WBS Export] Biblioteca não encontrada: {str(e)}")
+        return jsonify({'error': 'Bibliotecas necessárias não instaladas (pandas, openpyxl)'}), 500
+    except Exception as e:
+        current_app.logger.error(f"[WBS Export] Erro ao exportar: {str(e)}")
+        return jsonify({'error': 'Erro interno do servidor'}), 500

@@ -1348,6 +1348,396 @@ function initializeProjectTools() {
         container.innerHTML = historyHtml;
     }
 
+    // ========================================
+    // MÓDULO WBS - WORK BREAKDOWN STRUCTURE
+    // ========================================
+
+    let wbsData = [];
+    let wbsMilestones = [];
+
+    async function generateWBS() {
+        const generateButton = document.querySelector('button[onclick="generateWBS()"]');
+        const originalText = generateButton.innerHTML;
+        
+        try {
+            generateButton.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Gerando...';
+            generateButton.disabled = true;
+
+            // Busca tarefas e marcos
+            const [tasksResponse, milestonesResponse] = await Promise.all([
+                fetch(`/backlog/api/projects/${projectId}/tasks`),
+                fetch(`/backlog/api/projects/${projectId}/milestones`)
+            ]);
+
+            if (!tasksResponse.ok || !milestonesResponse.ok) {
+                throw new Error('Erro ao carregar dados para WBS');
+            }
+
+            const tasks = await tasksResponse.json();
+            const milestones = await milestonesResponse.json();
+
+            // Processa e organiza os dados
+            wbsData = processWBSData(tasks, milestones);
+            
+            // Renderiza a WBS
+            renderWBS(wbsData);
+            
+            // Atualiza contador
+            document.getElementById('wbs-total-items').textContent = `${wbsData.length} itens`;
+            document.getElementById('wbs-badge').style.display = 'inline';
+            document.getElementById('wbs-badge').textContent = wbsData.length;
+
+            showToast('WBS gerada com sucesso!', 'success');
+
+        } catch (error) {
+            console.error('Erro ao gerar WBS:', error);
+            showToast('Erro ao gerar WBS: ' + error.message, 'error');
+        } finally {
+            generateButton.innerHTML = originalText;
+            generateButton.disabled = false;
+        }
+    }
+
+    function processWBSData(tasks, milestones) {
+        const startDate = document.getElementById('wbs-start-date').value || new Date().toISOString().split('T')[0];
+        const includeMilestones = document.getElementById('wbs-include-milestones').value === 'true';
+        const sortOrder = document.getElementById('wbs-sort-order').value;
+
+        let wbsItems = [];
+        let currentDate = new Date(startDate);
+
+        // Processa tarefas
+        tasks.forEach((task, index) => {
+            let taskStartDate, taskEndDate, estimatedDays;
+            
+            // Prioridade: usar datas reais da tarefa se existirem
+            if (task.start_date && task.due_date) {
+                taskStartDate = new Date(task.start_date);
+                taskEndDate = new Date(task.due_date);
+                estimatedDays = getTaskEstimatedDays(task); // Calcula com base nas datas reais
+            } else {
+                // Usa sequenciamento automático
+                taskStartDate = new Date(currentDate);
+                estimatedDays = getTaskEstimatedDays(task);
+                taskEndDate = new Date(taskStartDate);
+                taskEndDate.setDate(taskEndDate.getDate() + estimatedDays);
+            }
+
+            wbsItems.push({
+                id: task.id,
+                wbs_id: `${index + 1}`,
+                type: 'task',
+                name: task.title || task.name,
+                description: task.description || '',
+                start_date: formatDateForWBS(taskStartDate),
+                end_date: formatDateForWBS(taskEndDate),
+                duration_days: estimatedDays,
+                specialist: task.assigned_to || 'Não atribuído',
+                status: task.status || 'TODO',
+                priority: task.priority || 'MEDIUM',
+                column: task.column_name || 'A Fazer'
+            });
+
+            // Só avança data automática se não está usando datas reais
+            if (!task.start_date || !task.due_date) {
+                currentDate.setDate(currentDate.getDate() + Math.max(1, Math.floor(estimatedDays / 2)));
+            } else {
+                // Se está usando datas reais, avança para depois da tarefa atual
+                currentDate = new Date(taskEndDate);
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+        });
+
+        // Adiciona marcos se solicitado
+        if (includeMilestones && milestones.length > 0) {
+            milestones.forEach((milestone, index) => {
+                wbsItems.push({
+                    id: `milestone_${milestone.id}`,
+                    wbs_id: `M${index + 1}`,
+                    type: 'milestone',
+                    name: `🏁 ${milestone.name}`,
+                    description: milestone.description || '',
+                    start_date: formatDateForWBS(milestone.planned_date),
+                    end_date: formatDateForWBS(milestone.planned_date),
+                    duration_days: 0,
+                    specialist: 'Marco do Projeto',
+                    status: milestone.status || 'PENDING',
+                    priority: milestone.criticality || 'HIGH',
+                    column: 'Marco'
+                });
+            });
+        }
+
+        // Ordena conforme solicitado
+        return sortWBSItems(wbsItems, sortOrder);
+    }
+
+    function getTaskEstimatedDays(task) {
+        // 1. Prioridade: Se a tarefa já tem datas definidas, calcula duração real
+        if (task.start_date && task.due_date) {
+            const startDate = new Date(task.start_date);
+            const endDate = new Date(task.due_date);
+            const diffTime = Math.abs(endDate - startDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays > 0 && diffDays <= 365) { // Sanity check
+                return diffDays;
+            }
+        }
+
+        // 2. Se tem estimated_effort (horas), converte para dias (8h/dia)
+        if (task.estimated_effort && task.estimated_effort > 0) {
+            const days = Math.ceil(task.estimated_effort / 8);
+            return Math.max(1, Math.min(days, 30)); // Entre 1 e 30 dias
+        }
+
+        // 3. Usa complexidade da tarefa individual (não do projeto)
+        const complexityMap = {
+            'LOW': 2,
+            'MEDIUM': 5, 
+            'HIGH': 8,
+            'BAIXA': 2,
+            'MÉDIA': 5,
+            'ALTA': 8
+        };
+
+        if (task.complexity && task.complexity !== 'ALTA') { // Ignora complexidade do projeto
+            return complexityMap[task.complexity] || 3;
+        }
+
+        // 4. Estima baseado no título/descrição da tarefa
+        const text = ((task.title || task.name) + ' ' + (task.description || '')).toLowerCase();
+        
+        if (text.includes('simples') || text.includes('pequeno') || text.includes('rápido') || text.includes('validação')) {
+            return 1;
+        } else if (text.includes('complexo') || text.includes('grande') || text.includes('detalhado') || text.includes('migração')) {
+            return 7;
+        } else if (text.includes('integração') || text.includes('desenvolvimento') || text.includes('implementação')) {
+            return 5;
+        } else if (text.includes('configuração') || text.includes('setup') || text.includes('instalação')) {
+            return 3;
+        } else if (text.includes('teste') || text.includes('checkpoint') || text.includes('documentação')) {
+            return 2;
+        }
+
+        // 5. Padrão baseado no status
+        if (task.status === 'Concluído' || task.status === 'DONE') {
+            return 2; // Tarefas concluídas geralmente são menores
+        }
+
+        return 3; // Padrão geral
+    }
+
+    function sortWBSItems(items, sortOrder) {
+        switch (sortOrder) {
+            case 'date':
+                return items.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+            case 'specialist':
+                return items.sort((a, b) => a.specialist.localeCompare(b.specialist));
+            case 'column':
+                return items.sort((a, b) => a.column.localeCompare(b.column));
+            case 'priority':
+            default:
+                const priorityOrder = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1, 'ALTA': 3, 'MÉDIA': 2, 'BAIXA': 1 };
+                return items.sort((a, b) => (priorityOrder[b.priority] || 2) - (priorityOrder[a.priority] || 2));
+        }
+    }
+
+    function renderWBS(wbsItems) {
+        const container = document.getElementById('wbsContainer');
+        
+        if (wbsItems.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-diagram-3 fs-1"></i>
+                    <h5 class="mt-3">Nenhuma tarefa encontrada</h5>
+                    <p>Adicione tarefas ao quadro para gerar a WBS</p>
+                </div>
+            `;
+            return;
+        }
+
+        const tableHtml = `
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="80">WBS ID</th>
+                            <th width="60">Tipo</th>
+                            <th>Tarefa/Marco</th>
+                            <th>Descrição</th>
+                            <th width="110">Data Início</th>
+                            <th width="110">Data Fim</th>
+                            <th width="80">Duração</th>
+                            <th width="150">Especialista</th>
+                            <th width="100">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${wbsItems.map(item => `
+                            <tr class="${item.type === 'milestone' ? 'table-warning' : ''}">
+                                <td><strong>${item.wbs_id}</strong></td>
+                                <td>
+                                    <span class="badge bg-${item.type === 'milestone' ? 'warning' : 'primary'}">
+                                        ${item.type === 'milestone' ? 'Marco' : 'Tarefa'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <strong>${item.name}</strong>
+                                    ${item.priority !== 'MEDIUM' && item.priority !== 'MÉDIA' ? 
+                                        `<span class="badge bg-${getPriorityColor(item.priority)} ms-1">${item.priority}</span>` : ''}
+                                </td>
+                                <td class="text-muted small">${item.description}</td>
+                                <td>${item.start_date}</td>
+                                <td>${item.end_date}</td>
+                                <td>
+                                    ${item.duration_days > 0 ? 
+                                        `<span class="badge bg-info">${item.duration_days} ${item.duration_days === 1 ? 'dia' : 'dias'}</span>` : 
+                                        '<span class="text-muted">-</span>'}
+                                </td>
+                                <td>${item.specialist}</td>
+                                <td>
+                                    <span class="badge bg-${getStatusColor(item.status)}">${getStatusLabel(item.status)}</span>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        container.innerHTML = tableHtml;
+    }
+
+    function getStatusLabel(status) {
+        const labels = {
+            'TODO': 'A Fazer',
+            'IN_PROGRESS': 'Em Progresso', 
+            'DONE': 'Concluído',
+            'PENDING': 'Pendente',
+            'COMPLETED': 'Concluído',
+            'DELAYED': 'Atrasado'
+        };
+        return labels[status] || status;
+    }
+
+    async function exportWBSToExcel() {
+        if (wbsData.length === 0) {
+            showToast('Gere a WBS primeiro antes de exportar', 'warning');
+            return;
+        }
+
+        const exportButton = document.querySelector('button[onclick="exportWBSToExcel()"]');
+        const originalText = exportButton.innerHTML;
+        
+        try {
+            exportButton.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Exportando...';
+            exportButton.disabled = true;
+
+            // Prepara dados para exportação
+            const exportData = wbsData.map(item => ({
+                'WBS_ID': item.wbs_id,
+                'Tipo': item.type === 'milestone' ? 'Marco' : 'Tarefa',
+                'ID_Tarefa': item.id,
+                'Tarefa': item.name,
+                'Descrição': item.description,
+                'Data_Inicio': item.start_date,
+                'Data_Prevista_Fim': item.end_date,
+                'Intervalo_Dias': item.duration_days,
+                'Especialista': item.specialist,
+                'Status': getStatusLabel(item.status),
+                'Prioridade': item.priority,
+                'Coluna': item.column
+            }));
+
+            const response = await fetch('/backlog/api/wbs/export', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    project_id: projectId,
+                    wbs_data: exportData
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Erro ao exportar WBS');
+            }
+
+            // Download do arquivo
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `WBS_Projeto_${projectId}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            showToast('WBS exportada com sucesso!', 'success');
+
+        } catch (error) {
+            console.error('Erro ao exportar WBS:', error);
+            showToast('Erro ao exportar WBS: ' + error.message, 'error');
+        } finally {
+            exportButton.innerHTML = originalText;
+            exportButton.disabled = false;
+        }
+    }
+
+    function refreshWBS() {
+        if (wbsData.length > 0) {
+            generateWBS();
+        } else {
+            showToast('Gere a WBS primeiro', 'info');
+        }
+    }
+
+    function previewWBS() {
+        if (wbsData.length === 0) {
+            showToast('Gere a WBS primeiro para visualizar', 'warning');
+            return;
+        }
+
+        // Muda para a aba WBS se não estiver ativa
+        const wbsTab = document.getElementById('pills-wbs-tab');
+        if (wbsTab && !wbsTab.classList.contains('active')) {
+            wbsTab.click();
+        }
+
+        // Scroll suave para a tabela
+        const container = document.getElementById('wbsContainer');
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function formatDateForWBS(date) {
+        if (!date) return '';
+        
+        // Se já é string, tenta converter
+        if (typeof date === 'string') {
+            date = new Date(date);
+        }
+        
+        // Verifica se é uma data válida
+        if (isNaN(date.getTime())) {
+            return '';
+        }
+        
+        // Formata para DD/MM/YYYY
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        
+        return `${day}/${month}/${year}`;
+    }
+
+    // Expõe funções globais
+    window.generateWBS = generateWBS;
+    window.exportWBSToExcel = exportWBSToExcel;
+    window.refreshWBS = refreshWBS;
+    window.previewWBS = previewWBS;
+
     // Expõe função global para cálculo de score
     window.calculateComplexityScore = calculateComplexityScore;
 
