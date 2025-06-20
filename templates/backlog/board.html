@@ -592,6 +592,9 @@
                             <button class="btn pmo-action-btn" onclick="exportWBSToExcel()">
                                 <i class="bi bi-file-earmark-excel"></i> Exportar Excel
                             </button>
+                            <button class="btn pmo-action-btn" onclick="copyWBSToClipboard()">
+                                <i class="bi bi-clipboard"></i> Copiar p/ PPT
+                            </button>
                             <button class="btn pmo-action-btn" onclick="refreshWBS()">
                                 <i class="bi bi-arrow-clockwise"></i> Atualizar
                             </button>
@@ -825,10 +828,10 @@
                             <label for="noteCategory" class="form-label">Categoria</label>
                             <select class="form-select" id="noteCategory">
                                 <option value="general" selected>Geral</option>
-                                <option value="progress">Progresso</option>
-                                <option value="issue">Problema</option>
+                                <option value="status_update">Atualização de Status</option>
                                 <option value="decision">Decisão</option>
-                                <option value="meeting">Reunião</option>
+                                <option value="risk">Risco</option>
+                                <option value="impediment">Impedimento</option>
                             </select>
                         </div>
                         <div class="col-md-4">

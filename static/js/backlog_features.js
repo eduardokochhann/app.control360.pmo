@@ -631,7 +631,7 @@ function initializeProjectTools() {
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <div class="d-flex gap-2 mb-2">
-                                <span class="badge bg-${getCategoryColor(note.category)}">${note.category}</span>
+                                <span class="badge bg-${getCategoryColor(note.category)}">${getCategoryLabel(note.category)}</span>
                                 <span class="badge bg-${getPriorityColor(note.priority)}">${note.priority}</span>
                                 ${note.include_in_report ? '<span class="badge bg-info">Relatório</span>' : ''}
                             </div>
@@ -858,11 +858,23 @@ function initializeProjectTools() {
 
     function getCategoryColor(category) {
         switch(category?.toLowerCase()) {
-            case 'issue': return 'danger';
             case 'decision': return 'warning';
-            case 'progress': return 'success';
-            case 'meeting': return 'info';
-            default: return 'primary';
+            case 'risk': return 'danger';
+            case 'impediment': return 'danger';
+            case 'status_update': return 'info';
+            case 'general': return 'primary';
+            default: return 'secondary';
+        }
+    }
+
+    function getCategoryLabel(category) {
+        switch(category?.toLowerCase()) {
+            case 'decision': return 'Decisão';
+            case 'risk': return 'Risco';
+            case 'impediment': return 'Impedimento';
+            case 'status_update': return 'Atualização de Status';
+            case 'general': return 'Geral';
+            default: return category || 'Categoria';
         }
     }
 
@@ -1732,9 +1744,269 @@ function initializeProjectTools() {
         return `${day}/${month}/${year}`;
     }
 
+    async function copyWBSToClipboard() {
+        if (wbsData.length === 0) {
+            showToast('Gere a WBS primeiro antes de copiar', 'warning');
+            return;
+        }
+
+        const copyButton = document.querySelector('button[onclick="copyWBSToClipboard()"]');
+        const originalText = copyButton.innerHTML;
+        
+        try {
+            copyButton.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Copiando...';
+            copyButton.disabled = true;
+
+            // Configurações de paginação
+            const LINHAS_POR_PAGINA = 17; // Ideal para A4
+            const totalItems = wbsData.length;
+            const totalPaginas = Math.ceil(totalItems / LINHAS_POR_PAGINA);
+
+            if (totalPaginas === 1) {
+                // Projeto pequeno - copia tudo
+                const tableHTML = generateTableHTML(wbsData, 1, totalPaginas);
+                await copyToClipboard(tableHTML);
+                showToast('✅ WBS copiada! Cole no PowerPoint com Ctrl+V', 'success');
+            } else {
+                // Projeto grande - oferece opções de paginação
+                const escolha = await showPaginationModal(totalItems, totalPaginas);
+                
+                if (escolha.action === 'all') {
+                    // Copia tudo mesmo sendo grande
+                    const tableHTML = generateTableHTML(wbsData, 1, 1, 'Todas as páginas');
+                    await copyToClipboard(tableHTML);
+                    showToast(`✅ WBS completa copiada! (${totalItems} itens)`, 'success');
+                } else if (escolha.action === 'page') {
+                    // Copia página específica
+                    const startIndex = (escolha.page - 1) * LINHAS_POR_PAGINA;
+                    const endIndex = Math.min(startIndex + LINHAS_POR_PAGINA, totalItems);
+                    const pageData = wbsData.slice(startIndex, endIndex);
+                    
+                    const tableHTML = generateTableHTML(pageData, escolha.page, totalPaginas);
+                    await copyToClipboard(tableHTML);
+                    showToast(`✅ Página ${escolha.page}/${totalPaginas} copiada! (${pageData.length} itens)`, 'success');
+                } else {
+                    // Cancelou
+                    showToast('Cópia cancelada', 'info');
+                }
+            }
+
+        } catch (error) {
+            console.error('Erro ao copiar WBS:', error);
+            
+            // Fallback final - copia texto simples
+            try {
+                const textTable = generatePlainTextTable();
+                await navigator.clipboard.writeText(textTable);
+                showToast('📋 WBS copiada como texto! Cole no PowerPoint e converta para tabela', 'info');
+            } catch (textError) {
+                showToast('❌ Erro ao copiar WBS: ' + error.message, 'error');
+            }
+        } finally {
+            copyButton.innerHTML = originalText;
+            copyButton.disabled = false;
+        }
+    }
+
+    function generateTableHTML(data, pagina, totalPaginas, titulo = null) {
+        const tituloDisplay = titulo || `Página ${pagina} de ${totalPaginas}`;
+        
+        // Dimensões otimizadas para PowerPoint
+        // Altura: 14,12 cm = ~400px | Largura: 27,73 cm = ~785px
+        let tableHTML = `<div style="font-family: Arial, sans-serif; width: 785px; max-height: 400px;">
+<h3 style="color: #07304F; margin-bottom: 8px; font-size: 12pt; font-weight: bold;">WBS - Estrutura Analítica do Projeto</h3>
+<p style="color: #6c757d; margin-bottom: 12px; font-size: 9pt;">${tituloDisplay} • ${data.length} itens</p>
+<table border="1" cellpadding="4" cellspacing="0" style="border-collapse: collapse; font-family: Arial, sans-serif; font-size: 10pt; width: 100%; max-width: 785px;">
+<thead>
+<tr style="background-color: #07304F; color: white; font-weight: bold; font-size: 12pt;">
+<td style="text-align: center; width: 50px; padding: 4px 2px;">WBS ID</td>
+<td style="text-align: center; width: 45px; padding: 4px 2px;">Tipo</td>
+<td style="text-align: center; width: 160px; padding: 4px 6px;">Tarefa/Marco</td>
+<td style="text-align: center; width: 180px; padding: 4px 6px;">Descrição</td>
+<td style="text-align: center; width: 70px; padding: 4px 2px;">Data Início</td>
+<td style="text-align: center; width: 70px; padding: 4px 2px;">Data Fim</td>
+<td style="text-align: center; width: 50px; padding: 4px 2px;">Duração</td>
+<td style="text-align: center; width: 100px; padding: 4px 4px;">Especialista</td>
+<td style="text-align: center; width: 60px; padding: 4px 2px;">Status</td>
+</tr>
+</thead>
+<tbody>`;
+
+        // Adiciona cada linha da WBS
+        data.forEach(item => {
+            const isMarco = item.type === 'milestone';
+            const rowStyle = isMarco ? 'background-color: #fff3cd;' : '';
+            
+            tableHTML += `<tr style="${rowStyle}">
+<td style="text-align: center; font-weight: bold; font-size: 10pt; padding: 3px 2px;">${item.wbs_id}</td>
+<td style="text-align: center; background-color: ${isMarco ? '#ffc107' : '#0d6efd'}; color: white; font-size: 8pt; font-weight: bold; padding: 2px 1px;">${isMarco ? 'Marco' : 'Tarefa'}</td>
+<td style="font-weight: bold; font-size: 10pt; padding: 3px 6px; line-height: 1.2;">${item.name}${item.priority !== 'MEDIUM' && item.priority !== 'MÉDIA' ? ` <span style="color: #dc3545; font-size: 9pt;">(${item.priority})</span>` : ''}</td>
+<td style="color: #6c757d; font-size: 10pt; padding: 3px 6px; line-height: 1.2;">${item.description}</td>
+<td style="text-align: center; font-size: 10pt; padding: 3px 2px;">${item.start_date}</td>
+<td style="text-align: center; font-size: 10pt; padding: 3px 2px;">${item.end_date}</td>
+<td style="text-align: center; background-color: #d1ecf1; font-weight: bold; font-size: 9pt; padding: 3px 2px;">${item.duration_days > 0 ? `${item.duration_days}d` : '-'}</td>
+<td style="text-align: center; font-size: 10pt; padding: 3px 4px;">${item.specialist}</td>
+<td style="text-align: center; background-color: ${getStatusColorForCopy(item.status)}; color: white; font-size: 9pt; font-weight: bold; padding: 2px 1px;">${getStatusLabel(item.status)}</td>
+</tr>`;
+        });
+
+        tableHTML += `</tbody>
+</table>
+<div style="margin-top: 8px; font-size: 8pt; color: #9ca3af; text-align: right;">
+    Gerado em ${new Date().toLocaleString('pt-BR')} | Central de Comando PMO
+</div>
+</div>`;
+
+        return tableHTML;
+    }
+
+    async function copyToClipboard(tableHTML) {
+        if (navigator.clipboard && window.isSecureContext) {
+            // Método moderno - copia como HTML
+            const clipboardItem = new ClipboardItem({
+                'text/html': new Blob([tableHTML], { type: 'text/html' }),
+                'text/plain': new Blob([generatePlainTextTable()], { type: 'text/plain' })
+            });
+            await navigator.clipboard.write([clipboardItem]);
+        } else {
+            // Fallback - cria elemento temporário e copia
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = tableHTML;
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.left = '-9999px';
+            document.body.appendChild(tempDiv);
+            
+            const range = document.createRange();
+            range.selectNode(tempDiv);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            
+            document.execCommand('copy');
+            document.body.removeChild(tempDiv);
+            selection.removeAllRanges();
+        }
+    }
+
+    async function showPaginationModal(totalItems, totalPaginas) {
+        return new Promise((resolve) => {
+            const modalHtml = `
+<div class="modal fade" id="paginationModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">📋 Projeto Grande - Opções de Cópia</h5>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Total:</strong> ${totalItems} itens • <strong>Páginas:</strong> ${totalPaginas}
+                    <br><small>Recomendamos copiar por páginas para melhor formatação no PowerPoint (17 itens por página)</small>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card border-success">
+                            <div class="card-body text-center">
+                                <i class="bi bi-file-earmark-text fs-1 text-success"></i>
+                                <h6 class="mt-2">Copiar por Página</h6>
+                                <p class="small text-muted">Ideal para PowerPoint<br>~17 itens por página</p>
+                                <select class="form-select form-select-sm mb-2" id="pageSelect">
+                                    ${Array.from({length: totalPaginas}, (_, i) => 
+                                        `<option value="${i+1}">Página ${i+1} (${Math.min(17, totalItems - (i*17))} itens)</option>`
+                                    ).join('')}
+                                </select>
+                                <button class="btn btn-success btn-sm w-100" onclick="resolvePagination('page')">
+                                    <i class="bi bi-clipboard-check me-1"></i>Copiar Página
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="card border-warning">
+                            <div class="card-body text-center">
+                                <i class="bi bi-file-earmark-spreadsheet fs-1 text-warning"></i>
+                                <h6 class="mt-2">Copiar Tudo</h6>
+                                <p class="small text-muted">Todos os ${totalItems} itens<br>Pode ficar grande no PPT</p>
+                                <button class="btn btn-warning btn-sm w-100 mt-4" onclick="resolvePagination('all')">
+                                    <i class="bi bi-clipboard me-1"></i>Copiar Completo
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="resolvePagination('cancel')">
+                    <i class="bi bi-x-lg me-1"></i>Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>`;
+
+            // Remove modal anterior se existir
+            const existingModal = document.getElementById('paginationModal');
+            if (existingModal) existingModal.remove();
+
+            // Adiciona modal ao DOM
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            // Função global para resolver
+            window.resolvePagination = (action) => {
+                let result = { action };
+                if (action === 'page') {
+                    result.page = parseInt(document.getElementById('pageSelect').value);
+                }
+                
+                // Remove modal
+                const modal = document.getElementById('paginationModal');
+                const bsModal = bootstrap.Modal.getInstance(modal);
+                bsModal.hide();
+                modal.remove();
+                delete window.resolvePagination;
+                
+                resolve(result);
+            };
+
+            // Mostra modal
+            const modal = new bootstrap.Modal(document.getElementById('paginationModal'));
+            modal.show();
+        });
+    }
+
+    function getStatusColorForCopy(status) {
+        const colors = {
+            'Concluído': '#28a745',
+            'DONE': '#28a745',
+            'Em Progresso': '#007bff',
+            'IN_PROGRESS': '#007bff',
+            'Em Andamento': '#17a2b8',
+            'A Fazer': '#6c757d',
+            'TODO': '#6c757d',
+            'Pendente': '#ffc107',
+            'PENDING': '#ffc107',
+            'Atrasado': '#dc3545',
+            'DELAYED': '#dc3545'
+        };
+        return colors[status] || '#6c757d';
+    }
+
+    function generatePlainTextTable() {
+        let textTable = 'WBS ID\tTipo\tTarefa/Marco\tDescrição\tData Início\tData Fim\tDuração\tEspecialista\tStatus\n';
+        
+        wbsData.forEach(item => {
+            textTable += `${item.wbs_id}\t${item.type === 'milestone' ? 'Marco' : 'Tarefa'}\t${item.name}\t${item.description}\t${item.start_date}\t${item.end_date}\t${item.duration_days > 0 ? `${item.duration_days} dias` : '-'}\t${item.specialist}\t${getStatusLabel(item.status)}\n`;
+        });
+        
+        return textTable;
+    }
+
     // Expõe funções globais
     window.generateWBS = generateWBS;
     window.exportWBSToExcel = exportWBSToExcel;
+    window.copyWBSToClipboard = copyWBSToClipboard;
     window.refreshWBS = refreshWBS;
     window.previewWBS = previewWBS;
 
