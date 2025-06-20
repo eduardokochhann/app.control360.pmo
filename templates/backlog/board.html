@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 <link href="{{ url_for('static', filename='css/complexity_form.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/pmo_command_center.css') }}" rel="stylesheet">
 <style>
     .kanban-column {
         background-color: #f8f9fa;
@@ -361,47 +362,71 @@
     </div>
 </div>
 
-<!-- Seção de Ferramentas do Projeto -->
+<!-- Central de Comando PMO -->
 <div class="container-fluid mt-4" id="projectToolsSection" style="display: none;">
-    <div class="card">
-        <div class="card-header">
-            <h5 class="mb-0">
-                <i class="bi bi-tools text-primary"></i> Ferramentas do Projeto
-                <button class="btn btn-sm btn-outline-secondary float-end" onclick="toggleProjectTools()">
-                    <i class="bi bi-x-lg"></i> Fechar
+    <div class="card border-0 shadow-lg command-center">
+        <div class="card-header border-0 text-white p-4" style="background-color: #07304F;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <div class="command-center-icon me-3">
+                        <i class="bi bi-command fs-1"></i>
+                    </div>
+                    <div>
+                        <h4 class="mb-0 fw-bold">Central de Comando PMO</h4>
+                        <p class="mb-0 text-white-50">Gestão Completa do Projeto</p>
+                    </div>
+                </div>
+                <button class="btn btn-outline-light btn-lg" onclick="toggleProjectTools()">
+                    <i class="bi bi-x-lg"></i>
                 </button>
-            </h5>
+            </div>
         </div>
-        <div class="card-body">
+        <div class="card-body p-4" style="background-color: #ffffff;">
+
             <!-- Nav tabs -->
-            <ul class="nav nav-pills" id="pills-tab" role="tablist">
+            <ul class="nav nav-pills pmo-tabs" id="pills-tab" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="pills-risks-tab" data-bs-toggle="pill" data-bs-target="#pills-risks" type="button" role="tab" aria-controls="pills-risks" aria-selected="true">
-                        <i class="bi bi-exclamation-triangle text-warning"></i> Riscos
-                        <span class="badge bg-danger ms-1">0</span>
+                        <div class="tab-content-wrapper">
+                            <i class="bi bi-shield-exclamation fs-5"></i>
+                            <span class="tab-label">Gestão de Riscos</span>
+                            <span class="badge bg-danger ms-1">0</span>
+                        </div>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="pills-milestones-tab" data-bs-toggle="pill" data-bs-target="#pills-milestones" type="button" role="tab" aria-controls="pills-milestones" aria-selected="false">
-                        <i class="bi bi-flag text-success"></i> Marcos
-                        <span class="badge bg-primary ms-1">0</span>
+                        <div class="tab-content-wrapper">
+                            <i class="bi bi-flag-fill fs-5"></i>
+                            <span class="tab-label">Marcos do Projeto</span>
+                            <span class="badge bg-primary ms-1">0</span>
+                        </div>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="pills-timeline-tab" data-bs-toggle="pill" data-bs-target="#pills-timeline" type="button" role="tab" aria-controls="pills-timeline" aria-selected="false">
-                        <i class="bi bi-clock-history text-info"></i> Timeline
+                        <div class="tab-content-wrapper">
+                            <i class="bi bi-clock-history fs-5"></i>
+                            <span class="tab-label">Timeline</span>
+                        </div>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="pills-notes-tab" data-bs-toggle="pill" data-bs-target="#pills-notes" type="button" role="tab" aria-controls="pills-notes" aria-selected="false">
-                        <i class="bi bi-sticky text-primary"></i> Notas
-                        <span class="badge bg-info ms-1">0</span>
+                        <div class="tab-content-wrapper">
+                            <i class="bi bi-chat-square-text-fill fs-5"></i>
+                            <span class="tab-label">Centro de Notas</span>
+                            <span class="badge bg-info ms-1">0</span>
+                        </div>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="pills-complexity-tab" data-bs-toggle="pill" data-bs-target="#pills-complexity" type="button" role="tab" aria-controls="pills-complexity" aria-selected="false">
-                        <i class="bi bi-bar-chart text-warning"></i> Complexidade
-                        <span class="badge bg-secondary ms-1" id="complexity-badge" style="display: none;">-</span>
+                        <div class="tab-content-wrapper">
+                            <i class="bi bi-graph-up-arrow fs-5"></i>
+                            <span class="tab-label">Análise de Complexidade</span>
+                            <span class="badge bg-warning ms-1" id="complexity-badge" style="display: none;">-</span>
+                        </div>
                     </button>
                 </li>
             </ul>
@@ -410,13 +435,16 @@
             <div class="tab-content" id="pills-tabContent">
                 <!-- Painel de Riscos -->
                 <div class="tab-pane fade show active" id="pills-risks" role="tabpanel" aria-labelledby="pills-risks-tab">
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <button class="btn btn-warning" onclick="openRiskModal()">
-                                <i class="bi bi-plus-circle"></i> Novo Risco
+                    <div class="row mb-4">
+                        <div class="col-12 d-flex gap-2 flex-wrap">
+                            <button class="btn pmo-action-btn risk-btn" onclick="openRiskModal()">
+                                <i class="bi bi-shield-plus"></i> Novo Risco
                             </button>
-                            <button class="btn btn-outline-secondary ms-2" onclick="loadRisks()">
+                            <button class="btn pmo-action-btn" onclick="loadRisks()">
                                 <i class="bi bi-arrow-clockwise"></i> Atualizar
+                            </button>
+                            <button class="btn pmo-action-btn" onclick="exportRisks()">
+                                <i class="bi bi-download"></i> Exportar
                             </button>
                         </div>
                     </div>
@@ -434,13 +462,16 @@
 
                 <!-- Painel de Marcos -->
                 <div class="tab-pane fade" id="pills-milestones" role="tabpanel" aria-labelledby="pills-milestones-tab">
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <button class="btn btn-success" onclick="openMilestoneModal()">
-                                <i class="bi bi-plus-circle"></i> Novo Marco
+                    <div class="row mb-4">
+                        <div class="col-12 d-flex gap-2 flex-wrap">
+                            <button class="btn pmo-action-btn milestone-btn" onclick="openMilestoneModal()">
+                                <i class="bi bi-flag-fill"></i> Novo Marco
                             </button>
-                            <button class="btn btn-outline-secondary ms-2" onclick="loadMilestones()">
+                            <button class="btn pmo-action-btn" onclick="loadMilestones()">
                                 <i class="bi bi-arrow-clockwise"></i> Atualizar
+                            </button>
+                            <button class="btn pmo-action-btn" onclick="exportMilestones()">
+                                <i class="bi bi-download"></i> Exportar
                             </button>
                         </div>
                     </div>
@@ -458,18 +489,21 @@
 
                 <!-- Painel de Timeline -->
                 <div class="tab-pane fade" id="pills-timeline" role="tabpanel" aria-labelledby="pills-timeline-tab">
-                    <div class="row mb-3">
+                    <div class="row mb-4">
                         <div class="col-md-3">
-                            <label for="timelineDaysBack" class="form-label">Dias para trás:</label>
+                            <label for="timelineDaysBack" class="form-label fw-bold">Dias para trás:</label>
                             <input type="number" class="form-control" id="timelineDaysBack" value="7" min="1" max="30">
                         </div>
                         <div class="col-md-3">
-                            <label for="timelineDaysForward" class="form-label">Dias para frente:</label>
+                            <label for="timelineDaysForward" class="form-label fw-bold">Dias para frente:</label>
                             <input type="number" class="form-control" id="timelineDaysForward" value="7" min="1" max="30">
                         </div>
-                        <div class="col-md-6 d-flex align-items-end">
-                            <button class="btn btn-info" onclick="loadTimeline()">
+                        <div class="col-md-6 d-flex align-items-end gap-2">
+                            <button class="btn pmo-action-btn" onclick="loadTimeline()">
                                 <i class="bi bi-arrow-clockwise"></i> Atualizar Timeline
+                            </button>
+                            <button class="btn pmo-action-btn" onclick="exportTimeline()">
+                                <i class="bi bi-download"></i> Exportar
                             </button>
                         </div>
                     </div>
@@ -487,13 +521,16 @@
 
                 <!-- Painel de Notas -->
                 <div class="tab-pane fade" id="pills-notes" role="tabpanel" aria-labelledby="pills-notes-tab">
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <button class="btn btn-primary" onclick="openNoteModal()">
-                                <i class="bi bi-plus-circle"></i> Nova Nota
+                    <div class="row mb-4">
+                        <div class="col-12 d-flex gap-2 flex-wrap">
+                            <button class="btn pmo-action-btn note-btn" onclick="openNoteModal()">
+                                <i class="bi bi-chat-square-text"></i> Nova Nota
                             </button>
-                            <button class="btn btn-outline-secondary ms-2" onclick="loadNotes()">
+                            <button class="btn pmo-action-btn" onclick="loadNotes()">
                                 <i class="bi bi-arrow-clockwise"></i> Atualizar
+                            </button>
+                            <button class="btn pmo-action-btn" onclick="exportNotes()">
+                                <i class="bi bi-download"></i> Exportar
                             </button>
                         </div>
                     </div>
@@ -511,15 +548,15 @@
 
                 <!-- Painel de Complexidade -->
                 <div class="tab-pane fade" id="pills-complexity" role="tabpanel" aria-labelledby="pills-complexity-tab">
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <button class="btn btn-warning" onclick="openComplexityModal()">
-                                <i class="bi bi-calculator"></i> Avaliar Complexidade
+                    <div class="row mb-4">
+                        <div class="col-12 d-flex gap-2 flex-wrap">
+                            <button class="btn pmo-action-btn complexity-btn" onclick="openComplexityModal()">
+                                <i class="bi bi-graph-up-arrow"></i> Avaliar Complexidade
                             </button>
-                            <button class="btn btn-outline-info ms-2" onclick="openComplexityHistoryModal()">
+                            <button class="btn pmo-action-btn" onclick="openComplexityHistoryModal()">
                                 <i class="bi bi-clock-history"></i> Histórico
                             </button>
-                            <button class="btn btn-outline-secondary ms-2" onclick="loadComplexityInfo()">
+                            <button class="btn pmo-action-btn" onclick="loadComplexityInfo()">
                                 <i class="bi bi-arrow-clockwise"></i> Atualizar
                             </button>
                         </div>

@@ -1,0 +1,347 @@
+/* ============================================
+   CENTRAL DE COMANDO PMO - ESTILOS VISUAIS
+   ============================================ */
+
+/* Animação de entrada da Central de Comando */
+.command-center {
+    animation: slideInDown 0.6s ease-out;
+    position: relative;
+    overflow: hidden;
+}
+
+@keyframes slideInDown {
+    0% {
+        opacity: 0;
+        transform: translateY(-100px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Header da Central de Comando com efeito shimmer */
+.command-center .card-header {
+    position: relative;
+    overflow: hidden;
+}
+
+.command-center .card-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+    animation: headerShimmer 4s infinite;
+    z-index: 1;
+}
+
+.command-center .card-header > * {
+    position: relative;
+    z-index: 2;
+}
+
+@keyframes headerShimmer {
+    0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+    100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+}
+
+/* Ícone principal da Central de Comando */
+.command-center-icon {
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: iconPulse 2s infinite;
+}
+
+@keyframes iconPulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0.4); }
+    50% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(255,255,255,0); }
+}
+
+/* Cards de métricas do dashboard - Estilo suave como no Macro */
+.border-left-primary {
+    border-left: 0.25rem solid #4e73df !important;
+}
+
+.border-left-success {
+    border-left: 0.25rem solid #1cc88a !important;
+}
+
+.border-left-info {
+    border-left: 0.25rem solid #36b9cc !important;
+}
+
+.border-left-warning {
+    border-left: 0.25rem solid #f6c23e !important;
+}
+
+.border-left-danger {
+    border-left: 0.25rem solid #dc3545 !important;
+}
+
+.text-gray-800 {
+    color: #5a5c69 !important;
+}
+
+.text-gray-300 {
+    color: #d1d3e2 !important;
+}
+
+.text-xs {
+    font-size: 0.7rem;
+}
+
+.font-weight-bold {
+    font-weight: 700 !important;
+}
+
+.fa-2x {
+    font-size: 2em;
+}
+
+/* Hover suave nos cards de métricas */
+.card.shadow:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+    transition: all 0.3s ease;
+}
+
+@keyframes numberUpdate {
+    0% { transform: scale(0.8); opacity: 0; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Tabs da Central PMO */
+.pmo-tabs {
+    background: rgba(255,255,255,0.9);
+    padding: 0.5rem;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.pmo-tabs .nav-item {
+    margin: 0 0.25rem;
+}
+
+.pmo-tabs .nav-link {
+    border: none;
+    background: transparent;
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.pmo-tabs .nav-link:hover {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    color: #495057;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.pmo-tabs .nav-link.active {
+    background-color: #07304F;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(7,48,79,0.2);
+}
+
+.pmo-tabs .nav-link.active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+    animation: tabShimmer 2s infinite;
+}
+
+@keyframes tabShimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.tab-content-wrapper {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    text-align: center;
+}
+
+.tab-content-wrapper i {
+    margin-bottom: 0.5rem;
+}
+
+.tab-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+/* Conteúdo das tabs */
+.tab-content {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    padding: 2rem;
+    min-height: 400px;
+}
+
+/* Botões de ação modernizados */
+.pmo-action-btn {
+    background-color: #07304F;
+    border: none;
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.pmo-action-btn:hover {
+    background-color: #FF2D5F;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(7,48,79,0.3);
+    color: white;
+}
+
+.pmo-action-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.3s, height 0.3s;
+}
+
+.pmo-action-btn:active::before {
+    width: 300px;
+    height: 300px;
+}
+
+/* Variantes dos botões por categoria - removidas para seguir padrão SOU.cloud */
+
+/* Estados de loading */
+.pmo-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    flex-direction: column;
+}
+
+.pmo-loading i {
+    animation: loadingPulse 1.5s infinite;
+    margin-bottom: 1rem;
+}
+
+@keyframes loadingPulse {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.1); }
+}
+
+/* Cards de conteúdo dentro das tabs */
+.pmo-content-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.pmo-content-card:hover {
+    border-color: #07304F;
+    box-shadow: 0 4px 15px rgba(7,48,79,0.1);
+    transform: translateY(-2px);
+}
+
+
+
+/* Badges aprimorados */
+.pmo-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.pmo-badge.risk-high {
+    background-color: #dc3545;
+    color: white;
+}
+
+.pmo-badge.risk-medium {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.pmo-badge.risk-low {
+    background-color: #198754;
+    color: white;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .command-center .card-header {
+        padding: 1.5rem !important;
+    }
+    
+    .command-center-icon {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .card.shadow {
+        margin-bottom: 1rem;
+    }
+    
+    .fa-2x {
+        font-size: 1.5em;
+    }
+    
+    .h5 {
+        font-size: 1.2rem;
+    }
+    
+    .pmo-tabs .nav-link {
+        padding: 0.75rem 1rem;
+    }
+    
+    .tab-label {
+        font-size: 0.8rem;
+    }
+    
+    .tab-content {
+        padding: 1rem;
+    }
+}
+
+/* Efeitos especiais para elementos específicos */
+.command-center .card-body {
+    position: relative;
+}
+
+ 

@@ -784,6 +784,30 @@ function initializeProjectTools() {
                 badge.textContent = count;
             }
         }
+        
+        // Atualiza também os cards de métricas
+        updateMetricCard(tabName, count);
+    }
+    
+    function updateMetricCard(tabName, count) {
+        const metricCards = {
+            'risks': 'risk-count',
+            'milestones': 'milestone-count', 
+            'notes': 'notes-count',
+            'complexity': 'complexity-level'
+        };
+        
+        const elementId = metricCards[tabName];
+        if (elementId) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                // Animação de atualização
+                element.style.animation = 'none';
+                element.offsetHeight; // trigger reflow
+                element.style.animation = 'numberUpdate 0.6s ease-out';
+                element.textContent = count;
+            }
+        }
     }
 
     function showToast(message, type = 'info') {
@@ -887,6 +911,23 @@ function initializeProjectTools() {
     window.openComplexityModal = openComplexityModal;
     window.openComplexityHistoryModal = openComplexityHistoryModal;
     window.saveComplexityAssessment = saveComplexityAssessment;
+    
+    // Funções de exportação para os novos botões
+    window.exportRisks = function() {
+        showToast('Funcionalidade de exportação de riscos em desenvolvimento', 'info');
+    };
+    
+    window.exportMilestones = function() {
+        showToast('Funcionalidade de exportação de marcos em desenvolvimento', 'info');
+    };
+    
+    window.exportNotes = function() {
+        showToast('Funcionalidade de exportação de notas em desenvolvimento', 'info');
+    };
+    
+    window.exportTimeline = function() {
+        showToast('Funcionalidade de exportação de timeline em desenvolvimento', 'info');
+    };
 
     // --- FUNÇÕES DE COMPLEXIDADE ---
     
@@ -999,8 +1040,12 @@ function initializeProjectTools() {
             badge.textContent = categoryLabels[assessment.category] || '-';
             badge.className = `badge ms-1 ${categoryColors[assessment.category] || 'bg-secondary'}`;
             badge.style.display = 'inline';
+            
+            // Atualiza também o card de métrica
+            updateMetricCard('complexity', assessment.category_label || assessment.category);
         } else {
             badge.style.display = 'none';
+            updateMetricCard('complexity', '-');
         }
     }
 
