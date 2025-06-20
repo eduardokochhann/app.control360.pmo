@@ -93,6 +93,24 @@ function initializeSortable() {
             document.getElementById('headerRemainingHours').textContent = data.remaining_hours || '-';
             document.getElementById('headerAccountManager').textContent = data.account_manager || 'N/A';
 
+            // Atualiza informação de complexidade
+            const complexityElement = document.getElementById('headerComplexity');
+            if (data.complexity) {
+                const categoryColors = {
+                    'BAIXA': 'text-success',
+                    'MÉDIA': 'text-warning', 
+                    'ALTA': 'text-danger',
+                    // Compatibilidade com valores antigos
+                    'LOW': 'text-success',
+                    'MEDIUM': 'text-warning', 
+                    'HIGH': 'text-danger'
+                };
+                const colorClass = categoryColors[data.complexity.category] || 'text-secondary';
+                complexityElement.innerHTML = `<span class="${colorClass}">${data.complexity.category_label}</span><br><small class="text-muted">${data.complexity.score}pts</small>`;
+            } else {
+                complexityElement.textContent = '-';
+            }
+
             // Mostra o cabeçalho e as métricas
             headerDiv.style.display = 'block';
             document.getElementById('headerMetrics').style.display = 'flex';

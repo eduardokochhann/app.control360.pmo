@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h3>
+        <i class="bi bi-graph-up me-2"></i>
+        Relatório - {{ specialist_name }}
+    </h3>
+    
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <label class="form-label">Período (semanas):</label>
+            <select class="form-select" id="weeksBack">
+                <option value="2">Últimas 2 semanas</option>
+                <option value="4" selected>Últimas 4 semanas</option>
+                <option value="8">Últimas 8 semanas</option>
+            </select>
+        </div>
+        <div class="col-md-8">
+            <button class="btn btn-primary mt-4" onclick="loadReport()">Atualizar</button>
+        </div>
+    </div>
+
+    <div id="reportContainer">
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const specialistName = '{{ specialist_name }}';
+    loadReport();
+    
+    function loadReport() {
+        const weeksBack = document.getElementById('weeksBack').value;
+        
+        fetch(`/backlog/api/analytics/specialist/${encodeURIComponent(specialistName)}/report?weeks_back=${weeksBack}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('reportContainer').innerHTML = `
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Resumo de Performance</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>Período:</strong> ${data.periodo_analise?.data_inicio || '--'} a ${data.periodo_analise?.data_fim || '--'}</p>
+                                    <p><strong>Total de Horas:</strong> ${data.metricas_produtividade?.total_horas || 0}h</p>
+                                    <p><strong>Tarefas Concluídas:</strong> ${data.metricas_produtividade?.tarefas_concluidas || 0}</p>
+                                    <p><strong>Produtividade:</strong> ${data.metricas_produtividade?.produtividade_media || 0}</p>
+                                    
+                                    <h6 class="mt-4">Resumo Executivo:</h6>
+                                    <p>${data.resumo_executivo || 'Dados insuficientes para gerar resumo.'}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                document.getElementById('reportContainer').innerHTML = `
+                    <div class="alert alert-danger">
+                        Erro ao carregar relatório
+                    </div>
+                `;
+            });
+    }
+});
+</script>
+{% endblock %}

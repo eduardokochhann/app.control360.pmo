@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Erro - Backlog{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Erro no Sistema
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger" role="alert">
+                        <h6 class="alert-heading">Ops! Algo deu errado</h6>
+                        <p>{{ erro if erro else 'Ocorreu um erro inesperado no sistema.' }}</p>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h6>O que você pode fazer:</h6>
+                        <ul>
+                            <li>Tente recarregar a página</li>
+                            <li>Verifique se todos os dados estão corretos</li>
+                            <li>Entre em contato com o suporte se o problema persistir</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mt-4 d-flex gap-2">
+                        <a href="javascript:history.back()" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Voltar
+                        </a>
+                        <a href="{{ url_for('backlog.project_selection') }}" class="btn btn-primary">
+                            <i class="bi bi-house"></i> Ir para Projetos
+                        </a>
+                        <button onclick="location.reload()" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-clockwise"></i> Recarregar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

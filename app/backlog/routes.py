@@ -900,6 +900,25 @@ def get_project_header_details(project_id):
         'account_manager': details.get('account_manager', 'N/A')
     }
     
+    # Adiciona informação de complexidade se existir
+    try:
+        from ..models import ProjectComplexityAssessment
+        latest_assessment = ProjectComplexityAssessment.query.filter_by(project_id=project_id).order_by(ProjectComplexityAssessment.created_at.desc()).first()
+        
+        if latest_assessment:
+            complexity_info = {
+                "score": latest_assessment.total_score,
+                "category": latest_assessment.complexity_category,  # Este campo é string, não enum
+                "category_label": latest_assessment.complexity_category  # Usa o mesmo valor para label
+            }
+            header_data['complexity'] = complexity_info
+        else:
+            header_data['complexity'] = None
+            
+    except Exception as e:
+        current_app.logger.warning(f"Erro ao buscar complexidade para o cabeçalho do projeto {project_id}: {e}")
+        header_data['complexity'] = None
+    
     current_app.logger.info(f"Dados do cabeçalho para o projeto {project_id}: {header_data}")
     return jsonify(header_data)
 # --- FIM DA NOVA ROTA ---
@@ -3150,3 +3169,220 @@ def create_milestone():
         db.session.rollback()
         current_app.logger.error(f"Erro inesperado ao criar marco para backlog {backlog_id}: {e}", exc_info=True)
         abort(500, description="Erro interno ao criar o marco.")
+
+# =====================================================
+# APIs DO SISTEMA DE COMPLEXIDADE DE PROJETOS
+# =====================================================
+
+@backlog_bp.route('/api/complexity/criteria', methods=['GET'])
+def get_complexity_criteria():
+    try:
+        from ..models import ComplexityCriteria, ComplexityCriteriaOption
+        
+        criteria = ComplexityCriteria.query.filter_by(is_active=True).order_by(ComplexityCriteria.criteria_order).all()
+        
+        result = []
+        for criterion in criteria:
+            options = ComplexityCriteriaOption.query.filter_by(criteria_id=criterion.id, is_active=True).order_by(ComplexityCriteriaOption.option_order).all()
+            
+            criterion_data = {
+                'id': criterion.id,
+                'name': criterion.name,
+                'description': criterion.description,
+                'order': criterion.criteria_order,
+                'options': [
+                    {
+                        'id': opt.id,
+                        'label': opt.option_label or opt.option_name,
+                        'description': opt.description,
+                        'score': opt.points,
+                        'order': opt.option_order
+                    } for opt in options
+                ]
+            }
+            result.append(criterion_data)
+        
+        return jsonify(result)
+    except Exception as e:
+        current_app.logger.error(f"Erro ao buscar critérios de complexidade: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Erro interno do servidor'}), 500
+
+@backlog_bp.route('/api/complexity/thresholds', methods=['GET'])
+def get_complexity_thresholds():
+    """Retorna os thresholds de complexidade."""
+    try:
+        from ..models import ComplexityThreshold
+        
+        thresholds = ComplexityThreshold.query.order_by(ComplexityThreshold.min_score).all()
+        
+        result = []
+        for threshold in thresholds:
+            result.append({
+                'category': threshold.category.name,  # Usa .name para obter o nome do enum
+                'category_label': threshold.category.value,  # Usa .value para obter o valor/label do enum
+                'min_score': threshold.min_score,
+                'max_score': threshold.max_score
+            })
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao buscar thresholds de complexidade: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Erro interno do servidor'}), 500
+
+@backlog_bp.route('/api/projects/<string:project_id>/complexity/assessment', methods=['GET'])
+def get_project_complexity_assessment(project_id):
+    try:
+        from ..models import ProjectComplexityAssessment, ComplexityCriteria, ComplexityCriteriaOption
+        
+        assessment = ProjectComplexityAssessment.query.filter_by(project_id=project_id).order_by(ProjectComplexityAssessment.created_at.desc()).first()
+        
+        if not assessment:
+            return jsonify({'assessment': None})
+        
+        details_data = []
+        for detail in assessment.details:
+            criteria = ComplexityCriteria.query.get(detail.criteria_id)
+            option = ComplexityCriteriaOption.query.get(detail.selected_option_id)
+            
+            details_data.append({
+                'criteria_id': detail.criteria_id,
+                'option_id': detail.selected_option_id,
+                'criteria_name': criteria.name if criteria else 'N/A',
+                'option_label': option.option_label or option.option_name if option else 'N/A',
+                'score': detail.points_awarded
+            })
+        
+        response_data = {
+            'assessment': {
+                'id': assessment.id,
+                'project_id': assessment.project_id,
+                'total_score': assessment.total_score,
+                'category': assessment.complexity_category,
+                'category_label': assessment.complexity_category,
+                'notes': assessment.notes or assessment.assessment_notes,
+                'assessed_by': assessment.assessed_by,
+                'created_at': assessment.created_at.isoformat(),
+                'details': details_data
+            }
+        }
+        
+        return jsonify(response_data)
+    except Exception as e:
+        current_app.logger.error(f"Erro ao buscar avaliação de complexidade para projeto {project_id}: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Erro interno do servidor'}), 500
+
+@backlog_bp.route('/api/projects/<string:project_id>/complexity/assessment', methods=['POST'])
+def create_project_complexity_assessment(project_id):
+    try:
+        from ..models import ProjectComplexityAssessment, ProjectComplexityAssessmentDetail, ComplexityCriteriaOption, ComplexityThreshold
+        
+        data = request.get_json()
+        if not data or 'criteria' not in data:
+            return jsonify({'error': 'Dados de critérios são obrigatórios'}), 400
+        
+        notes = data.get('notes', '')
+        assessed_by = data.get('assessed_by', 'Sistema')
+        
+        # Busca o backlog do projeto
+        from ..models import Backlog
+        backlog = Backlog.query.filter_by(project_id=project_id).first()
+        if not backlog:
+            return jsonify({'error': 'Backlog não encontrado para este projeto'}), 404
+        
+        # Valida as opções e calcula o score
+        total_score = 0
+        assessment_details_data = []
+        
+        for criteria_id_str, option_id_str in data['criteria'].items():
+            criteria_id = int(criteria_id_str)
+            option_id = int(option_id_str)
+            
+            option = ComplexityCriteriaOption.query.get(option_id)
+            if not option or option.criteria_id != criteria_id:
+                return jsonify({'error': f'Opção inválida {option_id} para o critério {criteria_id_str}'}), 400
+
+            total_score += option.points
+            assessment_details_data.append({
+                'criteria_id': criteria_id,
+                'selected_option_id': option_id,
+                'points_awarded': option.points
+            })
+        
+        # Determina a categoria baseada nos thresholds
+        thresholds = ComplexityThreshold.query.order_by(ComplexityThreshold.min_score).all()
+        category = 'ALTA'  # Default para categoria mais alta
+        
+        for threshold in thresholds:
+            if total_score >= threshold.min_score and (threshold.max_score is None or total_score <= threshold.max_score):
+                category = threshold.category.name  # Usa .name para obter o valor string do enum
+                break
+        
+        # Cria a avaliação
+        assessment = ProjectComplexityAssessment(
+            project_id=project_id,
+            backlog_id=backlog.id,
+            total_score=total_score,
+            complexity_category=category,
+            category=category,  # Preenche ambos os campos
+            notes=notes,
+            assessment_notes=notes,  # Preenche ambos os campos
+            assessed_by=assessed_by
+        )
+        db.session.add(assessment)
+        db.session.flush()
+
+        # Cria os detalhes
+        for detail_data in assessment_details_data:
+            detail = ProjectComplexityAssessmentDetail(
+                assessment_id=assessment.id,
+                criteria_id=detail_data['criteria_id'],
+                selected_option_id=detail_data['selected_option_id'],
+                points_awarded=detail_data['points_awarded'],
+                option_id=detail_data['selected_option_id'],  # Preenche ambos os campos
+                score=detail_data['points_awarded']  # Preenche ambos os campos
+            )
+            db.session.add(detail)
+
+        db.session.commit()
+
+        return jsonify({
+            'id': assessment.id,
+            'project_id': assessment.project_id,
+            'total_score': assessment.total_score,
+            'category': assessment.complexity_category,
+            'category_label': assessment.complexity_category,
+            'notes': assessment.notes,
+            'assessed_by': assessment.assessed_by,
+            'created_at': assessment.created_at.isoformat()
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao criar avaliação de complexidade para projeto {project_id}: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Erro interno do servidor'}), 500
+
+@backlog_bp.route('/api/projects/<string:project_id>/complexity/history', methods=['GET'])
+def get_project_complexity_history(project_id):
+    try:
+        from ..models import ProjectComplexityAssessment
+        
+        assessments = ProjectComplexityAssessment.query.filter_by(project_id=project_id).order_by(ProjectComplexityAssessment.created_at.desc()).all()
+        
+        result = []
+        for assessment in assessments:
+            result.append({
+                'id': assessment.id,
+                'total_score': assessment.total_score,
+                'category': assessment.complexity_category,
+                'category_label': assessment.complexity_category,
+                'notes': assessment.notes or assessment.assessment_notes,
+                'assessed_by': assessment.assessed_by,
+                'created_at': assessment.created_at.isoformat()
+            })
+        
+        return jsonify(result)
+    except Exception as e:
+        current_app.logger.error(f"Erro ao buscar histórico de complexidade para projeto {project_id}: {str(e)}", exc_info=True)
+        return jsonify({'error': 'Erro interno do servidor'}), 500
+
+# Função duplicada removida - usar apenas a versão com decorator @backlog_bp.route

@@ -3,6 +3,7 @@
 {% block title %}Quadro Kanban - {{ current_project.projeto if current_project else 'Backlog' }}{% endblock %}
 
 {% block extra_css %}
+<link href="{{ url_for('static', filename='css/complexity_form.css') }}" rel="stylesheet">
 <style>
     .kanban-column {
         background-color: #f8f9fa;
@@ -203,6 +204,10 @@
                     <small class="text-muted">Account Manager</small>
                     <p class="fw-bold mb-0" id="headerAccountManager">-</p>
                 </div>
+                <div class="col">
+                    <small class="text-muted">Complexidade</small>
+                    <p class="fw-bold mb-0" id="headerComplexity">-</p>
+                </div>
             </div>
         </div>
     </div>
@@ -393,6 +398,12 @@
                         <span class="badge bg-info ms-1">0</span>
                     </button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="pills-complexity-tab" data-bs-toggle="pill" data-bs-target="#pills-complexity" type="button" role="tab" aria-controls="pills-complexity" aria-selected="false">
+                        <i class="bi bi-bar-chart text-warning"></i> Complexidade
+                        <span class="badge bg-secondary ms-1" id="complexity-badge" style="display: none;">-</span>
+                    </button>
+                </li>
             </ul>
 
             <!-- Tab content -->
@@ -492,6 +503,33 @@
                                 <div class="text-center text-muted py-4">
                                     <i class="bi bi-sticky fs-1"></i>
                                     <p>Carregando notas...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Painel de Complexidade -->
+                <div class="tab-pane fade" id="pills-complexity" role="tabpanel" aria-labelledby="pills-complexity-tab">
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <button class="btn btn-warning" onclick="openComplexityModal()">
+                                <i class="bi bi-calculator"></i> Avaliar Complexidade
+                            </button>
+                            <button class="btn btn-outline-info ms-2" onclick="openComplexityHistoryModal()">
+                                <i class="bi bi-clock-history"></i> Histórico
+                            </button>
+                            <button class="btn btn-outline-secondary ms-2" onclick="loadComplexityInfo()">
+                                <i class="bi bi-arrow-clockwise"></i> Atualizar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <div id="complexityContainer">
+                                <div class="text-center text-muted py-4">
+                                    <i class="bi bi-bar-chart fs-1"></i>
+                                    <p>Carregando informações de complexidade...</p>
                                 </div>
                             </div>
                         </div>
@@ -716,6 +754,103 @@
         </div>
     </div>
 </div>
+
+<!-- Modal para Avaliação de Complexidade -->
+<div class="modal fade" id="complexityModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <h5 class="modal-title text-white fw-bold">
+                    <i class="bi bi-graph-up-arrow me-2"></i> Avaliação de Complexidade do Projeto
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4" style="background: linear-gradient(to bottom, #f8f9fa, #ffffff);">
+                <form id="complexityForm">
+                    <!-- Info Header -->
+                    <div class="alert alert-primary border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #e3f2fd, #bbdefb);">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-lightbulb-fill text-primary fs-3"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="alert-heading fw-bold mb-1">Como funciona a avaliação</h6>
+                                <p class="mb-0 small">Avalie cada critério selecionando a opção que melhor descreve o projeto. O sistema calculará automaticamente o score total e determinará a categoria de complexidade.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Critérios Container -->
+                    <div id="complexityCriteriaContainer" class="mb-4">
+                        <!-- Critérios serão carregados aqui via JavaScript -->
+                    </div>
+                    
+                    <!-- Score Total e Observações -->
+                    <div class="row g-4">
+                        <div class="col-md-8">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-header bg-light border-0">
+                                    <h6 class="mb-0 text-muted">
+                                        <i class="bi bi-chat-text me-2"></i>Observações da Avaliação
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <textarea class="form-control border-0 bg-light" id="complexityNotes" rows="4" 
+                                              placeholder="💡 Adicione observações, justificativas ou detalhes específicos sobre esta avaliação..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-0 shadow-lg h-100" id="scoreCard">
+                                <div class="card-body text-center p-4" style="background: linear-gradient(135deg, #6c5ce7, #a29bfe);">
+                                    <div class="text-white">
+                                        <i class="bi bi-calculator fs-1 mb-3"></i>
+                                        <h6 class="text-white-50 mb-2">SCORE TOTAL</h6>
+                                        <h1 class="display-3 fw-bold mb-2" id="totalScoreDisplay">0</h1>
+                                        <div class="badge bg-light text-dark fs-6 px-3 py-2" id="categoryDisplay">
+                                            Baixa Complexidade
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer bg-light border-0 p-4">
+                <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-2"></i>Cancelar
+                </button>
+                <button type="button" class="btn btn-success px-4 shadow-sm" onclick="saveComplexityAssessment()">
+                    <i class="bi bi-check-circle me-2"></i>Salvar Avaliação
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Histórico de Complexidade -->
+<div class="modal fade" id="complexityHistoryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-clock-history text-info me-2"></i> Histórico de Avaliações
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="complexityHistoryContainer">
+                    <!-- Histórico será carregado aqui -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}

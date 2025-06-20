@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-chart-line me-2"></i>
+                    Dashboard da Equipe
+                </h2>
+                <div class="d-flex gap-2">
+                    <select class="form-select" id="periodSelect" style="width: auto;">
+                        <option value="2">Últimas 2 semanas</option>
+                        <option value="4" selected>Últimas 4 semanas</option>
+                        <option value="8">Últimas 8 semanas</option>
+                        <option value="12">Últimas 12 semanas</option>
+                    </select>
+                    <button class="btn btn-primary" id="updateBtn">
+                        <i class="fas fa-sync-alt"></i> Atualizar
+                    </button>
+                    <a href="/backlog/projetos" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Carregando dados...</span>
+        </div>
+        <p class="mt-3">Carregando dashboard da equipe...</p>
+    </div>
+
+    <!-- Error State -->
+    <div id="errorState" class="alert alert-danger d-none" role="alert">
+        <h5><i class="fas fa-exclamation-triangle"></i> Erro ao carregar dados</h5>
+        <p id="errorMessage"></p>
+        <button class="btn btn-danger" onclick="loadDashboard()">
+            <i class="fas fa-retry"></i> Tentar Novamente
+        </button>
+    </div>
+
+    <!-- Main Content -->
+    <div id="dashboardContent" class="d-none">
+        <!-- Resumo Geral -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Total Especialistas</h6>
+                                <h4 id="totalEspecialistas">--</h4>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-users fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Horas Trabalhadas</h6>
+                                <h4 id="horasTrabalhadidas">--</h4>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-clock fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Tarefas Concluídas</h6>
+                                <h4 id="tarefasConcluidas">--</h4>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-check-circle fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title">Utilização Média</h6>
+                                <h4 id="utilizacaoMedia">--</h4>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-tachometer-alt fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance dos Especialistas -->
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-bar me-2"></i>Performance dos Especialistas</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="especialistasList">
+                            <!-- Lista será preenchida dinamicamente -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-exclamation-triangle me-2"></i>Alertas de Capacidade</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="alertasList">
+                            <!-- Alertas serão preenchidos dinamicamente -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Projetos Críticos -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-exclamation-circle me-2"></i>Projetos Críticos</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="projetosList">
+                            <p class="text-muted">Carregando projetos críticos...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Dashboard da Equipe - Iniciando carregamento');
+    loadDashboard();
+
+    // Event listeners
+    document.getElementById('updateBtn').addEventListener('click', loadDashboard);
+    document.getElementById('periodSelect').addEventListener('change', loadDashboard);
+});
+
+function loadDashboard() {
+    console.log('Carregando dashboard...');
+    
+    const period = document.getElementById('periodSelect').value;
+    const loadingState = document.getElementById('loadingState');
+    const errorState = document.getElementById('errorState');
+    const dashboardContent = document.getElementById('dashboardContent');
+    
+    // Reset estados
+    loadingState.classList.remove('d-none');
+    errorState.classList.add('d-none');
+    dashboardContent.classList.add('d-none');
+    
+    const apiUrl = `/backlog/api/analytics/team/dashboard?weeks_back=${period}`;
+    console.log('Fazendo requisição para:', apiUrl);
+    
+    fetch(apiUrl)
+        .then(response => {
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Dados recebidos:', data);
+            
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            loadingState.classList.add('d-none');
+            populateDashboard(data);
+            dashboardContent.classList.remove('d-none');
+        })
+        .catch(error => {
+            console.error('Erro ao carregar dashboard:', error);
+            
+            loadingState.classList.add('d-none');
+            errorState.classList.remove('d-none');
+            
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = `Detalhes do erro: ${error.message}`;
+        });
+}
+
+function populateDashboard(data) {
+    console.log('Populando dashboard com dados:', data);
+    
+    // Resumo geral
+    const resumo = data.resumo_geral || {};
+    document.getElementById('totalEspecialistas').textContent = resumo.total_especialistas || 0;
+    document.getElementById('horasTrabalhadidas').textContent = Math.round(resumo.total_horas_periodo || 0) + 'h';
+    document.getElementById('tarefasConcluidas').textContent = resumo.total_tarefas_periodo || 0;
+    document.getElementById('utilizacaoMedia').textContent = Math.round(resumo.utilizacao_capacidade_media || 0) + '%';
+    
+    // Lista de especialistas
+    populateEspecialistas(data.especialistas || []);
+    
+    // Alertas de capacidade
+    populateAlertas(data.alertas_capacidade || []);
+    
+    // Projetos críticos
+    populateProjetos(data.projetos_criticos || []);
+}
+
+function populateEspecialistas(especialistas) {
+    const container = document.getElementById('especialistasList');
+    
+    if (!especialistas || especialistas.length === 0) {
+        container.innerHTML = '<p class="text-muted">Nenhum especialista encontrado no período selecionado.</p>';
+        return;
+    }
+    
+    let html = '';
+    especialistas.forEach(esp => {
+        const produtividade = esp.produtividade || 0;
+        const statusClass = getStatusClass(esp.status_performance);
+        
+        html += `
+            <div class="row mb-3 p-3 border rounded">
+                <div class="col-md-4">
+                    <h6 class="mb-1">${esp.specialist_name}</h6>
+                    <span class="badge ${statusClass}">${getStatusText(esp.status_performance)}</span>
+                </div>
+                <div class="col-md-2 text-center">
+                    <small class="text-muted">Produtividade</small>
+                    <div class="fw-bold">${produtividade.toFixed(1)}%</div>
+                </div>
+                <div class="col-md-2 text-center">
+                    <small class="text-muted">Horas</small>
+                    <div class="fw-bold">${(esp.total_horas || 0).toFixed(1)}h</div>
+                </div>
+                <div class="col-md-2 text-center">
+                    <small class="text-muted">Tarefas</small>
+                    <div class="fw-bold">${esp.tarefas_concluidas || 0}/${esp.total_tarefas || 0}</div>
+                </div>
+                <div class="col-md-2 text-center">
+                    <a href="/backlog/specialists/${encodeURIComponent(esp.specialist_name)}/capacity" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-chart-pie"></i> Capacidade
+                    </a>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function populateAlertas(alertas) {
+    const container = document.getElementById('alertasList');
+    
+    if (!alertas || alertas.length === 0) {
+        container.innerHTML = '<p class="text-success"><i class="fas fa-check-circle"></i> Nenhum alerta de capacidade no momento</p>';
+        return;
+    }
+    
+    let html = '';
+    alertas.forEach(alerta => {
+        const severityClass = alerta.severidade === 'alta' ? 'danger' : 'warning';
+        
+        html += `
+            <div class="alert alert-${severityClass} alert-sm mb-2">
+                <strong>${alerta.specialist_name}</strong><br>
+                <small>${alerta.detalhes}</small>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function populateProjetos(projetos) {
+    const container = document.getElementById('projetosList');
+    
+    if (!projetos || projetos.length === 0) {
+        container.innerHTML = '<p class="text-success"><i class="fas fa-check-circle"></i> Nenhum projeto crítico identificado</p>';
+        return;
+    }
+    
+    let html = '<div class="table-responsive"><table class="table table-sm">';
+    html += '<thead><tr><th>Projeto</th><th>Status</th><th>Conclusão</th><th>Tarefas</th><th>Motivo</th></tr></thead><tbody>';
+    
+    projetos.forEach(projeto => {
+        const statusClass = projeto.status === 'critico' ? 'danger' : 'warning';
+        
+        html += `
+            <tr>
+                <td>${projeto.projeto_id}</td>
+                <td><span class="badge bg-${statusClass}">${projeto.status.toUpperCase()}</span></td>
+                <td>${projeto.taxa_conclusao}%</td>
+                <td>${projeto.tarefas_concluidas}/${projeto.total_tarefas}</td>
+                <td><small>${projeto.motivo.replace('_', ' ')}</small></td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+function getStatusClass(status) {
+    const classes = {
+        'excelente': 'bg-success',
+        'boa': 'bg-primary',
+        'aceitavel': 'bg-warning',
+        'baixa': 'bg-danger',
+        'critica': 'bg-danger',
+        'sem_dados': 'bg-secondary'
+    };
+    return classes[status] || 'bg-secondary';
+}
+
+function getStatusText(status) {
+    const texts = {
+        'excelente': 'Excelente',
+        'boa': 'Boa',
+        'aceitavel': 'Aceitável',
+        'baixa': 'Baixa',
+        'critica': 'Crítica',
+        'sem_dados': 'Sem Dados'
+    };
+    return texts[status] || 'Desconhecido';
+}
+</script>
+{% endblock %}

@@ -388,4 +388,85 @@ class Note(db.Model):
             'event_date': self.event_date.isoformat() if self.event_date else None,
             'tags': [tag.name for tag in self.tags],
             'task_title': self.task.title if self.task else None
-        } 
+        }
+
+# --- SISTEMA DE COMPLEXIDADE DE PROJETOS ---
+
+class ComplexityCategory(enum.Enum):
+    BAIXA = 'Baixa'
+    MÉDIA = 'Média'
+    ALTA = 'Alta'
+
+class ComplexityCriteria(db.Model):
+    __tablename__ = 'complexity_criteria'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    criteria_order = db.Column(db.Integer, default=0)
+    
+    options = db.relationship('ComplexityCriteriaOption', backref='criteria', lazy=True, order_by='ComplexityCriteriaOption.option_order')
+
+    def __repr__(self):
+        return f'<ComplexityCriteria {self.name}>'
+
+class ComplexityCriteriaOption(db.Model):
+    __tablename__ = 'complexity_criteria_option'
+    id = db.Column(db.Integer, primary_key=True)
+    criteria_id = db.Column(db.Integer, db.ForeignKey('complexity_criteria.id'), nullable=False)
+    option_name = db.Column(db.String(100), nullable=False)
+    points = db.Column(db.Integer, nullable=False)
+    description = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    option_label = db.Column(db.String(100))
+    option_order = db.Column(db.Integer, default=0)
+
+    def __repr__(self):
+        return f'<ComplexityCriteriaOption {self.option_name} ({self.points}pts)>'
+
+class ProjectComplexityAssessment(db.Model):
+    __tablename__ = 'project_complexity_assessment'
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.String(50), nullable=False, index=True)
+    backlog_id = db.Column(db.Integer, nullable=False, index=True)
+    total_score = db.Column(db.Integer, nullable=False)
+    complexity_category = db.Column(db.String(20), nullable=False)
+    assessed_by = db.Column(db.String(150), nullable=False)
+    assessment_notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    category = db.Column(db.String(20))
+    notes = db.Column(db.Text)
+
+    details = db.relationship('ProjectComplexityAssessmentDetail', backref='assessment', lazy=True, cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f'<ProjectComplexityAssessment Project:{self.project_id} Score:{self.total_score} Category:{self.complexity_category}>'
+
+class ProjectComplexityAssessmentDetail(db.Model):
+    __tablename__ = 'project_complexity_assessment_detail'
+    id = db.Column(db.Integer, primary_key=True)
+    assessment_id = db.Column(db.Integer, db.ForeignKey('project_complexity_assessment.id'), nullable=False)
+    criteria_id = db.Column(db.Integer, nullable=False)
+    selected_option_id = db.Column(db.Integer, nullable=False)
+    points_awarded = db.Column(db.Integer, nullable=False)
+    option_id = db.Column(db.Integer)
+    score = db.Column(db.Integer)
+
+    def __repr__(self):
+        return f'<AssessmentDetail criteria:{self.criteria_id} option:{self.selected_option_id} ({self.points_awarded}pts)>'
+
+class ComplexityThreshold(db.Model):
+    __tablename__ = 'complexity_threshold'
+    id = db.Column(db.Integer, primary_key=True)
+    category = db.Column(db.Enum(ComplexityCategory), nullable=False, unique=True)
+    min_score = db.Column(db.Integer, nullable=False)
+    max_score = db.Column(db.Integer, nullable=True)  # NULL para categoria mais alta
+    
+    def __repr__(self):
+        return f'<ComplexityThreshold {self.category.value}: {self.min_score}-{self.max_score or "∞"}>'
+
+# --- FIM SISTEMA DE COMPLEXIDADE ---
+
+# Tabela de associação para tags das notas (many-to-many) 

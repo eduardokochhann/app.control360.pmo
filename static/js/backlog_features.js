@@ -107,6 +107,7 @@ function initializeProjectTools() {
         loadMilestones();
         loadTimeline();
         loadNotes();
+        loadComplexityInfo();
     }
 
     // --- Funções de Riscos ---
@@ -862,29 +863,448 @@ function initializeProjectTools() {
         return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(date);
     };
 
-    // --- Exposição de Funções e Inicialização ---
-
-    // Expõe as funções que precisam ser chamadas pelo HTML (onclick)
+    // --- Funções Expostas Globalmente ---
     window.toggleProjectTools = toggleProjectTools;
+    window.loadRisks = loadRisks;
     window.openRiskModal = openRiskModal;
     window.saveRisk = saveRisk;
     window.editRisk = editRisk;
     window.deleteRisk = deleteRisk;
-    window.loadRisks = loadRisks;
-    
+    window.loadMilestones = loadMilestones;
     window.openMilestoneModal = openMilestoneModal;
     window.saveMilestone = saveMilestone;
     window.editMilestone = editMilestone;
     window.deleteMilestone = deleteMilestone;
-    window.loadMilestones = loadMilestones;
-    
     window.loadTimeline = loadTimeline;
-    
+    window.loadNotes = loadNotes;
     window.openNoteModal = openNoteModal;
     window.saveNote = saveNote;
     window.editNote = editNote;
     window.deleteNote = deleteNote;
-    window.loadNotes = loadNotes;
+    
+    // Funções de complexidade
+    window.loadComplexityInfo = loadComplexityInfo;
+    window.openComplexityModal = openComplexityModal;
+    window.openComplexityHistoryModal = openComplexityHistoryModal;
+    window.saveComplexityAssessment = saveComplexityAssessment;
+
+    // --- FUNÇÕES DE COMPLEXIDADE ---
+    
+    let complexityCriteria = [];
+    let complexityThresholds = [];
+    let currentComplexityAssessment = {};
+
+    async function loadComplexityInfo() {
+        if (!projectId) return;
+        
+        try {
+            const response = await fetch(`/backlog/api/projects/${projectId}/complexity/assessment`);
+            if (!response.ok) throw new Error('Erro ao carregar complexidade');
+            
+            const data = await response.json();
+            renderComplexityInfo(data.assessment);
+            updateComplexityBadge(data.assessment);
+            
+        } catch (error) {
+            console.error('Erro ao carregar complexidade:', error);
+            document.getElementById('complexityContainer').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> Erro ao carregar complexidade: ${error.message}
+                </div>
+            `;
+        }
+    }
+
+    function renderComplexityInfo(assessment) {
+        const container = document.getElementById('complexityContainer');
+        if (!container) return;
+
+        if (!assessment) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-bar-chart fs-1"></i>
+                    <p>Nenhuma avaliação de complexidade realizada</p>
+                    <button class="btn btn-warning" onclick="openComplexityModal()">
+                        <i class="bi bi-calculator"></i> Fazer Primeira Avaliação
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        const categoryColors = {
+            'BAIXA': 'success',
+            'MÉDIA': 'warning', 
+            'ALTA': 'danger',
+            // Compatibilidade com valores antigos
+            'LOW': 'success',
+            'MEDIUM': 'warning', 
+            'HIGH': 'danger'
+        };
+
+        const color = categoryColors[assessment.category] || 'secondary';
+
+        container.innerHTML = `
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h5 class="card-title mb-2">
+                                <span class="badge bg-${color}">${assessment.category_label}</span>
+                                Complexidade do Projeto
+                            </h5>
+                            <p class="card-text">
+                                <strong>Score Total:</strong> ${assessment.total_score} pontos
+                            </p>
+                            ${assessment.notes ? `<p class="text-muted small">${assessment.notes}</p>` : ''}
+                            <small class="text-muted">
+                                Avaliado por ${assessment.assessed_by} em ${formatDateTime(assessment.created_at)}
+                            </small>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="display-4 text-${color}">${assessment.total_score}</div>
+                            <small class="text-muted">pontos</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function updateComplexityBadge(assessment) {
+        const badge = document.getElementById('complexity-badge');
+        if (!badge) return;
+
+        if (assessment) {
+            const categoryLabels = {
+                'BAIXA': 'B',
+                'MÉDIA': 'M',
+                'ALTA': 'A',
+                // Compatibilidade com valores antigos
+                'LOW': 'B',
+                'MEDIUM': 'M',
+                'HIGH': 'A'
+            };
+            
+            const categoryColors = {
+                'BAIXA': 'bg-success',
+                'MÉDIA': 'bg-warning',
+                'ALTA': 'bg-danger',
+                // Compatibilidade com valores antigos
+                'LOW': 'bg-success',
+                'MEDIUM': 'bg-warning',
+                'HIGH': 'bg-danger'
+            };
+            
+            badge.textContent = categoryLabels[assessment.category] || '-';
+            badge.className = `badge ms-1 ${categoryColors[assessment.category] || 'bg-secondary'}`;
+            badge.style.display = 'inline';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    async function openComplexityModal() {
+        try {
+            // Carrega critérios se não estiverem carregados
+            if (complexityCriteria.length === 0) {
+                const criteriaResponse = await fetch('/backlog/api/complexity/criteria');
+                if (!criteriaResponse.ok) throw new Error('Erro ao carregar critérios');
+                complexityCriteria = await criteriaResponse.json();
+            }
+
+            // Carrega thresholds se não estiverem carregados
+            if (complexityThresholds.length === 0) {
+                const thresholdsResponse = await fetch('/backlog/api/complexity/thresholds');
+                if (!thresholdsResponse.ok) throw new Error('Erro ao carregar thresholds');
+                complexityThresholds = await thresholdsResponse.json();
+            }
+
+            // Carrega avaliação atual se existir
+            const assessmentResponse = await fetch(`/backlog/api/projects/${projectId}/complexity/assessment`);
+            const assessmentData = await assessmentResponse.json();
+            
+            renderComplexityForm(assessmentData.assessment);
+            
+            const modal = new bootstrap.Modal(document.getElementById('complexityModal'));
+            modal.show();
+            
+        } catch (error) {
+            console.error('Erro ao abrir modal de complexidade:', error);
+            showToast('Erro ao carregar formulário de complexidade', 'error');
+        }
+    }
+
+    function renderComplexityForm(currentAssessment = null) {
+        const container = document.getElementById('complexityCriteriaContainer');
+        if (!container) return;
+
+        // Ícones para cada critério
+        const criteriaIcons = {
+            'Quantidade de horas': 'bi-clock-fill',
+            'Tipo de escopo': 'bi-diagram-3-fill', 
+            'DeadLine Previsto': 'bi-calendar-event-fill',
+            'Tipo de cliente': 'bi-people-fill'
+        };
+
+        const criteriaHtml = complexityCriteria.map((criterion, index) => {
+            const currentSelection = currentAssessment?.details?.find(d => d.criteria_id === criterion.id);
+            const icon = criteriaIcons[criterion.name] || 'bi-star-fill';
+            
+            const optionsHtml = criterion.options.map((option, optIndex) => {
+                const scoreColor = option.score <= 25 ? 'success' : option.score <= 50 ? 'warning' : option.score <= 75 ? 'orange' : 'danger';
+                return `
+                    <div class="form-check option-item p-3 mb-2 border rounded hover-effect" style="cursor: pointer; transition: all 0.2s ease;">
+                        <input class="form-check-input complexity-option" 
+                               type="radio" 
+                               name="criteria_${criterion.id}" 
+                               id="option_${option.id}" 
+                               value="${option.id}"
+                               data-score="${option.score}"
+                               ${currentSelection?.option_id === option.id ? 'checked' : ''}
+                               onchange="calculateComplexityScore()"
+                               style="transform: scale(1.2);">
+                        <label class="form-check-label w-100" for="option_${option.id}" style="cursor: pointer;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="flex-grow-1">
+                                    <strong>${option.label}</strong>
+                                    ${option.description ? `<div><small class="text-muted">${option.description}</small></div>` : ''}
+                                </div>
+                                <div class="flex-shrink-0">
+                                    <span class="badge bg-${scoreColor} fs-6 px-2 py-1">${option.score}pts</span>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                `;
+            }).join('');
+
+            const cardGradients = [
+                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', 
+                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
+            ];
+
+            return `
+                <div class="card border-0 shadow-sm mb-4 criteria-card" style="overflow: hidden;">
+                    <div class="card-header border-0 text-white" style="background: ${cardGradients[index % cardGradients.length]};">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="${icon} fs-4 me-3"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0 fw-bold">${criterion.name}</h6>
+                                ${criterion.description ? `<small class="text-white-50">${criterion.description}</small>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-4" style="background: linear-gradient(to bottom, #f8f9fa, #ffffff);">
+                        ${optionsHtml}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = criteriaHtml;
+
+        // Preenche observações se houver
+        if (currentAssessment?.notes) {
+            document.getElementById('complexityNotes').value = currentAssessment.notes;
+        }
+
+        // Calcula score inicial
+        calculateComplexityScore();
+    }
+
+    function calculateComplexityScore() {
+        const selectedOptions = document.querySelectorAll('.complexity-option:checked');
+        let totalScore = 0;
+        
+        selectedOptions.forEach(option => {
+            totalScore += parseInt(option.dataset.score) || 0;
+        });
+
+        // Atualiza display do score
+        document.getElementById('totalScoreDisplay').textContent = totalScore;
+
+        // Determina categoria baseada nos thresholds
+        let category = 'Baixa Complexidade';
+        let categoryColor = 'text-success';
+        
+        for (const threshold of complexityThresholds) {
+            if (totalScore >= threshold.min_score && 
+                (threshold.max_score === null || totalScore <= threshold.max_score)) {
+                category = threshold.category_label;
+                categoryColor = (threshold.category === 'LOW' || threshold.category === 'BAIXA') ? 'text-success' : 
+                              (threshold.category === 'MEDIUM' || threshold.category === 'MÉDIA') ? 'text-warning' : 'text-danger';
+                break;
+            }
+        }
+
+        const categoryDisplay = document.getElementById('categoryDisplay');
+        categoryDisplay.textContent = category;
+        
+        // Remove classes antigas e adiciona as novas com animação
+        categoryDisplay.className = 'badge fs-6 px-3 py-2';
+        categoryDisplay.classList.remove('baixa', 'media', 'alta');
+        
+        // Adiciona classe baseada na categoria com animação suave
+        if (category.toLowerCase().includes('baixa') || categoryColor.includes('success')) {
+            categoryDisplay.classList.add('baixa');
+        } else if (category.toLowerCase().includes('média') || categoryColor.includes('warning')) {
+            categoryDisplay.classList.add('media'); 
+        } else {
+            categoryDisplay.classList.add('alta');
+        }
+        
+        // Anima o score display
+        const scoreDisplay = document.getElementById('totalScoreDisplay');
+        scoreDisplay.style.animation = 'none';
+        scoreDisplay.offsetHeight; // trigger reflow
+        scoreDisplay.style.animation = 'scoreUpdate 0.5s ease-out';
+    }
+
+    async function saveComplexityAssessment() {
+        const saveButton = document.querySelector('button[onclick="saveComplexityAssessment()"]');
+        const originalText = saveButton.innerHTML;
+        
+        try {
+            // Adiciona estado de loading
+            saveButton.classList.add('btn-loading');
+            saveButton.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Salvando...';
+            saveButton.disabled = true;
+            
+            const form = document.getElementById('complexityForm');
+            const formData = new FormData(form);
+            
+            // Coleta as avaliações selecionadas
+            const assessments = {};
+            complexityCriteria.forEach(criterion => {
+                const selected = document.querySelector(`input[name="criteria_${criterion.id}"]:checked`);
+                if (selected) {
+                    assessments[criterion.id] = parseInt(selected.value);
+                }
+            });
+
+            if (Object.keys(assessments).length !== complexityCriteria.length) {
+                showToast('Por favor, avalie todos os critérios antes de salvar', 'error');
+                return;
+            }
+
+            const data = {
+                criteria: assessments,  // Corrige o nome do campo para 'criteria'
+                notes: document.getElementById('complexityNotes').value,
+                assessed_by: 'Usuário Sistema' // Você pode pegar do contexto do usuário
+            };
+
+            const response = await fetch(`/backlog/api/projects/${projectId}/complexity/assessment`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Erro ao salvar avaliação');
+            }
+
+            const result = await response.json();
+            
+            showToast('Avaliação de complexidade salva com sucesso!', 'success');
+            
+            // Fecha o modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('complexityModal'));
+            modal.hide();
+            
+            // Recarrega as informações de complexidade
+            loadComplexityInfo();
+            
+        } catch (error) {
+            console.error('Erro ao salvar avaliação:', error);
+            showToast('Erro ao salvar avaliação: ' + error.message, 'error');
+        } finally {
+            // Remove estado de loading
+            saveButton.classList.remove('btn-loading');
+            saveButton.innerHTML = originalText;
+            saveButton.disabled = false;
+        }
+    }
+
+    async function openComplexityHistoryModal() {
+        try {
+            const response = await fetch(`/backlog/api/projects/${projectId}/complexity/history`);
+            if (!response.ok) throw new Error('Erro ao carregar histórico');
+            
+            const history = await response.json();
+            renderComplexityHistory(history);
+            
+            const modal = new bootstrap.Modal(document.getElementById('complexityHistoryModal'));
+            modal.show();
+            
+        } catch (error) {
+            console.error('Erro ao carregar histórico:', error);
+            showToast('Erro ao carregar histórico de complexidade', 'error');
+        }
+    }
+
+    function renderComplexityHistory(history) {
+        const container = document.getElementById('complexityHistoryContainer');
+        if (!container) return;
+
+        if (history.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-clock-history fs-1"></i>
+                    <p>Nenhuma avaliação encontrada no histórico</p>
+                </div>
+            `;
+            return;
+        }
+
+        const historyHtml = history.map((assessment, index) => {
+            const categoryColors = {
+                'BAIXA': 'success',
+                'MÉDIA': 'warning',
+                'ALTA': 'danger',
+                // Compatibilidade com valores antigos
+                'LOW': 'success',
+                'MEDIUM': 'warning',
+                'HIGH': 'danger'
+            };
+            
+            const color = categoryColors[assessment.category] || 'secondary';
+            const isLatest = index === 0;
+
+            return `
+                <div class="card mb-3 ${isLatest ? 'border-primary' : ''}">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="card-title">
+                                    <span class="badge bg-${color}">${assessment.category_label}</span>
+                                    ${isLatest ? '<span class="badge bg-primary ms-1">Atual</span>' : ''}
+                                </h6>
+                                <p class="mb-1"><strong>Score:</strong> ${assessment.total_score} pontos</p>
+                                ${assessment.notes ? `<p class="text-muted small">${assessment.notes}</p>` : ''}
+                            </div>
+                            <div class="text-end text-muted small">
+                                <div>${formatDateTime(assessment.created_at)}</div>
+                                <div>por ${assessment.assessed_by}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = historyHtml;
+    }
+
+    // Expõe função global para cálculo de score
+    window.calculateComplexityScore = calculateComplexityScore;
 
     // Inicializa o módulo
     init();

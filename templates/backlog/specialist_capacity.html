@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .capacity-card {
+        border-left: 4px solid #007bff;
+        transition: all 0.3s ease;
+    }
+    .capacity-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .capacity-day {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+        border-left: 4px solid #28a745;
+    }
+    .capacity-day.warning {
+        border-left-color: #ffc107;
+        background: #fff3cd;
+    }
+    .capacity-day.danger {
+        border-left-color: #dc3545;
+        background: #f8d7da;
+    }
+    .progress-custom {
+        height: 8px;
+        border-radius: 4px;
+    }
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255,255,255,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+    .week-selector {
+        background: white;
+        border-radius: 8px;
+        padding: 1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <h3>
+        <i class="bi bi-person-badge me-2"></i>
+        Capacidade de Trabalho - {{ specialist_name }}
+    </h3>
+    
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <div id="capacityData">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Carregando...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const specialistName = '{{ specialist_name }}';
+    
+    fetch(`/backlog/api/specialists/${encodeURIComponent(specialistName)}/capacity`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('capacityData').innerHTML = `
+                <h5>Resumo da Semana</h5>
+                <p><strong>Horas Alocadas:</strong> ${data.resumo?.total_horas_semana || 0}h</p>
+                <p><strong>Horas Disponíveis:</strong> ${data.resumo?.total_horas_disponiveis || 0}h</p>
+                <p><strong>Ocupação:</strong> ${data.resumo?.percentual_ocupacao_semana || 0}%</p>
+                <p><strong>Status:</strong> ${data.resumo?.status_semana || 'Normal'}</p>
+            `;
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            document.getElementById('capacityData').innerHTML = `
+                <div class="alert alert-danger">
+                    Erro ao carregar dados de capacidade
+                </div>
+            `;
+        });
+});
+</script>
+{% endblock %} 

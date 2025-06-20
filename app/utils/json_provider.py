@@ -8,12 +8,13 @@ from flask.json.provider import JSONProvider
 # from flask.json import loads as flask_loads
 import json # Importa a biblioteca JSON padrão do Python
 import logging
+import enum  # Importa módulo enum para suporte a enums
 
 logger = logging.getLogger(__name__)
 
 class NumpyJSONProvider(JSONProvider):
     """
-    JSONProvider customizado para lidar com tipos NumPy/Pandas,
+    JSONProvider customizado para lidar com tipos NumPy/Pandas e Enums,
     corrigido para usar json.dumps diretamente e evitar recursão.
     """
     def default(self, o):
@@ -34,6 +35,9 @@ class NumpyJSONProvider(JSONProvider):
         elif pd.isna(o):
              # logger.warning(f"Valor genérico pd.isna() encontrado: {type(o)}. Convertendo para None.")
              return None
+        elif isinstance(o, enum.Enum):
+             # Serializa enums usando seu nome (ou value se preferir)
+             return o.name  # ou o.value se quiser o valor em vez do nome
 
         # Se não foi tratado, deixa o json.dumps padrão levantar TypeError
         # Não precisamos levantar explicitamente aqui, o json.dumps fará isso.
