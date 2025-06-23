@@ -211,20 +211,23 @@
                 <div>
                     <h1 class="h3 mb-1 fw-bold">
                         Status Report Histórico
+                        <small class="text-muted fs-6 fw-normal">Janeiro a Junho</small>
                     </h1>
                     {% if periodo_atual %}
                         <p class="text-muted mb-0">Análise do período de <strong>{{ periodo_atual.nome }}</strong></p>
                     {% endif %}
                 </div>
                 
-                <!-- Botão para configurar período -->
+                <!-- Botão para configurar período - OCULTO -->
+                <!-- 
                 <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#seletorPeriodoModal">
                     <i class="bi bi-calendar3 me-2"></i>Configurar Período
                 </button>
+                -->
             </div>
         </div>
 
-        <!-- KPIs - Primeira Linha -->
+        <!-- GRID 1: KPIs - Primeira Linha (MANTIDA) -->
         <div class="row g-4 mb-4">
             <!-- Projetos Únicos Fechados -->
             <div class="col-xl-4 col-md-6">
@@ -278,53 +281,29 @@
             </div>
         </div>
 
-        <!-- Gráficos Mensais de Evolução -->
+        <!-- GRID 2: Gráficos Mensais de Evolução (MANTIDA) -->
         {% if detalhes_mensais %}
         <div class="card mt-5">
             <div class="card-header">
                 <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Evolução Mensal dos KPIs</h5>
             </div>
             <div class="card-body">
-                                <div class="row g-4">
+                <div class="row g-4">
                     <!-- Gráfico: Movimentação de Projetos -->
                     <div class="col-xl-6 col-lg-12">
                         <div class="card shadow-sm h-100">
-                                                           <div class="card-body pt-4" style="height: 300px; position: relative;">
-                                    <canvas id="chartMovimentacaoProjetos"></canvas>
-                                </div>
+                            <div class="card-body pt-4" style="height: 300px; position: relative;">
+                                <canvas id="chartMovimentacaoProjetos"></canvas>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Gráfico: Horas Trabalhadas -->
                     <div class="col-xl-6 col-lg-12">
                          <div class="card shadow-sm h-100">
-                                                           <div class="card-body pt-4" style="height: 300px; position: relative;">
-                                    <canvas id="chartHorasTrabalhadas"></canvas>
-                                </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Segunda linha de gráficos -->
-                <div class="row g-4 mt-3">
-                    <!-- Gráfico: Evolução por Squad -->
-                    <div class="col-12">
-                        <div class="card shadow-sm h-100">
-                                                           <div class="card-body pt-4" style="height: 320px; position: relative;">
-                                    <canvas id="chartEvolucaoSquad"></canvas>
-                                </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Terceira linha de gráficos -->
-                <div class="row g-4 mt-3">
-                    <!-- Gráfico: Evolução do Tempo Médio de Vida -->
-                    <div class="col-12">
-                        <div class="card shadow-sm h-100">
-                                                           <div class="card-body pt-4" style="height: 320px; position: relative;">
-                                    <canvas id="chartTempoMedioVida"></canvas>
-                                </div>
+                            <div class="card-body pt-4" style="height: 300px; position: relative;">
+                                <canvas id="chartHorasTrabalhadas"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -332,63 +311,7 @@
         </div>
         {% endif %}
 
-        <!-- KPIs - Segunda Linha -->
-        <div class="row g-4 mb-4">
-            <!-- Taxa de Entrega no Prazo -->
-            <div class="col-xl-6 col-md-6">
-                <div class="card kpi-card border-success">
-                    <div class="card-body">
-                        <div class="row align-items-center">
-                            <div class="col">
-                                <div class="kpi-title text-success">Taxa de Entrega no Prazo</div>
-                                <div class="kpi-value">{{ "%.1f"|format(kpis.get('taxa_entrega_prazo', 0.0)) }}%</div>
-                            </div>
-                            <div class="col-auto">
-                                <i class="bi bi-calendar-check fs-1 text-gray-300"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Tempo Médio de Vida -->
-            <div class="col-xl-6 col-md-6">
-                <div class="card kpi-card border-info">
-                    <div class="card-body">
-                        <div class="row align-items-center">
-                            <div class="col">
-                                <div class="kpi-title text-info">Tempo Médio de Vida</div>
-                                <div class="kpi-value">{{ "%.1f"|format(kpis.get('tempo_medio_vida', 0.0)) }} dias</div>
-                            </div>
-                            <div class="col-auto">
-                                <i class="bi bi-hourglass-split fs-1 text-gray-300"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Eficiência - TEMPORARIAMENTE OCULTO -->
-            <!-- 
-            <div class="col-xl-4 col-md-6">
-                <div class="card kpi-card border-warning">
-                    <div class="card-body">
-                        <div class="row align-items-center">
-                            <div class="col">
-                                <div class="kpi-title text-warning">Eficiência</div>
-                                <div class="kpi-value">{{ "%.1f"|format(kpis.get('eficiencia_recursos', 0.0)) }}%</div>
-                            </div>
-                            <div class="col-auto">
-                                <i class="bi bi-speedometer2 fs-1 text-gray-300"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            -->
-        </div>
-
-        <!-- Seção de Distribuição por Squad -->
+        <!-- GRID 3: Seção Distribuição por Squad -->
         {% if kpis.get('distribuicao_squad') and kpis.get('distribuicao_squad', {}).get('total_geral', 0) > 0 %}
         <div class="card">
             <div class="card-header">
@@ -431,7 +354,76 @@
         </div>
         {% endif %}
 
-        <!-- Seção de Faturamento -->
+        <!-- GRID 4: Gráfico da Distribuição por Squad -->
+        {% if detalhes_mensais %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bar-chart-fill me-2"></i>Evolução por Squad</h5>
+            </div>
+            <div class="card-body">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body pt-4" style="height: 320px; position: relative;">
+                        <canvas id="chartEvolucaoSquad"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- GRID 5: Taxa de Entrega no Prazo e Tempo Médio de Vida -->
+        <div class="row g-4 mb-4">
+            <!-- Taxa de Entrega no Prazo -->
+            <div class="col-xl-6 col-md-6">
+                <div class="card kpi-card border-success">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <div class="kpi-title text-success">Taxa de Entrega no Prazo</div>
+                                <div class="kpi-value">{{ "%.1f"|format(kpis.get('taxa_entrega_prazo', 0.0)) }}%</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-calendar-check fs-1 text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tempo Médio de Vida -->
+            <div class="col-xl-6 col-md-6">
+                <div class="card kpi-card border-info">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <div class="kpi-title text-info">Tempo Médio de Vida</div>
+                                <div class="kpi-value">{{ "%.1f"|format(kpis.get('tempo_medio_vida', 0.0)) }} dias</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-hourglass-split fs-1 text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRID 6: Gráfico com Tempo Médio de Vida -->
+        {% if detalhes_mensais %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-graph-down me-2"></i>Evolução do Tempo Médio de Vida</h5>
+            </div>
+            <div class="card-body">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body pt-4" style="height: 320px; position: relative;">
+                        <canvas id="chartTempoMedioVida"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- GRID 7: Seção Distribuição por Tipo de Faturamento -->
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Distribuição por Tipo de Faturamento</h5>
@@ -475,7 +467,7 @@
             </div>
         </div>
 
-        <!-- Detalhes por Mês -->
+        <!-- GRID 8: Detalhes por Mês (com formato de horas corrigido) -->
         {% if detalhes_mensais %}
         <div class="card">
             <div class="card-header bg-info text-white">
@@ -490,7 +482,6 @@
                                 <th>Projetos Fechados</th>
                                 <th>Projetos Abertos</th>
                                 <th>Horas Trabalhadas</th>
-                                <!-- <th>Eficiência Recursos</th> TEMPORARIAMENTE OCULTO -->
                                 <th>Taxa Prazo</th>
                                 <th>Tempo Médio Vida</th>
                             </tr>
@@ -501,8 +492,7 @@
                                 <td><strong>{{ detalhes.nome }}</strong></td>
                                 <td><span class="badge bg-success">{{ detalhes.fechados }}</span></td>
                                 <td><span class="badge bg-primary">{{ detalhes.abertos }}</span></td>
-                                <td><span class="badge bg-warning text-dark">{{ detalhes.horas }}h</span></td>
-                                <!-- <td><span class="badge bg-info">{{ "%.1f"|format(detalhes.eficiencia_recursos) }}%</span></td> TEMPORARIAMENTE OCULTO -->
+                                <td><span class="badge bg-warning text-dark">{{ "%.1f"|format(detalhes.horas) }}h</span></td>
                                 <td><span class="badge bg-success">{{ "%.1f"|format(detalhes.taxa_prazo) }}%</span></td>
                                 <td><span class="badge bg-dark text-white">{{ "%.1f"|format(detalhes.tempo_medio_vida) }} dias</span></td>
                             </tr>
@@ -701,7 +691,7 @@
                 }
             });
 
-            // Gráfico de Horas Trabalhadas (Linha)
+            // Gráfico de Horas Trabalhadas (Linha) - FORMATO CORRIGIDO
             const ctxHoras = document.getElementById('chartHorasTrabalhadas').getContext('2d');
             const gradientHoras = ctxHoras.createLinearGradient(0, 0, 0, 300);
             gradientHoras.addColorStop(0, 'rgba(255, 193, 7, 0.6)');
@@ -736,13 +726,13 @@
                             font: { weight: 'bold', size: 11 },
                             padding: 4,
                             offset: -10,
-                            formatter: (value) => Math.round(value) + 'h'
+                            formatter: (value) => Math.round(value * 10) / 10 + 'h'  // FORMATO CORRIGIDO: 1 casa decimal
                         },
                         tooltip: {
                              ...tooltipSharedConfig,
                             callbacks: {
                                 ...tooltipSharedConfig.callbacks,
-                                label: (context) => `${context.dataset.label}: ${Math.round(context.raw)}h`
+                                label: (context) => `${context.dataset.label}: ${Math.round(context.raw * 10) / 10}h`  // FORMATO CORRIGIDO
                             }
                         },
                         legend: { display: false }
