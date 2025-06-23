@@ -89,10 +89,14 @@
             border-left-color: var(--dark-bg);
         }
 
+        .kpi-card .card-body {
+            padding: 2rem 1rem;
+        }
+        
         .kpi-number {
             font-size: 2.5rem;
-            font-weight: 700;
-            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            font-weight: bold;
+            line-height: 1;
         }
 
         .kpi-title {
@@ -106,20 +110,14 @@
         /* Faturamento */
         .badge-custom {
             font-size: 1.2rem;
-            padding: 0.5rem 0.75rem;
-            border-radius: 0.5rem;
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            padding: 0.5rem 1rem;
         }
 
         .faturamento-item {
             text-align: center;
             padding: 1rem;
-            border: 1px solid #dee2e6;
-            border-radius: 0.5rem;
-            background-color: #fff;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            border-left: 4px solid var(--secondary-color);
+            border-radius: 8px;
+            background-color: #f8f9fa;
         }
 
         .faturamento-item:hover {
@@ -187,6 +185,30 @@
             .kpi-number {
                 font-size: 2rem;
             }
+        }
+
+        /* Estilos para Squad Cards */
+        .squad-card {
+            padding: 1.5rem;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            height: 100%;
+            transition: transform 0.2s;
+        }
+
+        .squad-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .squad-number {
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+
+        .squad-badges .badge {
+            margin: 0.2rem;
+            font-size: 0.75rem;
         }
     </style>
 </head>
@@ -305,18 +327,59 @@
                 </div>
             </div>
 
-            <!-- Produtividade -->
+            <!-- Tempo Médio de Vida -->
             <div class="col-md-6 mb-3">
                 <div class="card kpi-card text-white bg-dark">
                     <div class="card-body text-center">
-                        <i class="bi bi-graph-up-arrow fs-1 mb-2"></i>
-                        <h5 class="card-title">PRODUTIVIDADE</h5>
-                        <div class="kpi-number">{{ "%.3f"|format(kpis.produtividade) }}</div>
-                        <small class="opacity-75">Projetos por hora trabalhada</small>
+                        <i class="bi bi-clock-history fs-1 mb-2"></i>
+                        <h5 class="card-title">TEMPO MÉDIO DE VIDA</h5>
+                        <div class="kpi-number">{{ "%.1f"|format(kpis.tempo_medio_vida) }}</div>
+                        <small class="opacity-75">dias por projeto</small>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Seção de Distribuição por Squad -->
+        {% if kpis.distribuicao_squad and kpis.distribuicao_squad.total_geral > 0 %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i>Distribuição por Squad</h5>
+                        <small class="text-white-50">Projetos Abertos por Squad - Total: {{ kpis.distribuicao_squad.total_geral }}</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <!-- AZURE -->
+                            <div class="col-md-4 col-sm-6 mb-3">
+                                <div class="squad-card" style="border-left: 4px solid #007bff;">
+                                    <h6 class="text-primary mb-1">AZURE</h6>
+                                    <div class="squad-number display-6 text-primary">{{ kpis.distribuicao_squad.total_squad.get('AZURE', 0) }}</div>
+                                </div>
+                            </div>
+
+                            <!-- M365 -->
+                            <div class="col-md-4 col-sm-6 mb-3">
+                                <div class="squad-card" style="border-left: 4px solid #28a745;">
+                                    <h6 class="text-success mb-1">M365</h6>
+                                    <div class="squad-number display-6 text-success">{{ kpis.distribuicao_squad.total_squad.get('M365', 0) }}</div>
+                                </div>
+                            </div>
+
+                            <!-- DATA&POWER -->
+                            <div class="col-md-4 col-sm-6 mb-3">
+                                <div class="squad-card" style="border-left: 4px solid #fd7e14;">
+                                    <h6 class="text-warning mb-1">DATA&POWER</h6>
+                                    <div class="squad-number display-6 text-warning">{{ kpis.distribuicao_squad.total_squad.get('DATA&POWER', 0) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Seção de Faturamento -->
         <div class="row mb-4">
@@ -364,7 +427,7 @@
                                         <th>Horas Trabalhadas</th>
                                         <th>Eficiência Recursos</th>
                                         <th>Taxa Prazo</th>
-                                        <th>Produtividade</th>
+                                        <th>Tempo Médio Vida</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -376,7 +439,7 @@
                                         <td><span class="badge bg-warning text-dark">{{ detalhes.horas }}h</span></td>
                                         <td><span class="badge bg-info">{{ "%.1f"|format(detalhes.eficiencia_recursos) }}%</span></td>
                                         <td><span class="badge bg-success">{{ "%.1f"|format(detalhes.taxa_prazo) }}%</span></td>
-                                        <td><span class="badge bg-dark text-white">{{ "%.3f"|format(detalhes.produtividade) }}</span></td>
+                                        <td><span class="badge bg-dark text-white">{{ "%.1f"|format(detalhes.tempo_medio_vida) }} dias</span></td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>

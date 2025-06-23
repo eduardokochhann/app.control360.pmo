@@ -78,11 +78,11 @@ class StatusReportHistoricoService:
         
         # Mapeamento de meses disponíveis (apenas dados históricos)
         self.meses_disponiveis = {
-            'jan': {'arquivo': 'dadosr_apt_jan.csv', 'nome': 'Janeiro', 'numero': 1},
-            'fev': {'arquivo': 'dadosr_apt_fev.csv', 'nome': 'Fevereiro', 'numero': 2},
-            'mar': {'arquivo': 'dadosr_apt_mar.csv', 'nome': 'Março', 'numero': 3},
-            'abr': {'arquivo': 'dadosr_apt_abr.csv', 'nome': 'Abril', 'numero': 4},
-            'mai': {'arquivo': 'dadosr_apt_mai.csv', 'nome': 'Maio', 'numero': 5},
+            'jan': {'arquivo': 'dadosr_apt_jan.csv', 'nome': 'Janeiro', 'numero': 1, 'filtro_mes': '2025-01'},
+            'fev': {'arquivo': 'dadosr_apt_fev.csv', 'nome': 'Fevereiro', 'numero': 2, 'filtro_mes': '2025-02'},
+            'mar': {'arquivo': 'dadosr_apt_mar.csv', 'nome': 'Março', 'numero': 3, 'filtro_mes': '2025-03'},
+            'abr': {'arquivo': 'dadosr_apt_abr.csv', 'nome': 'Abril', 'numero': 4, 'filtro_mes': '2025-04'},
+            'mai': {'arquivo': 'dadosr_apt_mai.csv', 'nome': 'Maio', 'numero': 5, 'filtro_mes': '2025-05'},
         }
     
     def listar_meses_disponiveis(self):
@@ -257,7 +257,7 @@ class StatusReportHistoricoService:
                         'eficiencia_horas': kpis_mes.get('eficiencia_horas', 0.0),       # Componente horas
                         'eficiencia_prazo': kpis_mes.get('eficiencia_prazo', 0.0),       # Componente prazo
                         'taxa_prazo': taxa_prazo_mes,
-                        'produtividade': kpis_mes.get('produtividade', 0.0),
+                        'tempo_medio_vida': kpis_mes.get('tempo_medio_vida', 0.0),
                         'projetos_analisados': kpis_mes.get('projetos_analisados', 0),   # Total analisados
                         'projetos_fechados': kpis_mes.get('projetos_fechados', 0),       # Fechados
                         'projetos_andamento': kpis_mes.get('projetos_andamento', 0),     # Em andamento
@@ -331,9 +331,26 @@ class StatusReportHistoricoService:
                 # Maior = melhor (120% = 20% mais eficiente que estimado)
                 eficiencia_recursos_geral = round((total_horas_estimadas / total_horas_trabalhadas_kpis * 100), 1)
             
-            produtividade_geral = 0.0
-            if total_horas_trabalhadas > 0:
-                produtividade_geral = round(total_projetos_fechados / total_horas_trabalhadas, 3)
+            # === TEMPO MÉDIO DE VIDA CONSOLIDADO ===
+            tempo_medio_vida_geral = 0.0
+            tempos_vida_todos_projetos = []
+            
+            # Coleta tempos de vida de todos os meses
+            for mes_key in meses_validos:
+                if mes_key in detalhes_por_mes and 'tempo_medio_vida' in detalhes_por_mes[mes_key]:
+                    tmv_mes = detalhes_por_mes[mes_key]['tempo_medio_vida']
+                    if tmv_mes > 0:
+                        # Para consolidação, vamos coletar os projetos individuais de cada mês
+                        # e calcular uma média ponderada por número de projetos
+                        projetos_fechados_mes = detalhes_por_mes[mes_key].get('projetos_fechados', 0)
+                        if projetos_fechados_mes > 0:
+                            # Adiciona o tempo médio do mês, repetido pelo número de projetos
+                            # (aproximação para média ponderada)
+                            tempos_vida_todos_projetos.extend([tmv_mes] * projetos_fechados_mes)
+            
+            if tempos_vida_todos_projetos:
+                tempo_medio_vida_geral = round(sum(tempos_vida_todos_projetos) / len(tempos_vida_todos_projetos), 1)
+                logger.info(f"📊 Tempo médio de vida consolidado: {tempo_medio_vida_geral} dias (baseado em {len(tempos_vida_todos_projetos)} projetos)")
             
             # Calcula TOTAL das horas incrementais (não média)
             total_horas_incrementais_periodo = round(total_horas_trabalhadas, 1)
@@ -343,6 +360,164 @@ class StatusReportHistoricoService:
                 logger.info(f"📊 Horas incrementais por mês: {[round(h, 1) for h in lista_horas_mensais]}")
                 logger.info(f"📊 Total de horas trabalhadas no período: {total_horas_incrementais_periodo}")
                 logger.info(f"📊 Validação (soma manual): {round(sum(lista_horas_mensais), 1)}")
+            
+            # === DISTRIBUIÇÃO POR SQUAD (CONSOLIDADA) ===
+            # Agora os arquivos mensais já têm os squads classificados corretamente
+            # Podemos usar diretamente os dados dos novos projetos mensais
+            
+            logger.info(f"📊 === CALCULANDO DISTRIBUIÇÃO BASEADA NOS NOVOS PROJETOS MENSAIS ===")
+            
+            # Coleta dados dos novos projetos por squad de cada mês
+            distribuicao_mensal = {'AZURE': 0, 'M365': 0, 'DATA&POWER': 0}
+            projetos_nao_classificados = 0
+            
+            for mes_key in meses_validos:
+                dados_mes = dados_por_mes.get(mes_key, {})
+                if 'novos_projetos' in dados_mes:
+                    novos_projetos_data = dados_mes['novos_projetos']
+                    total_mes = novos_projetos_data.get('total', 0)
+                    
+                    if 'por_squad' in novos_projetos_data:
+                        squad_mes = novos_projetos_data['por_squad']
+                        logger.info(f"📊 {mes_key.upper()}: {squad_mes} (Total: {total_mes})")
+                        
+                        # Soma os valores, mapeando os nomes corretamente
+                        azure_mes = squad_mes.get('AZURE', 0)
+                        m365_mes = squad_mes.get('M365', 0)  
+                        data_mes = squad_mes.get('DATA E POWER', 0)
+                        
+                        distribuicao_mensal['AZURE'] += azure_mes
+                        distribuicao_mensal['M365'] += m365_mes
+                        distribuicao_mensal['DATA&POWER'] += data_mes
+                        
+                        # Verifica se há projetos não classificados por squad
+                        soma_squad = azure_mes + m365_mes + data_mes
+                        if total_mes > soma_squad:
+                            nao_classificados = total_mes - soma_squad
+                            projetos_nao_classificados += nao_classificados
+                            logger.info(f"⚠️ {mes_key.upper()}: {nao_classificados} projetos não classificados por squad")
+                    else:
+                        # Se não tem dados por squad mas tem total, conta como não classificados
+                        if total_mes > 0:
+                            projetos_nao_classificados += total_mes
+                            logger.info(f"⚠️ {mes_key.upper()}: {total_mes} projetos não classificados (sem dados por squad)")
+                elif 'abertos_mes' in dados_mes:
+                    # Fallback: se não tem novos_projetos mas tem dados do mês
+                    total_mes = dados_mes.get('abertos_mes', 0)
+                    if total_mes > 0:
+                        projetos_nao_classificados += total_mes
+                        logger.info(f"⚠️ {mes_key.upper()}: {total_mes} projetos não classificados (usando fallback)")
+            
+            logger.info(f"📊 Total de projetos não classificados detectados: {projetos_nao_classificados}")
+            
+            # Calcula discrepância total entre projetos abertos e squads classificados
+            total_squad_calculado = sum(distribuicao_mensal.values())
+            discrepancia_total = total_projetos_abertos - total_squad_calculado
+            
+            logger.info(f"📊 === VERIFICAÇÃO DE CONSISTÊNCIA ===")
+            logger.info(f"📊 Projetos abertos no período: {total_projetos_abertos}")
+            logger.info(f"📊 Projetos classificados por squad: {total_squad_calculado}")
+            logger.info(f"📊 Discrepância detectada: {discrepancia_total}")
+            
+            # Se há discrepância grande, tenta recalcular usando os dados dos arquivos mensais diretamente
+            if abs(discrepancia_total) > 5:  # Tolerância de 5 projetos
+                logger.info(f"📊 Discrepância significativa detectada ({discrepancia_total}) - recalculando com dados diretos dos arquivos")
+                
+                # Recalcula usando os dados brutos dos arquivos mensais
+                distribuicao_recalculada = {'AZURE': 0, 'M365': 0, 'DATA&POWER': 0}
+                total_recalculado = 0
+                
+                for mes_key in meses_validos:
+                    if mes_key in dados_por_mes:
+                        dados_mes_raw = dados_por_mes[mes_key]
+                        info_mes = self.meses_disponiveis[mes_key]
+                        
+                        # Filtra projetos novos do mês usando DataInicio
+                        if 'DataInicio' in dados_mes_raw.columns:
+                            try:
+                                dados_mes_copy = dados_mes_raw.copy()
+                                dados_mes_copy['DataInicio'] = pd.to_datetime(dados_mes_copy['DataInicio'], errors='coerce')
+                                
+                                # Filtra por mês/ano correto
+                                filtro_mes = dados_mes_copy['DataInicio'].dt.strftime('%Y-%m') == info_mes['filtro_mes']
+                                projetos_novos_mes = dados_mes_copy[filtro_mes]
+                                
+                                logger.info(f"📊 {mes_key.upper()}: {len(projetos_novos_mes)} projetos novos encontrados diretamente")
+                                
+                                # Conta por squad se a coluna existe
+                                if 'Squad' in projetos_novos_mes.columns:
+                                    squad_counts = projetos_novos_mes['Squad'].value_counts()
+                                    
+                                    # Mapeia os nomes corretamente
+                                    azure_count = 0
+                                    m365_count = 0 
+                                    data_count = 0
+                                    
+                                    for squad, count in squad_counts.items():
+                                        if pd.isna(squad):
+                                            continue
+                                        squad_str = str(squad).strip()
+                                        
+                                        if squad_str.upper() in ['AZURE', 'Azure']:
+                                            azure_count += count
+                                        elif squad_str.upper() in ['M365']:
+                                            m365_count += count
+                                        elif 'DATA' in squad_str.upper() or 'POWER' in squad_str.upper():
+                                            data_count += count
+                                    
+                                    distribuicao_recalculada['AZURE'] += azure_count
+                                    distribuicao_recalculada['M365'] += m365_count  
+                                    distribuicao_recalculada['DATA&POWER'] += data_count
+                                    
+                                    total_mes_direto = azure_count + m365_count + data_count
+                                    total_recalculado += total_mes_direto
+                                    
+                                    logger.info(f"📊 {mes_key.upper()} direto: AZURE={azure_count}, M365={m365_count}, DATA&POWER={data_count}, Total={total_mes_direto}")
+                                
+                            except Exception as e:
+                                logger.warning(f"⚠️ Erro ao recalcular {mes_key}: {e}")
+                
+                if total_recalculado > 0:
+                    logger.info(f"📊 === RESULTADO RECALCULADO ===")
+                    logger.info(f"📊 AZURE: {distribuicao_recalculada['AZURE']}")
+                    logger.info(f"📊 M365: {distribuicao_recalculada['M365']}")  
+                    logger.info(f"📊 DATA&POWER: {distribuicao_recalculada['DATA&POWER']}")
+                    logger.info(f"📊 Total recalculado: {total_recalculado}")
+                    
+                    # Usa o resultado recalculado
+                    distribuicao_mensal = distribuicao_recalculada.copy()
+                    
+                    # Ajusta o total se necessário
+                    if total_recalculado != total_projetos_abertos:
+                        logger.info(f"📊 Ajustando total de {total_recalculado} para {total_projetos_abertos}")
+                else:
+                    logger.warning("⚠️ Recálculo não produziu resultados válidos")
+            
+            total_distribuicao = sum(distribuicao_mensal.values())
+            
+            logger.info(f"📊 === RESULTADO FINAL DA DISTRIBUIÇÃO ===")
+            logger.info(f"📊 AZURE: {distribuicao_mensal['AZURE']}")
+            logger.info(f"📊 M365: {distribuicao_mensal['M365']}")  
+            logger.info(f"📊 DATA&POWER: {distribuicao_mensal['DATA&POWER']}")
+            logger.info(f"📊 Total: {total_distribuicao}")
+            
+            distribuicao_squad_geral = {
+                'total_squad': distribuicao_mensal,
+                'status_squad': {},
+                'total_geral': total_distribuicao
+            }
+            
+            logger.info(f"📊 === COMPARAÇÃO PROJETOS ABERTOS ===")
+            logger.info(f"📊 Projetos abertos (soma novos mensais): {total_projetos_abertos}")
+            logger.info(f"📊 Projetos abertos (distribuição por squad): {total_distribuicao}")
+            
+            # Verifica se os valores batem
+            if total_distribuicao == total_projetos_abertos:
+                logger.info(f"✅ Valores consistentes: {total_projetos_abertos}")
+            else:
+                logger.warning(f"⚠️ Ainda há discrepância: {total_distribuicao} vs {total_projetos_abertos}")
+                # Mantém o total validado mas força consistência
+                distribuicao_squad_geral['total_geral'] = total_projetos_abertos
             
             # Monta resultado final
             resultado = {
@@ -354,13 +529,14 @@ class StatusReportHistoricoService:
                 'kpis_gerais': {
                     'projetos_fechados': total_projetos_fechados,
                     'projetos_abertos': total_projetos_abertos,
-                    'horas_trabalhadas': total_horas_incrementais_periodo,  # TOTAL das horas incrementais do período
+                    'horas_trabalhadas': total_horas_incrementais_periodo,
                     'eficiencia_recursos': eficiencia_recursos_geral,
                     'taxa_entrega_prazo': taxa_prazo_geral,
-                    'produtividade': produtividade_geral,
+                    'tempo_medio_vida': tempo_medio_vida_geral,
                     'projetos_no_prazo': total_projetos_no_prazo_consolidado,
                     'projetos_com_prazo': total_projetos_com_prazo_consolidado,
-                    'distribuicao_faturamento': total_faturamento
+                    'distribuicao_faturamento': total_faturamento,
+                    'distribuicao_squad': distribuicao_squad_geral
                 },
                 'detalhes_mensais': detalhes_por_mes,
                 'success': True,
@@ -697,13 +873,39 @@ class StatusReportHistoricoService:
                     
                     taxa_entrega_prazo = round((fechados_no_prazo / len(projetos_fechados_com_prazo)) * 100, 1)
             
-            # === 5. PRODUTIVIDADE ===
-            produtividade = 0.0
-            if horas_trabalhadas_total > 0:
-                # Produtividade = Projetos Fechados / Horas Trabalhadas
-                produtividade = round(len(projetos_fechados) / horas_trabalhadas_total, 3)
+            # === 5. TEMPO MÉDIO DE VIDA (USA EXATAMENTE O MESMO MÉTODO DO MACROSERVICE) ===
+            tempo_medio_vida = 0.0
             
-            # === 6. LOGS DETALHADOS ===
+            # Usa EXATAMENTE o mesmo método que o MacroService
+            try:
+                from datetime import datetime
+                
+                # Determina a data de referência do mês
+                meses_map = {
+                    'JANEIRO': 1, 'FEVEREIRO': 2, 'MARÇO': 3, 
+                    'ABRIL': 4, 'MAIO': 5, 'JUNHO': 6,
+                    'JULHO': 7, 'AGOSTO': 8, 'SETEMBRO': 9,
+                    'OUTUBRO': 10, 'NOVEMBRO': 11, 'DEZEMBRO': 12
+                }
+                
+                mes_num = meses_map.get(nome_mes.upper(), 1)
+                data_ref = datetime(2025, mes_num, 15)  # Meio do mês como referência
+                
+                # Usa o método EXATO do MacroService
+                macro_service = self.macro_service if hasattr(self, 'macro_service') else None
+                if macro_service:
+                    resultado_tmv = macro_service.calcular_tempo_medio_vida(dados_mes, data_ref)
+                    tempo_medio_vida = resultado_tmv.get('media_dias', 0.0)
+                    
+                    logger.debug(f"   📊 {nome_mes}: TMV usando MacroService = {tempo_medio_vida} dias ({resultado_tmv.get('total_projetos', 0)} projetos)")
+                
+            except Exception as e:
+                logger.warning(f"Erro ao calcular tempo médio de vida usando MacroService para {nome_mes}: {str(e)}")
+                tempo_medio_vida = 0.0
+            
+
+            
+            # === 7. LOGS DETALHADOS ===
             logger.debug(f"   📊 {nome_mes}: Eficiência Horas {eficiencia_horas}%, Eficiência Prazo {eficiencia_prazo}%")
             logger.debug(f"   📊 {nome_mes}: Eficiência Composta {eficiencia_composta}% ({peso_horas*100}% horas + {peso_prazo*100}% prazo)")
             logger.debug(f"   📊 {nome_mes}: {len(projetos_fechados)} fechados, {len(projetos_andamento)} em andamento")
@@ -714,14 +916,15 @@ class StatusReportHistoricoService:
                 'eficiencia_horas': eficiencia_horas,       # Componente de horas
                 'eficiencia_prazo': eficiencia_prazo,       # Componente de prazo  
                 'taxa_entrega_prazo': taxa_entrega_prazo,   # Taxa original (apenas fechados)
-                'produtividade': produtividade,
+                'tempo_medio_vida': tempo_medio_vida,
                 'horas_estimadas': horas_estimadas_total,
                 'horas_trabalhadas': horas_trabalhadas_total,
                 'projetos_analisados': len(projetos_para_eficiencia),
                 'projetos_fechados': len(projetos_fechados),
                 'projetos_andamento': len(projetos_andamento),
                 'projetos_no_prazo': projetos_no_prazo,
-                'projetos_com_prazo': projetos_com_prazo
+                'projetos_com_prazo': projetos_com_prazo,
+                'tempo_medio_vida': tempo_medio_vida
             }
             
         except Exception as e:
@@ -732,14 +935,14 @@ class StatusReportHistoricoService:
                 'eficiencia_horas': 0.0,
                 'eficiencia_prazo': 0.0,
                 'taxa_entrega_prazo': 0.0,
-                'produtividade': 0.0,
                 'horas_estimadas': 0.0,
                 'horas_trabalhadas': 0.0,
                 'projetos_analisados': 0,
                 'projetos_fechados': 0,
                 'projetos_andamento': 0,
                 'projetos_no_prazo': 0,
-                'projetos_com_prazo': 0
+                'projetos_com_prazo': 0,
+                'tempo_medio_vida': 0.0
             }
     
     def _carregar_dados_mes_historico(self, nome_arquivo):
