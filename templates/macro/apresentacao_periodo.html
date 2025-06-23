@@ -9,6 +9,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
@@ -20,6 +22,8 @@
             --success-color: #27ae60;
             --warning-color: #f39c12;
             --danger-color: #c0392b;
+            --info-color: #17a2b8;
+            --dark-color: #34495e;
             --light-bg: #f8f9fa;
             --dark-bg: #2c3e50;
         }
@@ -31,15 +35,16 @@
         }
 
         .card { 
-            margin-bottom: 1rem; 
+            margin-bottom: 1.5rem; 
             border-radius: 0.5rem;
             box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1) !important;
             border: none;
             transition: transform 0.2s ease-in-out;
+            height: 100%;
         }
 
         .card:hover {
-            transform: translateY(-2px);
+            transform: translateY(-3px);
         }
 
         .card-header {
@@ -47,114 +52,98 @@
             color: white;
             border-radius: 0.5rem 0.5rem 0 0 !important;
             font-weight: 600;
-            padding: 1rem;
+            padding: 1rem 1.5rem;
         }
 
         /* KPI Cards */
         .kpi-card {
-            height: 100%;
-            transition: all 0.3s ease;
             border-left: 4px solid var(--secondary-color);
-            border-radius: 0.5rem;
-            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1) !important;
-        }
-
-        .kpi-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .kpi-card.text-white.bg-success {
-            background: linear-gradient(135deg, var(--success-color) 0%, #2ecc71 100%) !important;
-            border-left-color: var(--success-color);
-        }
-
-        .kpi-card.text-white.bg-primary {
-            background: linear-gradient(135deg, var(--secondary-color) 0%, #5dade2 100%) !important;
-            border-left-color: var(--secondary-color);
-        }
-
-        .kpi-card.text-white.bg-info {
-            background: linear-gradient(135deg, #17a2b8 0%, #5bc0de 100%) !important;
-            border-left-color: #17a2b8;
-        }
-
-        .kpi-card.text-white.bg-warning {
-            background: linear-gradient(135deg, var(--warning-color) 0%, #f1c40f 100%) !important;
-            border-left-color: var(--warning-color);
-        }
-
-        .kpi-card.text-white.bg-dark {
-            background: linear-gradient(135deg, var(--dark-bg) 0%, #34495e 100%) !important;
-            border-left-color: var(--dark-bg);
         }
 
         .kpi-card .card-body {
-            padding: 2rem 1rem;
+            padding: 1.5rem;
         }
         
-        .kpi-number {
-            font-size: 2.5rem;
-            font-weight: bold;
-            line-height: 1;
-        }
-
-        .kpi-title {
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 0.5rem;
-        }
-
-        /* Faturamento */
-        .badge-custom {
-            font-size: 1.2rem;
-            padding: 0.5rem 1rem;
-        }
-
-        .faturamento-card {
-            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-            border-radius: 12px;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        }
-
-        .faturamento-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-        }
-
-        .faturamento-icon i {
-            font-size: 1.2rem;
-        }
-
-        .faturamento-number .badge-lg {
-            font-size: 1.4rem;
-            padding: 0.6rem 1.2rem;
-            border-radius: 25px;
-            font-weight: 600;
-        }
-
-        .bg-gradient-warning {
-            background: linear-gradient(135deg, #ffc107 0%, #ffeb3b 100%);
-        }
-
-        /* Tabelas */
-        .table {
-            border-collapse: separate;
-            border-spacing: 0;
-        }
-
-        .table thead th {
-            background-color: var(--light-bg);
-            font-weight: 600;
-            border-bottom: 2px solid #dee2e6;
+        .kpi-value {
+            font-size: 2.2rem;
+            font-weight: 700;
             color: var(--primary-color);
         }
 
-        .table tbody tr:hover {
-            background-color: rgba(52, 152, 219, 0.05);
+        .kpi-title {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Cores de Borda para KPIs */
+        .border-success { border-left-color: var(--success-color) !important; }
+        .border-primary { border-left-color: var(--secondary-color) !important; }
+        .border-info { border-left-color: var(--info-color) !important; }
+        .border-warning { border-left-color: var(--warning-color) !important; }
+        .border-danger { border-left-color: var(--danger-color) !important; }
+        .border-dark { border-left-color: var(--dark-color) !important; }
+
+        /* Squad Card Borders */
+        .azure-border { border-left: 4px solid #0078D4 !important; }
+        .m365-border { border-left: 4px solid #D83B01 !important; }
+        .datapower-border { border-left: 4px solid #107C10 !important; }
+
+        /* Squad Cards */
+        .squad-section .card-body {
+            padding: 0;
+        }
+        .squad-item {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+        .squad-item:last-child {
+            border-bottom: none;
+        }
+        @media (min-width: 768px) {
+            .squad-item {
+                border-right: 1px solid #eee;
+                border-bottom: none;
+            }
+            .squad-item:last-child {
+                border-right: none;
+            }
+        }
+        .squad-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .squad-value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        /* Faturamento List */
+        .faturamento-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .faturamento-list-item:last-child {
+            border-bottom: none;
+        }
+        .faturamento-label {
+            font-weight: 500;
+        }
+        .faturamento-badge {
+            font-size: 0.9rem;
+            font-weight: 700;
+            padding: 0.4rem 0.8rem;
+            border-radius: 50px;
         }
 
         /* Modal e seletor */
@@ -163,76 +152,25 @@
             border-radius: 10px;
             padding: 1rem;
         }
-
-        .mes-checkbox {
-            margin: 0.25rem;
-            padding: 0.5rem;
-            border: 1px solid #dee2e6;
-            border-radius: 0.25rem;
-            background-color: #fff;
-            transition: all 0.2s ease;
-        }
-
-        .mes-checkbox:hover {
-            background-color: var(--light-bg);
-        }
-
-        .mes-checkbox input:checked + label {
-            font-weight: bold;
-            color: var(--secondary-color);
-        }
-
-        /* Alertas */
-        .alert {
-            border-radius: 0.5rem;
-            border: none;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        }
-
-        /* Media Queries */
-        @media (max-width: 768px) {
-            .kpi-number {
-                font-size: 2rem;
-            }
-        }
-
-        /* Estilos para Squad Cards */
-        .squad-card {
-            padding: 1.5rem;
-            border-radius: 8px;
-            background-color: #f8f9fa;
-            height: 100%;
-            transition: transform 0.2s;
-        }
-
-        .squad-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-
-        .squad-number {
-            font-weight: bold;
-            margin: 0.5rem 0;
-        }
-
-        .squad-badges .badge {
-            margin: 0.2rem;
-            font-size: 0.75rem;
-        }
     </style>
 </head>
 <body class="bg-light">
 
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <nav class="navbar navbar-expand-lg navbar-dark shadow-sm" style="background-color: var(--primary-color);">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('macro.dashboard') }}">
-                <i class="bi bi-graph-up me-2"></i>Control360
+            <a class="navbar-brand fw-bold" href="{{ url_for('macro.dashboard') }}">
+                <i class="bi bi-graph-up-arrow me-2"></i>Control360
             </a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="{{ url_for('macro.dashboard') }}">Dashboard</a>
-                <a class="nav-link" href="{{ url_for('macro.apresentacao') }}">Status Report Mensal</a>
-                <a class="nav-link active" href="#">Status Report Histórico</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="mainNavbar">
+                <div class="navbar-nav ms-auto">
+                    <a class="nav-link" href="{{ url_for('macro.dashboard') }}">Dashboard</a>
+                    <a class="nav-link" href="{{ url_for('macro.apresentacao') }}">Status Report Mensal</a>
+                    <a class="nav-link active" href="#">Status Report Histórico</a>
+                </div>
             </div>
         </div>
     </nav>
@@ -241,147 +179,169 @@
     <div class="container-fluid mt-4">
         
         <!-- Cabeçalho -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h1 class="h3 mb-0">
-                    📊 Status Report Histórico
-                </h1>
-                {% if periodo_atual %}
-                    <p class="text-muted small mb-0">Período: {{ periodo_atual.nome }}</p>
-                {% endif %}
+        <div class="p-4 mb-4 bg-white rounded-3 shadow-sm border-start border-5 border-primary">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-1 fw-bold">
+                        Status Report Histórico
+                    </h1>
+                    {% if periodo_atual %}
+                        <p class="text-muted mb-0">Análise do período de <strong>{{ periodo_atual.nome }}</strong></p>
+                    {% endif %}
+                </div>
+                
+                <!-- Botão para configurar período -->
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#seletorPeriodoModal">
+                    <i class="bi bi-calendar3 me-2"></i>Configurar Período
+                </button>
             </div>
-            
-            <!-- Botão para configurar período -->
-            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#seletorPeriodoModal">
-                <i class="bi bi-calendar3 me-2"></i>Configurar Período
-            </button>
         </div>
 
-        <!-- Contexto da Análise -->
-        <div class="alert alert-info mb-4">
-            <i class="bi bi-info-circle me-2"></i>
-            <strong>Dados Históricos:</strong> 
-            Utilizando apenas arquivos arquivados (dadosr_apt_XXX.csv) - dados já fechados e validados, 
-            sem incluir o mês atual em andamento.
-        </div>
-
-        <!-- Cards Principais - Primeira Linha -->
-        <div class="row mb-4">
+        <!-- KPIs - Primeira Linha -->
+        <div class="row g-4 mb-4">
             <!-- Projetos Fechados -->
-            <div class="col-md-3 mb-3">
-                <div class="card kpi-card text-white bg-success">
-                    <div class="card-body text-center">
-                        <i class="bi bi-check-circle-fill fs-1 mb-2"></i>
-                        <h5 class="card-title">PROJETOS ÚNICOS FECHADOS</h5>
-                        <div class="kpi-number">{{ kpis.projetos_fechados }}</div>
-                        <small class="opacity-75">{{ periodo_atual.nome }}</small>
+            <div class="col-xl-4 col-md-6">
+                <div class="card kpi-card border-success">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <div class="kpi-title text-success">Projetos Únicos Fechados</div>
+                                <div class="kpi-value">{{ kpis.projetos_fechados }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-check2-circle fs-1 text-gray-300"></i>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Projetos Abertos -->
-            <div class="col-md-3 mb-3">
-                <div class="card kpi-card text-white bg-primary">
-                    <div class="card-body text-center">
-                        <i class="bi bi-folder-plus fs-1 mb-2"></i>
-                        <h5 class="card-title">PROJETOS ÚNICOS ABERTOS</h5>
-                        <div class="kpi-number">{{ kpis.projetos_abertos }}</div>
-                        <small class="opacity-75">{{ periodo_atual.nome }}</small>
+            <div class="col-xl-4 col-md-6">
+                <div class="card kpi-card border-primary">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <div class="kpi-title text-primary">Projetos Únicos Abertos</div>
+                                <div class="kpi-value">{{ kpis.projetos_abertos }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-folder-plus fs-1 text-gray-300"></i>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Horas Trabalhadas -->
-            <div class="col-md-3 mb-3">
-                <div class="card kpi-card text-white bg-info">
-                    <div class="card-body text-center">
-                        <i class="bi bi-clock-fill fs-1 mb-2"></i>
-                        <h5 class="card-title">HORAS TRABALHADAS</h5>
-                        <div class="kpi-number">{{ "%.0f"|format(kpis.horas_trabalhadas) }}</div>
-                        <small class="opacity-75">{{ periodo_atual.nome }}</small>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Eficiência de Recursos -->
-            <div class="col-md-3 mb-3">
-                <div class="card kpi-card text-white bg-warning">
-                    <div class="card-body text-center">
-                        <i class="bi bi-speedometer2 fs-1 mb-2"></i>
-                        <h5 class="card-title">EFICIÊNCIA</h5>
-                        <div class="kpi-number">{{ "%.1f"|format(kpis.eficiencia_recursos) }}%</div>
-                        <small class="opacity-75">Estimado vs Real</small>
+            <div class="col-xl-4 col-md-6">
+                <div class="card kpi-card border-info">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <div class="kpi-title text-info">Horas Trabalhadas</div>
+                                <div class="kpi-value">{{ "%.0f"|format(kpis.horas_trabalhadas) }}h</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-clock fs-1 text-gray-300"></i>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Segunda Linha de KPIs -->
-        <div class="row mb-4">
+        <!-- KPIs - Segunda Linha -->
+        <div class="row g-4 mb-4">
             <!-- Taxa de Entrega no Prazo -->
-            <div class="col-md-6 mb-3">
-                <div class="card kpi-card text-white bg-success">
-                    <div class="card-body text-center">
-                        <i class="bi bi-calendar-check fs-1 mb-2"></i>
-                        <h5 class="card-title">TAXA DE ENTREGA NO PRAZO</h5>
-                        <div class="kpi-number">{{ "%.1f"|format(kpis.taxa_entrega_prazo) }}%</div>
-                        <small class="opacity-75">
-                            {% if kpis.projetos_com_prazo > 0 %}
-                                {{ kpis.projetos_no_prazo }} de {{ kpis.projetos_com_prazo }} projetos entregues no prazo
-                            {% else %}
-                                Nenhum projeto com prazo definido
-                            {% endif %}
-                        </small>
+            <div class="col-xl-6 col-md-6">
+                <div class="card kpi-card border-success">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <div class="kpi-title text-success">Taxa de Entrega no Prazo</div>
+                                <div class="kpi-value">{{ "%.1f"|format(kpis.taxa_entrega_prazo) }}%</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-calendar-check fs-1 text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tempo Médio de Vida -->
+            <div class="col-xl-6 col-md-6">
+                <div class="card kpi-card border-dark">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <div class="kpi-title text-dark">Tempo Médio de Vida</div>
+                                <div class="kpi-value">{{ "%.1f"|format(kpis.tempo_medio_vida) }} <span style="font-size: 1rem;">dias</span></div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-hourglass-split fs-1 text-gray-300"></i>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Tempo Médio de Vida -->
-            <div class="col-md-6 mb-3">
-                <div class="card kpi-card text-white bg-dark">
-                    <div class="card-body text-center">
-                        <i class="bi bi-clock-history fs-1 mb-2"></i>
-                        <h5 class="card-title">TEMPO MÉDIO DE VIDA</h5>
-                        <div class="kpi-number">{{ "%.1f"|format(kpis.tempo_medio_vida) }}</div>
-                        <small class="opacity-75">dias por projeto</small>
+            <!-- Eficiência - TEMPORARIAMENTE OCULTO -->
+            <!-- 
+            <div class="col-xl-4 col-md-6">
+                <div class="card kpi-card border-warning">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <div class="kpi-title text-warning">Eficiência</div>
+                                <div class="kpi-value">{{ "%.1f"|format(kpis.eficiencia_recursos) }}%</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-speedometer2 fs-1 text-gray-300"></i>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+            -->
         </div>
 
         <!-- Seção de Distribuição por Squad -->
         {% if kpis.distribuicao_squad and kpis.distribuicao_squad.total_geral > 0 %}
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i>Distribuição por Squad</h5>
-                        <small class="text-white-50">Projetos Abertos por Squad - Total: {{ kpis.distribuicao_squad.total_geral }}</small>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i>Distribuição por Squad</h5>
+                <small class="text-white-50">Projetos Abertos por Squad - Total: {{ kpis.distribuicao_squad.total_geral }}</small>
+            </div>
+            <div class="card-body">
+                <div class="row g-4">
+                    <!-- AZURE -->
+                    <div class="col-md-4">
+                        <div class="card azure-border shadow-sm">
+                            <div class="card-body text-center">
+                                <div class="kpi-title text-primary">AZURE</div>
+                                <div class="kpi-value">{{ kpis.distribuicao_squad.total_squad.get('AZURE', 0) }}</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <div class="row text-center">
-                            <!-- AZURE -->
-                            <div class="col-md-4 col-sm-6 mb-3">
-                                <div class="squad-card" style="border-left: 4px solid #007bff;">
-                                    <h6 class="text-primary mb-1">AZURE</h6>
-                                    <div class="squad-number display-6 text-primary">{{ kpis.distribuicao_squad.total_squad.get('AZURE', 0) }}</div>
-                                </div>
-                            </div>
 
-                            <!-- M365 -->
-                            <div class="col-md-4 col-sm-6 mb-3">
-                                <div class="squad-card" style="border-left: 4px solid #28a745;">
-                                    <h6 class="text-success mb-1">M365</h6>
-                                    <div class="squad-number display-6 text-success">{{ kpis.distribuicao_squad.total_squad.get('M365', 0) }}</div>
-                                </div>
+                    <!-- M365 -->
+                    <div class="col-md-4">
+                        <div class="card m365-border shadow-sm">
+                            <div class="card-body text-center">
+                                <div class="kpi-title" style="color: #D83B01;">M365</div>
+                                <div class="kpi-value" style="color: #D83B01;">{{ kpis.distribuicao_squad.total_squad.get('M365', 0) }}</div>
                             </div>
+                        </div>
+                    </div>
 
-                            <!-- DATA&POWER -->
-                            <div class="col-md-4 col-sm-6 mb-3">
-                                <div class="squad-card" style="border-left: 4px solid #fd7e14;">
-                                    <h6 class="text-warning mb-1">DATA&POWER</h6>
-                                    <div class="squad-number display-6 text-warning">{{ kpis.distribuicao_squad.total_squad.get('DATA&POWER', 0) }}</div>
-                                </div>
+                    <!-- DATA&POWER -->
+                    <div class="col-md-4">
+                        <div class="card datapower-border shadow-sm">
+                            <div class="card-body text-center">
+                                 <div class="kpi-title text-success">DATA&POWER</div>
+                                <div class="kpi-value text-success">{{ kpis.distribuicao_squad.total_squad.get('DATA&POWER', 0) }}</div>
                             </div>
                         </div>
                     </div>
@@ -391,115 +351,83 @@
         {% endif %}
 
         <!-- Seção de Faturamento -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card shadow">
-                    <div class="card-header bg-gradient-warning text-dark">
-                        <h5 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Distribuição por Tipo de Faturamento</h5>
-                        <small class="text-muted">Novos projetos abertos no período selecionado</small>
-                    </div>
-                    <div class="card-body">
-                        {% if kpis.distribuicao_faturamento %}
-                            <div class="row g-3">
-                                {% set tipos_ordem = [
-                                    ('PLUS', 'PLUS', 'success'), 
-                                    ('INICIO', 'Faturado no Início', 'primary'), 
-                                    ('ENGAJAMENTO', 'Engajamento', 'info'),
-                                    ('PRIME', 'PRIME', 'warning'), 
-                                    ('FEOP', 'Faturado em Outro Projeto', 'secondary'),
-                                    ('TERMINO', 'Faturado no Término', 'dark'),
-                                    ('NAO_MAPEADO', 'Não Mapeado', 'danger')
-                                ] %}
-                                
-                                {% for tipo_codigo, tipo_nome, cor in tipos_ordem %}
-                                    {% if kpis.distribuicao_faturamento.get(tipo_codigo, 0) > 0 %}
-                                    <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
-                                        <div class="card border-0 h-100 faturamento-card">
-                                            <div class="card-body text-center p-3">
-                                                <div class="faturamento-icon mb-2">
-                                                    <i class="bi bi-circle-fill text-{{ cor }}"></i>
-                                                </div>
-                                                <h6 class="card-title mb-2 text-{{ cor }}">{{ tipo_nome }}</h6>
-                                                <div class="faturamento-number">
-                                                    <span class="badge bg-{{ cor }} badge-lg">{{ kpis.distribuicao_faturamento[tipo_codigo] }}</span>
-                                                </div>
-                                                {% if tipo_codigo == 'NAO_MAPEADO' %}
-                                                <small class="text-muted d-block mt-1">
-                                                    <i class="bi bi-exclamation-triangle"></i> Requer atenção
-                                                </small>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
-                            
-                            <!-- Informações sobre Não Mapeados -->
-                            {% if kpis.distribuicao_faturamento.get('NAO_MAPEADO', 0) > 0 %}
-                            <div class="alert alert-warning mt-3">
-                                <h6 class="alert-heading">
-                                    <i class="bi bi-exclamation-triangle me-2"></i>Projetos Não Mapeados
-                                </h6>
-                                <p class="mb-2">
-                                    <strong>{{ kpis.distribuicao_faturamento.NAO_MAPEADO }}</strong> projetos precisam ter o tipo de faturamento definido:
-                                </p>
-                                                                 <ul class="mb-0 small">
-                                     <li><strong>Fevereiro:</strong> #10407 (Copilot SOU) - Squad: M365</li>
-                                     <li><strong>Maio:</strong> #11704 (SOU.cloud) - Squad: AZURE</li>
-                                 </ul>
-                            </div>
-                            {% endif %}
-                            
-                        {% else %}
-                            <div class="text-center py-4">
-                                <i class="bi bi-inbox display-4 text-muted"></i>
-                                <p class="text-muted mt-2 mb-0">Nenhum dado de faturamento disponível</p>
-                            </div>
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Distribuição por Tipo de Faturamento</h5>
+                <small class="text-white-50">Novos projetos abertos no período selecionado</small>
+            </div>
+            <div class="card-body p-3">
+                {% if kpis.distribuicao_faturamento %}
+                    {% set tipos_ordem = [
+                        ('PLUS', 'PLUS', 'success'), 
+                        ('INICIO', 'Faturado no Início', 'primary'), 
+                        ('ENGAJAMENTO', 'Engajamento', 'info'),
+                        ('PRIME', 'PRIME', 'warning'), 
+                        ('FEOP', 'Faturado em Outro Projeto', 'secondary'),
+                        ('TERMINO', 'Faturado no Término', 'dark'),
+                        ('NAO_MAPEADO', 'Não Mapeado', 'danger')
+                    ] %}
+                    
+                    {% for tipo_codigo, tipo_nome, cor in tipos_ordem %}
+                        {% if kpis.distribuicao_faturamento.get(tipo_codigo, 0) > 0 %}
+                        <div class="faturamento-list-item">
+                            <span class="faturamento-label">{{ tipo_nome }}</span>
+                            <span class="badge rounded-pill bg-{{cor}} faturamento-badge">{{ kpis.distribuicao_faturamento[tipo_codigo] }}</span>
+                        </div>
                         {% endif %}
+                    {% endfor %}
+
+                    <!-- Informações sobre Não Mapeados -->
+                    {% if kpis.distribuicao_faturamento.get('NAO_MAPEADO', 0) > 0 %}
+                    <div class="alert alert-danger mt-3 mb-0">
+                        <h6 class="alert-heading small">
+                            <i class="bi bi-exclamation-triangle me-2"></i>Atenção: Existem {{ kpis.distribuicao_faturamento.NAO_MAPEADO }} projetos Não Mapeados
+                        </h6>
                     </div>
-                </div>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-inbox display-4 text-muted"></i>
+                        <p class="text-muted mt-2 mb-0">Nenhum dado de faturamento disponível</p>
+                    </div>
+                {% endif %}
             </div>
         </div>
 
         <!-- Detalhes por Mês -->
         {% if detalhes_por_mes %}
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header bg-info text-white">
-                        <h5 class="mb-0"><i class="bi bi-calendar-month me-2"></i>Detalhes por Mês</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Mês</th>
-                                        <th>Projetos Fechados</th>
-                                        <th>Projetos Abertos</th>
-                                        <th>Horas Trabalhadas</th>
-                                        <th>Eficiência Recursos</th>
-                                        <th>Taxa Prazo</th>
-                                        <th>Tempo Médio Vida</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for mes_key, detalhes in detalhes_por_mes.items() %}
-                                    <tr>
-                                        <td><strong>{{ detalhes.nome }}</strong></td>
-                                        <td><span class="badge bg-success">{{ detalhes.fechados }}</span></td>
-                                        <td><span class="badge bg-primary">{{ detalhes.abertos }}</span></td>
-                                        <td><span class="badge bg-warning text-dark">{{ detalhes.horas }}h</span></td>
-                                        <td><span class="badge bg-info">{{ "%.1f"|format(detalhes.eficiencia_recursos) }}%</span></td>
-                                        <td><span class="badge bg-success">{{ "%.1f"|format(detalhes.taxa_prazo) }}%</span></td>
-                                        <td><span class="badge bg-dark text-white">{{ "%.1f"|format(detalhes.tempo_medio_vida) }} dias</span></td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-calendar-month me-2"></i>Detalhes por Mês</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Mês</th>
+                                <th>Projetos Fechados</th>
+                                <th>Projetos Abertos</th>
+                                <th>Horas Trabalhadas</th>
+                                <!-- <th>Eficiência Recursos</th> TEMPORARIAMENTE OCULTO -->
+                                <th>Taxa Prazo</th>
+                                <th>Tempo Médio Vida</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mes_key, detalhes in detalhes_por_mes.items() %}
+                            <tr>
+                                <td><strong>{{ detalhes.nome }}</strong></td>
+                                <td><span class="badge bg-success">{{ detalhes.fechados }}</span></td>
+                                <td><span class="badge bg-primary">{{ detalhes.abertos }}</span></td>
+                                <td><span class="badge bg-warning text-dark">{{ detalhes.horas }}h</span></td>
+                                <!-- <td><span class="badge bg-info">{{ "%.1f"|format(detalhes.eficiencia_recursos) }}%</span></td> TEMPORARIAMENTE OCULTO -->
+                                <td><span class="badge bg-success">{{ "%.1f"|format(detalhes.taxa_prazo) }}%</span></td>
+                                <td><span class="badge bg-dark text-white">{{ "%.1f"|format(detalhes.tempo_medio_vida) }} dias</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

@@ -83,6 +83,7 @@ class StatusReportHistoricoService:
             'mar': {'arquivo': 'dadosr_apt_mar.csv', 'nome': 'Março', 'numero': 3, 'filtro_mes': '2025-03'},
             'abr': {'arquivo': 'dadosr_apt_abr.csv', 'nome': 'Abril', 'numero': 4, 'filtro_mes': '2025-04'},
             'mai': {'arquivo': 'dadosr_apt_mai.csv', 'nome': 'Maio', 'numero': 5, 'filtro_mes': '2025-05'},
+            'jun': {'arquivo': 'dadosr_parc_jun.csv', 'nome': 'Junho', 'numero': 6, 'filtro_mes': '2025-06'},
         }
     
     def listar_meses_disponiveis(self):
@@ -190,13 +191,48 @@ class StatusReportHistoricoService:
                     
                     if not novos_projetos_data.empty and 'Faturamento' in novos_projetos_data.columns:
                         # Calcula faturamento apenas dos projetos NOVOS
-                        contagem_fat = novos_projetos_data['Faturamento'].value_counts().to_dict()
-                        logger.info(f"📊 {info_mes['nome']} - Faturamento dos NOVOS projetos: {contagem_fat}")
+                        # FILTRO: Exclui projetos com cliente "SOU.cloud" do faturamento
+                        projetos_para_faturamento = novos_projetos_data[novos_projetos_data['Cliente'] != 'SOU.cloud'].copy()
+                        
+                        if not projetos_para_faturamento.empty:
+                            # MODIFICAÇÃO: Converte ENGAJAMENTO para TERMINO antes da contagem
+                            faturamento_modificado = projetos_para_faturamento['Faturamento'].copy()
+                            faturamento_modificado = faturamento_modificado.replace('ENGAJAMENTO', 'TERMINO')
+                            contagem_fat = faturamento_modificado.value_counts().to_dict()
+                            
+                            # Log com informações sobre filtros aplicados
+                            total_novos = len(novos_projetos_data)
+                            total_filtrados = len(projetos_para_faturamento)
+                            excluidos_sou = total_novos - total_filtrados
+                            
+                            if excluidos_sou > 0:
+                                logger.info(f"📊 {info_mes['nome']} - {excluidos_sou} projetos SOU.cloud excluídos do faturamento")
+                            logger.info(f"📊 {info_mes['nome']} - Faturamento dos NOVOS projetos (Engajamento→Término, sem SOU.cloud): {contagem_fat}")
+                        else:
+                            # Todos os projetos eram SOU.cloud
+                            contagem_fat = {}
+                            logger.info(f"📊 {info_mes['nome']} - Todos os projetos novos são SOU.cloud - faturamento vazio")
                     else:
                         # Fallback: usa o método antigo se não conseguir obter os novos projetos
-                        faturamento_mes = self.macro_service.calcular_projetos_por_faturamento(dados_mes, mes_ref)
-                        contagem_fat = faturamento_mes.get('contagem', {})
-                        logger.warning(f"⚠️ {info_mes['nome']} - Usando faturamento de todos os projetos ativos (fallback)")
+                        # FILTRO: Aplica o mesmo filtro SOU.cloud no fallback
+                        dados_sem_sou = dados_mes[dados_mes['Cliente'] != 'SOU.cloud'].copy()
+                        faturamento_mes = self.macro_service.calcular_projetos_por_faturamento(dados_sem_sou, mes_ref)
+                        contagem_fat_original = faturamento_mes.get('contagem', {})
+                        # Aplica a mesma conversão no fallback
+                        contagem_fat = {}
+                        for tipo, qtd in contagem_fat_original.items():
+                            if tipo == 'ENGAJAMENTO':
+                                contagem_fat['TERMINO'] = contagem_fat.get('TERMINO', 0) + qtd
+                            else:
+                                contagem_fat[tipo] = qtd
+                        
+                        # Log informando sobre o filtro aplicado no fallback
+                        total_original = len(dados_mes)
+                        total_filtrado = len(dados_sem_sou)
+                        excluidos_sou_fallback = total_original - total_filtrado
+                        if excluidos_sou_fallback > 0:
+                            logger.warning(f"⚠️ {info_mes['nome']} - Fallback: {excluidos_sou_fallback} projetos SOU.cloud excluídos")
+                        logger.warning(f"⚠️ {info_mes['nome']} - Usando faturamento de todos os projetos ativos (fallback, Engajamento→Término, sem SOU.cloud)")
                     
                     # 4. Horas trabalhadas INCREMENTAIS (diferença do mês anterior)
                     horas_incrementais = self._calcular_horas_incrementais(

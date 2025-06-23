@@ -39,7 +39,7 @@ Número;Cliente (Completo);Serviço (2º Nível);Status;Esforço estimado;Tempo traba
 9954;ZILOR;M365;Aguardando;30;09:19:00;;27/02/2025;Descontar do PLUS no inicio do projeto;Luciano Seabra;Eder Rodrigues;28/01/2025;;21/03/2025
 10073;BIB;M365;Aguardando;40;04:05:00;;27/02/2025;Descontar do PLUS no inicio do projeto;Luciano Seabra;Eder Rodrigues;03/02/2025;;20/03/2025
 10038;GDM;M365;Em atendimento;93;23:00:00;100%;05/03/2025;Faturar no inicio do projeto;Tadeu Trajano;Erika Okada;31/01/2025;;14/03/2025
-10407;Copilot SOU;M365;Em atendimento;;06:28:00;;27/02/2025;Faturado em outro projeto.;Tadeu Trajano;;19/02/2025;;
+10407;SOU.cloud;M365;Em atendimento;;06:28:00;;27/02/2025;Faturado em outro projeto.;Tadeu Trajano;;19/02/2025;;
 10606;CAMPOS MELLO ADVOGADOS;Data e Power;Novo;15;00:01:00;;05/03/2025;Descontar do PLUS no inicio do projeto;Helen Machado;Thiago Alcantara;27/02/2025;;
 10388;Cerradinho;Data e Power;Em atendimento;18;04:45:00;;04/03/2025;Faturar no inicio do projeto;CDB Data Solutions;Mateus Silva;18/02/2025;;
 9957;IDEVER INTELIGENCIA DIGITAL LTDA;Azure;Em atendimento;32;15:01:00;;05/03/2025;Faturado em outro projeto.;CDB Data Solutions;Gustavo Moyses;28/01/2025;;

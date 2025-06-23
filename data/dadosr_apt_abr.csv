@@ -39,21 +39,21 @@ Número;Cliente (Completo);Serviço (2º Nível);Status;Esforço estimado;Tempo traba
 11379;Via Certa;Azure;Novo;34;00:01:00;;28/04/2025;Descontar do PLUS no inicio do projeto;René Pretto de Braga ;Erika Okada;11/04/2025;;26/05/2025
 11624;Artabas;Azure;Em atendimento;25;12:36:00;;30/04/2025;PRIME;René Pretto de Braga ;Eder Rodrigues;28/04/2025;;
 10067;PHARLAB INDUSTRIA FARMACEUTICA S.A;Azure;Fechado;20;09:55:00;100%;10/02/2025;Faturar no inicio do projeto;René Pretto de Braga ;Cleber Bastos;03/02/2025;10/02/2025;10/02/2025
-11512;TUPY;Azure;Em atendimento;10;06:30:00;;30/04/2025;Faturado em outro projeto.;René Pretto de Braga ;Erika Okada;22/04/2025;;
+11512;TUPY;Azure;Em atendimento;10;06:30:00;;30/04/2025;Engajamento;René Pretto de Braga ;Erika Okada;22/04/2025;;
 10413;TW TRANSPORTES E LOGISTICA LTDA;M365;Fechado;150;70:35:00;100%;31/03/2025;PRIME;Luciano Seabra;Eder Rodrigues;19/02/2025;31/03/2025;31/03/2025
 11254;NEOBPO;M365;Aguardando;10;00:01:00;;09/04/2025;Engajamento;Luciano Seabra;Diogo Lima;03/04/2025;;12/05/2025
 11265;TOZZINI FREIRE;M365;Em atendimento;10;02:30:00;;24/04/2025;Engajamento;Luciano Seabra;Diogo Lima;04/04/2025;;12/05/2025
 11128;SICOOB CREDICERIPA;M365;Aguardando;10;11:31:00;5%;28/04/2025;Engajamento;Tadeu Trajano;Erika Okada;28/03/2025;;12/05/2025
 11129;SICOOB CREDICERIPA;M365;Aguardando;10;04:01:00;5%;28/04/2025;Engajamento;Tadeu Trajano;Erika Okada;28/03/2025;;12/05/2025
 11381;Artabas;M365;Aguardando;30;01:41:00;5%;29/04/2025;Faturar no inicio do projeto;Tadeu Trajano;Eder Rodrigues;14/04/2025;;
-11215;CAMPOS MELLO ADVOGADOS;M365;Em atendimento;12;00:01:00;;28/04/2025;Faturado em outro projeto.;Tadeu Trajano;Thiago Alcantara;02/04/2025;;25/07/2025
-11218;CAMPOS MELLO ADVOGADOS;M365;Em atendimento;35;00:01:00;;28/04/2025;Faturado em outro projeto.;Tadeu Trajano;Thiago Alcantara;02/04/2025;;18/07/2025
-11219;CAMPOS MELLO ADVOGADOS;M365;Em atendimento;45;00:01:00;;28/04/2025;Faturado em outro projeto.;Tadeu Trajano;Thiago Alcantara;02/04/2025;;05/08/2025
-11220;CAMPOS MELLO ADVOGADOS;M365;Em atendimento;40;00:02:00;;28/04/2025;Faturado em outro projeto.;Tadeu Trajano;Thiago Alcantara;02/04/2025;;26/05/2025
+11215;CAMPOS MELLO ADVOGADOS;M365;Em atendimento;12;00:01:00;;28/04/2025;Faturar no inicio do projeto;Tadeu Trajano;Thiago Alcantara;02/04/2025;;25/07/2025
+11218;CAMPOS MELLO ADVOGADOS;M365;Em atendimento;35;00:01:00;;28/04/2025;Faturar no inicio do projeto;Tadeu Trajano;Thiago Alcantara;02/04/2025;;18/07/2025
+11219;CAMPOS MELLO ADVOGADOS;M365;Em atendimento;45;00:01:00;;28/04/2025;Faturar no inicio do projeto;Tadeu Trajano;Thiago Alcantara;02/04/2025;;05/08/2025
+11220;CAMPOS MELLO ADVOGADOS;M365;Em atendimento;40;00:02:00;;28/04/2025;Faturar no inicio do projeto;Tadeu Trajano;Thiago Alcantara;02/04/2025;;26/05/2025
 10137;Pochteca;M365;Fechado;0;01:31:00;100%;24/02/2025;Faturado em outro projeto.;Tadeu Trajano;Juliana Santos;05/02/2025;24/02/2025;24/02/2025
 11132;BILD;M365;Aguardando;10;12:01:00;100%;29/04/2025;Engajamento;Tadeu Trajano;Mateus Silva;28/03/2025;;11/05/2025
 10038;GDM;M365;Fechado;93;30:32:00;100%;31/03/2025;Faturar no inicio do projeto;Tadeu Trajano;Erika Okada;31/01/2025;31/03/2025;31/03/2025
-11343;SUPLEY;Azure;Em atendimento;150;00:40:00;5%;15/04/2025;Faturado em outro projeto.;CDB Data Solutions;Mateus Silva;09/04/2025;;
+11343;SUPLEY;Azure;Em atendimento;150;00:40:00;5%;15/04/2025;Faturar no inicio do projeto;CDB Data Solutions;Mateus Silva;09/04/2025;;
 9957;IDEVER INTELIGENCIA DIGITAL LTDA;Azure;Em atendimento;32;30:40:00;75%;16/04/2025;Faturado em outro projeto.;CDB Data Solutions;Gustavo Moyses;28/01/2025;;
 11408;FORSHIP ENGENHARIA;M365;Aguardando;10;02:24:00;;25/04/2025;Engajamento;Matheus Pacheco;Thiago Alcantara;14/04/2025;;09/05/2025
 11123;CAMPOS MELLO ADVOGADOS;Azure;Resolvido;10;07:37:00;25%;29/04/2025;Engajamento;Matheus Pacheco;Thiago Alcantara;28/03/2025;29/04/2025;28/04/2025
@@ -126,4 +126,4 @@ Número;Cliente (Completo);Serviço (2º Nível);Status;Esforço estimado;Tempo traba
 7329;HT MICRON;M365;Aguardando;80;15:28:00;50%;28/04/2025;PRIME;Eduardo Kochhann;Junior Brevia;30/08/2024;;16/05/2025
 11362;PLANALTO SOLUÇÕES IMOBILIARIAS;M365;Novo;80;00:01:00;;28/04/2025;Descontar do PLUS no inicio do projeto;Gabriel de Menezes;Gustavo Moyses;10/04/2025;;12/06/2025
 11264;TOZZINI FREIRE;M365;Em atendimento;10;08:54:00;;30/04/2025;Engajamento;Luciano Seabra;Diogo Lima;04/04/2025;;12/05/2025
-11345;SUPLEY;Azure;Aguardando;80;00:02:00;5%;23/04/2025;Faturado em outro projeto.;Erick Alex;Mateus Silva;09/04/2025;;16/05/2025
+11345;SUPLEY;Azure;Aguardando;80;00:02:00;5%;23/04/2025;Faturar no inicio do projeto;Erick Alex;Mateus Silva;09/04/2025;;16/05/2025

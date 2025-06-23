@@ -2576,7 +2576,7 @@ def apresentacao_periodo():
         logger.info("🗓️ Acessando Status Report de Período Histórico")
         
         # Parâmetros
-        meses_param = request.args.get('meses', 'jan,fev,mar,abr,mai')  # Default: Jan a Mai
+        meses_param = request.args.get('meses', 'jan,fev,mar,abr,mai,jun')  # Default: Jan a Jun
         
         # Converte parâmetro em lista
         meses_selecionados = [m.strip() for m in meses_param.split(',') if m.strip()]
