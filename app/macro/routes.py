@@ -2567,69 +2567,40 @@ def api_test_reader():
             'data': {}
         }), 500
 
-from .periodo_fiscal_service import StatusReportHistoricoService
+from app.macro.periodo_fiscal_service import StatusReportHistoricoService, PeriodoFiscalManager
 
 @macro_bp.route('/apresentacao-periodo')
 def apresentacao_periodo():
-    """Nova rota para Status Report de período histórico com dados arquivados"""
     try:
-        logger.info("🗓️ Acessando Status Report de Período Histórico")
+        meses_selecionados_str = request.args.get('meses', 'jan,fev,mar,abr,mai,jun')
+        meses_selecionados = [mes.strip() for mes in meses_selecionados_str.split(',')]
         
-        # Parâmetros
-        meses_param = request.args.get('meses', 'jan,fev,mar,abr,mai,jun')  # Default: Jan a Jun
-        
-        # Converte parâmetro em lista
-        meses_selecionados = [m.strip() for m in meses_param.split(',') if m.strip()]
-        
-        # Inicializa serviço histórico
-        historico_service = StatusReportHistoricoService()
-        
-        # Lista meses disponíveis
-        meses_disponiveis = historico_service.listar_meses_disponiveis()
-        
-        # Calcula KPIs históricos
-        logger.info(f"📊 Calculando KPIs históricos para: {meses_selecionados}")
-        kpis = historico_service.calcular_kpis_periodo_historico(meses_selecionados)
-        
-        # Verifica se houve erro
-        if 'erro' in kpis:
-            return render_template('macro/erro.html', 
-                                 mensagem=f"Erro nos dados históricos: {kpis['erro']}",
-                                 titulo="Erro - Dados Históricos")
-        
-        # Verifica se há dados válidos (usando a estrutura correta)
-        kpis_dados = kpis.get('kpis_gerais', {})
-        if not kpis or kpis_dados.get('projetos_fechados', 0) == 0:
-            return render_template('macro/erro.html', 
-                                 mensagem="Nenhum dado histórico encontrado para o período solicitado",
-                                 titulo="Erro - Dados Insuficientes")
-        
-        # Prepara contexto para o template
+        service = StatusReportHistoricoService()
+        kpis_dados = service.calcular_kpis_periodo_historico(meses_selecionados)
+
+        if 'erro' in kpis_dados:
+            flash(f"Erro ao calcular KPIs: {kpis_dados['erro']}", "danger")
+            return render_template('macro/erro.html', mensagem_erro=kpis_dados['erro'])
+
+        nomes_meses = [service.meses_disponiveis.get(m, {}).get('nome', m) for m in meses_selecionados]
+        if len(nomes_meses) > 1:
+            periodo_display = f"Análise do período de {nomes_meses[0]} a {nomes_meses[-1]}"
+        else:
+            periodo_display = f"Análise de {nomes_meses[0]}"
+
         contexto = {
-            'periodo_atual': {
-                'nome': kpis['periodo']['descricao'],
-                'meses_selecionados': meses_selecionados,
-                'tipo': 'historico'
-            },
-            'kpis': kpis_dados,
-            'detalhes_por_mes': kpis.get('detalhes_mensais', {}),
-            'meses_disponiveis': meses_disponiveis,
-            'meses_selecionados': meses_selecionados,
-            'primeira_execucao': True,
-            'titulo_pagina': f"Status Report Histórico {kpis['periodo']['descricao']} - Control360",
-            'hora_atualizacao': datetime.now()
+            "kpis": kpis_dados.get('kpis_gerais', {}),
+            "detalhes_mensais": list(kpis_dados.get('detalhes_mensais', {}).values()),
+            "squad_distribution": kpis_dados.get('kpis_gerais', {}).get('distribuicao_squad', {}),
+            "periodo_display": periodo_display,
+            "meses_selecionados": meses_selecionados_str,
+            "hora_atualizacao": datetime.now()
         }
-        
-        logger.info(f"✅ Status Report histórico renderizado: {kpis['periodo']['descricao']}")
-        logger.info(
-            f"{kpis_dados['projetos_fechados']} fechados, "
-            f"{kpis_dados['projetos_abertos']} abertos, "
-            f"{kpis_dados['horas_trabalhadas']}h trabalhadas")
+
+        current_app.logger.info(f"✅ Status Report histórico renderizado: {periodo_display}")
         
         return render_template('macro/apresentacao_periodo.html', **contexto)
         
     except Exception as e:
-        logger.error(f"❌ Erro na rota apresentacao_periodo: {str(e)}")
-        return render_template('macro/erro.html', 
-                             mensagem=f"Erro interno: {str(e)}", 
-                             titulo="Erro no Status Report Histórico")
+        current_app.logger.exception(f"❌ Erro fatal na rota apresentacao_periodo: {e}")
+        return render_template('macro/erro.html', mensagem_erro=str(e))

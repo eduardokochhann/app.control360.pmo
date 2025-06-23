@@ -296,7 +296,7 @@ class StatusReportHistoricoService:
                         'nome': info_mes['nome'],
                         'fechados': fechados_mes,
                         'abertos': abertos_mes,
-                        'horas': round(horas_incrementais, 1),  # Usa horas INCREMENTAIS (não totais)
+                        'horas': float(horas_incrementais),
                         'horas_totais_mes': round(horas_totais_mes, 1),  # Mantém totais para debug
                         'eficiencia_recursos': kpis_mes.get('eficiencia_recursos', 0.0),
                         'eficiencia_composta': kpis_mes.get('eficiencia_composta', 0.0),  # Nova métrica
