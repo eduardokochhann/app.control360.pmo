@@ -184,9 +184,19 @@ class StatusReportHistoricoService:
                     novos_projetos = self.macro_service.calcular_novos_projetos_mes(dados_mes, mes_ref)
                     abertos_mes = novos_projetos.get('total', 0)
                     
-                    # 3. Faturamento do mês
-                    faturamento_mes = self.macro_service.calcular_projetos_por_faturamento(dados_mes, mes_ref)
-                    contagem_fat = faturamento_mes.get('contagem', {})
+                    # 3. Faturamento APENAS dos novos projetos do mês (não todos os ativos)
+                    # Primeiro obtém os novos projetos
+                    novos_projetos_data = novos_projetos.get('novos_projetos', pd.DataFrame())
+                    
+                    if not novos_projetos_data.empty and 'Faturamento' in novos_projetos_data.columns:
+                        # Calcula faturamento apenas dos projetos NOVOS
+                        contagem_fat = novos_projetos_data['Faturamento'].value_counts().to_dict()
+                        logger.info(f"📊 {info_mes['nome']} - Faturamento dos NOVOS projetos: {contagem_fat}")
+                    else:
+                        # Fallback: usa o método antigo se não conseguir obter os novos projetos
+                        faturamento_mes = self.macro_service.calcular_projetos_por_faturamento(dados_mes, mes_ref)
+                        contagem_fat = faturamento_mes.get('contagem', {})
+                        logger.warning(f"⚠️ {info_mes['nome']} - Usando faturamento de todos os projetos ativos (fallback)")
                     
                     # 4. Horas trabalhadas INCREMENTAIS (diferença do mês anterior)
                     horas_incrementais = self._calcular_horas_incrementais(

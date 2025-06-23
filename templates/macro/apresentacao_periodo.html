@@ -113,22 +113,31 @@
             padding: 0.5rem 1rem;
         }
 
-        .faturamento-item {
-            text-align: center;
-            padding: 1rem;
-            border-radius: 8px;
-            background-color: #f8f9fa;
+        .faturamento-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
 
-        .faturamento-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        .faturamento-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
         }
 
-        .faturamento-item h6 {
-            color: var(--primary-color);
+        .faturamento-icon i {
+            font-size: 1.2rem;
+        }
+
+        .faturamento-number .badge-lg {
+            font-size: 1.4rem;
+            padding: 0.6rem 1.2rem;
+            border-radius: 25px;
             font-weight: 600;
-            margin-bottom: 0.5rem;
+        }
+
+        .bg-gradient-warning {
+            background: linear-gradient(135deg, #ffc107 0%, #ffeb3b 100%);
         }
 
         /* Tabelas */
@@ -384,24 +393,69 @@
         <!-- Seção de Faturamento -->
         <div class="row mb-4">
             <div class="col-12">
-                <div class="card">
-                    <div class="card-header bg-warning text-dark">
-                        <h5 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Tipos de Faturamento</h5>
+                <div class="card shadow">
+                    <div class="card-header bg-gradient-warning text-dark">
+                        <h5 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Distribuição por Tipo de Faturamento</h5>
+                        <small class="text-muted">Novos projetos abertos no período selecionado</small>
                     </div>
                     <div class="card-body">
                         {% if kpis.distribuicao_faturamento %}
-                            <div class="row">
-                                {% for tipo, quantidade in kpis.distribuicao_faturamento.items() %}
-                                <div class="col-md-3 col-sm-6 mb-3">
-                                    <div class="faturamento-item">
-                                        <h6 class="mb-1">{{ tipo }}</h6>
-                                        <span class="badge bg-primary badge-custom">{{ quantidade }}</span>
+                            <div class="row g-3">
+                                {% set tipos_ordem = [
+                                    ('PLUS', 'PLUS', 'success'), 
+                                    ('INICIO', 'Faturado no Início', 'primary'), 
+                                    ('ENGAJAMENTO', 'Engajamento', 'info'),
+                                    ('PRIME', 'PRIME', 'warning'), 
+                                    ('FEOP', 'Faturado em Outro Projeto', 'secondary'),
+                                    ('TERMINO', 'Faturado no Término', 'dark'),
+                                    ('NAO_MAPEADO', 'Não Mapeado', 'danger')
+                                ] %}
+                                
+                                {% for tipo_codigo, tipo_nome, cor in tipos_ordem %}
+                                    {% if kpis.distribuicao_faturamento.get(tipo_codigo, 0) > 0 %}
+                                    <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                                        <div class="card border-0 h-100 faturamento-card">
+                                            <div class="card-body text-center p-3">
+                                                <div class="faturamento-icon mb-2">
+                                                    <i class="bi bi-circle-fill text-{{ cor }}"></i>
+                                                </div>
+                                                <h6 class="card-title mb-2 text-{{ cor }}">{{ tipo_nome }}</h6>
+                                                <div class="faturamento-number">
+                                                    <span class="badge bg-{{ cor }} badge-lg">{{ kpis.distribuicao_faturamento[tipo_codigo] }}</span>
+                                                </div>
+                                                {% if tipo_codigo == 'NAO_MAPEADO' %}
+                                                <small class="text-muted d-block mt-1">
+                                                    <i class="bi bi-exclamation-triangle"></i> Requer atenção
+                                                </small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
+                                    {% endif %}
                                 {% endfor %}
                             </div>
+                            
+                            <!-- Informações sobre Não Mapeados -->
+                            {% if kpis.distribuicao_faturamento.get('NAO_MAPEADO', 0) > 0 %}
+                            <div class="alert alert-warning mt-3">
+                                <h6 class="alert-heading">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>Projetos Não Mapeados
+                                </h6>
+                                <p class="mb-2">
+                                    <strong>{{ kpis.distribuicao_faturamento.NAO_MAPEADO }}</strong> projetos precisam ter o tipo de faturamento definido:
+                                </p>
+                                                                 <ul class="mb-0 small">
+                                     <li><strong>Fevereiro:</strong> #10407 (Copilot SOU) - Squad: M365</li>
+                                     <li><strong>Maio:</strong> #11704 (SOU.cloud) - Squad: AZURE</li>
+                                 </ul>
+                            </div>
+                            {% endif %}
+                            
                         {% else %}
-                            <p class="text-muted mb-0">Nenhum dado de faturamento disponível</p>
+                            <div class="text-center py-4">
+                                <i class="bi bi-inbox display-4 text-muted"></i>
+                                <p class="text-muted mt-2 mb-0">Nenhum dado de faturamento disponível</p>
+                            </div>
                         {% endif %}
                     </div>
                 </div>

@@ -3435,7 +3435,8 @@ class MacroService(BaseService):
             # O total considera todos os projetos iniciados no mês
             resultado_final = {
                 'por_squad': resultado_squad,
-                'total': total_novos
+                'total': total_novos,
+                'novos_projetos': dados_mes  # Adiciona os dados dos projetos novos
             }
             logger.info(f"Contagem de novos projetos por squad: {resultado_squad}, Total: {total_novos}")
 
