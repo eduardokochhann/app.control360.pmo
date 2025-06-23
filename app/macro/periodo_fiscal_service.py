@@ -291,6 +291,52 @@ class StatusReportHistoricoService:
                             total_faturamento[tipo] = 0
                         total_faturamento[tipo] += qtd
                     
+                    # Extrai dados de squad do mês para os gráficos USANDO RECÁLCULO DIRETO
+                    dados_mes_raw = dados_por_mes.get(mes_key, {})
+                    squad_mes_data = {'azure': 0, 'm365': 0, 'datapower': 0}
+                    
+                    # Usa o método DIRETO para obter dados consistentes
+                    nome_arquivo = info_mes['arquivo']
+                    arquivo_path = os.path.join(self.data_dir, nome_arquivo)
+                    
+                    if os.path.exists(arquivo_path):
+                        dados_mes_squad = self.macro_service.carregar_dados(fonte=arquivo_path)
+                        
+                        if not dados_mes_squad.empty and 'DataInicio' in dados_mes_squad.columns:
+                            dados_mes_copy = dados_mes_squad.copy()
+                            dados_mes_copy['DataInicio'] = pd.to_datetime(dados_mes_copy['DataInicio'], errors='coerce')
+                            
+                            # Filtra projetos novos do mês
+                            filtro_mes = dados_mes_copy['DataInicio'].dt.strftime('%Y-%m') == info_mes['filtro_mes']
+                            projetos_novos_squad = dados_mes_copy[filtro_mes]
+                            
+                            if 'Squad' in projetos_novos_squad.columns:
+                                squad_counts = projetos_novos_squad['Squad'].value_counts()
+                                
+                                azure_count = 0
+                                m365_count = 0
+                                data_count = 0
+                                
+                                for squad, count in squad_counts.items():
+                                    if pd.isna(squad):
+                                        continue
+                                    squad_str = str(squad).strip().upper()
+                                    
+                                    if 'AZURE' in squad_str:
+                                        azure_count += count
+                                    elif 'M365' in squad_str:
+                                        m365_count += count
+                                    elif 'DATA' in squad_str or 'POWER' in squad_str:
+                                        data_count += count
+                                
+                                squad_mes_data = {
+                                    'azure': azure_count,
+                                    'm365': m365_count,
+                                    'datapower': data_count
+                                }
+                                
+                                logger.debug(f"   📊 {info_mes['nome']} Squad Direto: AZURE={azure_count}, M365={m365_count}, DATA&POWER={data_count}")
+                    
                     # Guarda detalhes do mês
                     detalhes_por_mes[mes_key] = {
                         'nome': info_mes['nome'],
@@ -311,7 +357,11 @@ class StatusReportHistoricoService:
                         'projetos_com_prazo': kpis_mes.get('projetos_com_prazo', 0),     # Com prazo válido
                         'horas_estimadas': kpis_mes.get('horas_estimadas', 0.0),         # Horas estimadas
                         'horas_trabalhadas': kpis_mes.get('horas_trabalhadas', 0.0),     # Horas trabalhadas
-                        'faturamento': contagem_fat
+                        'faturamento': contagem_fat,
+                        # Dados de squad para os gráficos
+                        'squad_azure': squad_mes_data['azure'],
+                        'squad_m365': squad_mes_data['m365'],
+                        'squad_datapower': squad_mes_data['datapower']
                     }
                     
                     # Armazena dados para consolidação de prazo
@@ -746,6 +796,10 @@ class StatusReportHistoricoService:
         Returns:
             dict: Dados de KPIs do mês (eficiência composta, taxa de prazo, etc.)
         """
+        import pandas as pd
+        from datetime import datetime
+        import os
+        
         try:
             # Filtra projetos da CDB DATA SOLUTIONS (mesma lógica do macro)
             if 'Especialista' in dados_mes.columns:
@@ -919,34 +973,80 @@ class StatusReportHistoricoService:
                     
                     taxa_entrega_prazo = round((fechados_no_prazo / len(projetos_fechados_com_prazo)) * 100, 1)
             
-            # === 5. TEMPO MÉDIO DE VIDA (USA EXATAMENTE O MESMO MÉTODO DO MACROSERVICE) ===
+            # === 5. TEMPO MÉDIO DE VIDA (APENAS PROJETOS FECHADOS DO MÊS ESPECÍFICO) ===
             tempo_medio_vida = 0.0
             
-            # Usa EXATAMENTE o mesmo método que o MacroService
             try:
-                from datetime import datetime
                 
-                # Determina a data de referência do mês
-                meses_map = {
-                    'JANEIRO': 1, 'FEVEREIRO': 2, 'MARÇO': 3, 
-                    'ABRIL': 4, 'MAIO': 5, 'JUNHO': 6,
-                    'JULHO': 7, 'AGOSTO': 8, 'SETEMBRO': 9,
-                    'OUTUBRO': 10, 'NOVEMBRO': 11, 'DEZEMBRO': 12
-                }
+                # Filtra apenas projetos FECHADOS (não em andamento) 
+                projetos_fechados_mes = dados_filtrados[
+                    dados_filtrados['Status'].str.upper().isin(['FECHADO', 'ENCERRADO', 'RESOLVIDO', 'CANCELADO'])
+                ].copy()
                 
-                mes_num = meses_map.get(nome_mes.upper(), 1)
-                data_ref = datetime(2025, mes_num, 15)  # Meio do mês como referência
-                
-                # Usa o método EXATO do MacroService
-                macro_service = self.macro_service if hasattr(self, 'macro_service') else None
-                if macro_service:
-                    resultado_tmv = macro_service.calcular_tempo_medio_vida(dados_mes, data_ref)
-                    tempo_medio_vida = resultado_tmv.get('media_dias', 0.0)
+                if len(projetos_fechados_mes) > 0:
+                    # Determina período do mês específico
+                    meses_map = {
+                        'JANEIRO': 1, 'FEVEREIRO': 2, 'MARÇO': 3, 
+                        'ABRIL': 4, 'MAIO': 5, 'JUNHO': 6,
+                        'JULHO': 7, 'AGOSTO': 8, 'SETEMBRO': 9,
+                        'OUTUBRO': 10, 'NOVEMBRO': 11, 'DEZEMBRO': 12
+                    }
                     
-                    logger.debug(f"   📊 {nome_mes}: TMV usando MacroService = {tempo_medio_vida} dias ({resultado_tmv.get('total_projetos', 0)} projetos)")
+                    mes_num = meses_map.get(nome_mes.upper(), 1)
+                    ano = 2025
+                    
+                    # Período do mês específico (não últimos 3 meses)
+                    from calendar import monthrange
+                    ultimo_dia = monthrange(ano, mes_num)[1]
+                    inicio_mes = datetime(ano, mes_num, 1)
+                    fim_mes = datetime(ano, mes_num, ultimo_dia)
+                    
+                    # Filtra projetos concluídos APENAS no mês específico
+                    projetos_com_datas = projetos_fechados_mes[
+                        projetos_fechados_mes['DataTermino'].notna() & 
+                        projetos_fechados_mes['DataInicio'].notna() &
+                        (projetos_fechados_mes['DataTermino'] != '') &
+                        (projetos_fechados_mes['DataInicio'] != '')
+                    ].copy()
+                    
+                    if len(projetos_com_datas) > 0:
+                        # Converte datas
+                        projetos_com_datas['DataTermino'] = pd.to_datetime(projetos_com_datas['DataTermino'], errors='coerce')
+                        projetos_com_datas['DataInicio'] = pd.to_datetime(projetos_com_datas['DataInicio'], errors='coerce')
+                        
+                        # Filtra projetos concluídos no mês específico
+                        mask_mes = (
+                            (projetos_com_datas['DataTermino'] >= inicio_mes) &
+                            (projetos_com_datas['DataTermino'] <= fim_mes)
+                        )
+                        projetos_mes_especifico = projetos_com_datas[mask_mes].copy()
+                        
+                        if len(projetos_mes_especifico) > 0:
+                            # Calcula tempo de vida (DataTermino - DataInicio) em dias
+                            projetos_mes_especifico['tempo_vida'] = (
+                                projetos_mes_especifico['DataTermino'] - projetos_mes_especifico['DataInicio']
+                            ).dt.days
+                            
+                            # Remove outliers (menos de 0 dias ou mais de 365 dias)
+                            projetos_validos = projetos_mes_especifico[
+                                (projetos_mes_especifico['tempo_vida'] >= 0) &
+                                (projetos_mes_especifico['tempo_vida'] <= 365)
+                            ]
+                            
+                            if len(projetos_validos) > 0:
+                                tempo_medio_vida = round(projetos_validos['tempo_vida'].mean(), 1)
+                                logger.debug(f"   📊 {nome_mes}: TMV mês específico = {tempo_medio_vida} dias ({len(projetos_validos)} projetos fechados no mês)")
+                            else:
+                                logger.debug(f"   📊 {nome_mes}: Nenhum projeto válido para TMV (após filtrar outliers)")
+                        else:
+                            logger.debug(f"   📊 {nome_mes}: Nenhum projeto fechado no mês específico")
+                    else:
+                        logger.debug(f"   📊 {nome_mes}: Nenhum projeto com datas válidas para TMV")
+                else:
+                    logger.debug(f"   📊 {nome_mes}: Nenhum projeto fechado para TMV")
                 
             except Exception as e:
-                logger.warning(f"Erro ao calcular tempo médio de vida usando MacroService para {nome_mes}: {str(e)}")
+                logger.warning(f"Erro ao calcular tempo médio de vida para {nome_mes}: {str(e)}")
                 tempo_medio_vida = 0.0
             
 
