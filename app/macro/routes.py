@@ -2566,3 +2566,70 @@ def api_test_reader():
             'message': f'Erro interno: {str(e)}',
             'data': {}
         }), 500
+
+from .periodo_fiscal_service import StatusReportHistoricoService
+
+@macro_bp.route('/apresentacao-periodo')
+def apresentacao_periodo():
+    """Nova rota para Status Report de período histórico com dados arquivados"""
+    try:
+        logger.info("🗓️ Acessando Status Report de Período Histórico")
+        
+        # Parâmetros
+        meses_param = request.args.get('meses', 'jan,fev,mar,abr,mai')  # Default: Jan a Mai
+        
+        # Converte parâmetro em lista
+        meses_selecionados = [m.strip() for m in meses_param.split(',') if m.strip()]
+        
+        # Inicializa serviço histórico
+        historico_service = StatusReportHistoricoService()
+        
+        # Lista meses disponíveis
+        meses_disponiveis = historico_service.listar_meses_disponiveis()
+        
+        # Calcula KPIs históricos
+        logger.info(f"📊 Calculando KPIs históricos para: {meses_selecionados}")
+        kpis = historico_service.calcular_kpis_periodo_historico(meses_selecionados)
+        
+        # Verifica se houve erro
+        if 'erro' in kpis:
+            return render_template('macro/erro.html', 
+                                 mensagem=f"Erro nos dados históricos: {kpis['erro']}",
+                                 titulo="Erro - Dados Históricos")
+        
+        # Verifica se há dados válidos (usando a estrutura correta)
+        kpis_dados = kpis.get('kpis_gerais', {})
+        if not kpis or kpis_dados.get('projetos_fechados', 0) == 0:
+            return render_template('macro/erro.html', 
+                                 mensagem="Nenhum dado histórico encontrado para o período solicitado",
+                                 titulo="Erro - Dados Insuficientes")
+        
+        # Prepara contexto para o template
+        contexto = {
+            'periodo_atual': {
+                'nome': kpis['periodo']['descricao'],
+                'meses_selecionados': meses_selecionados,
+                'tipo': 'historico'
+            },
+            'kpis': kpis_dados,
+            'detalhes_por_mes': kpis.get('detalhes_mensais', {}),
+            'meses_disponiveis': meses_disponiveis,
+            'meses_selecionados': meses_selecionados,
+            'primeira_execucao': True,
+            'titulo_pagina': f"Status Report Histórico {kpis['periodo']['descricao']} - Control360",
+            'hora_atualizacao': datetime.now()
+        }
+        
+        logger.info(f"✅ Status Report histórico renderizado: {kpis['periodo']['descricao']}")
+        logger.info(
+            f"{kpis_dados['projetos_fechados']} fechados, "
+            f"{kpis_dados['projetos_abertos']} abertos, "
+            f"{kpis_dados['horas_trabalhadas']}h trabalhadas")
+        
+        return render_template('macro/apresentacao_periodo.html', **contexto)
+        
+    except Exception as e:
+        logger.error(f"❌ Erro na rota apresentacao_periodo: {str(e)}")
+        return render_template('macro/erro.html', 
+                             mensagem=f"Erro interno: {str(e)}", 
+                             titulo="Erro no Status Report Histórico")

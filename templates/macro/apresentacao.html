@@ -405,6 +405,14 @@
                 <h1 class="h3 mb-0" style="color: var(--primary-color);"><i class="bi bi-file-earmark-slides me-2"></i>Status Report</h1>
                 <p class="text-muted small mb-0">Fonte de dados: {{ fonte_dados }}</p>
             </div>
+            
+            <!-- Seletor de Período -->
+            <div class="btn-group" role="group">
+                <a href="{{ url_for('macro.apresentacao') }}" 
+                   class="btn btn-primary">📅 Mensal</a>
+                <a href="{{ url_for('macro.apresentacao_periodo', meses='jan,fev,mar,abr,mai') }}" 
+                   class="btn btn-outline-primary">📊 Histórico</a>
+            </div>
         </div>
         <!-- FIM TITULO PRINCIPAL -->
 

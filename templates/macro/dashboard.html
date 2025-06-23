@@ -582,14 +582,14 @@
                     </div>
                 </div>
 
-                <!-- Card Eficiência de Entrega -->
+                <!-- Card Eficiência -->
                 <div class="col-xl-3 col-md-6">
                     <div class="card border-left-warning shadow h-100 py-2">
                         <div class="card-body">
                             <div class="row no-gutters align-items-center">
                                 <div class="col mr-2">
                                     <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                        Eficiência de Entrega</div>
+                                        Eficiência</div>
                                     <div class="h5 mb-0 font-weight-bold text-gray-800">{{ kpis.eficiencia_entrega }}%</div>
                                 </div>
                                 <div class="col-auto">
@@ -1716,13 +1716,13 @@
                 </div>
             </div>
 
-            <!-- Modal Eficiência de Entrega -->
+            <!-- Modal Eficiência -->
             <div class="modal fade" id="modalEficienciaEntrega" tabindex="-1" aria-labelledby="modalEficienciaEntregaLabel" aria-hidden="true">
                 <div class="modal-dialog modal-xl">
                     <div class="modal-content">
                         <div class="modal-header bg-warning text-dark">
                             <h5 class="modal-title" id="modalEficienciaEntregaLabel">
-                                <i class="bi bi-speedometer2"></i> Eficiência de Entrega dos Projetos
+                                <i class="bi bi-speedometer2"></i> Eficiência dos Projetos
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
@@ -2563,7 +2563,7 @@
                             '<tr><td colspan="6" class="text-center text-danger">Erro ao carregar dados</td></tr>';
                     });
 
-                // Eficiência de Entrega
+                // Eficiência
                 fetch('/macro/api/projetos/eficiencia')
                     .then(response => response.json())
                     .then(projetos => {

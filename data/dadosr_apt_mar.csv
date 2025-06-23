@@ -2,15 +2,15 @@ Número;Cliente (Completo);Serviço (2º Nível);Status;Esforço estimado;Tempo traba
 1205;JAMEF TRANSPORTES LTDA;Data e Power;Em atendimento;2;348:01:00;50%;13/02/2025;;Vitória Germann;Eder Rodrigues;04/10/2023;;
 1582;JAMEF TRANSPORTES LTDA;Data e Power;Em atendimento;0;1068:05:00;;07/03/2025;;CDB Data Solutions;Eder Rodrigues;23/10/2023;;
 3219;STELLA - ULTRA FILIAL;M365;Aguardando;208;90:22:00;25%;28/03/2025;Faturar no inicio do projeto;Luciano Seabra;Edison Sprandel;19/01/2024;;11/04/2025
-5558;NEC ENERGIA;M365;Aguardando;60;08:51:00;0,5;17/03/2025;Faturar no inicio do projeto;Luciano Seabra;Junior Brevia;24/05/2024;;31/03/2025
+5558;NEC ENERGIA;M365;Aguardando;60;08:51:00;50%;17/03/2025;Faturar no inicio do projeto;Luciano Seabra;Junior Brevia;24/05/2024;;31/03/2025
 4200;ENFORCE GESTAO DE ATIVOS S.A.;Data e Power;Em atendimento;84;210:07:00;100%;11/03/2025;Faturar no inicio do projeto;Gabriel Kolber;Thiago Alcantara;14/03/2024;;24/03/2025
-7326;HAVAN;M365;Aguardando;34;99:39:00;0,25;26/03/2025;Faturar no inicio do projeto;Gabriel de Menezes;Edison Sprandel;30/08/2024;;27/12/2024
+7326;HAVAN;M365;Aguardando;34;99:39:00;25%;26/03/2025;Faturar no inicio do projeto;Gabriel de Menezes;Edison Sprandel;30/08/2024;;27/12/2024
 6889;Marilan;Azure;Aguardando;700;17:47:00;75%;31/03/2025;Faturar no final do projeto;René Pretto de Braga ;Mateus Silva;08/08/2024;;18/04/2025
 6998;LIONS TRUST ADMINISTRADORA DE RECURSOS LTDA;M365;Em atendimento;250;193:27:00;75%;02/04/2025;Descontar do PLUS no inicio do projeto;Tadeu Trajano;Jéssica Oliveira;14/08/2024;;31/01/2025
 7329;HT MICRON;M365;Aguardando;80;15:26:00;50%;31/03/2025;PRIME;Tadeu Trajano;Denilson Barboza;30/08/2024;;18/04/2025
 6525;TradersClub;M365;Aguardando;60;46:56:00;50%;31/03/2025;Descontar do PLUS no inicio do projeto;Helen Machado;Erika Okada;17/07/2024;;30/06/2025
 8497;COMERCIAL ZAFFARI (GAUCHINHO);Data e Power;Em atendimento;200;243:01:00;;03/04/2025;Descontar do PLUS no inicio do projeto;CDB Data Solutions;Eder Rodrigues;01/11/2024;;
-6574;ENFORCE GESTAO DE ATIVOS S.A.;Data e Power;Em atendimento;138;22:59:00;0,75;11/03/2025;Descontar do PLUS no inicio do projeto;Gabriel Kolber;Thiago Alcantara;19/07/2024;;28/03/2025
+6574;ENFORCE GESTAO DE ATIVOS S.A.;Data e Power;Em atendimento;138;22:59:00;75%;11/03/2025;Descontar do PLUS no inicio do projeto;Gabriel Kolber;Thiago Alcantara;19/07/2024;;28/03/2025
 9134;YOSEN;M365;Aguardando;20;00:48:00;;31/03/2025;Faturar no final do projeto;Gabriel de Menezes;Mateus Silva;05/12/2024;;30/04/2025
 9229;HAVAN;M365;Novo;40;00:02:00;;06/01/2025;Descontar do PLUS no inicio do projeto;Gabriel de Menezes;Edison Sprandel;10/12/2024;;
 9800;CONVERT COMPANY;M365;Em atendimento;43;05:01:00;;19/03/2025;Descontar do PLUS no inicio do projeto;Luciano Seabra;João Mendonça - TEEVO;17/01/2025;;02/04/2025
@@ -28,7 +28,7 @@ Número;Cliente (Completo);Serviço (2º Nível);Status;Esforço estimado;Tempo traba
 10870;GNG Fundações;M365;Aguardando;55;03:01:00;5%;01/04/2025;PRIME;Gabriel de Menezes;Juliana Santos;17/03/2025;;25/04/2025
 9978;SuperFrio;M365;Aguardando;32;00:09:00;5%;31/03/2025;Faturar no final do projeto;Gabriel de Menezes;Gustavo Moyses;29/01/2025;;28/04/2025
 9898;BLB Auditores;M365;Em atendimento;45;00:15:00;5%;01/04/2025;Faturar no final do projeto;Gabriel de Menezes;Gustavo Moyses;23/01/2025;;21/04/2025
-10505;HPRO;M365;Aguardando;28;03:53:00;0,75;28/03/2025;Faturar no inicio do projeto;Gabriel de Menezes;Caio D'Agostini;24/02/2025;;15/04/2025
+10505;HPRO;M365;Aguardando;28;03:53:00;75%;28/03/2025;Faturar no inicio do projeto;Gabriel de Menezes;Caio D'Agostini;24/02/2025;;15/04/2025
 9956;PROTECTING BRAINS & SAVING FUTURES SISTEMA DE DIAGNOSTICOS INTEGRADOS LTDA;Azure;Em atendimento;120;02:58:00;25%;02/04/2025;Descontar do PLUS no inicio do projeto;Mateus Augusto;Eder Rodrigues;28/01/2025;;30/05/2025
 11052;PRO - LINHAS;Azure;Aguardando;6;00:40:00;;03/04/2025;Descontar do PLUS no inicio do projeto;Mateus Augusto;Gustavo Moyses;25/03/2025;;07/04/2025
 10973;FOSNOR - GALVANI;Azure;Aguardando;24;01:02:00;;02/04/2025;Descontar do PLUS no inicio do projeto;Mateus Augusto;Tatiana Lesnieski;20/03/2025;;

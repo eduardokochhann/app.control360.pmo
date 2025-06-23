@@ -46,20 +46,15 @@ Número;Cliente (Completo);Serviço (2º Nível);Status;Esforço estimado;Tempo traba
 10364;MERCUR;Data e Power;Aguardando;35;17:26:00;50%;05/03/2025;Descontar do PLUS no inicio do projeto;Felipe Neiva;Eder Rodrigues;17/02/2025;;13/03/2025
 9959;ENFORCE GESTAO DE ATIVOS S.A.;Data e Power;Em atendimento;110;07:03:00;25%;25/02/2025;Faturado em outro projeto.;Gabriel Kolber;Thiago Alcantara;28/01/2025;;07/03/2025
 10237;BP One Group;Azure;Novo;14;00:04:00;;05/03/2025;Faturar no inicio do projeto;Erick Alex;Gustavo Moyses;11/02/2025;;
-8215;Sicoob Coopecredi;M365;Fechado;30;19:11:00;100%;;Faturar no inicio do projeto;Gabriel de Menezes;Gustavo Moyses;16/10/2024;17/02/2025;30/01/2025 23:59
-5481;PHARLAB INDUSTRIA FARMACEUTICA S.A;AZURE;Fechado;20;14:10:00;100%;;Faturar no inicio do projeto;René Pretto de Braga;Cleber Bastos;20/05/2024;20/02/2025;16/01/2025 00:00
-9550;BBMO SOCIEDADE DE ADVOGADOS;M365;Fechado;10;09:53:00;100%;;Faturar no final do projeto;Gabriel de Menezes;Gustavo Moyses;06/01/2025;06/02/2025;05/02/2025 18:00
-9684;PLANTECH;M365;Fechado;10;08:16:00;100%;;Descontar do PLUS no inicio do projeto;Gabriel de Menezes;Denilson Barboza;13/01/2025;10/02/2025;10/02/2025 18:00
-9476;MERCUR;AZURE;Fechado;60;19:18:00;100%;;Descontar do PLUS no inicio do projeto;Mateus Augusto;Eder Rodrigues;27/12/2024;14/02/2025;31/01/2025 20:00
-9642;ASSOCIACAO;AZURE;Fechado;15;11:02:00;100%;;PRIME;Mateus Augusto;Erika Okada;09/01/2025;21/02/2025;29/01/2025 18:00
-9417;ASA Investments;M365;Fechado;50;20:25:00;100%;;Faturar no inicio do projeto;Luciano Seabra;Erika Okada;19/12/2024;12/02/2025;07/02/2025 14:00
-9767;TradersClub;M365;Fechado;30;19:03:00;100%;;Faturar no final do projeto;Luciano Seabra;Erika Okada;16/01/2025;13/02/2025;07/02/2025 18:00
-10067;PHARLAB INDUSTRIA FARMACEUTICA S.A;AZURE;Fechado;20;9:55:00;100%;;Faturar no inicio do projeto;René Pretto de Braga;Cleber Bastos;03/02/2025;10/02/2025;10/02/2025 18:00
-9814;Casa do Pica Pau;M365;Fechado;10;17:18:00;100%;;Faturar no inicio do projeto;Luciano Seabra;Tatiana Lesnieski;20/01/2025;21/02/2025;14/02/2025 18:00
+8215;Sicoob Coopecredi;M365;Fechado;30;19:11:00;100%;;Faturar no inicio do projeto;Gabriel de Menezes;Gustavo Moyses;16/10/2024;17/02/2025;30/01/2025
+5481;PHARLAB INDUSTRIA FARMACEUTICA S.A;AZURE;Fechado;20;14:10:00;100%;;Faturar no inicio do projeto;René Pretto de Braga;Cleber Bastos;20/05/2024;20/02/2025;16/01/2025
+9550;BBMO SOCIEDADE DE ADVOGADOS;M365;Fechado;10;09:53:00;100%;;Faturar no final do projeto;Gabriel de Menezes;Gustavo Moyses;06/01/2025;06/02/2025;05/02/2025
+9684;PLANTECH;M365;Fechado;10;08:16:00;100%;;Descontar do PLUS no inicio do projeto;Gabriel de Menezes;Denilson Barboza;13/01/2025;10/02/2025;10/02/2025
+9476;MERCUR;AZURE;Fechado;60;19:18:00;100%;;Descontar do PLUS no inicio do projeto;Mateus Augusto;Eder Rodrigues;27/12/2024;14/02/2025;31/01/2025
+9642;ASSOCIACAO;AZURE;Fechado;15;11:02:00;100%;;PRIME;Mateus Augusto;Erika Okada;09/01/2025;21/02/2025;29/01/2025
+9417;ASA Investments;M365;Fechado;50;20:25:00;100%;;Faturar no inicio do projeto;Luciano Seabra;Erika Okada;19/12/2024;12/02/2025;07/02/2025
+9767;TradersClub;M365;Fechado;30;19:03:00;100%;;Faturar no final do projeto;Luciano Seabra;Erika Okada;16/01/2025;13/02/2025;07/02/2025
+10067;PHARLAB INDUSTRIA FARMACEUTICA S.A;AZURE;Fechado;20;09:55:00;100%;;Faturar no inicio do projeto;René Pretto de Braga;Cleber Bastos;03/02/2025;10/02/2025;10/02/2025
+9814;Casa do Pica Pau;M365;Fechado;10;17:18:00;100%;;Faturar no inicio do projeto;Luciano Seabra;Tatiana Lesnieski;20/01/2025;21/02/2025;14/02/2025
 10180;MONACO SERVICOS DOCUMENTAIS LTDA;Data e Power;Fechado;16;16:00:00;100%;;PRIME;Felipe Neiva;Eder Rodrigues;04/02/2025;28/02/2025;28/02/2025
 9473;MONACO SERVICOS DOCUMENTAIS LTDA;Data e Power;Fechado;20;20:00:00;100%;;PRIME;Vitória Germann;Eder Rodrigues;04/02/2025;28/02/2025;28/02/2025
-;;;;;;;;;;;;;
-;;;;;;;;;;;;;
-;;;;;;;;;;;;;
-;;;;;;;;;;;;;
-;;;;;;;;;;;;;

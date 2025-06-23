@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ titulo_pagina }}</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #c0392b;
+            --light-bg: #f8f9fa;
+            --dark-bg: #2c3e50;
+        }
+
+        body { 
+            background-color: var(--light-bg); 
+            font-family: 'Inter', sans-serif;
+            color: var(--primary-color);
+        }
+
+        .card { 
+            margin-bottom: 1rem; 
+            border-radius: 0.5rem;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1) !important;
+            border: none;
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            border-radius: 0.5rem 0.5rem 0 0 !important;
+            font-weight: 600;
+            padding: 1rem;
+        }
+
+        /* KPI Cards */
+        .kpi-card {
+            height: 100%;
+            transition: all 0.3s ease;
+            border-left: 4px solid var(--secondary-color);
+            border-radius: 0.5rem;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1) !important;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .kpi-card.text-white.bg-success {
+            background: linear-gradient(135deg, var(--success-color) 0%, #2ecc71 100%) !important;
+            border-left-color: var(--success-color);
+        }
+
+        .kpi-card.text-white.bg-primary {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, #5dade2 100%) !important;
+            border-left-color: var(--secondary-color);
+        }
+
+        .kpi-card.text-white.bg-info {
+            background: linear-gradient(135deg, #17a2b8 0%, #5bc0de 100%) !important;
+            border-left-color: #17a2b8;
+        }
+
+        .kpi-card.text-white.bg-warning {
+            background: linear-gradient(135deg, var(--warning-color) 0%, #f1c40f 100%) !important;
+            border-left-color: var(--warning-color);
+        }
+
+        .kpi-card.text-white.bg-dark {
+            background: linear-gradient(135deg, var(--dark-bg) 0%, #34495e 100%) !important;
+            border-left-color: var(--dark-bg);
+        }
+
+        .kpi-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .kpi-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Faturamento */
+        .badge-custom {
+            font-size: 1.2rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        }
+
+        .faturamento-item {
+            text-align: center;
+            padding: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            background-color: #fff;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        .faturamento-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .faturamento-item h6 {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Tabelas */
+        .table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .table thead th {
+            background-color: var(--light-bg);
+            font-weight: 600;
+            border-bottom: 2px solid #dee2e6;
+            color: var(--primary-color);
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(52, 152, 219, 0.05);
+        }
+
+        /* Modal e seletor */
+        .mes-selector {
+            background: var(--light-bg);
+            border-radius: 10px;
+            padding: 1rem;
+        }
+
+        .mes-checkbox {
+            margin: 0.25rem;
+            padding: 0.5rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            background-color: #fff;
+            transition: all 0.2s ease;
+        }
+
+        .mes-checkbox:hover {
+            background-color: var(--light-bg);
+        }
+
+        .mes-checkbox input:checked + label {
+            font-weight: bold;
+            color: var(--secondary-color);
+        }
+
+        /* Alertas */
+        .alert {
+            border-radius: 0.5rem;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Media Queries */
+        @media (max-width: 768px) {
+            .kpi-number {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-light">
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('macro.dashboard') }}">
+                <i class="bi bi-graph-up me-2"></i>Control360
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('macro.dashboard') }}">Dashboard</a>
+                <a class="nav-link" href="{{ url_for('macro.apresentacao') }}">Status Report Mensal</a>
+                <a class="nav-link active" href="#">Status Report Histórico</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Container Principal -->
+    <div class="container-fluid mt-4">
+        
+        <!-- Cabeçalho -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-0">
+                    📊 Status Report Histórico
+                </h1>
+                {% if periodo_atual %}
+                    <p class="text-muted small mb-0">Período: {{ periodo_atual.nome }}</p>
+                {% endif %}
+            </div>
+            
+            <!-- Botão para configurar período -->
+            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#seletorPeriodoModal">
+                <i class="bi bi-calendar3 me-2"></i>Configurar Período
+            </button>
+        </div>
+
+        <!-- Contexto da Análise -->
+        <div class="alert alert-info mb-4">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>Dados Históricos:</strong> 
+            Utilizando apenas arquivos arquivados (dadosr_apt_XXX.csv) - dados já fechados e validados, 
+            sem incluir o mês atual em andamento.
+        </div>
+
+        <!-- Cards Principais - Primeira Linha -->
+        <div class="row mb-4">
+            <!-- Projetos Fechados -->
+            <div class="col-md-3 mb-3">
+                <div class="card kpi-card text-white bg-success">
+                    <div class="card-body text-center">
+                        <i class="bi bi-check-circle-fill fs-1 mb-2"></i>
+                        <h5 class="card-title">PROJETOS ÚNICOS FECHADOS</h5>
+                        <div class="kpi-number">{{ kpis.projetos_fechados }}</div>
+                        <small class="opacity-75">{{ periodo_atual.nome }}</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Projetos Abertos -->
+            <div class="col-md-3 mb-3">
+                <div class="card kpi-card text-white bg-primary">
+                    <div class="card-body text-center">
+                        <i class="bi bi-folder-plus fs-1 mb-2"></i>
+                        <h5 class="card-title">PROJETOS ÚNICOS ABERTOS</h5>
+                        <div class="kpi-number">{{ kpis.projetos_abertos }}</div>
+                        <small class="opacity-75">{{ periodo_atual.nome }}</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Horas Trabalhadas -->
+            <div class="col-md-3 mb-3">
+                <div class="card kpi-card text-white bg-info">
+                    <div class="card-body text-center">
+                        <i class="bi bi-clock-fill fs-1 mb-2"></i>
+                        <h5 class="card-title">HORAS TRABALHADAS</h5>
+                        <div class="kpi-number">{{ "%.0f"|format(kpis.horas_trabalhadas) }}</div>
+                        <small class="opacity-75">{{ periodo_atual.nome }}</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Eficiência de Recursos -->
+            <div class="col-md-3 mb-3">
+                <div class="card kpi-card text-white bg-warning">
+                    <div class="card-body text-center">
+                        <i class="bi bi-speedometer2 fs-1 mb-2"></i>
+                        <h5 class="card-title">EFICIÊNCIA</h5>
+                        <div class="kpi-number">{{ "%.1f"|format(kpis.eficiencia_recursos) }}%</div>
+                        <small class="opacity-75">Estimado vs Real</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Segunda Linha de KPIs -->
+        <div class="row mb-4">
+            <!-- Taxa de Entrega no Prazo -->
+            <div class="col-md-6 mb-3">
+                <div class="card kpi-card text-white bg-success">
+                    <div class="card-body text-center">
+                        <i class="bi bi-calendar-check fs-1 mb-2"></i>
+                        <h5 class="card-title">TAXA DE ENTREGA NO PRAZO</h5>
+                        <div class="kpi-number">{{ "%.1f"|format(kpis.taxa_entrega_prazo) }}%</div>
+                        <small class="opacity-75">
+                            {% if kpis.projetos_com_prazo > 0 %}
+                                {{ kpis.projetos_no_prazo }} de {{ kpis.projetos_com_prazo }} projetos entregues no prazo
+                            {% else %}
+                                Nenhum projeto com prazo definido
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Produtividade -->
+            <div class="col-md-6 mb-3">
+                <div class="card kpi-card text-white bg-dark">
+                    <div class="card-body text-center">
+                        <i class="bi bi-graph-up-arrow fs-1 mb-2"></i>
+                        <h5 class="card-title">PRODUTIVIDADE</h5>
+                        <div class="kpi-number">{{ "%.3f"|format(kpis.produtividade) }}</div>
+                        <small class="opacity-75">Projetos por hora trabalhada</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção de Faturamento -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Tipos de Faturamento</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if kpis.distribuicao_faturamento %}
+                            <div class="row">
+                                {% for tipo, quantidade in kpis.distribuicao_faturamento.items() %}
+                                <div class="col-md-3 col-sm-6 mb-3">
+                                    <div class="faturamento-item">
+                                        <h6 class="mb-1">{{ tipo }}</h6>
+                                        <span class="badge bg-primary badge-custom">{{ quantidade }}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted mb-0">Nenhum dado de faturamento disponível</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detalhes por Mês -->
+        {% if detalhes_por_mes %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="bi bi-calendar-month me-2"></i>Detalhes por Mês</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Mês</th>
+                                        <th>Projetos Fechados</th>
+                                        <th>Projetos Abertos</th>
+                                        <th>Horas Trabalhadas</th>
+                                        <th>Eficiência Recursos</th>
+                                        <th>Taxa Prazo</th>
+                                        <th>Produtividade</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for mes_key, detalhes in detalhes_por_mes.items() %}
+                                    <tr>
+                                        <td><strong>{{ detalhes.nome }}</strong></td>
+                                        <td><span class="badge bg-success">{{ detalhes.fechados }}</span></td>
+                                        <td><span class="badge bg-primary">{{ detalhes.abertos }}</span></td>
+                                        <td><span class="badge bg-warning text-dark">{{ detalhes.horas }}h</span></td>
+                                        <td><span class="badge bg-info">{{ "%.1f"|format(detalhes.eficiencia_recursos) }}%</span></td>
+                                        <td><span class="badge bg-success">{{ "%.1f"|format(detalhes.taxa_prazo) }}%</span></td>
+                                        <td><span class="badge bg-dark text-white">{{ "%.3f"|format(detalhes.produtividade) }}</span></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Rodapé -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="alert alert-light text-center">
+                    <small class="text-muted">
+                        <i class="bi bi-clock me-1"></i>
+                        Última atualização: {{ hora_atualizacao.strftime('%d/%m/%Y às %H:%M') }}
+                        <br>
+                        <i class="bi bi-database me-1"></i>
+                        Fonte: Arquivos históricos arquivados
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Seletor de Período -->
+    <div class="modal fade" id="seletorPeriodoModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Configurar Período Histórico</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="seletorPeriodoForm">
+                        <div class="mes-selector">
+                            <h6 class="mb-3">Selecione os meses:</h6>
+                            <div class="row">
+                                {% for mes in meses_disponiveis %}
+                                <div class="col-md-6 mb-2">
+                                    <div class="form-check mes-checkbox">
+                                        <input class="form-check-input" type="checkbox" 
+                                               value="{{ mes.key }}" id="mes_{{ mes.key }}"
+                                               {% if mes.key in meses_selecionados %}checked{% endif %}>
+                                        <label class="form-check-label" for="mes_{{ mes.key }}">
+                                            {{ mes.nome }}
+                                            <small class="text-muted">({{ mes.arquivo }})</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- Períodos Pré-definidos -->
+                        <div class="mt-4">
+                            <h6 class="mb-3">Ou escolha um período pré-definido:</h6>
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-outline-primary" onclick="selecionarPeriodo(['jan','fev','mar'])">
+                                    1º Trimestre (Jan-Mar)
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" onclick="selecionarPeriodo(['abr','mai'])">
+                                    Abr-Mai
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" onclick="selecionarPeriodo(['jan','fev','mar','abr','mai'])">
+                                    Jan-Mai (Padrão)
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="aplicarPeriodo()">Aplicar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        function selecionarPeriodo(meses) {
+            // Desmarca todos
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            
+            // Marca os selecionados
+            meses.forEach(mes => {
+                const checkbox = document.getElementById('mes_' + mes);
+                if (checkbox) checkbox.checked = true;
+            });
+        }
+        
+        function aplicarPeriodo() {
+            const mesesSelecionados = [];
+            document.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+                mesesSelecionados.push(cb.value);
+            });
+            
+            if (mesesSelecionados.length === 0) {
+                alert('Selecione pelo menos um mês!');
+                return;
+            }
+            
+            // Redireciona com os meses selecionados
+            const url = new URL(window.location.href);
+            url.searchParams.set('meses', mesesSelecionados.join(','));
+            window.location.href = url.toString();
+        }
+    </script>
+</body>
+</html> 

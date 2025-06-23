@@ -1471,109 +1471,198 @@ class MacroService(BaseService):
 
     def calcular_eficiencia_entrega(self, dados):
         """
-        Calcula a eficiência de entrega dos projetos.
+        Calcula a eficiência geral dos projetos usando a mesma metodologia do Status Report por Período.
+        Fórmula composta: 70% eficiência de horas + 30% eficiência de prazo
+        
         Retorna:
         - total: eficiência geral (porcentagem)
         - dados: DataFrame com os projetos e suas eficiências
         - metricas: métricas específicas de eficiência
         """
         try:
-            logger.info("Calculando eficiência de entrega...")
+            logger.info("Calculando eficiência...")
             
             # Usa dados já tratados
             dados_base = self.preparar_dados_base(dados)
 
-            # --- NOVO: Filtra projetos da CDB DATA SOLUTIONS ---
+            # --- Filtra projetos da CDB DATA SOLUTIONS ---
             if 'Especialista' in dados_base.columns:
-                # Usar .str.upper() para comparação case-insensitive e .isin() para clareza
                 dados_filtrados_cdb = dados_base[~dados_base['Especialista'].astype(str).str.upper().isin(['CDB DATA SOLUTIONS'])]
                 logger.info(f"Eficiência: Removidos {len(dados_base) - len(dados_filtrados_cdb)} projetos da CDB DATA SOLUTIONS.")
             else:
                 logger.warning("Eficiência: Coluna 'Especialista' não encontrada para filtrar CDB.")
                 dados_filtrados_cdb = dados_base.copy()
-            # --- FIM NOVO FILTRO ---
 
-            # --- NOVO: Filtra apenas projetos CONCLUÍDOS ---            
-            projetos_concluidos_filtrados = dados_filtrados_cdb[
-                dados_filtrados_cdb['Status'].isin(self.status_concluidos)
+            # === 1. EFICIÊNCIA DE HORAS (Fechados + Em Andamento) ===
+            # Inclui projetos fechados e em andamento para análise mais abrangente
+            projetos_para_eficiencia = dados_filtrados_cdb[
+                dados_filtrados_cdb['Status'].isin(self.status_concluidos + ['NOVO', 'EM ATENDIMENTO', 'AGUARDANDO', 'BLOQUEADO'])
             ].copy()
-            logger.info(f"Eficiência: Calculando com base em {len(projetos_concluidos_filtrados)} projetos concluídos (após filtro CDB).")
-            # --- FIM NOVO FILTRO CONCLUÍDOS ---
+            
+            logger.info(f"Eficiência: Analisando {len(projetos_para_eficiencia)} projetos (fechados + em andamento).")
 
-            # Filtra projetos válidos (horas > 0) DENTRE OS CONCLUÍDOS
-            projetos_validos = projetos_concluidos_filtrados[
-                (projetos_concluidos_filtrados['Horas'] > 0) &
-                (projetos_concluidos_filtrados['HorasTrabalhadas'] > 0)
+            # Filtra projetos com horas válidas
+            projetos_com_horas = projetos_para_eficiencia[
+                (projetos_para_eficiencia['Horas'].fillna(0) > 0) &
+                (projetos_para_eficiencia['HorasTrabalhadas'].fillna(0) > 0)
             ].copy()
 
-            # Calcula eficiência por projeto (INVERTIDO: Horas / HorasTrabalhadas)
-            projetos_validos['eficiencia'] = (projetos_validos['Horas'] / projetos_validos['HorasTrabalhadas'] * 100).round(1)
-            
-            # Calcula eficiência geral (INVERTIDO: Horas / HorasTrabalhadas)
-            if len(projetos_validos) > 0:
-                horas_planejadas_total = projetos_validos['Horas'].sum()
-                horas_trabalhadas_total = projetos_validos['HorasTrabalhadas'].sum()
-                # Verifica se horas_trabalhadas_total > 0 para evitar divisão por zero (embora o filtro já deva garantir)
-                if horas_trabalhadas_total > 0:
-                    eficiencia_geral = round((horas_planejadas_total / horas_trabalhadas_total * 100), 1)
-                else:
-                    logger.warning("Eficiência: Total de horas trabalhadas é zero, definindo eficiência geral como 0.")
-                    eficiencia_geral = 0.0 
-            else:
-                eficiencia_geral = 0.0
-
-            # Adiciona verificação de backlog usando a função auxiliar
-            projetos_validos = self._adicionar_verificacao_backlog(projetos_validos)
-
-            # Prepara dados para o modal
-            colunas_modal = ['Numero', 'Projeto', 'Status', 'Squad', 'Horas', 'HorasTrabalhadas', 'eficiencia', 'backlog_exists']
-            
-            # Certifica-se de que a coluna Numero existe
-            if 'Numero' not in projetos_validos.columns and 'Número' in projetos_validos.columns:
-                projetos_validos['Numero'] = projetos_validos['Número']
-            elif 'Numero' not in projetos_validos.columns:
-                logger.warning("Coluna 'Numero' não encontrada em projetos de eficiência. Criando coluna vazia.")
-                projetos_validos['Numero'] = ''
+            eficiencia_horas = 0.0
+            if len(projetos_com_horas) > 0:
+                horas_estimadas_total = projetos_com_horas['Horas'].sum()
+                horas_trabalhadas_total = projetos_com_horas['HorasTrabalhadas'].sum()
                 
-            # Seleciona apenas as colunas que existem
-            colunas_existentes = [col for col in colunas_modal if col in projetos_validos.columns]
-            dados_modal = projetos_validos[colunas_existentes].copy()
+                if horas_estimadas_total > 0 and horas_trabalhadas_total > 0:
+                    # FÓRMULA INVERTIDA: (Horas Estimadas / Horas Trabalhadas) × 100
+                    # Maior = melhor (120% = 20% mais eficiente que estimado)
+                    eficiencia_horas = round((horas_estimadas_total / horas_trabalhadas_total * 100), 1)
+                    
+                    # Aplica limite máximo para evitar valores extremos
+                    eficiencia_horas = min(eficiencia_horas, 200.0)
+
+            # Calcula eficiência individual dos projetos com horas (para o modal)
+            if len(projetos_com_horas) > 0:
+                projetos_com_horas['eficiencia_horas'] = (projetos_com_horas['Horas'] / projetos_com_horas['HorasTrabalhadas'] * 100).round(1)
+                # Aplica limite nos projetos individuais também
+                projetos_com_horas['eficiencia_horas'] = projetos_com_horas['eficiencia_horas'].clip(upper=200.0)
+
+            # === 2. EFICIÊNCIA DE PRAZO (Fechados + Em Andamento) ===
+            eficiencia_prazo = 0.0
+            projetos_no_prazo = 0
+            projetos_com_prazo = 0
+
+            # Mapeia colunas se necessário
+            if 'Resolvido em' in projetos_para_eficiencia.columns:
+                projetos_para_eficiencia['DataTermino'] = projetos_para_eficiencia['Resolvido em']
+            if 'Vencimento em' in projetos_para_eficiencia.columns:
+                projetos_para_eficiencia['VencimentoEm'] = projetos_para_eficiencia['Vencimento em']
+
+            # Para projetos EM ANDAMENTO, usa data atual como "data de análise"
+            from datetime import datetime
+            data_atual = datetime.now()
+            projetos_para_eficiencia['DataAnalise'] = projetos_para_eficiencia['DataTermino'].fillna(data_atual)
+
+            # Filtra projetos com datas válidas para análise de prazo
+            projetos_com_datas = projetos_para_eficiencia[
+                projetos_para_eficiencia['VencimentoEm'].notna() & 
+                (projetos_para_eficiencia['VencimentoEm'] != '')
+            ].copy()
+
+            if len(projetos_com_datas) > 0:
+                try:
+                    # Converte datas
+                    projetos_com_datas['VencimentoEm'] = pd.to_datetime(
+                        projetos_com_datas['VencimentoEm'], 
+                        errors='coerce', 
+                        dayfirst=True
+                    )
+                    projetos_com_datas['DataAnalise'] = pd.to_datetime(
+                        projetos_com_datas['DataAnalise'], 
+                        errors='coerce'
+                    )
+                    
+                    # Remove projetos com datas inválidas
+                    validos_para_prazo = projetos_com_datas.dropna(subset=['VencimentoEm', 'DataAnalise']).copy()
+                    
+                    if not validos_para_prazo.empty:
+                        # Aplica lógica de prazo (mesma do Status Report)
+                        for _, projeto in validos_para_prazo.iterrows():
+                            data_analise = projeto['DataAnalise']
+                            data_vencimento = projeto['VencimentoEm']
+                            
+                            # Início do mês de análise
+                            inicio_mes_analise = datetime(data_analise.year, data_analise.month, 1)
+                            inicio_mes_analise = pd.Timestamp(inicio_mes_analise).normalize()
+                            
+                            # Projeto no prazo se VencimentoEm >= início do mês de análise
+                            if data_vencimento.normalize() >= inicio_mes_analise:
+                                projetos_no_prazo += 1
+                        
+                        projetos_com_prazo = len(validos_para_prazo)
+                        eficiencia_prazo = round((projetos_no_prazo / projetos_com_prazo) * 100, 1)
+                        
+                except Exception as e:
+                    logger.warning(f"Erro ao processar datas para eficiência de prazo: {str(e)}")
+                    eficiencia_prazo = 0.0
+
+            # === 3. EFICIÊNCIA COMPOSTA (70% Horas + 30% Prazo) ===
+            peso_horas = 0.7  # 70% para eficiência de horas
+            peso_prazo = 0.3  # 30% para eficiência de prazo
             
-            # Renomeia colunas para o formato esperado pelo frontend
-            dados_modal = dados_modal.rename(columns={
-                'Numero': 'numero',
-                'Projeto': 'projeto',
-                'Status': 'status',
-                'Squad': 'squad',
-                'Horas': 'horasContratadas',
-                'HorasTrabalhadas': 'horasTrabalhadas',
-                'eficiencia': 'eficiencia',
-                'backlog_exists': 'backlog_exists'  # Mantém o nome
-            })
-            
-            # Arredonda as horas para uma casa decimal
-            dados_modal['horasContratadas'] = dados_modal['horasContratadas'].round(1)
-            dados_modal['horasTrabalhadas'] = dados_modal['horasTrabalhadas'].round(1)
-            
-            # Calcula métricas adicionais
+            eficiencia_composta = round(
+                (eficiencia_horas * peso_horas) + (eficiencia_prazo * peso_prazo), 1
+            )
+
+            # === 4. PREPARA DADOS PARA O MODAL ===
+            # Usa projetos com horas válidas para exibir no modal
+            dados_modal = pd.DataFrame()
+            if len(projetos_com_horas) > 0:
+                # Adiciona verificação de backlog
+                projetos_com_horas = self._adicionar_verificacao_backlog(projetos_com_horas)
+
+                # Prepara colunas do modal
+                colunas_modal = ['Numero', 'Projeto', 'Status', 'Squad', 'Horas', 'HorasTrabalhadas', 'eficiencia_horas', 'backlog_exists']
+                
+                # Certifica-se de que a coluna Numero existe
+                if 'Numero' not in projetos_com_horas.columns and 'Número' in projetos_com_horas.columns:
+                    projetos_com_horas['Numero'] = projetos_com_horas['Número']
+                elif 'Numero' not in projetos_com_horas.columns:
+                    projetos_com_horas['Numero'] = ''
+                    
+                # Seleciona apenas as colunas que existem
+                colunas_existentes = [col for col in colunas_modal if col in projetos_com_horas.columns]
+                dados_modal = projetos_com_horas[colunas_existentes].copy()
+                
+                # Renomeia colunas para o formato esperado pelo frontend
+                dados_modal = dados_modal.rename(columns={
+                    'Numero': 'numero',
+                    'Projeto': 'projeto',
+                    'Status': 'status',
+                    'Squad': 'squad',
+                    'Horas': 'horasContratadas',
+                    'HorasTrabalhadas': 'horasTrabalhadas',
+                    'eficiencia_horas': 'eficiencia',
+                    'backlog_exists': 'backlog_exists'
+                })
+                
+                # Arredonda as horas para uma casa decimal
+                dados_modal['horasContratadas'] = dados_modal['horasContratadas'].round(1)
+                dados_modal['horasTrabalhadas'] = dados_modal['horasTrabalhadas'].round(1)
+
+            # === 5. CALCULA MÉTRICAS ADICIONAIS ===
             metricas = {
-                'eficiencia_geral': eficiencia_geral,
-                'total_projetos': len(projetos_validos),
-                'media_por_squad': projetos_validos.groupby('Squad')['eficiencia'].mean().round(1).to_dict(),
-                'projetos_acima_100': len(projetos_validos[projetos_validos['eficiencia'] > 100]),
-                'projetos_abaixo_50': len(projetos_validos[projetos_validos['eficiencia'] < 50])
+                'eficiencia_geral': eficiencia_composta,
+                'eficiencia_composta': eficiencia_composta,
+                'eficiencia_horas': eficiencia_horas,
+                'eficiencia_prazo': eficiencia_prazo,
+                'total_projetos': len(projetos_com_horas),
+                'projetos_analisados': len(projetos_para_eficiencia),
+                'projetos_com_prazo': projetos_com_prazo,
+                'projetos_no_prazo': projetos_no_prazo,
+                'peso_horas': peso_horas,
+                'peso_prazo': peso_prazo
             }
             
-            logger.info(f"Eficiência de entrega calculada: {eficiencia_geral}%")
+            # Calcula métricas por squad se houver dados
+            if len(projetos_com_horas) > 0:
+                metricas['media_por_squad'] = projetos_com_horas.groupby('Squad')['eficiencia_horas'].mean().round(1).to_dict()
+                metricas['projetos_acima_100'] = len(projetos_com_horas[projetos_com_horas['eficiencia_horas'] > 100])
+                metricas['projetos_abaixo_80'] = len(projetos_com_horas[projetos_com_horas['eficiencia_horas'] < 80])
+            else:
+                metricas['media_por_squad'] = {}
+                metricas['projetos_acima_100'] = 0
+                metricas['projetos_abaixo_80'] = 0
+            
+            logger.info(f"Eficiência calculada: {eficiencia_composta}% (Horas: {eficiencia_horas}%, Prazo: {eficiencia_prazo}%)")
             
             return {
-                'total': eficiencia_geral,
-                'dados': dados_modal.replace({np.nan: None}),
+                'total': eficiencia_composta,
+                'dados': dados_modal.replace({np.nan: None}) if not dados_modal.empty else pd.DataFrame(),
                 'metricas': metricas
             }
             
         except Exception as e:
-            logger.error(f"Erro ao calcular eficiência de entrega: {str(e)}", exc_info=True)
+            logger.error(f"Erro ao calcular eficiência: {str(e)}", exc_info=True)
             return {'total': 0.0, 'dados': pd.DataFrame(), 'metricas': {}}
 
     def calcular_kpis(self, dados):
@@ -1590,24 +1679,14 @@ class MacroService(BaseService):
             projetos_ativos = self.calcular_projetos_ativos(dados_base)
             projetos_criticos = self.calcular_projetos_criticos(dados_base)
             media_horas = self.calcular_media_horas(dados_base)
-            eficiencia_entrega = self.calcular_eficiencia_entrega(dados_base)
             
             # Projetos concluídos
             projetos_concluidos = dados_base[dados_base['Status'].isin(self.status_concluidos)]
             projetos_concluidos_count = len(projetos_concluidos)
 
-            # Eficiência de entrega
-            eficiencia = 0.0
-            if 'Horas' in dados_base.columns and 'HorasTrabalhadas' in dados_base.columns:
-                projetos_com_horas = dados_base[
-                    (dados_base['Horas'] > 0) &
-                    (dados_base['HorasTrabalhadas'] > 0)
-                ]
-                if not projetos_com_horas.empty:
-                    horas_planejadas = projetos_com_horas['Horas'].sum()
-                    horas_trabalhadas = projetos_com_horas['HorasTrabalhadas'].sum()
-                    if horas_planejadas > 0:
-                        eficiencia = round((horas_trabalhadas / horas_planejadas) * 100, 1)
+            # Eficiência de entrega (usa o método específico corrigido)
+            eficiencia_entrega_result = self.calcular_eficiencia_entrega(dados_base)
+            eficiencia = eficiencia_entrega_result['total']
 
             kpis = {
                 'projetos_ativos': projetos_ativos['total'],
