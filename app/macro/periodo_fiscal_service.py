@@ -962,21 +962,52 @@ class StatusReportHistoricoService:
             return pd.DataFrame()
     
     def _criar_resultado_vazio(self, motivo):
-        """Cria estrutura vazia para KPIs"""
+        """Cria um resultado vazio com estrutura padrão"""
         return {
-            'periodo': {
-                'meses_selecionados': [],
-                'label': motivo,
-                'tipo': 'historico'
-            },
-            'kpis': {
-                'projetos_fechados': 0,
-                'projetos_abertos': 0,
-                'horas_trabalhadas': 0.0,
-                'distribuicao_faturamento': {}
-            },
-            'detalhes_por_mes': {},
-            'primeira_execucao': True,
-            'comparacao': None,
-            'erro': motivo
-        } 
+            'erro': motivo,
+            'kpis_gerais': {},
+            'detalhes_mensais': {}
+        }
+    
+    def carregar_dados_periodo(self, meses_selecionados):
+        """
+        Carrega e combina dados brutos de múltiplos meses para exportação
+        
+        Args:
+            meses_selecionados: Lista de meses (ex: ['jan', 'fev', 'mar'])
+        
+        Returns:
+            DataFrame combinado com todos os dados dos meses selecionados
+        """
+        try:
+            logger.info(f"📊 Carregando dados brutos para exportação: {meses_selecionados}")
+            
+            dataframes = []
+            
+            for mes_key in meses_selecionados:
+                if mes_key in self.meses_disponiveis:
+                    info_mes = self.meses_disponiveis[mes_key]
+                    dados_mes = self._carregar_dados_mes_historico(info_mes['arquivo'])
+                    
+                    if not dados_mes.empty:
+                        # Adiciona uma coluna identificando o mês de origem
+                        dados_mes = dados_mes.copy()
+                        dados_mes['MesOrigem'] = info_mes['nome']
+                        dataframes.append(dados_mes)
+                        logger.info(f"✅ Dados carregados para {info_mes['nome']}: {len(dados_mes)} registros")
+                    else:
+                        logger.warning(f"⚠️ Dados vazios para {info_mes['nome']}")
+                else:
+                    logger.warning(f"⚠️ Mês inválido: {mes_key}")
+            
+            if dataframes:
+                dados_combinados = pd.concat(dataframes, ignore_index=True)
+                logger.info(f"✅ Dados combinados: {len(dados_combinados)} registros de {len(dataframes)} meses")
+                return dados_combinados
+            else:
+                logger.warning("⚠️ Nenhum dado encontrado para os meses selecionados")
+                return pd.DataFrame()
+                
+        except Exception as e:
+            logger.error(f"❌ Erro ao carregar dados do período: {str(e)}", exc_info=True)
+            return pd.DataFrame() 

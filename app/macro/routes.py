@@ -2588,19 +2588,280 @@ def apresentacao_periodo():
         else:
             periodo_display = f"Análise de {nomes_meses[0]}"
 
+        # Cria os labels do período
+        todos_meses_disponiveis = service.listar_meses_disponiveis()
+        mapa_meses = {mes['key']: mes['nome'] for mes in todos_meses_disponiveis}
+        nomes_meses_selecionados = sorted([mapa_meses.get(m, m) for m in meses_selecionados], key=lambda x: list(mapa_meses.values()).index(x))
+
+        periodo_label = ""
+        if len(nomes_meses_selecionados) > 1:
+            periodo_label = f"{nomes_meses_selecionados[0]} a {nomes_meses_selecionados[-1]}"
+        elif len(nomes_meses_selecionados) == 1:
+            periodo_label = nomes_meses_selecionados[0]
+        
+        # Adiciona a lista de meses disponíveis para o seletor do modal
         contexto = {
             "kpis": kpis_dados.get('kpis_gerais', {}),
             "detalhes_mensais": list(kpis_dados.get('detalhes_mensais', {}).values()),
             "squad_distribution": kpis_dados.get('kpis_gerais', {}).get('distribuicao_squad', {}),
-            "periodo_display": periodo_display,
+            "periodo_label": periodo_label,
+            "meses_disponiveis": todos_meses_disponiveis,
             "meses_selecionados": meses_selecionados_str,
             "hora_atualizacao": datetime.now()
         }
 
-        current_app.logger.info(f"✅ Status Report histórico renderizado: {periodo_display}")
+        current_app.logger.info(f"✅ Status Report histórico renderizado para o período: {periodo_label}")
         
         return render_template('macro/apresentacao_periodo.html', **contexto)
         
     except Exception as e:
         current_app.logger.exception(f"❌ Erro fatal na rota apresentacao_periodo: {e}")
         return render_template('macro/erro.html', mensagem_erro=str(e))
+
+@macro_bp.route('/exportar-status-periodo')
+def exportar_status_periodo():
+    """Exporta os dados do Status Report Histórico para Excel"""
+    try:
+        # Obtém os mesmos parâmetros da rota principal
+        meses_selecionados_str = request.args.get('meses', 'jan,fev,mar,abr,mai,jun')
+        meses_selecionados = [mes.strip() for mes in meses_selecionados_str.split(',')]
+        
+        # Usa o mesmo serviço para garantir consistência dos dados
+        service = StatusReportHistoricoService()
+        kpis_dados = service.calcular_kpis_periodo_historico(meses_selecionados)
+
+        if 'erro' in kpis_dados:
+            flash(f"Erro ao exportar dados: {kpis_dados['erro']}", "danger")
+            return redirect(url_for('macro.apresentacao_periodo'))
+
+        # Prepara o nome do arquivo
+        nomes_meses = [service.meses_disponiveis.get(m, {}).get('nome', m) for m in meses_selecionados]
+        if len(nomes_meses) > 1:
+            nome_arquivo = f"Status_Report_Historico_{nomes_meses[0]}_a_{nomes_meses[-1]}.xlsx"
+        else:
+            nome_arquivo = f"Status_Report_Historico_{nomes_meses[0]}.xlsx"
+        
+        # Remove caracteres especiais do nome do arquivo
+        nome_arquivo = nome_arquivo.replace('/', '_').replace('\\', '_').replace(':', '_')
+
+        # Cria o arquivo Excel em memória
+        output = BytesIO()
+        
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            workbook = writer.book
+            
+            # Formatos para as células
+            header_format = workbook.add_format({
+                'bold': True,
+                'text_wrap': True,
+                'valign': 'top',
+                'fg_color': '#2c3e50',
+                'font_color': 'white',
+                'border': 1
+            })
+            
+            data_format = workbook.add_format({
+                'text_wrap': True,
+                'valign': 'top',
+                'border': 1
+            })
+            
+            number_format = workbook.add_format({
+                'num_format': '#,##0.0',
+                'border': 1
+            })
+            
+            # ABA 1: Resumo dos KPIs
+            kpis_gerais = kpis_dados.get('kpis_gerais', {})
+            resumo_data = []
+            
+            # KPIs principais
+            resumo_data.append(['Indicador', 'Valor', 'Unidade'])
+            resumo_data.append(['Projetos Únicos Fechados', kpis_gerais.get('projetos_fechados', 0), 'projetos'])
+            resumo_data.append(['Tempo Médio de Vida', kpis_gerais.get('tempo_medio_vida', 0), 'dias'])
+            resumo_data.append(['Horas Trabalhadas', kpis_gerais.get('horas_trabalhadas', 0), 'horas'])
+            
+            # Busca informações de faturamento nos detalhes mensais para ter dados mais precisos
+            detalhes_mensais = kpis_dados.get('detalhes_mensais', {})
+            distribuicao_faturamento = kpis_gerais.get('distribuicao_faturamento', {})
+            
+            # Calcula totais de faturamento
+            total_faturado_inicio = distribuicao_faturamento.get('INICIO', 0)
+            total_faturado_termino = distribuicao_faturamento.get('TERMINO', 0)
+            total_plus = distribuicao_faturamento.get('PLUS', 0)
+            total_prime = distribuicao_faturamento.get('PRIME', 0)
+            total_engajamento = distribuicao_faturamento.get('ENGAJAMENTO', 0)
+            total_feop = distribuicao_faturamento.get('FEOP', 0)
+            
+            resumo_data.append(['Projetos Faturados no Início', total_faturado_inicio, 'projetos'])
+            resumo_data.append(['Projetos Faturados no Término', total_faturado_termino, 'projetos'])
+            
+            # Adiciona outros tipos de faturamento se houver dados
+            if total_plus > 0:
+                resumo_data.append(['Projetos PLUS', total_plus, 'projetos'])
+            if total_prime > 0:
+                resumo_data.append(['Projetos PRIME', total_prime, 'projetos'])
+            if total_engajamento > 0:
+                resumo_data.append(['Projetos ENGAJAMENTO', total_engajamento, 'projetos'])
+            if total_feop > 0:
+                resumo_data.append(['Projetos FEOP', total_feop, 'projetos'])
+            
+            # Distribuição por Squad (apenas se houver dados válidos)
+            distribuicao_squad = kpis_gerais.get('distribuicao_squad', {})
+            total_squad = distribuicao_squad.get('total_squad', {})
+            if total_squad and any(valor > 0 for valor in total_squad.values()):
+                resumo_data.append(['', '', ''])  # Linha em branco
+                resumo_data.append(['DISTRIBUIÇÃO POR SQUAD', '', ''])
+                for squad, valor in total_squad.items():
+                    if valor > 0:  # Só inclui squads com projetos
+                        resumo_data.append([f'Squad {squad}', valor, 'projetos'])
+                
+                # Total geral de squads
+                total_geral_squad = distribuicao_squad.get('total_geral', 0)
+                if total_geral_squad > 0:
+                    resumo_data.append(['Total Geral (Squads)', total_geral_squad, 'projetos'])
+            
+            # Cria DataFrame e escreve na planilha
+            df_resumo = pd.DataFrame(resumo_data[1:], columns=resumo_data[0])
+            df_resumo.to_excel(writer, sheet_name='Resumo KPIs', index=False)
+            
+            # Formata a aba de resumo
+            worksheet_resumo = writer.sheets['Resumo KPIs']
+            worksheet_resumo.set_column('A:A', 35)
+            worksheet_resumo.set_column('B:B', 15)
+            worksheet_resumo.set_column('C:C', 15)
+            
+            # Aplica formatação ao cabeçalho
+            for col_num, value in enumerate(df_resumo.columns.values):
+                worksheet_resumo.write(0, col_num, value, header_format)
+            
+            # ABA 2: Detalhes Mensais
+            detalhes_mensais = kpis_dados.get('detalhes_mensais', {})
+            if detalhes_mensais:
+                # Cabeçalho expandido com todos os tipos de faturamento
+                detalhes_data = []
+                detalhes_data.append([
+                    'Mês', 'Projetos Fechados', 'Tempo Médio Vida (dias)', 'Horas Trabalhadas', 
+                    'Faturado Início', 'Faturado Término', 'PLUS', 'PRIME', 'ENGAJAMENTO', 'FEOP'
+                ])
+                
+                for mes_key, dados_mes in detalhes_mensais.items():
+                    nome_mes = service.meses_disponiveis.get(mes_key, {}).get('nome', mes_key)
+                    
+                    # Busca dados de faturamento detalhados se disponíveis
+                    faturamento_detalhado = dados_mes.get('faturamento', {})
+                    
+                    detalhes_data.append([
+                        nome_mes,
+                        dados_mes.get('fechados', dados_mes.get('projetos_fechados', 0)),
+                        dados_mes.get('tempo_medio_vida', 0),
+                        dados_mes.get('horas', dados_mes.get('horas_trabalhadas', 0)),
+                        faturamento_detalhado.get('INICIO', 0),
+                        faturamento_detalhado.get('TERMINO', 0),
+                        faturamento_detalhado.get('PLUS', 0),
+                        faturamento_detalhado.get('PRIME', 0),
+                        faturamento_detalhado.get('ENGAJAMENTO', 0),
+                        faturamento_detalhado.get('FEOP', 0)
+                    ])
+                
+                df_detalhes = pd.DataFrame(detalhes_data[1:], columns=detalhes_data[0])
+                df_detalhes.to_excel(writer, sheet_name='Detalhes Mensais', index=False)
+                
+                # Formata a aba de detalhes
+                worksheet_detalhes = writer.sheets['Detalhes Mensais']
+                worksheet_detalhes.set_column('A:A', 15)
+                worksheet_detalhes.set_column('B:J', 15)  # Expandido para incluir todas as colunas
+                
+                # Aplica formatação ao cabeçalho
+                for col_num, value in enumerate(df_detalhes.columns.values):
+                    worksheet_detalhes.write(0, col_num, value, header_format)
+                
+                # Aplica formatação numérica às colunas de dados
+                for row_num in range(1, len(df_detalhes) + 1):
+                    worksheet_detalhes.write(row_num, 2, df_detalhes.iloc[row_num-1, 2], number_format)  # Tempo Médio Vida
+                    worksheet_detalhes.write(row_num, 3, df_detalhes.iloc[row_num-1, 3], number_format)  # Horas Trabalhadas
+            
+            # ABA 3: Dados Brutos (para replicação de cálculos)
+            # Carrega os dados brutos dos meses selecionados
+            dados_brutos_combinados = service.carregar_dados_periodo(meses_selecionados)
+            
+            if not dados_brutos_combinados.empty:
+                # Seleciona colunas mais completas para análise
+                colunas_relevantes = [
+                    'ID', 'NomeProjeto', 'Cliente', 'Status', 'DataInicio', 'DataFim', 
+                    'Squad', 'Especialista', 'HorasEstimadas', 'TipoFaturamento', 'Faturamento',
+                    'DataCriacao', 'DataAtualizacao', 'MesOrigem'
+                ]
+                
+                # Filtra apenas as colunas que existem no DataFrame
+                colunas_existentes = [col for col in colunas_relevantes if col in dados_brutos_combinados.columns]
+                df_brutos = dados_brutos_combinados[colunas_existentes].copy()
+                
+                # Limpeza e formatação dos dados
+                # 1. Remove registros com Squad NaN ou vazio
+                if 'Squad' in df_brutos.columns:
+                    df_brutos = df_brutos[df_brutos['Squad'].notna() & (df_brutos['Squad'] != '')]
+                
+                # 2. Formata datas removendo timestamp
+                colunas_data = ['DataInicio', 'DataFim', 'DataCriacao', 'DataAtualizacao']
+                for col_data in colunas_data:
+                    if col_data in df_brutos.columns:
+                        df_brutos[col_data] = pd.to_datetime(df_brutos[col_data], errors='coerce').dt.date
+                
+                # 3. Preenche valores NaN com texto mais legível
+                df_brutos = df_brutos.fillna('N/A')
+                
+                # 4. Ordena por Cliente e ID para facilitar análise
+                if 'Cliente' in df_brutos.columns and 'ID' in df_brutos.columns:
+                    df_brutos = df_brutos.sort_values(['Cliente', 'ID'])
+                
+                df_brutos.to_excel(writer, sheet_name='Dados Brutos', index=False)
+                
+                # Formata a aba de dados brutos
+                worksheet_brutos = writer.sheets['Dados Brutos']
+                
+                # Define larguras específicas para cada tipo de coluna
+                col_widths = {
+                    'ID': 10,
+                    'NomeProjeto': 30,
+                    'Cliente': 20,
+                    'Status': 15,
+                    'DataInicio': 12,
+                    'DataFim': 12,
+                    'Squad': 15,
+                    'Especialista': 20,
+                    'HorasEstimadas': 12,
+                    'TipoFaturamento': 15,
+                    'Faturamento': 15,
+                    'DataCriacao': 12,
+                    'DataAtualizacao': 12,
+                    'MesOrigem': 12
+                }
+                
+                # Aplica larguras personalizadas
+                for col_num, col_name in enumerate(df_brutos.columns):
+                    width = col_widths.get(col_name, 15)
+                    worksheet_brutos.set_column(col_num, col_num, width)
+                
+                # Aplica formatação ao cabeçalho
+                for col_num, value in enumerate(df_brutos.columns.values):
+                    worksheet_brutos.write(0, col_num, value, header_format)
+        
+        # Prepara o arquivo para download
+        output.seek(0)
+        
+        current_app.logger.info(f"✅ Arquivo Excel gerado com sucesso: {nome_arquivo}")
+        
+        return Response(
+            output.getvalue(),
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            headers={
+                'Content-Disposition': f'attachment; filename="{nome_arquivo}"',
+                'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            }
+        )
+        
+    except Exception as e:
+        current_app.logger.exception(f"❌ Erro ao exportar Status Report: {e}")
+        flash(f"Erro ao exportar dados: {str(e)}", "danger")
+        return redirect(url_for('macro.apresentacao_periodo'))

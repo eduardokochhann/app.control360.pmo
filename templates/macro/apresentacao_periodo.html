@@ -183,47 +183,61 @@
 </head>
 <body class="bg-light">
 
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark shadow-sm" style="background-color: var(--primary-color);">
-        <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="{{ url_for('macro.dashboard') }}">
-                <i class="bi bi-graph-up-arrow me-2"></i>Control360
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="mainNavbar">
-                <div class="navbar-nav ms-auto">
-                    <a class="nav-link" href="{{ url_for('macro.dashboard') }}">Dashboard</a>
-                    <a class="nav-link" href="{{ url_for('macro.apresentacao') }}">Status Report Mensal</a>
-                    <a class="nav-link active" href="#">Status Report Histórico</a>
-                </div>
+    {% include 'includes/header.html' %}
+
+    <!-- Container Principal com espaçamento para o header fixo -->
+    <div class="container-fluid mt-5 pt-4">
+        
+        <!-- Cabeçalho com Seletor de Visão -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-0 fw-bold">
+                    <i class="bi bi-file-earmark-slides me-2"></i>Status Report
+                </h1>
+                <p class="text-muted mb-0 small">
+                    Fonte de dados: 
+                    {% if 'jun' in meses_selecionados %}
+                        dadosr.csv (Atual) e dados históricos
+                    {% else %}
+                        Arquivos históricos
+                    {% endif %}
+                </p>
+            </div>
+            
+            <!-- Seletor Mensal / Histórico -->
+            <div class="btn-group">
+                <a href="{{ url_for('macro.apresentacao') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-calendar-month me-1"></i>Mensal
+                </a>
+                <a href="{{ url_for('macro.apresentacao_periodo') }}" class="btn btn-primary active" aria-current="page">
+                    <i class="bi bi-bar-chart-line-fill me-1"></i>Histórico
+                </a>
             </div>
         </div>
-    </nav>
 
-    <!-- Container Principal -->
-    <div class="container-fluid mt-4">
-        
-        <!-- Cabeçalho -->
+        <!-- Cabeçalho da Página -->
         <div class="p-4 mb-4 bg-white rounded-3 shadow-sm border-start border-5 border-primary">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h1 class="h3 mb-1 fw-bold">
-                        Status Report Histórico
-                        <small class="text-muted fs-6 fw-normal">Janeiro a Junho</small>
-                    </h1>
-                    {% if periodo_atual %}
-                        <p class="text-muted mb-0">Análise do período de <strong>{{ periodo_atual.nome }}</strong></p>
-                    {% endif %}
+                    <h2 class="h4 mb-1 fw-bold">
+                        Análise de Período Histórico
+                        <small class="text-muted fs-6 fw-normal">{{ periodo_label }}</small>
+                    </h2>
                 </div>
                 
-                <!-- Botão para configurar período - OCULTO -->
-                <!-- 
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#seletorPeriodoModal">
-                    <i class="bi bi-calendar3 me-2"></i>Configurar Período
-                </button>
-                -->
+                <!-- Botões de Ação -->
+                <div class="d-flex gap-2">
+                    <!-- Botão para exportar para Excel -->
+                    <a href="{{ url_for('macro.exportar_status_periodo', meses=meses_selecionados) }}" 
+                       class="btn btn-success">
+                        <i class="bi bi-file-earmark-excel me-2"></i>Exportar Excel
+                    </a>
+                    
+                    <!-- Botão para configurar período -->
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#seletorPeriodoModal">
+                        <i class="bi bi-calendar3 me-2"></i>Configurar Período
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -552,15 +566,18 @@
                         <!-- Períodos Pré-definidos -->
                         <div class="mt-4">
                             <h6 class="mb-3">Ou escolha um período pré-definido:</h6>
-                            <div class="d-grid gap-2">
-                                <button type="button" class="btn btn-outline-primary" onclick="selecionarPeriodo(['jan','fev','mar'])">
-                                    1º Trimestre (Jan-Mar)
+                            <div class="d-grid gap-3">
+                                <button type="button" class="btn btn-outline-primary" onclick="selecionarPeriodo(['jun'])">
+                                    Apenas Junho (1 Mês)
                                 </button>
-                                <button type="button" class="btn btn-outline-primary" onclick="selecionarPeriodo(['abr','mai'])">
-                                    Abr-Mai
+                                <button type="button" class="btn btn-outline-primary" onclick="selecionarPeriodo(['mai', 'jun'])">
+                                    Últimos 2 Meses
                                 </button>
-                                <button type="button" class="btn btn-outline-primary" onclick="selecionarPeriodo(['jan','fev','mar','abr','mai'])">
-                                    Jan-Mai (Padrão)
+                                <button type="button" class="btn btn-outline-primary" onclick="selecionarPeriodo(['abr', 'mai', 'jun'])">
+                                    Últimos 3 Meses
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" onclick="selecionarPeriodo(['jan', 'fev', 'mar', 'abr', 'mai', 'jun'])">
+                                    Semestre Completo (6 Meses)
                                 </button>
                             </div>
                         </div>
