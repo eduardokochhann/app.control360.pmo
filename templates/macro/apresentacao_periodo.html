@@ -405,6 +405,40 @@
             transform: rotate(2deg);
             box-shadow: 0 8px 25px rgba(0,0,0,0.3);
         }
+        
+        /* Melhorias nos dropdowns dos widgets */
+        .widget-controls .dropdown-menu {
+            min-width: 200px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border: none;
+            border-radius: 8px;
+        }
+        
+        .widget-controls .dropdown-header {
+            color: var(--primary-color);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0.5rem 1rem 0.25rem;
+        }
+        
+        .widget-controls .dropdown-item {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+        
+        .widget-controls .dropdown-item:hover {
+            background-color: var(--light-bg);
+            color: var(--primary-color);
+            transform: translateX(4px);
+        }
+        
+        .widget-controls .dropdown-item i {
+            width: 16px;
+            color: var(--secondary-color);
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -595,6 +629,7 @@
                                 <i class="bi bi-three-dots"></i>
                             </button>
                             <ul class="dropdown-menu">
+                                <li><h6 class="dropdown-header">Tamanho</h6></li>
                                 <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-movimentacao', 'small')">
                                     <i class="bi bi-aspect-ratio me-2"></i>Pequeno
                                 </a></li>
@@ -603,6 +638,20 @@
                                 </a></li>
                                 <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-movimentacao', 'large')">
                                     <i class="bi bi-arrows-fullscreen me-2"></i>Grande
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header">Tipo de Gráfico</h6></li>
+                                <li><a class="dropdown-item" href="#" onclick="changeChartType('chartMovimentacaoProjetos', 'default')">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>Padrão
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="changeChartType('chartMovimentacaoProjetos', 'bar')">
+                                    <i class="bi bi-bar-chart me-2"></i>Barras
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="changeChartType('chartMovimentacaoProjetos', 'line')">
+                                    <i class="bi bi-graph-up me-2"></i>Linha
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="changeChartType('chartMovimentacaoProjetos', 'area')">
+                                    <i class="bi bi-graph-up-arrow me-2"></i>Área
                                 </a></li>
                             </ul>
                         </div>
@@ -628,6 +677,7 @@
                                 <i class="bi bi-three-dots"></i>
                             </button>
                             <ul class="dropdown-menu">
+                                <li><h6 class="dropdown-header">Tamanho</h6></li>
                                 <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-horas', 'small')">
                                     <i class="bi bi-aspect-ratio me-2"></i>Pequeno
                                 </a></li>
@@ -636,6 +686,20 @@
                                 </a></li>
                                 <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-horas', 'large')">
                                     <i class="bi bi-arrows-fullscreen me-2"></i>Grande
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header">Tipo de Gráfico</h6></li>
+                                <li><a class="dropdown-item" href="#" onclick="changeChartType('chartHorasTrabalhadas', 'default')">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>Padrão
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="changeChartType('chartHorasTrabalhadas', 'bar')">
+                                    <i class="bi bi-bar-chart me-2"></i>Barras
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="changeChartType('chartHorasTrabalhadas', 'line')">
+                                    <i class="bi bi-graph-up me-2"></i>Linha
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="changeChartType('chartHorasTrabalhadas', 'doughnut')">
+                                    <i class="bi bi-pie-chart me-2"></i>Pizza (%)
                                 </a></li>
                             </ul>
                         </div>
@@ -729,6 +793,7 @@
                                 <i class="bi bi-three-dots"></i>
                             </button>
                             <ul class="dropdown-menu">
+                                <li><h6 class="dropdown-header">Tamanho</h6></li>
                                 <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-squad', 'small')">
                                     <i class="bi bi-aspect-ratio me-2"></i>Pequeno
                                 </a></li>
@@ -737,6 +802,20 @@
                                 </a></li>
                                 <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-squad', 'large')">
                                     <i class="bi bi-arrows-fullscreen me-2"></i>Grande
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header">Tipo de Gráfico</h6></li>
+                                <li><a class="dropdown-item" href="#" onclick="changeChartType('chartEvolucaoSquad', 'default')">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>Padrão
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="changeChartType('chartEvolucaoSquad', 'bar-stacked')">
+                                    <i class="bi bi-bar-chart me-2"></i>Barras Empilhadas
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="changeChartType('chartEvolucaoSquad', 'bar-grouped')">
+                                    <i class="bi bi-bar-chart-steps me-2"></i>Barras Agrupadas
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="changeChartType('chartEvolucaoSquad', 'line-multi')">
+                                    <i class="bi bi-graph-up me-2"></i>Linha Múltipla
                                 </a></li>
                             </ul>
                         </div>
@@ -840,6 +919,7 @@
                                 <i class="bi bi-three-dots"></i>
                             </button>
                             <ul class="dropdown-menu">
+                                <li><h6 class="dropdown-header">Tamanho</h6></li>
                                 <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-tempo-vida', 'small')">
                                     <i class="bi bi-aspect-ratio me-2"></i>Pequeno
                                 </a></li>
@@ -848,6 +928,20 @@
                                 </a></li>
                                 <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-tempo-vida', 'large')">
                                     <i class="bi bi-arrows-fullscreen me-2"></i>Grande
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header">Tipo de Gráfico</h6></li>
+                                <li><a class="dropdown-item" href="#" onclick="changeChartType('chartTempoMedioVida', 'default')">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>Padrão
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="changeChartType('chartTempoMedioVida', 'line')">
+                                    <i class="bi bi-graph-up me-2"></i>Linha
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="changeChartType('chartTempoMedioVida', 'area')">
+                                    <i class="bi bi-graph-up-arrow me-2"></i>Área
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="changeChartType('chartTempoMedioVida', 'bar')">
+                                    <i class="bi bi-bar-chart me-2"></i>Barras
                                 </a></li>
                             </ul>
                         </div>
@@ -1307,7 +1401,7 @@
                     },
                     plugins: {
                         datalabels: {
-                            color: 'white',
+                            color: 'black',
                             font: { weight: 'bold', size: 11 },
                             anchor: 'center',
                             align: 'center',
@@ -1424,6 +1518,31 @@
                 }
             });
         });
+        
+        // Forçar redimensionamento de todos os gráficos após criação
+        setTimeout(() => {
+            const chartIds = ['chartMovimentacaoProjetos', 'chartHorasTrabalhadas', 'chartEvolucaoSquad', 'chartTempoMedioVida'];
+            chartIds.forEach(chartId => {
+                const chart = Chart.getChart(chartId);
+                if (chart) {
+                    chart.resize();
+                    console.log(`Gráfico ${chartId} redimensionado`);
+                }
+            });
+        }, 1000);
+        
+        // Adicionar listener para redimensionamento da janela
+        window.addEventListener('resize', function() {
+            setTimeout(() => {
+                const chartIds = ['chartMovimentacaoProjetos', 'chartHorasTrabalhadas', 'chartEvolucaoSquad', 'chartTempoMedioVida'];
+                chartIds.forEach(chartId => {
+                    const chart = Chart.getChart(chartId);
+                    if (chart) {
+                        chart.resize();
+                    }
+                });
+            }, 100);
+        });
     </script>
     {% endif %}
     
@@ -1486,6 +1605,12 @@
                      setTimeout(saveLayout, 1000);
                  }
              });
+             
+             // Carregar tipos de gráficos salvos após os gráficos serem criados
+             // DESABILITADO: Evita recarregar tipos salvos que causam problemas de layout
+             // setTimeout(() => {
+             //     loadSavedChartTypes();
+             // }, 2000);
              
              // Redimensionar gráficos quando widgets são redimensionados
              grid.on('resizestop', function(event, el) {
@@ -1588,6 +1713,10 @@
                             });
                         }
                     });
+                    // Redimensionar gráficos após carregar layout
+                    setTimeout(() => {
+                        resizeAllCharts();
+                    }, 500);
                 } catch (e) {
                     console.warn('Erro ao carregar layout salvo:', e);
                 }
@@ -1710,6 +1839,417 @@
                      notification.remove();
                  }
              }, 4000);
+         }
+         
+         // Função para alternar tipo de gráfico
+         function changeChartType(chartId, newType) {
+             const chart = Chart.getChart(chartId);
+             if (!chart) {
+                 showNotification('Gráfico não encontrado!', 'danger');
+                 return;
+             }
+             
+             // Salvar dados originais
+             const originalData = chart.data;
+             const originalLabels = chart.data.labels;
+             
+             // Destruir gráfico atual
+             chart.destroy();
+             
+             // Se for 'default', usar tipo padrão e remover preferência salva
+             if (newType === 'default') {
+                 localStorage.removeItem(`chart-type-${chartId}`);
+                 // Recriar gráfico com tipo padrão
+                 createChartWithType(chartId, getDefaultChartType(chartId), originalData, originalLabels);
+                 // Remover indicador visual
+                 updateChartTypeIndicator(chartId, null);
+                 showNotification('Gráfico restaurado para o padrão!', 'success');
+             } else {
+                 // Criar novo gráfico com tipo diferente
+                 createChartWithType(chartId, newType, originalData, originalLabels);
+                 // Salvar preferência
+                 localStorage.setItem(`chart-type-${chartId}`, newType);
+                 // Atualizar indicador visual no cabeçalho
+                 updateChartTypeIndicator(chartId, newType);
+                 showNotification(`Gráfico alterado para ${getChartTypeName(newType)}!`, 'success');
+             }
+             
+             // Forçar redimensionamento após mudança de tipo
+             setTimeout(() => {
+                 const newChart = Chart.getChart(chartId);
+                 if (newChart) {
+                     newChart.resize();
+                 }
+             }, 100);
+         }
+         
+         // Obter tipo padrão para cada gráfico
+         function getDefaultChartType(chartId) {
+             const defaults = {
+                 'chartMovimentacaoProjetos': 'bar',
+                 'chartHorasTrabalhadas': 'bar', 
+                 'chartEvolucaoSquad': 'bar-stacked',
+                 'chartTempoMedioVida': 'line'
+             };
+             return defaults[chartId] || 'bar';
+         }
+         
+         // Atualizar indicador de tipo no cabeçalho do gráfico
+         function updateChartTypeIndicator(chartId, type) {
+             const chartWidget = document.querySelector(`canvas#${chartId}`).closest('.grid-stack-item');
+             const header = chartWidget.querySelector('.card-header h6');
+             
+             if (header) {
+                 // Remover indicador anterior
+                 const existingIndicator = header.querySelector('.chart-type-indicator');
+                 if (existingIndicator) {
+                     existingIndicator.remove();
+                 }
+                 
+                 // Adicionar novo indicador apenas se não for tipo padrão
+                 if (type && type !== getDefaultChartType(chartId)) {
+                     const indicator = document.createElement('small');
+                     indicator.className = 'chart-type-indicator text-white-50 ms-2';
+                     indicator.textContent = `(${getChartTypeName(type)})`;
+                     header.appendChild(indicator);
+                 }
+             }
+         }
+         
+         // Obter nome amigável do tipo de gráfico
+         function getChartTypeName(type) {
+             const names = {
+                 'bar': 'Barras',
+                 'line': 'Linha', 
+                 'area': 'Área',
+                 'doughnut': 'Pizza',
+                 'bar-stacked': 'Barras Empilhadas',
+                 'bar-grouped': 'Barras Agrupadas',
+                 'line-multi': 'Linha Múltipla',
+                 'default': 'Padrão'
+             };
+             return names[type] || type;
+         }
+         
+         // Criar gráfico com tipo específico
+         function createChartWithType(chartId, type, originalData, originalLabels) {
+             const ctx = document.getElementById(chartId).getContext('2d');
+             let config = {};
+             
+             switch (chartId) {
+                 case 'chartMovimentacaoProjetos':
+                     config = getMovimentacaoConfig(type, originalData, originalLabels);
+                     break;
+                 case 'chartHorasTrabalhadas':
+                     config = getHorasConfig(type, originalData, originalLabels);
+                     break;
+                 case 'chartEvolucaoSquad':
+                     config = getSquadConfig(type, originalData, originalLabels);
+                     break;
+                 case 'chartTempoMedioVida':
+                     config = getTempoVidaConfig(type, originalData, originalLabels);
+                     break;
+             }
+             
+             new Chart(ctx, config);
+         }
+         
+         // Configurações para gráfico de Movimentação de Projetos
+         function getMovimentacaoConfig(type, originalData, originalLabels) {
+             const baseConfig = {
+                 data: {
+                     labels: originalLabels,
+                     datasets: originalData.datasets
+                 },
+                 options: {
+                     responsive: true,
+                     maintainAspectRatio: false,
+                     plugins: {
+                         legend: { position: 'bottom' },
+                         tooltip: {
+                             mode: 'index',
+                             intersect: false
+                         }
+                     }
+                 }
+             };
+             
+             switch (type) {
+                 case 'line':
+                     return {
+                         type: 'line',
+                         ...baseConfig,
+                         data: {
+                             ...baseConfig.data,
+                             datasets: baseConfig.data.datasets.map(dataset => ({
+                                 ...dataset,
+                                 fill: false,
+                                 tension: 0.4,
+                                 pointRadius: 4
+                             }))
+                         }
+                     };
+                 case 'area':
+                     return {
+                         type: 'line',
+                         ...baseConfig,
+                         data: {
+                             ...baseConfig.data,
+                             datasets: baseConfig.data.datasets.map(dataset => ({
+                                 ...dataset,
+                                 fill: true,
+                                 tension: 0.4,
+                                 pointRadius: 4
+                             }))
+                         }
+                     };
+                 default: // bar
+                     return {
+                         type: 'bar',
+                         ...baseConfig,
+                         options: {
+                             ...baseConfig.options,
+                             scales: {
+                                 x: { stacked: false },
+                                 y: { stacked: false, beginAtZero: true }
+                             }
+                         }
+                     };
+             }
+         }
+         
+         // Configurações para gráfico de Horas Trabalhadas
+         function getHorasConfig(type, originalData, originalLabels) {
+             const baseConfig = {
+                 data: {
+                     labels: originalLabels,
+                     datasets: originalData.datasets
+                 },
+                 options: {
+                     responsive: true,
+                     maintainAspectRatio: false,
+                     plugins: {
+                         legend: { position: 'bottom' }
+                     }
+                 }
+             };
+             
+             switch (type) {
+                 case 'doughnut':
+                     // Converter dados para pizza (% por mês)
+                     const horasData = originalData.datasets[0].data;
+                     const total = horasData.reduce((a, b) => a + b, 0);
+                     return {
+                         type: 'doughnut',
+                         data: {
+                             labels: originalLabels,
+                             datasets: [{
+                                 data: horasData,
+                                 backgroundColor: [
+                                     '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'
+                                 ]
+                             }]
+                         },
+                         options: {
+                             ...baseConfig.options,
+                             plugins: {
+                                 ...baseConfig.options.plugins,
+                                 tooltip: {
+                                     callbacks: {
+                                         label: (context) => {
+                                             const percentage = ((context.raw / total) * 100).toFixed(1);
+                                             return `${context.label}: ${context.raw}h (${percentage}%)`;
+                                         }
+                                     }
+                                 }
+                             }
+                         }
+                     };
+                 case 'line':
+                     return {
+                         type: 'line',
+                         ...baseConfig,
+                         data: {
+                             ...baseConfig.data,
+                             datasets: baseConfig.data.datasets.map(dataset => ({
+                                 ...dataset,
+                                 fill: false,
+                                 tension: 0.4,
+                                 pointRadius: 4
+                             }))
+                         }
+                     };
+                 default: // bar
+                     return {
+                         type: 'bar',
+                         ...baseConfig,
+                         options: {
+                             ...baseConfig.options,
+                             scales: {
+                                 y: { beginAtZero: true }
+                             }
+                         }
+                     };
+             }
+         }
+         
+         // Configurações para gráfico de Squad
+         function getSquadConfig(type, originalData, originalLabels) {
+             const baseConfig = {
+                 data: {
+                     labels: originalLabels,
+                     datasets: originalData.datasets
+                 },
+                 options: {
+                     responsive: true,
+                     maintainAspectRatio: false,
+                     plugins: {
+                         datalabels: {
+                             color: 'black',
+                             font: { weight: 'bold', size: 11 },
+                             anchor: 'center',
+                             align: 'center',
+                             display: function(context) {
+                                 return context.dataset.data[context.dataIndex] > 0;
+                             },
+                             formatter: (value) => value > 0 ? value : ''
+                         },
+                         legend: { position: 'bottom' }
+                     }
+                 }
+             };
+             
+             switch (type) {
+                 case 'bar-grouped':
+                     return {
+                         type: 'bar',
+                         ...baseConfig,
+                         options: {
+                             ...baseConfig.options,
+                             scales: {
+                                 x: { stacked: false },
+                                 y: { stacked: false, beginAtZero: true }
+                             }
+                         }
+                     };
+                 case 'line-multi':
+                     return {
+                         type: 'line',
+                         ...baseConfig,
+                         data: {
+                             ...baseConfig.data,
+                             datasets: baseConfig.data.datasets.map(dataset => ({
+                                 ...dataset,
+                                 fill: false,
+                                 tension: 0.4,
+                                 pointRadius: 4
+                             }))
+                         }
+                     };
+                 default: // bar-stacked
+                     return {
+                         type: 'bar',
+                         ...baseConfig,
+                         options: {
+                             ...baseConfig.options,
+                             scales: {
+                                 x: { stacked: true },
+                                 y: { stacked: true, beginAtZero: true }
+                             }
+                         }
+                     };
+             }
+         }
+         
+         // Configurações para gráfico de Tempo Médio de Vida
+         function getTempoVidaConfig(type, originalData, originalLabels) {
+             const baseConfig = {
+                 data: {
+                     labels: originalLabels,
+                     datasets: originalData.datasets
+                 },
+                 options: {
+                     responsive: true,
+                     maintainAspectRatio: false,
+                     plugins: {
+                         legend: { display: false }
+                     }
+                 }
+             };
+             
+             switch (type) {
+                 case 'bar':
+                     return {
+                         type: 'bar',
+                         ...baseConfig,
+                         data: {
+                             ...baseConfig.data,
+                             datasets: baseConfig.data.datasets.map(dataset => ({
+                                 ...dataset,
+                                 backgroundColor: '#6f42c1',
+                                 borderColor: '#6f42c1'
+                             }))
+                         },
+                         options: {
+                             ...baseConfig.options,
+                             scales: {
+                                 y: { beginAtZero: true }
+                             }
+                         }
+                     };
+                 case 'area':
+                     return {
+                         type: 'line',
+                         ...baseConfig,
+                         data: {
+                             ...baseConfig.data,
+                             datasets: baseConfig.data.datasets.map(dataset => ({
+                                 ...dataset,
+                                 fill: true,
+                                 tension: 0.4,
+                                 pointRadius: 4
+                             }))
+                         }
+                     };
+                 default: // line
+                     return {
+                         type: 'line',
+                         ...baseConfig,
+                         data: {
+                             ...baseConfig.data,
+                             datasets: baseConfig.data.datasets.map(dataset => ({
+                                 ...dataset,
+                                 fill: false,
+                                 tension: 0.4,
+                                 pointRadius: 4
+                             }))
+                         }
+                     };
+             }
+         }
+         
+         // Carregar tipos de gráficos salvos
+         function loadSavedChartTypes() {
+             const chartIds = ['chartMovimentacaoProjetos', 'chartHorasTrabalhadas', 'chartEvolucaoSquad', 'chartTempoMedioVida'];
+             
+             chartIds.forEach(chartId => {
+                 const savedType = localStorage.getItem(`chart-type-${chartId}`);
+                 if (savedType && Chart.getChart(chartId)) {
+                     changeChartType(chartId, savedType);
+                 }
+             });
+         }
+         
+         // Função para redimensionar todos os gráficos
+         function resizeAllCharts() {
+             const chartIds = ['chartMovimentacaoProjetos', 'chartHorasTrabalhadas', 'chartEvolucaoSquad', 'chartTempoMedioVida'];
+             chartIds.forEach(chartId => {
+                 const chart = Chart.getChart(chartId);
+                 if (chart) {
+                     chart.resize();
+                     console.log(`Gráfico ${chartId} redimensionado`);
+                 }
+             });
          }
          
          // Função para alternar grid de auxílio
