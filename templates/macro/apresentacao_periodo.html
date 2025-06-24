@@ -15,6 +15,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     
+    <!-- GridStack.js para dashboard dinâmico -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@10.1.2/dist/gridstack.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/gridstack@10.1.2/dist/gridstack-all.js"></script>
+    
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -179,6 +183,228 @@
             height: 100%;
             color: #6c757d;
         }
+        
+        /* === ESTILOS PARA DASHBOARD DINÂMICO === */
+        
+        /* Grid Stack Container */
+        .grid-stack {
+            background: transparent;
+        }
+        
+        /* Grid Stack Items */
+        .grid-stack-item {
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+        
+        .grid-stack-item-content {
+            border-radius: 0.5rem;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* Widget Controls */
+        .widget-controls {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        
+        /* Mostrar controles apenas no modo de edição */
+        .dashboard-edit-mode .grid-stack-item:hover .widget-controls {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        /* No modo de edição, mostrar indicação visual */
+        .dashboard-edit-mode .grid-stack-item {
+            cursor: move;
+        }
+        
+        .dashboard-edit-mode .grid-stack-item .card-header {
+            cursor: move !important;
+            position: relative;
+            user-select: none;
+        }
+        
+        .dashboard-edit-mode .grid-stack-item .card-header::after {
+            content: '⋮⋮';
+            position: absolute;
+            right: 40px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 16px;
+            line-height: 1;
+            pointer-events: none;
+        }
+        
+        .dashboard-edit-mode .grid-stack-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 2px dashed var(--primary-color);
+            border-radius: 0.5rem;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .dashboard-edit-mode .grid-stack-item:hover::before {
+            opacity: 0.3;
+        }
+        
+        .widget-controls .dropdown-toggle {
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .widget-controls .dropdown-toggle:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: scale(1.1);
+        }
+        
+        /* Size Indicators */
+        .size-indicator {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: var(--primary-color);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        /* Mostrar indicadores apenas no modo de edição */
+        .dashboard-edit-mode .grid-stack-item:hover .size-indicator {
+            opacity: 0.8;
+        }
+        
+        /* Dashboard Controls */
+        .dashboard-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+        
+        .dashboard-controls .btn {
+            margin-left: 8px;
+            border-radius: 50px;
+            padding: 10px 20px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        /* Grid Lines (opcional) */
+        .grid-stack.show-grid {
+            background-image: 
+                linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        
+        /* Modo de edição ativo - indicação visual */
+        .dashboard-edit-mode {
+            position: relative;
+        }
+        
+        .dashboard-edit-mode::before {
+            content: '✏️ MODO DE EDIÇÃO ATIVO - Arraste e redimensione os widgets';
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #ffc107, #fd7e14);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            z-index: 1060;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            animation: pulseEditMode 2s infinite;
+        }
+        
+        @keyframes pulseEditMode {
+            0%, 100% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.05); }
+        }
+        
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .dashboard-edit-mode .widget-controls {
+                opacity: 1; /* Sempre visível em mobile no modo de edição */
+            }
+            
+            .dashboard-controls {
+                bottom: 10px;
+                right: 10px;
+            }
+            
+            .dashboard-controls .btn {
+                padding: 8px 16px;
+                font-size: 0.9rem;
+            }
+            
+            .dashboard-edit-mode::before {
+                font-size: 0.8rem;
+                padding: 6px 16px;
+                top: 70px;
+            }
+        }
+        
+        /* Animation for resize */
+        .grid-stack-item.grid-stack-animate {
+            transition: all 0.3s ease;
+        }
+        
+        /* Custom card styles for grid */
+        .grid-stack-item .card {
+            margin-bottom: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            pointer-events: auto;
+        }
+        
+        .grid-stack-item .card-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        /* Garantir que o GridStack funcione */
+        .grid-stack-item {
+            touch-action: none;
+        }
+        
+        .dashboard-edit-mode .grid-stack-item.ui-draggable-dragging {
+            z-index: 1000;
+            transform: rotate(2deg);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -241,282 +467,545 @@
             </div>
         </div>
 
-        <!-- GRID 1: KPIs - Primeira Linha (MANTIDA) -->
-        <div class="row g-4 mb-4">
-            <!-- Projetos Únicos Fechados -->
-            <div class="col-xl-4 col-md-6">
-                <div class="card kpi-card border-success">
-                    <div class="card-body">
-                        <div class="row align-items-center">
-                            <div class="col">
-                                <div class="kpi-title text-success">Projetos Únicos Fechados</div>
-                                <div class="kpi-value">{{ kpis.get('projetos_fechados', 0) }}</div>
-                            </div>
-                            <div class="col-auto">
-                                <i class="bi bi-check-circle fs-1 text-gray-300"></i>
+        <!-- DASHBOARD DINÂMICO -->
+        <div class="grid-stack" id="mainDashboard">
+            
+            <!-- Widget 1: Projetos Únicos Fechados -->
+            <div class="grid-stack-item" gs-w="4" gs-h="3" gs-x="0" gs-y="0" gs-id="projetos-fechados">
+                <div class="grid-stack-item-content">
+                    <div class="size-indicator">P</div>
+                    <div class="widget-controls">
+                        <div class="dropdown">
+                            <button class="dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('projetos-fechados', 'small')">
+                                    <i class="bi bi-aspect-ratio me-2"></i>Pequeno
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('projetos-fechados', 'medium')">
+                                    <i class="bi bi-aspect-ratio-fill me-2"></i>Médio
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('projetos-fechados', 'large')">
+                                    <i class="bi bi-arrows-fullscreen me-2"></i>Grande
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="card kpi-card border-success h-100">
+                        <div class="card-body">
+                            <div class="row align-items-center h-100">
+                                <div class="col">
+                                    <div class="kpi-title text-success">Projetos Únicos Fechados</div>
+                                    <div class="kpi-value">{{ kpis.get('projetos_fechados', 0) }}</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-check-circle fs-1 text-gray-300"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Projetos Únicos Abertos -->
-            <div class="col-xl-4 col-md-6">
-                <div class="card kpi-card border-primary">
-                    <div class="card-body">
-                        <div class="row align-items-center">
-                            <div class="col">
-                                <div class="kpi-title text-primary">Projetos Únicos Abertos</div>
-                                <div class="kpi-value">{{ kpis.get('projetos_abertos', 0) }}</div>
-                            </div>
-                            <div class="col-auto">
-                                <i class="bi bi-folder-plus fs-1 text-gray-300"></i>
+            <!-- Widget 2: Projetos Únicos Abertos -->
+            <div class="grid-stack-item" gs-w="4" gs-h="3" gs-x="4" gs-y="0" gs-id="projetos-abertos">
+                <div class="grid-stack-item-content">
+                    <div class="size-indicator">P</div>
+                    <div class="widget-controls">
+                        <div class="dropdown">
+                            <button class="dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('projetos-abertos', 'small')">
+                                    <i class="bi bi-aspect-ratio me-2"></i>Pequeno
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('projetos-abertos', 'medium')">
+                                    <i class="bi bi-aspect-ratio-fill me-2"></i>Médio
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('projetos-abertos', 'large')">
+                                    <i class="bi bi-arrows-fullscreen me-2"></i>Grande
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="card kpi-card border-primary h-100">
+                        <div class="card-body">
+                            <div class="row align-items-center h-100">
+                                <div class="col">
+                                    <div class="kpi-title text-primary">Projetos Únicos Abertos</div>
+                                    <div class="kpi-value">{{ kpis.get('projetos_abertos', 0) }}</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-folder-plus fs-1 text-gray-300"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Horas Trabalhadas -->
-            <div class="col-xl-4 col-md-6">
-                <div class="card kpi-card border-warning">
-                    <div class="card-body">
-                        <div class="row align-items-center">
-                            <div class="col">
-                                <div class="kpi-title text-warning">Horas Trabalhadas</div>
-                                <div class="kpi-value">{{ "%.0f"|format(kpis.get('horas_trabalhadas', 0)) }}h</div>
-                            </div>
-                            <div class="col-auto">
-                                <i class="bi bi-clock fs-1 text-gray-300"></i>
+            <!-- Widget 3: Horas Trabalhadas -->
+            <div class="grid-stack-item" gs-w="4" gs-h="3" gs-x="8" gs-y="0" gs-id="horas-trabalhadas">
+                <div class="grid-stack-item-content">
+                    <div class="size-indicator">P</div>
+                    <div class="widget-controls">
+                        <div class="dropdown">
+                            <button class="dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('horas-trabalhadas', 'small')">
+                                    <i class="bi bi-aspect-ratio me-2"></i>Pequeno
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('horas-trabalhadas', 'medium')">
+                                    <i class="bi bi-aspect-ratio-fill me-2"></i>Médio
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('horas-trabalhadas', 'large')">
+                                    <i class="bi bi-arrows-fullscreen me-2"></i>Grande
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="card kpi-card border-warning h-100">
+                        <div class="card-body">
+                            <div class="row align-items-center h-100">
+                                <div class="col">
+                                    <div class="kpi-title text-warning">Horas Trabalhadas</div>
+                                    <div class="kpi-value">{{ "%.0f"|format(kpis.get('horas_trabalhadas', 0)) }}h</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-clock fs-1 text-gray-300"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- GRID 2: Gráficos Mensais de Evolução (MANTIDA) -->
-        {% if detalhes_mensais %}
-        <div class="card mt-5">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Evolução Mensal dos KPIs</h5>
-            </div>
-            <div class="card-body">
-                <div class="row g-4">
-                    <!-- Gráfico: Movimentação de Projetos -->
-                    <div class="col-xl-6 col-lg-12">
-                        <div class="card shadow-sm h-100">
-                            <div class="card-body pt-4" style="height: 300px; position: relative;">
-                                <canvas id="chartMovimentacaoProjetos"></canvas>
-                            </div>
+            <!-- Widget 4: Gráfico Movimentação de Projetos -->
+            {% if detalhes_mensais %}
+            <div class="grid-stack-item" gs-w="6" gs-h="6" gs-x="0" gs-y="3" gs-id="chart-movimentacao">
+                <div class="grid-stack-item-content">
+                    <div class="size-indicator">M</div>
+                    <div class="widget-controls">
+                        <div class="dropdown">
+                            <button class="dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-movimentacao', 'small')">
+                                    <i class="bi bi-aspect-ratio me-2"></i>Pequeno
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-movimentacao', 'medium')">
+                                    <i class="bi bi-aspect-ratio-fill me-2"></i>Médio
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-movimentacao', 'large')">
+                                    <i class="bi bi-arrows-fullscreen me-2"></i>Grande
+                                </a></li>
+                            </ul>
                         </div>
                     </div>
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Movimentação de Projetos</h6>
+                        </div>
+                        <div class="card-body" style="position: relative;">
+                            <canvas id="chartMovimentacaoProjetos"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                    <!-- Gráfico: Horas Trabalhadas -->
-                    <div class="col-xl-6 col-lg-12">
-                         <div class="card shadow-sm h-100">
-                            <div class="card-body pt-4" style="height: 300px; position: relative;">
-                                <canvas id="chartHorasTrabalhadas"></canvas>
+            <!-- Widget 5: Gráfico Horas Trabalhadas -->
+            <div class="grid-stack-item" gs-w="6" gs-h="6" gs-x="6" gs-y="3" gs-id="chart-horas">
+                <div class="grid-stack-item-content">
+                    <div class="size-indicator">M</div>
+                    <div class="widget-controls">
+                        <div class="dropdown">
+                            <button class="dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-horas', 'small')">
+                                    <i class="bi bi-aspect-ratio me-2"></i>Pequeno
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-horas', 'medium')">
+                                    <i class="bi bi-aspect-ratio-fill me-2"></i>Médio
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-horas', 'large')">
+                                    <i class="bi bi-arrows-fullscreen me-2"></i>Grande
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Horas Trabalhadas</h6>
+                        </div>
+                        <div class="card-body" style="position: relative;">
+                            <canvas id="chartHorasTrabalhadas"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Widget 6: Distribuição por Squad -->
+            {% if kpis.get('distribuicao_squad') and kpis.get('distribuicao_squad', {}).get('total_geral', 0) > 0 %}
+            <div class="grid-stack-item" gs-w="12" gs-h="4" gs-x="0" gs-y="9" gs-id="squad-distribution">
+                <div class="grid-stack-item-content">
+                    <div class="size-indicator">G</div>
+                    <div class="widget-controls">
+                        <div class="dropdown">
+                            <button class="dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('squad-distribution', 'small')">
+                                    <i class="bi bi-aspect-ratio me-2"></i>Pequeno
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('squad-distribution', 'medium')">
+                                    <i class="bi bi-aspect-ratio-fill me-2"></i>Médio
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('squad-distribution', 'large')">
+                                    <i class="bi bi-arrows-fullscreen me-2"></i>Grande
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-people-fill me-2"></i>Distribuição por Squad</h6>
+                            <small class="text-white-50">Projetos Abertos por Squad - Total: {{ kpis.get('distribuicao_squad', {}).get('total_geral', 0) }}</small>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-4 h-100 align-items-center">
+                                <!-- AZURE -->
+                                <div class="col-md-4">
+                                    <div class="card azure-border shadow-sm">
+                                        <div class="card-body text-center">
+                                            <div class="kpi-title text-primary">AZURE</div>
+                                            <div class="kpi-value">{{ kpis.get('distribuicao_squad', {}).get('total_squad', {}).get('AZURE', 0) }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- M365 -->
+                                <div class="col-md-4">
+                                    <div class="card m365-border shadow-sm">
+                                        <div class="card-body text-center">
+                                            <div class="kpi-title" style="color: #D83B01;">M365</div>
+                                            <div class="kpi-value" style="color: #D83B01;">{{ kpis.get('distribuicao_squad', {}).get('total_squad', {}).get('M365', 0) }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- DATA&POWER -->
+                                <div class="col-md-4">
+                                    <div class="card datapower-border shadow-sm">
+                                        <div class="card-body text-center">
+                                             <div class="kpi-title text-success">DATA&POWER</div>
+                                            <div class="kpi-value text-success">{{ kpis.get('distribuicao_squad', {}).get('total_squad', {}).get('DATA&POWER', 0) }}</div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        {% endif %}
+            {% endif %}
 
-        <!-- GRID 3: Seção Distribuição por Squad -->
-        {% if kpis.get('distribuicao_squad') and kpis.get('distribuicao_squad', {}).get('total_geral', 0) > 0 %}
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i>Distribuição por Squad</h5>
-                <small class="text-white-50">Projetos Abertos por Squad - Total: {{ kpis.get('distribuicao_squad', {}).get('total_geral', 0) }}</small>
-            </div>
-            <div class="card-body">
-                <div class="row g-4">
-                    <!-- AZURE -->
-                    <div class="col-md-4">
-                        <div class="card azure-border shadow-sm">
-                            <div class="card-body text-center">
-                                <div class="kpi-title text-primary">AZURE</div>
-                                <div class="kpi-value">{{ kpis.get('distribuicao_squad', {}).get('total_squad', {}).get('AZURE', 0) }}</div>
-                            </div>
+            <!-- Widget 7: Gráfico Evolução por Squad -->
+            {% if detalhes_mensais %}
+            <div class="grid-stack-item" gs-w="12" gs-h="6" gs-x="0" gs-y="13" gs-id="chart-squad">
+                <div class="grid-stack-item-content">
+                    <div class="size-indicator">G</div>
+                    <div class="widget-controls">
+                        <div class="dropdown">
+                            <button class="dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-squad', 'small')">
+                                    <i class="bi bi-aspect-ratio me-2"></i>Pequeno
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-squad', 'medium')">
+                                    <i class="bi bi-aspect-ratio-fill me-2"></i>Médio
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-squad', 'large')">
+                                    <i class="bi bi-arrows-fullscreen me-2"></i>Grande
+                                </a></li>
+                            </ul>
                         </div>
                     </div>
-
-                    <!-- M365 -->
-                    <div class="col-md-4">
-                        <div class="card m365-border shadow-sm">
-                            <div class="card-body text-center">
-                                <div class="kpi-title" style="color: #D83B01;">M365</div>
-                                <div class="kpi-value" style="color: #D83B01;">{{ kpis.get('distribuicao_squad', {}).get('total_squad', {}).get('M365', 0) }}</div>
-                            </div>
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-bar-chart-fill me-2"></i>Evolução por Squad</h6>
                         </div>
-                    </div>
-
-                    <!-- DATA&POWER -->
-                    <div class="col-md-4">
-                        <div class="card datapower-border shadow-sm">
-                            <div class="card-body text-center">
-                                 <div class="kpi-title text-success">DATA&POWER</div>
-                                <div class="kpi-value text-success">{{ kpis.get('distribuicao_squad', {}).get('total_squad', {}).get('DATA&POWER', 0) }}</div>
-                            </div>
+                        <div class="card-body" style="position: relative;">
+                            <canvas id="chartEvolucaoSquad"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        {% endif %}
+            {% endif %}
 
-        <!-- GRID 4: Gráfico da Distribuição por Squad -->
-        {% if detalhes_mensais %}
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-bar-chart-fill me-2"></i>Evolução por Squad</h5>
-            </div>
-            <div class="card-body">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body pt-4" style="height: 320px; position: relative;">
-                        <canvas id="chartEvolucaoSquad"></canvas>
+            <!-- Widget 8: Taxa de Entrega no Prazo -->
+            <div class="grid-stack-item" gs-w="6" gs-h="3" gs-x="0" gs-y="19" gs-id="taxa-entrega">
+                <div class="grid-stack-item-content">
+                    <div class="size-indicator">M</div>
+                    <div class="widget-controls">
+                        <div class="dropdown">
+                            <button class="dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('taxa-entrega', 'small')">
+                                    <i class="bi bi-aspect-ratio me-2"></i>Pequeno
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('taxa-entrega', 'medium')">
+                                    <i class="bi bi-aspect-ratio-fill me-2"></i>Médio
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('taxa-entrega', 'large')">
+                                    <i class="bi bi-arrows-fullscreen me-2"></i>Grande
+                                </a></li>
+                            </ul>
+                        </div>
                     </div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- GRID 5: Taxa de Entrega no Prazo e Tempo Médio de Vida -->
-        <div class="row g-4 mb-4">
-            <!-- Taxa de Entrega no Prazo -->
-            <div class="col-xl-6 col-md-6">
-                <div class="card kpi-card border-success">
-                    <div class="card-body">
-                        <div class="row align-items-center">
-                            <div class="col">
-                                <div class="kpi-title text-success">Taxa de Entrega no Prazo</div>
-                                <div class="kpi-value">{{ "%.1f"|format(kpis.get('taxa_entrega_prazo', 0.0)) }}%</div>
-                            </div>
-                            <div class="col-auto">
-                                <i class="bi bi-calendar-check fs-1 text-gray-300"></i>
+                    <div class="card kpi-card border-success h-100">
+                        <div class="card-body">
+                            <div class="row align-items-center h-100">
+                                <div class="col">
+                                    <div class="kpi-title text-success">Taxa de Entrega no Prazo</div>
+                                    <div class="kpi-value">{{ "%.1f"|format(kpis.get('taxa_entrega_prazo', 0.0)) }}%</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-calendar-check fs-1 text-gray-300"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <!-- Tempo Médio de Vida -->
-            <div class="col-xl-6 col-md-6">
-                <div class="card kpi-card border-info">
-                    <div class="card-body">
-                        <div class="row align-items-center">
-                            <div class="col">
-                                <div class="kpi-title text-info">Tempo Médio de Vida</div>
-                                <div class="kpi-value">{{ "%.1f"|format(kpis.get('tempo_medio_vida', 0.0)) }} dias</div>
-                            </div>
-                            <div class="col-auto">
-                                <i class="bi bi-hourglass-split fs-1 text-gray-300"></i>
+            <!-- Widget 9: Tempo Médio de Vida -->
+            <div class="grid-stack-item" gs-w="6" gs-h="3" gs-x="6" gs-y="19" gs-id="tempo-medio">
+                <div class="grid-stack-item-content">
+                    <div class="size-indicator">M</div>
+                    <div class="widget-controls">
+                        <div class="dropdown">
+                            <button class="dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('tempo-medio', 'small')">
+                                    <i class="bi bi-aspect-ratio me-2"></i>Pequeno
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('tempo-medio', 'medium')">
+                                    <i class="bi bi-aspect-ratio-fill me-2"></i>Médio
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('tempo-medio', 'large')">
+                                    <i class="bi bi-arrows-fullscreen me-2"></i>Grande
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="card kpi-card border-info h-100">
+                        <div class="card-body">
+                            <div class="row align-items-center h-100">
+                                <div class="col">
+                                    <div class="kpi-title text-info">Tempo Médio de Vida</div>
+                                    <div class="kpi-value">{{ "%.1f"|format(kpis.get('tempo_medio_vida', 0.0)) }} dias</div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="bi bi-hourglass-split fs-1 text-gray-300"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- GRID 6: Gráfico com Tempo Médio de Vida -->
-        {% if detalhes_mensais %}
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-graph-down me-2"></i>Evolução do Tempo Médio de Vida</h5>
-            </div>
-            <div class="card-body">
-                <div class="card shadow-sm h-100">
-                    <div class="card-body pt-4" style="height: 320px; position: relative;">
-                        <canvas id="chartTempoMedioVida"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- GRID 7: Seção Distribuição por Tipo de Faturamento -->
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Distribuição por Tipo de Faturamento</h5>
-                <small class="text-white-50">Novos projetos abertos no período selecionado</small>
-            </div>
-            <div class="card-body p-3">
-                {% if kpis.get('distribuicao_faturamento') %}
-                    {% set tipos_ordem = [
-                        ('PLUS', 'PLUS', 'success'), 
-                        ('INICIO', 'Faturado no Início', 'primary'), 
-                        ('ENGAJAMENTO', 'Engajamento', 'info'),
-                        ('PRIME', 'PRIME', 'warning'), 
-                        ('FEOP', 'Faturado em Outro Projeto', 'secondary'),
-                        ('TERMINO', 'Faturado no Término', 'dark'),
-                        ('NAO_MAPEADO', 'Não Mapeado', 'danger')
-                    ] %}
-                    
-                    {% for tipo_codigo, tipo_nome, cor in tipos_ordem %}
-                        {% if kpis.get('distribuicao_faturamento', {}).get(tipo_codigo, 0) > 0 %}
-                        <div class="faturamento-list-item">
-                            <span class="faturamento-label">{{ tipo_nome }}</span>
-                            <span class="badge rounded-pill bg-{{cor}} faturamento-badge">{{ kpis.get('distribuicao_faturamento', {}).get(tipo_codigo, 0) }}</span>
+            <!-- Widget 10: Gráfico Tempo Médio de Vida -->
+            {% if detalhes_mensais %}
+            <div class="grid-stack-item" gs-w="12" gs-h="6" gs-x="0" gs-y="22" gs-id="chart-tempo-vida">
+                <div class="grid-stack-item-content">
+                    <div class="size-indicator">G</div>
+                    <div class="widget-controls">
+                        <div class="dropdown">
+                            <button class="dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-tempo-vida', 'small')">
+                                    <i class="bi bi-aspect-ratio me-2"></i>Pequeno
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-tempo-vida', 'medium')">
+                                    <i class="bi bi-aspect-ratio-fill me-2"></i>Médio
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('chart-tempo-vida', 'large')">
+                                    <i class="bi bi-arrows-fullscreen me-2"></i>Grande
+                                </a></li>
+                            </ul>
                         </div>
-                        {% endif %}
-                    {% endfor %}
-
-                    <!-- Informações sobre Não Mapeados -->
-                    {% if kpis.get('distribuicao_faturamento', {}).get('NAO_MAPEADO', 0) > 0 %}
-                    <div class="alert alert-danger mt-3 mb-0">
-                        <h6 class="alert-heading small">
-                            <i class="bi bi-exclamation-triangle me-2"></i>Atenção: Existem {{ kpis.get('distribuicao_faturamento', {}).get('NAO_MAPEADO', 0) }} projetos Não Mapeados
-                        </h6>
                     </div>
-                    {% endif %}
-                {% else %}
-                    <div class="text-center py-4">
-                        <i class="bi bi-inbox display-4 text-muted"></i>
-                        <p class="text-muted mt-2 mb-0">Nenhum dado de faturamento disponível</p>
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-graph-down me-2"></i>Evolução do Tempo Médio de Vida</h6>
+                        </div>
+                        <div class="card-body" style="position: relative;">
+                            <canvas id="chartTempoMedioVida"></canvas>
+                        </div>
                     </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- GRID 8: Detalhes por Mês (com formato de horas corrigido) -->
-        {% if detalhes_mensais %}
-        <div class="card">
-            <div class="card-header bg-info text-white">
-                <h5 class="mb-0"><i class="bi bi-calendar-month me-2"></i>Detalhes por Mês</h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Mês</th>
-                                <th>Projetos Fechados</th>
-                                <th>Projetos Abertos</th>
-                                <th>Horas Trabalhadas</th>
-                                <th>Taxa Prazo</th>
-                                <th>Tempo Médio Vida</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for detalhes in detalhes_mensais %}
-                            <tr>
-                                <td><strong>{{ detalhes.nome }}</strong></td>
-                                <td><span class="badge bg-success">{{ detalhes.fechados }}</span></td>
-                                <td><span class="badge bg-primary">{{ detalhes.abertos }}</span></td>
-                                <td><span class="badge bg-warning text-dark">{{ "%.1f"|format(detalhes.horas) }}h</span></td>
-                                <td><span class="badge bg-success">{{ "%.1f"|format(detalhes.taxa_prazo) }}%</span></td>
-                                <td><span class="badge bg-dark text-white">{{ "%.1f"|format(detalhes.tempo_medio_vida) }} dias</span></td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
                 </div>
             </div>
+            {% endif %}
+
+            <!-- Widget 11: Distribuição por Tipo de Faturamento -->
+            <div class="grid-stack-item" gs-w="6" gs-h="8" gs-x="0" gs-y="28" gs-id="faturamento-distribution">
+                <div class="grid-stack-item-content">
+                    <div class="size-indicator">M</div>
+                    <div class="widget-controls">
+                        <div class="dropdown">
+                            <button class="dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('faturamento-distribution', 'small')">
+                                    <i class="bi bi-aspect-ratio me-2"></i>Pequeno
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('faturamento-distribution', 'medium')">
+                                    <i class="bi bi-aspect-ratio-fill me-2"></i>Médio
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('faturamento-distribution', 'large')">
+                                    <i class="bi bi-arrows-fullscreen me-2"></i>Grande
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Distribuição por Tipo de Faturamento</h6>
+                            <small class="text-white-50">Novos projetos abertos no período selecionado</small>
+                        </div>
+                        <div class="card-body p-3" style="overflow-y: auto;">
+                            {% if kpis.get('distribuicao_faturamento') %}
+                                {% set tipos_ordem = [
+                                    ('PLUS', 'PLUS', 'success'), 
+                                    ('INICIO', 'Faturado no Início', 'primary'), 
+                                    ('ENGAJAMENTO', 'Engajamento', 'info'),
+                                    ('PRIME', 'PRIME', 'warning'), 
+                                    ('FEOP', 'Faturado em Outro Projeto', 'secondary'),
+                                    ('TERMINO', 'Faturado no Término', 'dark'),
+                                    ('NAO_MAPEADO', 'Não Mapeado', 'danger')
+                                ] %}
+                                
+                                {% for tipo_codigo, tipo_nome, cor in tipos_ordem %}
+                                    {% if kpis.get('distribuicao_faturamento', {}).get(tipo_codigo, 0) > 0 %}
+                                    <div class="faturamento-list-item">
+                                        <span class="faturamento-label">{{ tipo_nome }}</span>
+                                        <span class="badge rounded-pill bg-{{cor}} faturamento-badge">{{ kpis.get('distribuicao_faturamento', {}).get(tipo_codigo, 0) }}</span>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+
+                                <!-- Informações sobre Não Mapeados -->
+                                {% if kpis.get('distribuicao_faturamento', {}).get('NAO_MAPEADO', 0) > 0 %}
+                                <div class="alert alert-danger mt-3 mb-0">
+                                    <h6 class="alert-heading small">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>Atenção: Existem {{ kpis.get('distribuicao_faturamento', {}).get('NAO_MAPEADO', 0) }} projetos Não Mapeados
+                                    </h6>
+                                </div>
+                                {% endif %}
+                            {% else %}
+                                <div class="text-center py-4">
+                                    <i class="bi bi-inbox display-4 text-muted"></i>
+                                    <p class="text-muted mt-2 mb-0">Nenhum dado de faturamento disponível</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Widget 12: Detalhes por Mês -->
+            {% if detalhes_mensais %}
+            <div class="grid-stack-item" gs-w="6" gs-h="8" gs-x="6" gs-y="28" gs-id="monthly-details">
+                <div class="grid-stack-item-content">
+                    <div class="size-indicator">M</div>
+                    <div class="widget-controls">
+                        <div class="dropdown">
+                            <button class="dropdown-toggle" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('monthly-details', 'small')">
+                                    <i class="bi bi-aspect-ratio me-2"></i>Pequeno
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('monthly-details', 'medium')">
+                                    <i class="bi bi-aspect-ratio-fill me-2"></i>Médio
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="resizeWidget('monthly-details', 'large')">
+                                    <i class="bi bi-arrows-fullscreen me-2"></i>Grande
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="card h-100">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0"><i class="bi bi-calendar-month me-2"></i>Detalhes por Mês</h6>
+                        </div>
+                        <div class="card-body" style="overflow-y: auto;">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Mês</th>
+                                            <th>Fechados</th>
+                                            <th>Abertos</th>
+                                            <th>Horas</th>
+                                            <th>Taxa</th>
+                                            <th>Tempo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for detalhes in detalhes_mensais %}
+                                        <tr>
+                                            <td><strong>{{ detalhes.nome }}</strong></td>
+                                            <td><span class="badge bg-success">{{ detalhes.fechados }}</span></td>
+                                            <td><span class="badge bg-primary">{{ detalhes.abertos }}</span></td>
+                                            <td><span class="badge bg-warning text-dark">{{ "%.1f"|format(detalhes.horas) }}h</span></td>
+                                            <td><span class="badge bg-success">{{ "%.1f"|format(detalhes.taxa_prazo) }}%</span></td>
+                                            <td><span class="badge bg-dark text-white">{{ "%.1f"|format(detalhes.tempo_medio_vida) }} dias</span></td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div> <!-- Fim do grid-stack -->
+
+        <!-- Controles do Dashboard -->
+        <!-- Controles do Dashboard -->
+        <div class="dashboard-controls">
+            <button class="btn btn-outline-primary" id="toggleEditMode" onclick="toggleEditMode()">
+                <i class="bi bi-pencil me-2"></i>Modo Edição
+            </button>
+            <button class="btn btn-secondary" id="resetLayoutBtn" onclick="resetLayout()" style="display: none;">
+                <i class="bi bi-arrow-clockwise me-2"></i>Resetar Layout
+            </button>
+            <button class="btn btn-primary" id="saveLayoutBtn" onclick="saveLayout()" style="display: none;">
+                <i class="bi bi-save me-2"></i>Salvar Layout
+            </button>
         </div>
-        {% endif %}
 
         <!-- Rodapé -->
         <div class="row mt-5">
@@ -937,6 +1426,328 @@
         });
     </script>
     {% endif %}
+    
+    <!-- JavaScript para Dashboard Dinâmico -->
+    <script>
+        // Configuração do Dashboard Dinâmico
+        let grid;
+        let isEditMode = false;
+        
+        // Tamanhos dos widgets
+        const widgetSizes = {
+            small: { w: 4, h: 3 },
+            medium: { w: 6, h: 6 },
+            large: { w: 12, h: 8 }
+        };
+        
+                 // Inicializar GridStack
+         document.addEventListener('DOMContentLoaded', function() {
+             // Verificar se GridStack está disponível
+             if (typeof GridStack === 'undefined') {
+                 console.error('GridStack não foi carregado!');
+                 showNotification('Erro: GridStack não foi carregado. Funcionalidades de edição indisponíveis.', 'danger');
+                 return;
+             }
+             
+             grid = GridStack.init({
+                 cellHeight: 60,
+                 verticalMargin: 10,
+                 animate: true,
+                 float: true,
+                 staticGrid: false, // Permitir edição
+                 resizable: {
+                     handles: 'e, se, s, sw, w'
+                 },
+                 draggable: {
+                     handle: '.card-header',
+                     scroll: false,
+                     appendTo: 'parent'
+                 }
+             });
+             
+             // Carregar layout salvo
+             loadLayout();
+             
+             // Atualizar indicadores de tamanho
+             updateSizeIndicators();
+             
+             // Desabilitar inicialmente (após carregar layout)
+             setTimeout(() => {
+                 grid.enableMove(false);
+                 grid.enableResize(false);
+                 console.log('GridStack inicializado e desabilitado para modo visualização');
+             }, 100);
+             
+             // Listener para mudanças no grid
+             grid.on('change', function(event, items) {
+                 updateSizeIndicators();
+                 // Auto-salvar layout após mudanças apenas no modo de edição
+                 if (isEditMode) {
+                     setTimeout(saveLayout, 1000);
+                 }
+             });
+             
+             // Redimensionar gráficos quando widgets são redimensionados
+             grid.on('resizestop', function(event, el) {
+                 const chartCanvas = el.querySelector('canvas');
+                 if (chartCanvas) {
+                     const chart = Chart.getChart(chartCanvas);
+                     if (chart) {
+                         setTimeout(() => chart.resize(), 100);
+                     }
+                 }
+             });
+         });
+        
+        // Função para redimensionar widgets
+        function resizeWidget(widgetId, size) {
+            const widget = document.querySelector(`[gs-id="${widgetId}"]`);
+            if (widget && widgetSizes[size]) {
+                grid.update(widget, widgetSizes[size]);
+                updateSizeIndicators();
+                
+                // Redimensionar gráfico se existir
+                const chartCanvas = widget.querySelector('canvas');
+                if (chartCanvas) {
+                    const chart = Chart.getChart(chartCanvas);
+                    if (chart) {
+                        setTimeout(() => chart.resize(), 100);
+                    }
+                }
+            }
+        }
+        
+        // Atualizar indicadores de tamanho
+        function updateSizeIndicators() {
+            document.querySelectorAll('.grid-stack-item').forEach(item => {
+                const w = parseInt(item.getAttribute('gs-w'));
+                const h = parseInt(item.getAttribute('gs-h'));
+                const indicator = item.querySelector('.size-indicator');
+                
+                if (indicator) {
+                    if (w <= 4 && h <= 3) {
+                        indicator.textContent = 'P';
+                        indicator.style.background = 'var(--success-color)';
+                    } else if (w <= 6 && h <= 6) {
+                        indicator.textContent = 'M';
+                        indicator.style.background = 'var(--warning-color)';
+                    } else {
+                        indicator.textContent = 'G';
+                        indicator.style.background = 'var(--danger-color)';
+                    }
+                }
+            });
+        }
+        
+                 // Salvar layout no localStorage
+         function saveLayout() {
+             const layout = [];
+             document.querySelectorAll('.grid-stack-item').forEach(item => {
+                 layout.push({
+                     id: item.getAttribute('gs-id'),
+                     x: parseInt(item.getAttribute('gs-x')),
+                     y: parseInt(item.getAttribute('gs-y')),
+                     w: parseInt(item.getAttribute('gs-w')),
+                     h: parseInt(item.getAttribute('gs-h'))
+                 });
+             });
+             
+             localStorage.setItem('dashboard-layout', JSON.stringify(layout));
+             
+             // Feedback visual melhorado
+             const btn = document.getElementById('saveLayoutBtn');
+             const originalText = btn.innerHTML;
+             btn.innerHTML = '<i class="bi bi-check me-2"></i>Salvo!';
+             btn.classList.add('btn-success');
+             btn.classList.remove('btn-primary');
+             
+             // Mostrar notificação
+             showNotification('Layout salvo com sucesso!', 'success');
+             
+             setTimeout(() => {
+                 btn.innerHTML = originalText;
+                 btn.classList.remove('btn-success');
+                 btn.classList.add('btn-primary');
+             }, 2000);
+         }
+        
+        // Carregar layout do localStorage
+        function loadLayout() {
+            const savedLayout = localStorage.getItem('dashboard-layout');
+            if (savedLayout) {
+                try {
+                    const layout = JSON.parse(savedLayout);
+                    layout.forEach(item => {
+                        const widget = document.querySelector(`[gs-id="${item.id}"]`);
+                        if (widget) {
+                            grid.update(widget, {
+                                x: item.x,
+                                y: item.y,
+                                w: item.w,
+                                h: item.h
+                            });
+                        }
+                    });
+                } catch (e) {
+                    console.warn('Erro ao carregar layout salvo:', e);
+                }
+            }
+        }
+        
+                 // Resetar layout para padrão
+         function resetLayout() {
+             if (confirm('Tem certeza que deseja resetar o layout para o padrão?\n\nEsta ação não pode ser desfeita.')) {
+                 localStorage.removeItem('dashboard-layout');
+                 showNotification('Layout resetado! Recarregando página...', 'warning');
+                 setTimeout(() => {
+                     location.reload();
+                 }, 1500);
+             }
+         }
+        
+                 // Alternar modo de edição
+         function toggleEditMode() {
+             // Verificar se o grid está disponível
+             if (!grid) {
+                 showNotification('Erro: GridStack não está inicializado!', 'danger');
+                 return;
+             }
+             
+             isEditMode = !isEditMode;
+             const dashboardContainer = document.getElementById('mainDashboard');
+             const toggleBtn = document.getElementById('toggleEditMode');
+             const resetBtn = document.getElementById('resetLayoutBtn');
+             const saveBtn = document.getElementById('saveLayoutBtn');
+             
+             if (isEditMode) {
+                 // Ativar modo de edição
+                 dashboardContainer.classList.add('dashboard-edit-mode');
+                 
+                 // Habilitar drag e resize no GridStack
+                 grid.enableMove(true);
+                 grid.enableResize(true);
+                 
+                 // Força atualização do GridStack
+                 grid.batchUpdate();
+                 grid.commit();
+                 
+                 // Debug: verificar se o grid está funcionando
+                 console.log('GridStack enabled - Move:', !grid.opts.disableDrag, 'Resize:', !grid.opts.disableResize);
+                 
+                 // Adicionar indicação visual mais clara
+                 setTimeout(() => {
+                     document.querySelectorAll('.grid-stack-item').forEach(item => {
+                         item.style.cursor = 'move';
+                     });
+                 }, 100);
+                 
+                 // Atualizar botão principal
+                 toggleBtn.innerHTML = '<i class="bi bi-eye me-2"></i>Modo Visualização';
+                 toggleBtn.classList.remove('btn-outline-primary');
+                 toggleBtn.classList.add('btn-warning');
+                 
+                 // Mostrar botões de controle
+                 resetBtn.style.display = 'inline-block';
+                 saveBtn.style.display = 'inline-block';
+                 
+                 // Mostrar notificação
+                 showNotification('Modo de edição ativado! Arraste pelos cabeçalhos e redimensione pelas bordas.', 'info');
+                 
+             } else {
+                 // Desativar modo de edição
+                 dashboardContainer.classList.remove('dashboard-edit-mode');
+                 
+                 // Desabilitar drag e resize no GridStack
+                 grid.enableMove(false);
+                 grid.enableResize(false);
+                 
+                 // Força atualização do GridStack
+                 grid.batchUpdate();
+                 grid.commit();
+                 
+                 // Remover indicação visual
+                 document.querySelectorAll('.grid-stack-item').forEach(item => {
+                     item.style.cursor = '';
+                 });
+                 
+                 // Atualizar botão principal
+                 toggleBtn.innerHTML = '<i class="bi bi-pencil me-2"></i>Modo Edição';
+                 toggleBtn.classList.remove('btn-warning');
+                 toggleBtn.classList.add('btn-outline-primary');
+                 
+                 // Ocultar botões de controle
+                 resetBtn.style.display = 'none';
+                 saveBtn.style.display = 'none';
+                 
+                 // Mostrar notificação
+                 showNotification('Modo de visualização ativado. Layout protegido contra alterações.', 'success');
+             }
+         }
+         
+         // Mostrar notificações
+         function showNotification(message, type = 'info') {
+             // Criar elemento de notificação
+             const notification = document.createElement('div');
+             notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+             notification.style.cssText = `
+                 top: 20px;
+                 right: 20px;
+                 z-index: 9999;
+                 min-width: 300px;
+                 box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+             `;
+             
+             notification.innerHTML = `
+                 <i class="bi bi-info-circle me-2"></i>${message}
+                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+             `;
+             
+             document.body.appendChild(notification);
+             
+             // Auto-remover após 4 segundos
+             setTimeout(() => {
+                 if (notification.parentNode) {
+                     notification.remove();
+                 }
+             }, 4000);
+         }
+         
+         // Função para alternar grid de auxílio
+         function toggleGrid() {
+             const gridContainer = document.getElementById('mainDashboard');
+             gridContainer.classList.toggle('show-grid');
+         }
+        
+                 // Atalhos de teclado
+         document.addEventListener('keydown', function(e) {
+             // Ctrl+E para alternar modo de edição
+             if (e.ctrlKey && e.key === 'e') {
+                 e.preventDefault();
+                 toggleEditMode();
+             }
+             
+             // Atalhos apenas no modo de edição
+             if (isEditMode) {
+                 // Ctrl+S para salvar
+                 if (e.ctrlKey && e.key === 's') {
+                     e.preventDefault();
+                     saveLayout();
+                 }
+                 
+                 // Ctrl+R para resetar
+                 if (e.ctrlKey && e.key === 'r') {
+                     e.preventDefault();
+                     resetLayout();
+                 }
+                 
+                 // Ctrl+G para alternar grid
+                 if (e.ctrlKey && e.key === 'g') {
+                     e.preventDefault();
+                     toggleGrid();
+                 }
+             }
+         });
+    </script>
     
     <script>
         function selecionarPeriodo(meses) {

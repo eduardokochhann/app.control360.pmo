@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ titulo_pagina }}</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #c0392b;
+            --info-color: #17a2b8;
+            --dark-color: #34495e;
+            --light-bg: #f8f9fa;
+            --dark-bg: #2c3e50;
+        }
+
+        body { 
+            background-color: var(--light-bg); 
+            font-family: 'Inter', sans-serif;
+            color: var(--primary-color);
+        }
+
+        .card { 
+            margin-bottom: 1.5rem; 
+            border-radius: 0.5rem;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1) !important;
+            border: none;
+            transition: transform 0.2s ease-in-out;
+            height: 100%;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            border-radius: 0.5rem 0.5rem 0 0 !important;
+            font-weight: 600;
+            padding: 1rem 1.5rem;
+        }
+
+        /* KPI Cards */
+        .kpi-card {
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        .kpi-card .card-body {
+            padding: 0.75rem 1.5rem;
+        }
+        
+        .kpi-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .kpi-title {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Cores de Borda para KPIs */
+        .border-success { border-left-color: var(--success-color) !important; }
+        .border-primary { border-left-color: var(--secondary-color) !important; }
+        .border-info { border-left-color: var(--info-color) !important; }
+        .border-warning { border-left-color: var(--warning-color) !important; }
+        .border-danger { border-left-color: var(--danger-color) !important; }
+        .border-dark { border-left-color: var(--dark-color) !important; }
+
+        /* Squad Card Borders */
+        .azure-border { border-left: 4px solid #0078D4 !important; }
+        .m365-border { border-left: 4px solid #D83B01 !important; }
+        .datapower-border { border-left: 4px solid #107C10 !important; }
+
+        /* Squad Cards */
+        .squad-section .card-body {
+            padding: 0;
+        }
+        .squad-item {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+        .squad-item:last-child {
+            border-bottom: none;
+        }
+        @media (min-width: 768px) {
+            .squad-item {
+                border-right: 1px solid #eee;
+                border-bottom: none;
+            }
+            .squad-item:last-child {
+                border-right: none;
+            }
+        }
+        .squad-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .squad-value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        /* Faturamento List */
+        .faturamento-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .faturamento-list-item:last-child {
+            border-bottom: none;
+        }
+        .faturamento-label {
+            font-weight: 500;
+        }
+        .faturamento-badge {
+            font-size: 0.9rem;
+            font-weight: 700;
+            padding: 0.4rem 0.8rem;
+            border-radius: 50px;
+        }
+
+        /* Modal e seletor */
+        .mes-selector {
+            background: var(--light-bg);
+            border-radius: 10px;
+            padding: 1rem;
+        }
+
+        /* Gráficos Mensais */
+        .chart-container {
+            position: relative;
+            height: 200px;
+            margin-top: 1rem;
+        }
+        
+        .chart-card .card-header {
+            padding: 0.75rem 1rem;
+        }
+        
+        .chart-card .card-body {
+            padding: 1rem;
+            height: 250px;
+        }
+        
+        /* Placeholders para gráficos em desenvolvimento */
+        .chart-placeholder {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body class="bg-light">
+
+    {% include 'includes/header.html' %}
+
+    <!-- Container Principal com espaçamento para o header fixo -->
+    <div class="container-fluid mt-5 pt-4">
+        
+        <!-- Cabeçalho com Seletor de Visão -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-0 fw-bold">
+                    <i class="bi bi-file-earmark-slides me-2"></i>Status Report
+                </h1>
+                <p class="text-muted mb-0 small">
+                    Fonte de dados: 
+                    {% if 'jun' in meses_selecionados %}
+                        dadosr.csv (Atual) e dados históricos
+                    {% else %}
+                        Arquivos históricos
+                    {% endif %}
+                </p>
+            </div>
+            
+            <!-- Seletor Mensal / Histórico -->
+            <div class="btn-group">
+                <a href="{{ url_for('macro.apresentacao') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-calendar-month me-1"></i>Mensal
+                </a>
+                <a href="{{ url_for('macro.apresentacao_periodo') }}" class="btn btn-primary active" aria-current="page">
+                    <i class="bi bi-bar-chart-line-fill me-1"></i>Histórico
+                </a>
+            </div>
+        </div>
+
+        <!-- Cabeçalho da Página -->
+        <div class="p-4 mb-4 bg-white rounded-3 shadow-sm border-start border-5 border-primary">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="h4 mb-1 fw-bold">
+                        Análise de Período Histórico
+                        <small class="text-muted fs-6 fw-normal">{{ periodo_label }}</small>
+                    </h2>
+                </div>
+                
+                <!-- Botões de Ação -->
+                <div class="d-flex gap-2">
+                    <!-- Botão para exportar para Excel -->
+                    <a href="{{ url_for('macro.exportar_status_periodo', meses=meses_selecionados) }}" 
+                       class="btn btn-success">
+                        <i class="bi bi-file-earmark-excel me-2"></i>Exportar Excel
+                    </a>
+                    
+                    <!-- Botão para configurar período -->
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#seletorPeriodoModal">
+                        <i class="bi bi-calendar3 me-2"></i>Configurar Período
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRID 1: KPIs - Primeira Linha (MANTIDA) -->
+        <div class="row g-4 mb-4">
+            <!-- Projetos Únicos Fechados -->
+            <div class="col-xl-4 col-md-6">
+                <div class="card kpi-card border-success">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <div class="kpi-title text-success">Projetos Únicos Fechados</div>
+                                <div class="kpi-value">{{ kpis.get('projetos_fechados', 0) }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-check-circle fs-1 text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Projetos Únicos Abertos -->
+            <div class="col-xl-4 col-md-6">
+                <div class="card kpi-card border-primary">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <div class="kpi-title text-primary">Projetos Únicos Abertos</div>
+                                <div class="kpi-value">{{ kpis.get('projetos_abertos', 0) }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-folder-plus fs-1 text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Horas Trabalhadas -->
+            <div class="col-xl-4 col-md-6">
+                <div class="card kpi-card border-warning">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <div class="kpi-title text-warning">Horas Trabalhadas</div>
+                                <div class="kpi-value">{{ "%.0f"|format(kpis.get('horas_trabalhadas', 0)) }}h</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-clock fs-1 text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRID 2: Gráficos Mensais de Evolução (MANTIDA) -->
+        {% if detalhes_mensais %}
+        <div class="card mt-5">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Evolução Mensal dos KPIs</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-4">
+                    <!-- Gráfico: Movimentação de Projetos -->
+                    <div class="col-xl-6 col-lg-12">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-body pt-4" style="height: 300px; position: relative;">
+                                <canvas id="chartMovimentacaoProjetos"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico: Horas Trabalhadas -->
+                    <div class="col-xl-6 col-lg-12">
+                         <div class="card shadow-sm h-100">
+                            <div class="card-body pt-4" style="height: 300px; position: relative;">
+                                <canvas id="chartHorasTrabalhadas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- GRID 3: Seção Distribuição por Squad -->
+        {% if kpis.get('distribuicao_squad') and kpis.get('distribuicao_squad', {}).get('total_geral', 0) > 0 %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i>Distribuição por Squad</h5>
+                <small class="text-white-50">Projetos Abertos por Squad - Total: {{ kpis.get('distribuicao_squad', {}).get('total_geral', 0) }}</small>
+            </div>
+            <div class="card-body">
+                <div class="row g-4">
+                    <!-- AZURE -->
+                    <div class="col-md-4">
+                        <div class="card azure-border shadow-sm">
+                            <div class="card-body text-center">
+                                <div class="kpi-title text-primary">AZURE</div>
+                                <div class="kpi-value">{{ kpis.get('distribuicao_squad', {}).get('total_squad', {}).get('AZURE', 0) }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- M365 -->
+                    <div class="col-md-4">
+                        <div class="card m365-border shadow-sm">
+                            <div class="card-body text-center">
+                                <div class="kpi-title" style="color: #D83B01;">M365</div>
+                                <div class="kpi-value" style="color: #D83B01;">{{ kpis.get('distribuicao_squad', {}).get('total_squad', {}).get('M365', 0) }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DATA&POWER -->
+                    <div class="col-md-4">
+                        <div class="card datapower-border shadow-sm">
+                            <div class="card-body text-center">
+                                 <div class="kpi-title text-success">DATA&POWER</div>
+                                <div class="kpi-value text-success">{{ kpis.get('distribuicao_squad', {}).get('total_squad', {}).get('DATA&POWER', 0) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- GRID 4: Gráfico da Distribuição por Squad -->
+        {% if detalhes_mensais %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-bar-chart-fill me-2"></i>Evolução por Squad</h5>
+            </div>
+            <div class="card-body">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body pt-4" style="height: 320px; position: relative;">
+                        <canvas id="chartEvolucaoSquad"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- GRID 5: Taxa de Entrega no Prazo e Tempo Médio de Vida -->
+        <div class="row g-4 mb-4">
+            <!-- Taxa de Entrega no Prazo -->
+            <div class="col-xl-6 col-md-6">
+                <div class="card kpi-card border-success">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <div class="kpi-title text-success">Taxa de Entrega no Prazo</div>
+                                <div class="kpi-value">{{ "%.1f"|format(kpis.get('taxa_entrega_prazo', 0.0)) }}%</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-calendar-check fs-1 text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tempo Médio de Vida -->
+            <div class="col-xl-6 col-md-6">
+                <div class="card kpi-card border-info">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <div class="kpi-title text-info">Tempo Médio de Vida</div>
+                                <div class="kpi-value">{{ "%.1f"|format(kpis.get('tempo_medio_vida', 0.0)) }} dias</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="bi bi-hourglass-split fs-1 text-gray-300"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRID 6: Gráfico com Tempo Médio de Vida -->
+        {% if detalhes_mensais %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-graph-down me-2"></i>Evolução do Tempo Médio de Vida</h5>
+            </div>
+            <div class="card-body">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body pt-4" style="height: 320px; position: relative;">
+                        <canvas id="chartTempoMedioVida"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- GRID 7: Seção Distribuição por Tipo de Faturamento -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Distribuição por Tipo de Faturamento</h5>
+                <small class="text-white-50">Novos projetos abertos no período selecionado</small>
+            </div>
+            <div class="card-body p-3">
+                {% if kpis.get('distribuicao_faturamento') %}
+                    {% set tipos_ordem = [
+                        ('PLUS', 'PLUS', 'success'), 
+                        ('INICIO', 'Faturado no Início', 'primary'), 
+                        ('ENGAJAMENTO', 'Engajamento', 'info'),
+                        ('PRIME', 'PRIME', 'warning'), 
+                        ('FEOP', 'Faturado em Outro Projeto', 'secondary'),
+                        ('TERMINO', 'Faturado no Término', 'dark'),
+                        ('NAO_MAPEADO', 'Não Mapeado', 'danger')
+                    ] %}
+                    
+                    {% for tipo_codigo, tipo_nome, cor in tipos_ordem %}
+                        {% if kpis.get('distribuicao_faturamento', {}).get(tipo_codigo, 0) > 0 %}
+                        <div class="faturamento-list-item">
+                            <span class="faturamento-label">{{ tipo_nome }}</span>
+                            <span class="badge rounded-pill bg-{{cor}} faturamento-badge">{{ kpis.get('distribuicao_faturamento', {}).get(tipo_codigo, 0) }}</span>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+
+                    <!-- Informações sobre Não Mapeados -->
+                    {% if kpis.get('distribuicao_faturamento', {}).get('NAO_MAPEADO', 0) > 0 %}
+                    <div class="alert alert-danger mt-3 mb-0">
+                        <h6 class="alert-heading small">
+                            <i class="bi bi-exclamation-triangle me-2"></i>Atenção: Existem {{ kpis.get('distribuicao_faturamento', {}).get('NAO_MAPEADO', 0) }} projetos Não Mapeados
+                        </h6>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-inbox display-4 text-muted"></i>
+                        <p class="text-muted mt-2 mb-0">Nenhum dado de faturamento disponível</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- GRID 8: Detalhes por Mês (com formato de horas corrigido) -->
+        {% if detalhes_mensais %}
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-calendar-month me-2"></i>Detalhes por Mês</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Mês</th>
+                                <th>Projetos Fechados</th>
+                                <th>Projetos Abertos</th>
+                                <th>Horas Trabalhadas</th>
+                                <th>Taxa Prazo</th>
+                                <th>Tempo Médio Vida</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for detalhes in detalhes_mensais %}
+                            <tr>
+                                <td><strong>{{ detalhes.nome }}</strong></td>
+                                <td><span class="badge bg-success">{{ detalhes.fechados }}</span></td>
+                                <td><span class="badge bg-primary">{{ detalhes.abertos }}</span></td>
+                                <td><span class="badge bg-warning text-dark">{{ "%.1f"|format(detalhes.horas) }}h</span></td>
+                                <td><span class="badge bg-success">{{ "%.1f"|format(detalhes.taxa_prazo) }}%</span></td>
+                                <td><span class="badge bg-dark text-white">{{ "%.1f"|format(detalhes.tempo_medio_vida) }} dias</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Rodapé -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="alert alert-light text-center">
+                    <small class="text-muted">
+                        <i class="bi bi-clock me-1"></i>
+                        Última atualização: {{ hora_atualizacao.strftime('%d/%m/%Y às %H:%M') }}
+                        <br>
+                        <i class="bi bi-database me-1"></i>
+                        Fonte: Arquivos históricos arquivados
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Seletor de Período -->
+    <div class="modal fade" id="seletorPeriodoModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Configurar Período Histórico</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="seletorPeriodoForm">
+                        <div class="mes-selector">
+                            <h6 class="mb-3">Selecione os meses:</h6>
+                            <div class="row">
+                                {% for mes in meses_disponiveis %}
+                                <div class="col-md-6 mb-2">
+                                    <div class="form-check mes-checkbox">
+                                        <input class="form-check-input" type="checkbox" 
+                                               value="{{ mes.key }}" id="mes_{{ mes.key }}"
+                                               {% if mes.key in meses_selecionados %}checked{% endif %}>
+                                        <label class="form-check-label" for="mes_{{ mes.key }}">
+                                            {{ mes.nome }}
+                                            <small class="text-muted">({{ mes.arquivo }})</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- Períodos Pré-definidos -->
+                        <div class="mt-4">
+                            <h6 class="mb-3">Ou escolha um período pré-definido:</h6>
+                            <div class="d-grid gap-3">
+                                <button type="button" class="btn btn-outline-primary" onclick="selecionarPeriodo(['jun'])">
+                                    Apenas Junho (1 Mês)
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" onclick="selecionarPeriodo(['mai', 'jun'])">
+                                    Últimos 2 Meses
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" onclick="selecionarPeriodo(['abr', 'mai', 'jun'])">
+                                    Últimos 3 Meses
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" onclick="selecionarPeriodo(['jan', 'fev', 'mar', 'abr', 'mai', 'jun'])">
+                                    Semestre Completo (6 Meses)
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="aplicarPeriodo()">Aplicar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js DataLabels Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    
+    <!-- Script para Gráficos -->
+    {% if detalhes_mensais %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof Chart === 'undefined' || !document.getElementById('chartMovimentacaoProjetos')) {
+                return;
+            }
+
+            Chart.register(ChartDataLabels);
+
+            const dadosGraficos = {
+                meses: {{ detalhes_mensais | map(attribute='nome') | list | tojson }},
+                projetosFechados: {{ detalhes_mensais | map(attribute='fechados') | list | tojson }},
+                projetosAbertos: {{ detalhes_mensais | map(attribute='abertos') | list | tojson }},
+                horasTrabalhadas: {{ detalhes_mensais | map(attribute='horas') | list | tojson }},
+                squadAzure: {{ detalhes_mensais | map(attribute='squad_azure') | list | tojson }},
+                squadM365: {{ detalhes_mensais | map(attribute='squad_m365') | list | tojson }},
+                squadDataPower: {{ detalhes_mensais | map(attribute='squad_datapower') | list | tojson }},
+                tempoMedioVida: {{ detalhes_mensais | map(attribute='tempo_medio_vida') | list | tojson }}
+            };
+
+            const tooltipSharedConfig = {
+                mode: 'index',
+                intersect: false,
+                titleFont: { weight: 'bold' },
+                bodyFont: { size: 14 },
+                callbacks: {
+                    title: function(tooltipItems) {
+                        return tooltipItems[0].label;
+                    }
+                }
+            };
+            
+            const datalabelsSharedConfig = {
+                color: 'white',
+                font: { weight: 'bold', size: 12 },
+                padding: 4,
+                anchor: 'center',
+                align: 'center',
+                display: function(context) {
+                    return context.dataset.data[context.dataIndex] > 0;
+                },
+                formatter: (value) => Math.round(value)
+            };
+
+            // Gráfico de Movimentação de Projetos (Barras Empilhadas)
+            const ctxMovimentacao = document.getElementById('chartMovimentacaoProjetos').getContext('2d');
+            new Chart(ctxMovimentacao, {
+                type: 'bar',
+                data: {
+                    labels: dadosGraficos.meses,
+                    datasets: [{
+                        label: 'Projetos Fechados',
+                        data: dadosGraficos.projetosFechados,
+                        backgroundColor: 'rgba(25, 135, 84, 0.8)',
+                        borderColor: 'rgba(25, 135, 84, 1)',
+                        borderWidth: 1,
+                        datalabels: {
+                            color: 'white',
+                            font: { weight: 'bold', size: 11 },
+                            anchor: 'center',
+                            align: 'center',
+                            display: function(context) {
+                                return context.dataset.data[context.dataIndex] > 3;
+                            }
+                        }
+                    }, {
+                        label: 'Projetos Abertos',
+                        data: dadosGraficos.projetosAbertos,
+                        backgroundColor: 'rgba(13, 110, 253, 0.8)',
+                        borderColor: 'rgba(13, 110, 253, 1)',
+                        borderWidth: 1,
+                        datalabels: {
+                            color: 'white',
+                            font: { weight: 'bold', size: 11 },
+                            anchor: 'center',
+                            align: 'center',
+                            display: function(context) {
+                                return context.dataset.data[context.dataIndex] > 3;
+                            }
+                        }
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: tooltipSharedConfig,
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 20 }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            grid: { display: false }
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Gráfico de Horas Trabalhadas (Linha) - FORMATO CORRIGIDO
+            const ctxHoras = document.getElementById('chartHorasTrabalhadas').getContext('2d');
+            const gradientHoras = ctxHoras.createLinearGradient(0, 0, 0, 300);
+            gradientHoras.addColorStop(0, 'rgba(255, 193, 7, 0.6)');
+            gradientHoras.addColorStop(1, 'rgba(255, 193, 7, 0.05)');
+            
+            new Chart(ctxHoras, {
+                type: 'line',
+                data: {
+                    labels: dadosGraficos.meses,
+                    datasets: [{
+                        label: 'Horas Trabalhadas',
+                        data: dadosGraficos.horasTrabalhadas,
+                        borderColor: '#ffc107',
+                        backgroundColor: gradientHoras,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#ffc107',
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        datalabels: {
+                            align: 'top',
+                            anchor: 'end',
+                            backgroundColor: 'rgba(255, 193, 7, 0.9)',
+                            borderRadius: 4,
+                            color: 'black',
+                            font: { weight: 'bold', size: 11 },
+                            padding: 4,
+                            offset: -10,
+                            formatter: (value) => Math.round(value * 10) / 10 + 'h'  // FORMATO CORRIGIDO: 1 casa decimal
+                        },
+                        tooltip: {
+                             ...tooltipSharedConfig,
+                            callbacks: {
+                                ...tooltipSharedConfig.callbacks,
+                                label: (context) => `${context.dataset.label}: ${Math.round(context.raw * 10) / 10}h`  // FORMATO CORRIGIDO
+                            }
+                        },
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true,
+                            grace: '10%'
+                        }
+                    },
+                    layout: {
+                        padding: {
+                            top: 30
+                        }
+                    }
+                }
+            });
+
+            // Gráfico de Evolução por Squad (Barras Empilhadas)
+            const ctxSquad = document.getElementById('chartEvolucaoSquad').getContext('2d');
+            
+            new Chart(ctxSquad, {
+                type: 'bar',
+                data: {
+                    labels: dadosGraficos.meses,
+                    datasets: [{
+                        label: 'AZURE',
+                        data: dadosGraficos.squadAzure,
+                        backgroundColor: '#0078d4',
+                        borderColor: '#005a9f',
+                        borderWidth: 1
+                    }, {
+                        label: 'M365',
+                        data: dadosGraficos.squadM365,
+                        backgroundColor: '#D83B01',
+                        borderColor: '#a22f00',
+                        borderWidth: 1
+                    }, {
+                        label: 'DATA&POWER',
+                        data: dadosGraficos.squadDataPower,
+                        backgroundColor: '#107C10',
+                        borderColor: '#0d5e0d',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true,
+                            grid: { display: false }
+                        },
+                        y: { 
+                            stacked: true,
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Novos Projetos por Mês',
+                                font: { weight: 'bold' }
+                            }
+                        }
+                    },
+                    plugins: {
+                        datalabels: {
+                            color: 'white',
+                            font: { weight: 'bold', size: 11 },
+                            anchor: 'center',
+                            align: 'center',
+                            display: function(context) {
+                                return context.dataset.data[context.dataIndex] > 0;
+                            },
+                            formatter: (value) => value > 0 ? value : ''
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            titleFont: { weight: 'bold' },
+                            bodyFont: { size: 14 },
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    return tooltipItems[0].label;
+                                },
+                                label: (context) => `${context.dataset.label}: ${context.raw} projetos`,
+                                footer: function(tooltipItems) {
+                                    let total = 0;
+                                    tooltipItems.forEach(function(tooltipItem) {
+                                        total += tooltipItem.raw;
+                                    });
+                                    return 'Total: ' + total + ' projetos';
+                                }
+                            }
+                        },
+                        legend: {
+                            position: 'bottom',
+                            labels: { 
+                                boxWidth: 20,
+                                padding: 20,
+                                font: { weight: 'bold' }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Gráfico de Evolução do Tempo Médio de Vida (Linha)
+            const ctxTempoVida = document.getElementById('chartTempoMedioVida').getContext('2d');
+            const gradientTempoVida = ctxTempoVida.createLinearGradient(0, 0, 0, 300);
+            gradientTempoVida.addColorStop(0, 'rgba(111, 66, 193, 0.6)');
+            gradientTempoVida.addColorStop(1, 'rgba(111, 66, 193, 0.05)');
+            
+            new Chart(ctxTempoVida, {
+                type: 'line',
+                data: {
+                    labels: dadosGraficos.meses,
+                    datasets: [{
+                        label: 'Tempo Médio de Vida',
+                        data: dadosGraficos.tempoMedioVida,
+                        borderColor: '#6f42c1',
+                        backgroundColor: gradientTempoVida,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#6f42c1',
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        datalabels: {
+                            align: 'top',
+                            anchor: 'end',
+                            backgroundColor: 'rgba(111, 66, 193, 0.9)',
+                            borderRadius: 4,
+                            color: 'white',
+                            font: { weight: 'bold', size: 11 },
+                            padding: 4,
+                            offset: -10,
+                            display: function(context) {
+                                return context.dataset.data[context.dataIndex] > 0;
+                            },
+                            formatter: (value) => Math.round(value * 10) / 10 + 'd'
+                        },
+                        tooltip: {
+                            ...tooltipSharedConfig,
+                            callbacks: {
+                                ...tooltipSharedConfig.callbacks,
+                                label: (context) => `${context.dataset.label}: ${Math.round(context.raw * 10) / 10} dias`
+                            }
+                        },
+                        legend: { 
+                            display: false 
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false }
+                        },
+                        y: { 
+                            beginAtZero: true,
+                            grace: '10%',
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Tempo Médio de Vida (dias)',
+                                font: { weight: 'bold' }
+                            }
+                        }
+                    },
+                    layout: {
+                        padding: {
+                            top: 30
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+    {% endif %}
+    
+    <script>
+        function selecionarPeriodo(meses) {
+            // Desmarca todos
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            
+            // Marca os selecionados
+            meses.forEach(mes => {
+                const checkbox = document.getElementById('mes_' + mes);
+                if (checkbox) checkbox.checked = true;
+            });
+        }
+        
+        function aplicarPeriodo() {
+            const mesesSelecionados = [];
+            document.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+                mesesSelecionados.push(cb.value);
+            });
+            
+            if (mesesSelecionados.length === 0) {
+                alert('Selecione pelo menos um mês!');
+                return;
+            }
+            
+            // Redireciona com os meses selecionados
+            const url = new URL(window.location.href);
+            url.searchParams.set('meses', mesesSelecionados.join(','));
+            window.location.href = url.toString();
+        }
+    </script>
+</body>
+</html> 
