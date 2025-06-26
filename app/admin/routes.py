@@ -3,6 +3,8 @@ from . import admin_bp
 from .. import db
 from ..models import ComplexityCriteria, ComplexityCriteriaOption, ComplexityThreshold, ComplexityCategory
 from datetime import datetime
+from .services import AdminService
+from pathlib import Path
 
 @admin_bp.route('/')
 def dashboard():
@@ -250,4 +252,212 @@ def create_backup():
         
     except Exception as e:
         current_app.logger.error(f"Erro ao criar backup: {str(e)}", exc_info=True)
-        return jsonify({'error': 'Erro ao criar backup'}), 500 
+        return jsonify({'error': 'Erro ao criar backup'}), 500
+
+@admin_bp.route('/data-management')
+def data_management():
+    """Página de gerenciamento de dados CSV"""
+    try:
+        # Estatísticas dos dados atuais
+        stats = AdminService.get_data_statistics()
+        return render_template('admin/data_management.html', stats=stats)
+    except Exception as e:
+        current_app.logger.error(f"Erro no gerenciamento de dados: {str(e)}")
+        return render_template('admin/erro.html', erro=str(e))
+
+@admin_bp.route('/api/data/upload', methods=['POST'])
+def upload_csv():
+    """Upload e processamento de arquivo CSV"""
+    try:
+        current_app.logger.info("🚀 Iniciando upload CSV...")
+        
+        if 'file' not in request.files:
+            current_app.logger.warning("❌ Nenhum arquivo na requisição")
+            return jsonify({'error': 'Nenhum arquivo enviado'}), 400
+        
+        file = request.files['file']
+        current_app.logger.info(f"📁 Arquivo recebido: {file.filename}, tamanho: {file.content_length}")
+        
+        if file.filename == '':
+            current_app.logger.warning("❌ Nome do arquivo vazio")
+            return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
+        
+        if not file.filename.lower().endswith('.csv'):
+            current_app.logger.warning(f"❌ Formato inválido: {file.filename}")
+            return jsonify({'error': 'Formato de arquivo inválido. Apenas CSV aceito.'}), 400
+        
+        # Salva o arquivo temporariamente para processamento
+        current_app.logger.info("🔄 Salvando arquivo temporário...")
+        import tempfile
+        import os
+        
+        # Cria arquivo temporário
+        with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as temp_file:
+            temp_path = temp_file.name
+            file.save(temp_file)
+        
+        current_app.logger.info(f"📁 Arquivo salvo temporariamente: {temp_path}")
+        
+        try:
+            # Processa o arquivo
+            current_app.logger.info("🔄 Iniciando processamento...")
+            result = AdminService.process_csv_upload(temp_path)
+        finally:
+            # Remove arquivo temporário
+            try:
+                os.unlink(temp_path)
+                current_app.logger.info("🗑️ Arquivo temporário removido")
+            except:
+                pass
+        
+        # Log detalhado do resultado
+        current_app.logger.info(f"📋 Resultado do processamento: {result}")
+        
+        if result.get('success'):
+            stats = result.get('stats', {})
+            records_count = stats.get('records_count', 0)
+            current_app.logger.info(f"✅ CSV processado: {records_count} registros")
+            return jsonify(result), 200
+        else:
+            current_app.logger.error(f"❌ Erro no processamento: {result.get('error', 'Erro desconhecido')}")
+            return jsonify(result), 400
+        
+    except Exception as e:
+        current_app.logger.error(f"💥 Erro crítico no upload CSV: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'Erro interno: {str(e)}'
+        }), 500
+
+@admin_bp.route('/api/data/preview')
+def preview_data():
+    """Preview dos dados atuais"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        search = request.args.get('search', '')
+        
+        result = AdminService.get_data_preview(page, per_page, search)
+        return jsonify(result)
+    
+    except Exception as e:
+        current_app.logger.error(f"Erro no preview de dados: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/api/data/record/<int:record_id>', methods=['GET', 'PUT', 'DELETE'])
+def manage_record(record_id):
+    """Gerencia um registro específico"""
+    try:
+        if request.method == 'GET':
+            record = AdminService.get_record_by_id(record_id)
+            return jsonify(record)
+        
+        elif request.method == 'PUT':
+            data = request.get_json()
+            updated_record = AdminService.update_record(record_id, data)
+            current_app.logger.info(f"Registro {record_id} atualizado via admin")
+            return jsonify(updated_record)
+        
+        elif request.method == 'DELETE':
+            AdminService.delete_record(record_id)
+            current_app.logger.info(f"Registro {record_id} deletado via admin")
+            return jsonify({'success': True})
+    
+    except Exception as e:
+        current_app.logger.error(f"Erro ao gerenciar registro {record_id}: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/api/data/backup', methods=['POST'])
+def create_data_backup():
+    """Cria backup dos dados atuais"""
+    try:
+        backup_info = AdminService.create_data_backup()
+        current_app.logger.info(f"Backup criado: {backup_info['filename']}")
+        return jsonify(backup_info)
+    
+    except Exception as e:
+        current_app.logger.error(f"Erro ao criar backup: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/api/data/validate', methods=['POST'])
+def validate_data():
+    """Valida dados antes de salvar"""
+    try:
+        data = request.get_json()
+        validation_result = AdminService.validate_data_integrity(data)
+        return jsonify(validation_result)
+    
+    except Exception as e:
+        current_app.logger.error(f"Erro na validação: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/api/data/apply-changes', methods=['POST'])
+def apply_changes():
+    """Aplica todas as alterações pendentes"""
+    try:
+        data = request.get_json()
+        result = AdminService.apply_data_changes(data)
+        current_app.logger.info(f"Alterações aplicadas: {result['affected_records']} registros")
+        return jsonify(result)
+    
+    except Exception as e:
+        current_app.logger.error(f"Erro ao aplicar alterações: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/api/data/apply-upload', methods=['POST'])
+def apply_upload():
+    """Aplica arquivo temporário como dados principais"""
+    try:
+        temp_path = Path("data/dadosr_temp.csv")
+        main_path = Path("data/dadosr.csv")
+        
+        if not temp_path.exists():
+            return jsonify({'error': 'Arquivo temporário não encontrado'}), 400
+        
+        # Cria backup do arquivo atual
+        backup_result = AdminService.create_data_backup()
+        
+        # Move o arquivo temporário para o principal
+        import shutil
+        shutil.move(str(temp_path), str(main_path))
+        
+        current_app.logger.info("Arquivo CSV atualizado via upload")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Dados atualizados com sucesso!',
+            'backup_created': backup_result.get('filename', '')
+        })
+    
+    except Exception as e:
+        current_app.logger.error(f"Erro ao aplicar upload: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/api/data/test')
+def test_data_loading():
+    """Endpoint de teste para verificar carregamento de dados"""
+    try:
+        # Testa se consegue carregar estatísticas
+        stats = AdminService.get_data_statistics()
+        
+        # Testa se consegue carregar preview
+        preview = AdminService.get_data_preview(1, 5)
+        
+        return jsonify({
+            'stats_test': 'OK' if not stats.get('error') else f"ERRO: {stats.get('error')}",
+            'preview_test': 'OK' if not preview.get('error') else f"ERRO: {preview.get('error')}",
+            'total_records': stats.get('total_records', 0),
+            'preview_records': len(preview.get('data', [])),
+            'columns': len(stats.get('columns', [])),
+            'details': {
+                'stats': stats,
+                'preview_sample': preview.get('data', [])[:2] if preview.get('data') else []
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'stats_test': 'ERRO',
+            'preview_test': 'ERRO'
+        }), 500 

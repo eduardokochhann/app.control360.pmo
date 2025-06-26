@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciamento de Dados - Control360</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <style>
+        .admin-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 0;
+        }
+        
+        .upload-zone {
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .upload-zone:hover {
+            border-color: #5a6fd8;
+            background: #f8f9ff;
+        }
+        
+        .upload-zone.dragover {
+            border-color: #28a745;
+            background: #f0fff4;
+        }
+        
+        .stats-card {
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+        }
+        
+        .stats-card:hover {
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+        
+        .data-table {
+            font-size: 0.8rem;
+        }
+        
+        /* Melhora visual da tabela */
+        .table-container {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+        }
+        
+        .data-table th {
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #495057;
+        }
+        
+        .data-table tbody tr:hover {
+            background-color: #f8f9ff !important;
+        }
+        
+        .editable-cell {
+            cursor: pointer;
+            padding: 0.375rem 0.75rem;
+            border-radius: 0.375rem;
+            transition: all 0.2s ease;
+        }
+        
+        .editable-cell:hover {
+            background: #f8f9ff;
+            border: 1px dashed #667eea;
+            cursor: text;
+        }
+        
+        .editable-cell::after {
+            content: '✎';
+            opacity: 0;
+            margin-left: 5px;
+            color: #667eea;
+            font-size: 0.7rem;
+            transition: opacity 0.2s;
+        }
+        
+        .editable-cell:hover::after {
+            opacity: 0.7;
+        }
+        
+        .processing-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .processing-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 400px;
+        }
+        
+        .table-container {
+            max-height: 80vh;
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+        
+        .data-table {
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: 0.5rem 0.75rem;
+            min-width: 120px;
+        }
+        
+        .data-table th:first-child,
+        .data-table td:first-child {
+            min-width: 60px;
+            max-width: 60px;
+        }
+        
+        .data-table th:last-child,
+        .data-table td:last-child {
+            min-width: 100px;
+            max-width: 100px;
+        }
+        
+        /* Colunas específicas com larguras otimizadas */
+        .data-table th:nth-child(2), /* Aberto em */
+        .data-table td:nth-child(2) {
+            min-width: 100px;
+            max-width: 100px;
+        }
+        
+        .data-table th:nth-child(3), /* Account Manager */
+        .data-table td:nth-child(3) {
+            min-width: 140px;
+        }
+        
+        .data-table th:nth-child(4), /* Andamento */
+        .data-table td:nth-child(4) {
+            min-width: 80px;
+            max-width: 80px;
+            text-align: center;
+        }
+        
+        .data-table th:nth-child(5), /* Assunto */
+        .data-table td:nth-child(5) {
+            min-width: 200px;
+            max-width: 300px;
+            word-wrap: break-word;
+            white-space: normal;
+        }
+        
+        .data-table th:nth-child(6), /* Cliente */
+        .data-table td:nth-child(6) {
+            min-width: 180px;
+            max-width: 250px;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    
+    <!-- Header -->
+    <div class="admin-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="h3 mb-0">
+                        <i class="bi bi-database-gear me-2"></i>Gerenciamento de Dados CSV
+                    </h1>
+                    <p class="mb-0 opacity-75">Upload, processamento e edição dos dados do sistema</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-light">
+                        <i class="bi bi-arrow-left me-1"></i>Voltar ao Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container-fluid mt-4" style="max-width: 95%">
+        
+        <!-- Alertas -->
+        <div id="alertContainer"></div>
+        
+        <!-- Estatísticas Atuais -->
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-file-earmark-text fs-1 text-primary"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="card-title mb-0">Total de Registros</h6>
+                                <h4 class="card-text text-primary" id="totalRecords">{{ stats.total_records or 0 }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-hdd-stack fs-1 text-info"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="card-title mb-0">Tamanho do Arquivo</h6>
+                                <h4 class="card-text text-info" id="fileSize">{{ (stats.file_size / 1024) | round(1) }} KB</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-calendar-check fs-1 text-success"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="card-title mb-0">Última Modificação</h6>
+                                <h6 class="card-text text-success" id="lastModified">
+                                    {% if stats.last_modified %}
+                                        {{ stats.last_modified[:10] }}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-list-columns fs-1 text-warning"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="card-title mb-0">Colunas</h6>
+                                <h4 class="card-text text-warning" id="totalColumns">{{ stats.columns | length }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tabs de Navegação -->
+        <ul class="nav nav-tabs mb-3" id="dataTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload" type="button" role="tab">
+                    <i class="bi bi-cloud-upload me-2"></i>Upload de Dados
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="view-tab" data-bs-toggle="tab" data-bs-target="#view" type="button" role="tab">
+                    <i class="bi bi-table me-2"></i>Visualizar/Editar
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="backup-tab" data-bs-toggle="tab" data-bs-target="#backup" type="button" role="tab">
+                    <i class="bi bi-shield-check me-2"></i>Backups
+                </button>
+            </li>
+        </ul>
+        
+        <!-- Conteúdo das Tabs -->
+        <div class="tab-content" id="dataTabsContent">
+            
+            <!-- Tab: Upload de Dados -->
+            <div class="tab-pane fade show active" id="upload" role="tabpanel">
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-cloud-upload me-2"></i>Upload Inteligente de CSV
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="upload-zone" id="uploadZone">
+                                    <i class="bi bi-cloud-upload display-1 text-primary mb-3"></i>
+                                    <h4>Arraste o arquivo CSV aqui</h4>
+                                    <p class="text-muted">ou clique para selecionar</p>
+                                    <!-- Input de arquivo visível mas estilizado -->
+                                    <input type="file" id="fileInput" accept=".csv" style="position: absolute; left: -9999px; opacity: 0; pointer-events: none;">
+                                    <label for="fileInput" class="btn btn-primary mt-2" style="cursor: pointer;">
+                                        <i class="bi bi-folder2-open me-2"></i>Selecionar Arquivo
+                                    </label>
+                                </div>
+                                
+                                <div id="uploadProgress" class="mt-3" style="display: none;">
+                                    <div class="progress">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                
+                                <div id="uploadResult" class="mt-3" style="display: none;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-info-circle me-2"></i>Processamento Automático
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-unstyled">
+                                    <li class="mb-2">
+                                        <i class="bi bi-check-circle text-success me-2"></i>
+                                        Detecção automática de separadores
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="bi bi-check-circle text-success me-2"></i>
+                                        Correção de tipos de dados
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="bi bi-check-circle text-success me-2"></i>
+                                        Padronização de datas
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="bi bi-check-circle text-success me-2"></i>
+                                        Normalização de horários
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="bi bi-check-circle text-success me-2"></i>
+                                        Validação de estrutura
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="bi bi-check-circle text-success me-2"></i>
+                                        Backup automático
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tab: Visualizar/Editar -->
+            <div class="tab-pane fade" id="view" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-table me-2"></i>Dados Atuais
+                                </h5>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-search"></i>
+                                    </span>
+                                    <input type="text" class="form-control" id="searchInput" placeholder="Buscar nos dados...">
+                                    <button class="btn btn-outline-success" onclick="createDataBackup()">
+                                        <i class="bi bi-shield-plus me-1"></i>Backup
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-container" style="max-height: 75vh; overflow: auto;">
+                            <table class="table table-striped table-hover data-table mb-0" id="dataTable" style="min-width: 1400px;">
+                                <thead class="table-dark sticky-top">
+                                    <!-- Cabeçalho será carregado dinamicamente -->
+                                </thead>
+                                <tbody>
+                                    <!-- Dados serão carregados dinamicamente -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                            <div>
+                                <span id="recordsInfo">Carregando...</span>
+                            </div>
+                            <nav>
+                                <ul class="pagination pagination-sm mb-0" id="pagination">
+                                    <!-- Paginação será gerada dinamicamente -->
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tab: Backups -->
+            <div class="tab-pane fade" id="backup" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-shield-check me-2"></i>Gerenciamento de Backups
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <button class="btn btn-success mb-3" onclick="createDataBackup()">
+                                    <i class="bi bi-shield-plus me-2"></i>Criar Backup Agora
+                                </button>
+                                
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    <strong>Backup Automático:</strong> Um backup é criado automaticamente sempre que você faz upload de um novo arquivo.
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Localização dos Backups</h6>
+                                        <p class="card-text small text-muted">
+                                            <code>data/backups/</code><br>
+                                            Formato: <code>dadosr_backup_YYYYMMDD_HHMMSS.csv</code>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+        
+    </div>
+    
+    <!-- Processing Overlay -->
+    <div id="processingOverlay" class="processing-overlay">
+        <div class="processing-content">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">Processando...</span>
+            </div>
+            <h5>Processando arquivo...</h5>
+            <p class="text-muted mb-0">Aguarde enquanto aplicamos correções inteligentes</p>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- JavaScript -->
+    <script>
+        let currentData = [];
+        let currentPage = 1;
+        let totalPages = 1;
+        
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM carregado, iniciando aplicação...');
+            
+            // Verifica elementos essenciais
+            const essentialElements = {
+                'uploadZone': document.getElementById('uploadZone'),
+                'fileInput': document.getElementById('fileInput'),
+                'uploadResult': document.getElementById('uploadResult')
+            };
+            
+            console.log('🔍 Verificando elementos essenciais:', essentialElements);
+            
+            let missingElements = [];
+            for (const [name, element] of Object.entries(essentialElements)) {
+                if (!element) {
+                    missingElements.push(name);
+                }
+            }
+            
+            if (missingElements.length > 0) {
+                console.error('❌ Elementos não encontrados:', missingElements);
+                showAlert(`Erro: Elementos HTML não encontrados: ${missingElements.join(', ')}`, 'danger');
+                return;
+            }
+            
+            console.log('✅ Todos os elementos encontrados, configurando...');
+            
+            // Configurar funcionalidades
+            setupUploadZone();
+            loadDataPreview();
+            
+            console.log('🎉 Aplicação inicializada com sucesso!');
+        });
+        
+        // Configuração da zona de upload
+        function setupUploadZone() {
+            console.log('🔧 Configurando zona de upload...');
+            
+            const uploadZone = document.getElementById('uploadZone');
+            const fileInput = document.getElementById('fileInput');
+            
+            // Verificações de debug
+            console.log('📍 uploadZone:', uploadZone);
+            console.log('📍 fileInput:', fileInput);
+            
+            if (!uploadZone) {
+                console.error('❌ Elemento uploadZone não encontrado!');
+                return;
+            }
+            
+            if (!fileInput) {
+                console.error('❌ Elemento fileInput não encontrado!');
+                return;
+            }
+            
+            // Drag and Drop Events
+            uploadZone.addEventListener('dragenter', (e) => {
+                console.log('🔄 dragenter');
+                e.preventDefault();
+                e.stopPropagation();
+                uploadZone.classList.add('dragover');
+            });
+            
+            uploadZone.addEventListener('dragover', (e) => {
+                console.log('🔄 dragover');
+                e.preventDefault();
+                e.stopPropagation();
+                uploadZone.classList.add('dragover');
+            });
+            
+            uploadZone.addEventListener('dragleave', (e) => {
+                console.log('🔄 dragleave');
+                e.preventDefault();
+                e.stopPropagation();
+                // Só remove se realmente saiu da zona
+                if (!uploadZone.contains(e.relatedTarget)) {
+                    uploadZone.classList.remove('dragover');
+                }
+            });
+            
+            uploadZone.addEventListener('drop', (e) => {
+                console.log('🎯 drop - arquivos:', e.dataTransfer.files);
+                e.preventDefault();
+                e.stopPropagation();
+                uploadZone.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    console.log('📁 Arquivo selecionado via drop:', files[0].name);
+                    handleFileUpload(files[0]);
+                } else {
+                    console.warn('⚠️ Nenhum arquivo no drop');
+                }
+            });
+            
+            // Click na zona de upload (evita o label)
+            uploadZone.addEventListener('click', (e) => {
+                // Evita conflito com o label
+                if (e.target.closest('label[for="fileInput"]')) {
+                    console.log('🖱️ Click interceptado no label, deixando nativo funcionar');
+                    return;
+                }
+                
+                console.log('🖱️ Click na zona de upload');
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Força o click no input
+                console.log('🔧 Forçando click via JavaScript...');
+                fileInput.click();
+            });
+            
+            // Input change
+            fileInput.addEventListener('change', (e) => {
+                console.log('📁 Input change - arquivos:', e.target.files);
+                if (e.target.files.length > 0) {
+                    console.log('📁 Arquivo selecionado via input:', e.target.files[0].name);
+                    handleFileUpload(e.target.files[0]);
+                } else {
+                    console.warn('⚠️ Nenhum arquivo selecionado');
+                }
+            });
+            
+            // Teste adicional: verifica se o label está funcionando
+            const fileLabel = document.querySelector('label[for="fileInput"]');
+            if (fileLabel) {
+                console.log('✅ Label encontrado:', fileLabel);
+                console.log('🔗 Label aponta para:', fileLabel.getAttribute('for'));
+            } else {
+                console.warn('⚠️ Label não encontrado');
+            }
+            
+            console.log('✅ Zona de upload configurada com sucesso!');
+            
+            // Método de emergência: adiciona botão alternativo
+            setTimeout(() => {
+                console.log('🔧 Adicionando método de emergência...');
+                createEmergencyUploadButton();
+            }, 1000);
+        }
+        
+        // Método de emergência: cria botão alternativo
+        function createEmergencyUploadButton() {
+            const uploadZone = document.getElementById('uploadZone');
+            if (!uploadZone) return;
+            
+            // Verifica se já existe
+            if (document.getElementById('emergencyUploadBtn')) {
+                console.log('🔄 Botão de emergência já existe');
+                return;
+            }
+            
+            console.log('🚨 Criando botão de emergência...');
+            
+            const emergencyBtn = document.createElement('button');
+            emergencyBtn.id = 'emergencyUploadBtn';
+            emergencyBtn.className = 'btn btn-warning btn-sm mt-2 ms-2';
+            emergencyBtn.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Upload Alternativo';
+            
+            emergencyBtn.addEventListener('click', (e) => {
+                console.log('🚨 Click no botão de emergência');
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Criar input completamente novo
+                const emergencyInput = document.createElement('input');
+                emergencyInput.type = 'file';
+                emergencyInput.accept = '.csv';
+                emergencyInput.style.position = 'absolute';
+                emergencyInput.style.left = '-9999px';
+                emergencyInput.style.opacity = '0';
+                
+                emergencyInput.addEventListener('change', (e) => {
+                    console.log('📁 Arquivo selecionado via botão de emergência');
+                    if (e.target.files.length > 0) {
+                        handleFileUpload(e.target.files[0]);
+                        document.body.removeChild(emergencyInput);
+                    }
+                });
+                
+                document.body.appendChild(emergencyInput);
+                emergencyInput.click();
+                console.log('🔄 Input de emergência criado e clicado');
+            });
+            
+            // Adiciona após o label existente
+            const existingLabel = uploadZone.querySelector('label[for="fileInput"]');
+            if (existingLabel) {
+                existingLabel.parentNode.insertBefore(emergencyBtn, existingLabel.nextSibling);
+                console.log('✅ Botão de emergência adicionado');
+            }
+        }
+        
+        // Manipula upload de arquivo
+        async function handleFileUpload(file) {
+            console.log('🚀 Iniciando handleFileUpload com arquivo:', file?.name);
+            
+            if (!file) {
+                console.error('❌ Arquivo não fornecido');
+                showAlert('Erro: Nenhum arquivo fornecido', 'danger');
+                return;
+            }
+            
+            console.log('📋 Detalhes do arquivo:', {
+                name: file.name,
+                size: file.size,
+                sizeFormatted: (file.size / 1024).toFixed(2) + ' KB',
+                type: file.type,
+                lastModified: file.lastModified
+            });
+            
+            // Verifica tamanho do arquivo
+            if (file.size > 10 * 1024 * 1024) { // 10MB
+                console.warn('⚠️ Arquivo muito grande:', file.size);
+                showAlert('Arquivo muito grande. Máximo permitido: 10MB', 'danger');
+                return;
+            }
+            
+            if (file.size === 0) {
+                console.warn('⚠️ Arquivo vazio:', file.name);
+                showAlert('Arquivo está vazio ou corrompido.', 'danger');
+                return;
+            }
+            
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                console.warn('⚠️ Arquivo não é CSV:', file.name);
+                showAlert('Por favor, selecione um arquivo CSV válido.', 'danger');
+                return;
+            }
+            
+            console.log('✅ Arquivo CSV válido, iniciando upload...');
+            showProcessing(true);
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            console.log('📤 FormData criado, enviando requisição...');
+            
+            try {
+                const response = await fetch('/adminsystem/api/data/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                console.log('📥 Resposta recebida:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok
+                });
+                
+                const responseText = await response.text();
+                console.log('📥 Resposta bruta:', responseText.substring(0, 500));
+                
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                    console.log('📋 Resultado parseado:', result);
+                } catch (parseError) {
+                    console.error('❌ Erro ao parsear JSON:', parseError);
+                    console.error('📄 Resposta completa:', responseText);
+                    throw new Error(`Resposta inválida do servidor: ${parseError.message}`);
+                }
+                
+                if (result.success) {
+                    console.log('✅ Upload bem-sucedido!');
+                    showUploadResult(result);
+                    const recordCount = result.stats ? result.stats.records_count : (result.records_count || 'N/A');
+                    showAlert(`Upload concluído! ${recordCount} registros processados.`, 'success');
+                    // Atualiza estatísticas
+                    updateStats();
+                } else {
+                    console.error('❌ Erro no resultado:', result.error);
+                    showAlert(`Erro no upload: ${result.error}`, 'danger');
+                }
+                
+            } catch (error) {
+                console.error('💥 Erro na requisição:', error);
+                showAlert('Erro ao processar arquivo', 'danger');
+            } finally {
+                console.log('🏁 Finalizando processamento...');
+                showProcessing(false);
+            }
+        }
+        
+        // Mostra resultado do upload
+        function showUploadResult(result) {
+            const container = document.getElementById('uploadResult');
+            
+            let correctionsHtml = '';
+            if (result.corrections_applied && result.corrections_applied.length > 0) {
+                correctionsHtml = `
+                    <div class="mt-3">
+                        <h6>Correções Aplicadas:</h6>
+                        <ul class="list-unstyled">
+                            ${result.corrections_applied.map(correction => 
+                                `<li><i class="bi bi-check-circle text-success me-2"></i>${correction}</li>`
+                            ).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+            
+            const recordCount = result.stats ? result.stats.records_count : (result.records_count || 'N/A');
+            const columnCount = result.stats ? result.stats.columns_count : (result.columns ? result.columns.length : 'N/A');
+            
+            container.innerHTML = `
+                <div class="alert alert-success">
+                    <h6><i class="bi bi-check-circle me-2"></i>Arquivo processado com sucesso!</h6>
+                    <p class="mb-2">Registros processados: <strong>${recordCount}</strong></p>
+                    <p class="mb-0">Colunas identificadas: <strong>${columnCount}</strong></p>
+                    ${correctionsHtml}
+                </div>
+                <div class="mt-3">
+                    <button class="btn btn-primary" onclick="applyUploadedData()">
+                        <i class="bi bi-check-lg me-2"></i>Aplicar Alterações
+                    </button>
+                    <button class="btn btn-outline-secondary ms-2" onclick="cancelUpload()">
+                        <i class="bi bi-x-lg me-2"></i>Cancelar
+                    </button>
+                </div>
+            `;
+            
+            container.style.display = 'block';
+        }
+        
+        // Carrega preview dos dados
+        async function loadDataPreview(page = 1, search = '') {
+            // INTERCEPTADOR CRÍTICO: detecta quem está chamando essa função
+            console.log(`🚨 LOADATAPREVIEW CHAMADO! página=${page}, busca="${search}"`);
+            console.log(`📍 Stack trace:`, new Error().stack);
+            console.log(`⏰ Timestamp:`, new Date().toISOString());
+            
+            try {
+                console.log(`Carregando dados - página ${page}, busca: "${search}"`);
+                
+                const response = await fetch(`/adminsystem/api/data/preview?page=${page}&per_page=50&search=${encodeURIComponent(search)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const text = await response.text();
+                console.log('Resposta recebida:', text.substring(0, 200) + '...');
+                
+                let result;
+                try {
+                    result = JSON.parse(text);
+                } catch (parseError) {
+                    console.error('Erro ao parsear JSON:', parseError);
+                    console.error('Texto recebido:', text);
+                    showAlert('Erro: Resposta inválida do servidor', 'danger');
+                    return;
+                }
+                
+                if (result.error) {
+                    showAlert(`Erro ao carregar dados: ${result.error}`, 'danger');
+                    return;
+                }
+                
+                console.log(`Dados carregados: ${result.data.length} registros`);
+                
+                currentData = result.data;
+                currentPage = result.page;
+                totalPages = result.total_pages;
+                
+                renderDataTable(result);
+                updatePagination(result);
+                updateRecordsInfo(result);
+                
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                showAlert(`Erro ao carregar dados: ${error.message}`, 'danger');
+                
+                // Fallback: mostra mensagem na tabela
+                const tbody = document.querySelector('#dataTable tbody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="100%" class="text-center py-4 text-danger">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                Erro ao carregar dados: ${error.message}
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
+        }
+        
+        // Renderiza tabela de dados
+        function renderDataTable(result) {
+            console.log(`🎨 RENDER DATA TABLE INICIADO!`);
+            console.log(`📊 Dados recebidos para render:`, result.data.length, 'registros');
+            console.log(`⚠️ ATENÇÃO: Esta função VAI SOBRESCREVER toda a tabela!`);
+            
+            const table = document.getElementById('dataTable');
+            const thead = table.querySelector('thead');
+            const tbody = table.querySelector('tbody');
+            
+            if (result.data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="100%" class="text-center py-4">Nenhum dado encontrado</td></tr>';
+                return;
+            }
+            
+            // Cabeçalho
+            const columns = Object.keys(result.data[0]).filter(key => key !== '_id');
+            thead.innerHTML = `
+                <tr>
+                    <th width="50">ID</th>
+                    ${columns.map(col => `<th>${col}</th>`).join('')}
+                    <th width="100">Ações</th>
+                </tr>
+            `;
+            
+            // Corpo
+            tbody.innerHTML = result.data.map(record => `
+                <tr data-id="${record._id}">
+                    <td class="text-muted">${record._id}</td>
+                    ${columns.map(col => `
+                        <td class="editable-cell" data-field="${col}" data-id="${record._id}">
+                            ${record[col] || ''}
+                        </td>
+                    `).join('')}
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editRecord(${record._id})" title="Editar">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord(${record._id})" title="Deletar">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            console.log(`✅ RENDER COMPLETO! Tabela reconstruída com ${result.data.length} registros`);
+            
+            // Adiciona eventos de edição inline
+            setupInlineEditing();
+        }
+        
+        // Configuração de edição inline
+        function setupInlineEditing() {
+            document.querySelectorAll('.editable-cell').forEach(cell => {
+                cell.addEventListener('dblclick', function() {
+                    const currentValue = this.textContent.trim();
+                    const field = this.dataset.field;
+                    const recordId = this.dataset.id;
+                    
+                    // LOG CRÍTICO: mostrar nome real do campo
+                    console.log(`🔍 EDITANDO CAMPO: "${field}" (valor atual: "${currentValue}")`);
+                    console.log(`📝 Campo em bytes:`, new TextEncoder().encode(field));
+                    
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.value = currentValue;
+                    input.className = 'form-control form-control-sm';
+                    
+                    this.innerHTML = '';
+                    this.appendChild(input);
+                    input.focus();
+                    input.select();
+                    
+                    const saveEdit = async () => {
+                        const newValue = input.value.trim();
+                        if (newValue !== currentValue) {
+                            console.log(`🎯 INICIANDO ATUALIZAÇÃO: ${recordId} -> "${field}" -> "${newValue}"`);
+                            
+                            const success = await updateRecord(recordId, field, newValue);
+                            if (success) {
+                                this.textContent = newValue;
+                                showAlert('Campo atualizado!', 'success', 2000);
+                                
+                                // Log crítico: verifica se a célula realmente foi atualizada
+                                console.log(`✅ CÉLULA ATUALIZADA: Novo valor na DOM = "${this.textContent}"`);
+                                
+                                // Aguarda um pouco antes de qualquer recarregamento
+                                setTimeout(() => {
+                                    console.log(`🔍 VERIFICAÇÃO APÓS DELAY: Valor na DOM = "${this.textContent}"`);
+                                }, 2000);
+                                
+                            } else {
+                                this.textContent = currentValue;
+                                console.log(`❌ REVERTING: Voltando para "${currentValue}"`);
+                            }
+                        } else {
+                            this.textContent = currentValue;
+                            console.log(`🔄 SEM MUDANÇA: Mantendo "${currentValue}"`);
+                        }
+                    };
+                    
+                    input.addEventListener('blur', saveEdit);
+                    input.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            saveEdit();
+                        } else if (e.key === 'Escape') {
+                            this.textContent = currentValue;
+                        }
+                    });
+                });
+            });
+        }
+        
+        // Atualiza um registro
+        async function updateRecord(recordId, field, value) {
+            try {
+                console.log(`🔄 Atualizando registro ${recordId}, campo ${field}, valor: ${value}`);
+                
+                const response = await fetch(`/adminsystem/api/data/record/${recordId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ [field]: value })
+                });
+                
+                const result = await response.json();
+                console.log('📥 Resposta do servidor:', result);
+                
+                if (result.success) {
+                    console.log('✅ Atualização bem-sucedida');
+                } else {
+                    console.log('❌ Falha na atualização:', result.error);
+                    showAlert(`Erro: ${result.error}`, 'danger');
+                }
+                
+                return result.success;
+                
+            } catch (error) {
+                console.error('💥 Erro ao atualizar registro:', error);
+                showAlert('Erro ao atualizar registro', 'danger');
+                return false;
+            }
+        }
+        
+        // Deleta um registro
+        async function deleteRecord(recordId) {
+            if (!confirm('Tem certeza que deseja deletar este registro?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/adminsystem/api/data/record/${recordId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('Registro deletado!', 'success');
+                    loadDataPreview(currentPage);
+                    updateStats();
+                } else {
+                    showAlert('Erro ao deletar registro', 'danger');
+                }
+                
+            } catch (error) {
+                console.error('Erro ao deletar registro:', error);
+                showAlert('Erro ao deletar registro', 'danger');
+            }
+        }
+        
+        // Cria backup
+        async function createDataBackup() {
+            try {
+                const response = await fetch('/adminsystem/api/data/backup', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert(`Backup criado: ${result.filename}`, 'success');
+                } else {
+                    showAlert(`Erro ao criar backup: ${result.error}`, 'danger');
+                }
+                
+            } catch (error) {
+                console.error('Erro ao criar backup:', error);
+                showAlert('Erro ao criar backup', 'danger');
+            }
+        }
+        
+        // Configuração de busca
+        document.getElementById('searchInput').addEventListener('input', function() {
+            const search = this.value.trim();
+            clearTimeout(this.searchTimeout);
+            this.searchTimeout = setTimeout(() => {
+                loadDataPreview(1, search);
+            }, 500);
+        });
+        
+        // Funções auxiliares
+        function showProcessing(show) {
+            document.getElementById('processingOverlay').style.display = show ? 'flex' : 'none';
+        }
+        
+        function showAlert(message, type = 'info', duration = 5000) {
+            const container = document.getElementById('alertContainer');
+            const alertId = 'alert_' + Date.now();
+            
+            const alertHTML = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert" id="${alertId}">
+                    <strong>${type === 'success' ? 'Sucesso!' : type === 'danger' ? 'Erro!' : 'Info'}</strong> ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            
+            container.innerHTML = alertHTML;
+            
+            if (duration > 0) {
+                setTimeout(() => {
+                    const alert = document.getElementById(alertId);
+                    if (alert) alert.remove();
+                }, duration);
+            }
+        }
+        
+        function updatePagination(result) {
+            const pagination = document.getElementById('pagination');
+            let html = '';
+            
+            // Página anterior
+            if (result.page > 1) {
+                html += `<li class="page-item"><a class="page-link" href="#" onclick="loadDataPreview(${result.page - 1})">Anterior</a></li>`;
+            }
+            
+            // Páginas numeradas
+            const startPage = Math.max(1, result.page - 2);
+            const endPage = Math.min(result.total_pages, result.page + 2);
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const active = i === result.page ? 'active' : '';
+                html += `<li class="page-item ${active}"><a class="page-link" href="#" onclick="loadDataPreview(${i})">${i}</a></li>`;
+            }
+            
+            // Próxima página
+            if (result.page < result.total_pages) {
+                html += `<li class="page-item"><a class="page-link" href="#" onclick="loadDataPreview(${result.page + 1})">Próxima</a></li>`;
+            }
+            
+            pagination.innerHTML = html;
+        }
+        
+        function updateRecordsInfo(result) {
+            const info = document.getElementById('recordsInfo');
+            const start = (result.page - 1) * result.per_page + 1;
+            const end = Math.min(start + result.per_page - 1, result.total);
+            info.textContent = `Exibindo ${start}-${end} de ${result.total} registros`;
+        }
+        
+        function updateStats() {
+            // Atualiza estatísticas após alterações (sem reload automático)
+            console.log('📊 Atualizando estatísticas...');
+            
+            // Busca estatísticas atualizadas
+            fetch('/adminsystem/api/data/test')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('📊 Dados de estatísticas recebidos:', data);
+                    
+                    // Atualiza os cards de estatísticas se existirem
+                    const totalRecordsElements = document.querySelectorAll('.stats-card h2');
+                    if (totalRecordsElements.length > 0 && data.total_records !== undefined) {
+                        totalRecordsElements[0].textContent = data.total_records;
+                    }
+                    
+                    if (totalRecordsElements.length > 2 && data.columns !== undefined) {
+                        totalRecordsElements[2].textContent = data.columns;
+                    }
+                    
+                    console.log('✅ Estatísticas atualizadas');
+                })
+                .catch(error => {
+                    console.error('❌ Erro ao atualizar estatísticas:', error);
+                });
+        }
+        
+        // Aplica dados do upload
+        async function applyUploadedData() {
+            if (!confirm('Confirma a aplicação dos dados? Esta ação substituirá os dados atuais.')) {
+                return;
+            }
+            
+            showProcessing(true);
+            
+            try {
+                const response = await fetch('/adminsystem/api/data/apply-upload', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert(result.message, 'success');
+                    document.getElementById('uploadResult').style.display = 'none';
+                    updateStats();
+                } else {
+                    showAlert(`Erro: ${result.error}`, 'danger');
+                }
+                
+            } catch (error) {
+                console.error('Erro ao aplicar upload:', error);
+                showAlert('Erro ao aplicar alterações', 'danger');
+            } finally {
+                showProcessing(false);
+            }
+        }
+        
+        // Cancela upload
+        function cancelUpload() {
+            document.getElementById('uploadResult').style.display = 'none';
+            document.getElementById('fileInput').value = '';
+            showAlert('Upload cancelado', 'info');
+        }
+        
+    </script>
+    
+</body>
+</html> 

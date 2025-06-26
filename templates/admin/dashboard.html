@@ -178,31 +178,31 @@
                 </div>
             </div>
             
-            <!-- Futuro: Outros Módulos -->
+            <!-- Gerenciamento de Dados CSV -->
             <div class="col-lg-6 mb-4">
                 <div class="card module-card h-100">
-                    <div class="card-header bg-secondary text-white">
+                    <div class="card-header bg-success text-white">
                         <h5 class="mb-0">
-                            <i class="bi bi-tools me-2"></i>Outros Parâmetros
+                            <i class="bi bi-database-gear me-2"></i>Gerenciamento de Dados CSV
                         </h5>
                     </div>
                     <div class="card-body">
-                        <p class="card-text">Módulos futuros para gerenciamento de outros aspectos do sistema.</p>
+                        <p class="card-text">Upload inteligente, processamento automático e edição dos dados principais do sistema.</p>
                         
                         <div class="mb-3">
-                            <small class="text-muted d-block">Planejado:</small>
-                            <ul class="small text-muted">
-                                <li>Configurações de usuários</li>
-                                <li>Parâmetros de relatórios</li>
-                                <li>Integrações externas</li>
-                                <li>Políticas de arquivamento</li>
+                            <small class="text-muted d-block">Funcionalidades:</small>
+                            <ul class="small">
+                                <li>Upload automático com correções</li>
+                                <li>Visualização tabular dos dados</li>
+                                <li>Edição inline de registros</li>
+                                <li>Sistema de backup integrado</li>
                             </ul>
                         </div>
                         
                         <div class="d-grid gap-2">
-                            <button class="btn btn-secondary" disabled>
-                                <i class="bi bi-hourglass-split me-2"></i>Em Desenvolvimento
-                            </button>
+                            <a href="{{ url_for('admin.data_management') }}" class="btn btn-success">
+                                <i class="bi bi-upload me-2"></i>Gerenciar Dados
+                            </a>
                         </div>
                     </div>
                 </div>

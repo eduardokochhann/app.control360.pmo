@@ -204,7 +204,12 @@ class MacroService(BaseService):
             for col in colunas_data_simples:
                 if col in dados.columns:
                     original_col = dados[col].copy()
-                    dados[col] = pd.to_datetime(original_col, format='%d/%m/%Y', errors='coerce')
+                    # Tenta primeiro formato com horas, depois sem horas
+                    dados[col] = pd.to_datetime(original_col, format='%d/%m/%Y %H:%M', errors='coerce')
+                    # Se falhar, tenta formato sem horas
+                    mask_failed = dados[col].isna() & original_col.notna() & (original_col != '')
+                    if mask_failed.any():
+                        dados.loc[mask_failed, col] = pd.to_datetime(original_col[mask_failed], format='%d/%m/%Y', errors='coerce')
                     # OTIMIZAÇÃO: Logs removidos para evitar spam
 
             # Tratamento especial para 'Vencimento em' (silencioso)
@@ -1153,13 +1158,15 @@ class MacroService(BaseService):
             # Usa dados já tratados
             dados_base = self.preparar_dados_base(dados)
             
-            # Filtra projetos concluídos e exclui CDB DATA SOLUTIONS
+            # Filtra projetos concluídos (sem filtro de Squad para debug)
             projetos_concluidos = dados_base[
                 (dados_base['Status'].isin(self.status_concluidos)) &
-                (pd.to_datetime(dados_base['DataTermino']).dt.month == mes_atual) &
-                (pd.to_datetime(dados_base['DataTermino']).dt.year == ano_atual) &
-                (dados_base['Squad'] != 'CDB DATA SOLUTIONS')
+                (pd.to_datetime(dados_base['DataTermino'], format='%d/%m/%Y %H:%M', errors='coerce').dt.month == mes_atual) &
+                (pd.to_datetime(dados_base['DataTermino'], format='%d/%m/%Y %H:%M', errors='coerce').dt.year == ano_atual)
             ].copy()
+            
+            # Log para debug
+            logger.debug(f"Projetos concluídos filtrados (sem CDB): {len(projetos_concluidos)}")
             
             # Calcula métricas
             total_concluidos = len(projetos_concluidos)
@@ -2269,10 +2276,8 @@ class MacroService(BaseService):
             # Filtra apenas projetos concluídos no período
             projetos_concluidos = dados_filtrados[
                 (dados_filtrados['Status'].str.upper().isin(self.status_concluidos)) &
-                # (dados_filtrados['DataTermino'] >= inicio_trimestre) & # MUDAR
-                # (dados_filtrados['DataTermino'] <= fim_trimestre) & # MUDAR
-                (dados_filtrados['DataTermino'] >= inicio_periodo) & # ALTERADO
-                (dados_filtrados['DataTermino'] <= fim_periodo) & # ALTERADO
+                (dados_filtrados['DataTermino'] >= inicio_periodo) &
+                (dados_filtrados['DataTermino'] <= fim_periodo) &
                 (dados_filtrados['DataInicio'].notna()) &
                 (dados_filtrados['DataTermino'].notna())
             ].copy()

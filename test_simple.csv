@@ -1,0 +1,4 @@
+Número;Cliente;Status;Andamento;Assunto
+1001;Cliente A;NOVO;0%;Teste simples 1
+1002;Cliente B;EM ATENDIMENTO;50%;Teste simples 2
+1003;Cliente C;FECHADO;100%;Teste simples 3 

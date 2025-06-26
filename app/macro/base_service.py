@@ -1,9 +1,10 @@
 import pandas as pd
 from pathlib import Path
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
-import numpy as np
+
+logger = logging.getLogger(__name__)
 
 class BaseService:
     """Classe base para serviços de processamento de dados."""
@@ -11,98 +12,91 @@ class BaseService:
     def __init__(self):
         """Inicializa o serviço com configurações básicas."""
         self.csv_path = Path(__file__).parent.parent.parent / 'data' / 'dadosr.csv'
-        logger = logging.getLogger(__name__)
         logger.info(f"Caminho do CSV definido para: {self.csv_path}")
         
-    def carregar_dados(self):
-        """Carrega dados do arquivo CSV."""
-        try:
-            if not self.csv_path.exists():
-                raise FileNotFoundError(f"Arquivo CSV não encontrado: {self.csv_path}")
+    def _robust_read_csv(self, path, date_parser_columns=None):
+        """Lê um CSV de forma robusta, tentando encodings e parseando datas na leitura."""
+        encodings = ['cp1252', 'latin1', 'utf-8']
+        
+        # Parser customizado para ser resiliente ao formato que padronizamos (sem segundos)
+        date_parser = lambda x: pd.to_datetime(x, format='%d/%m/%Y %H:%M', errors='coerce')
+        
+        for encoding in encodings:
+            try:
+                df = pd.read_csv(
+                    path, 
+                    sep=';', 
+                    encoding=encoding, 
+                    low_memory=False,
+                    parse_dates=date_parser_columns,
+                    date_parser=date_parser
+                )
+                logger.info(f"CSV lido com sucesso usando encoding {encoding}.")
+                return df
+            except (UnicodeDecodeError, ValueError) as e:
+                logger.warning(f"Falha ao ler CSV com encoding {encoding}: {e}")
+                continue
+        logger.error(f"Falha ao ler o CSV {path} com todos os encodings tentados.")
+        return pd.DataFrame()
+
+    def _convert_data_types(self, df):
+        """Converte os tipos de dados das colunas para otimização."""
+        numeric_cols = ['Horas', 'HorasTrabalhadas', 'Conclusao']
+        for col in numeric_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+        
+        string_cols = ['Numero', 'Status', 'Projeto', 'TipoServico', 'Especialista', 'Account Manager', 'Squad']
+        for col in string_cols:
+            if col in df.columns:
+                df[col] = df[col].astype(str).fillna('N/A')
                 
-            dados = pd.read_csv(self.csv_path, 
-                              sep=';',
-                              encoding='latin1',
-                              quoting=1)  # QUOTE_ALL
-                              
-            if dados.empty:
-                logger.warning("Arquivo CSV está vazio")
-                return pd.DataFrame()
-                
-            # Verifica colunas obrigatórias
-            colunas_obrigatorias = ['Status', 'Squad', 'Especialista', 'Conclusao']
-            colunas_faltantes = [col for col in colunas_obrigatorias if col not in dados.columns]
-            if colunas_faltantes:
-                raise ValueError(f"Colunas obrigatórias ausentes: {colunas_faltantes}")
-                
-            # Converte datas
-            for col in ['DataInicio', 'DataTermino', 'VencimentoEm']:
-                if col in dados.columns:
-                    dados[col] = pd.to_datetime(dados[col], errors='coerce')
-                    
-            # Padroniza texto
-            for col in ['Status', 'Squad', 'Especialista', 'Account Manager']:
-                if col in dados.columns:
-                    dados[col] = dados[col].fillna('').astype(str).str.strip()
-                    
-            # Converte conclusão para numérico
-            if 'Conclusao' in dados.columns:
-                dados['Conclusao'] = pd.to_numeric(dados['Conclusao'], errors='coerce')
-                dados['Conclusao'] = dados['Conclusao'].clip(0, 100)
-                
-            # Converte horas trabalhadas
-            if 'HorasTrabalhadas' in dados.columns:
-                dados['HorasTrabalhadas'] = dados['HorasTrabalhadas'].apply(self.converter_tempo_para_horas)
-                
-            # Limpa nomes de projetos
-            if 'Projeto' in dados.columns:
-                dados['Projeto'] = dados['Projeto'].apply(self.limpar_nome_projeto)
-                
-            # Calcula horas restantes
-            dados = self.calcular_horas_restantes(dados)
-            
-            logger.info(f"Dados carregados com sucesso: {len(dados)} registros")
-            return dados
-            
-        except Exception as e:
-            logger.error(f"Erro ao carregar dados: {str(e)}", exc_info=True)
+        return df
+        
+    def _load_data(self):
+        """Carrega e prepara os dados do CSV."""
+        if not self.csv_path.exists():
+            logger.error(f"Arquivo CSV não encontrado em {self.csv_path}")
             return pd.DataFrame()
-            
-    def converter_tempo_para_horas(self, tempo_str):
+
+        # As colunas de data já estão renomeadas pelo AdminService
+        date_columns = ['DataInicio', 'DataTermino', 'VencimentoEm', 'UltimaInteracao']
+        
+        # Passa as colunas de data para serem processadas durante a leitura
+        df = self._robust_read_csv(self.csv_path, date_columns)
+        if df.empty:
+            return df
+
+        # A renomeação de colunas não é mais necessária aqui, pois o AdminService já faz.
+        # Os tipos de data já foram convertidos na leitura.
+        df = self._convert_data_types(df)
+        
+        return df
+
+    def get_base_data(self):
+        """Retorna o DataFrame base, pronto para uso."""
+        return self._load_data()
+
+    @staticmethod
+    def converter_tempo_para_horas(tempo_str):
         """Converte string de tempo (HH:MM) para horas decimais."""
         try:
-            if pd.isna(tempo_str) or tempo_str == '':
+            if pd.isna(tempo_str) or tempo_str == '' or tempo_str == 'nan':
                 return 0.0
-                
             if isinstance(tempo_str, (int, float)):
                 return float(tempo_str)
-                
-            # Remove espaços e converte para string
+            
             tempo_str = str(tempo_str).strip()
-            
-            # Se já for um número, retorna como float
-            try:
+            if tempo_str.replace('.', '', 1).isdigit():
                 return float(tempo_str)
-            except ValueError:
-                pass
-                
-            # Tenta diferentes formatos
-            if ':' in tempo_str:
-                # Formato HH:MM
-                horas, minutos = tempo_str.split(':')
-                return float(horas) + float(minutos)/60
-            elif 'h' in tempo_str.lower():
-                # Formato Xh Ym
-                tempo_str = tempo_str.lower().replace(' ', '')
-                if 'h' in tempo_str:
-                    horas = float(tempo_str.split('h')[0])
-                    minutos = float(tempo_str.split('h')[1].replace('m', '')) if 'm' in tempo_str else 0
-                    return horas + minutos/60
-                    
-            return 0.0
             
-        except Exception as e:
-            logger.error(f"Erro ao converter tempo '{tempo_str}': {str(e)}")
+            partes = tempo_str.split(':')
+            if len(partes) >= 2:
+                horas = int(partes[0])
+                minutos = int(partes[1])
+                return horas + (minutos/60)
+            return 0.0
+        except (ValueError, TypeError):
             return 0.0
             
     def calcular_horas_restantes(self, dados):
