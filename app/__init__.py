@@ -70,6 +70,13 @@ def register_blueprints(app):
     except ImportError as e:
         app.logger.error(f"❌ Erro ao importar ou registrar blueprint 'sprints': {e}", exc_info=True)
 
+    try:
+        from app.admin import admin_bp
+        app.register_blueprint(admin_bp)
+        app.logger.info("✅ Blueprint 'admin' registrado")
+    except ImportError as e:
+        app.logger.error(f"❌ Erro ao importar ou registrar blueprint 'admin': {e}", exc_info=True)
+
 def create_app():
     """Cria e configura a instância da aplicação Flask."""
     # Cria a pasta 'instance' se não existir

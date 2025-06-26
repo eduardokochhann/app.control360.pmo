@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciamento de Complexidade - Control360</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <style>
+        .admin-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem 0;
+        }
+        
+        .criteria-card {
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+        }
+        
+        .criteria-card:hover {
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+        
+        .option-row {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            transition: all 0.2s ease;
+        }
+        
+        .option-row:hover {
+            background: #e9ecef;
+        }
+        
+        .threshold-card {
+            border: 2px solid #dee2e6;
+            transition: all 0.3s ease;
+        }
+        
+        .threshold-card.baixa { border-color: #28a745; }
+        .threshold-card.media { border-color: #ffc107; }
+        .threshold-card.alta { border-color: #dc3545; }
+        
+        .editable-field {
+            border: 1px dashed #dee2e6;
+            padding: 0.375rem 0.75rem;
+            border-radius: 0.375rem;
+            transition: all 0.2s ease;
+        }
+        
+        .editable-field:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .save-indicator {
+            display: none;
+            color: #28a745;
+        }
+        
+        .simulator-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 2px dashed #6c757d;
+        }
+        
+        #loadingOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .loading-spinner {
+            width: 3rem;
+            height: 3rem;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    
+    <!-- Header -->
+    <div class="admin-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="h3 mb-0">
+                        <i class="bi bi-graph-up-arrow me-2"></i>Gerenciamento de Complexidade
+                    </h1>
+                    <p class="mb-0 opacity-75">Configure critérios, opções e categorias de complexidade</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-light">
+                        <i class="bi bi-arrow-left me-1"></i>Voltar ao Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container mt-4">
+        
+        <!-- Alertas -->
+        <div class="alert alert-info border-0 shadow-sm mb-4" role="alert">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-info-circle-fill fs-4 me-3"></i>
+                <div>
+                    <strong>Como usar:</strong> Clique nos campos para editar diretamente. 
+                    Alterações são salvas automaticamente. Use o simulador para testar suas configurações.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Alert Container -->
+        <div id="alertContainer"></div>
+        
+        <!-- Tabs de Navegação -->
+        <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="criteria-tab" data-bs-toggle="tab" data-bs-target="#criteria" type="button" role="tab">
+                    <i class="bi bi-list-check me-2"></i>Critérios e Opções
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="thresholds-tab" data-bs-toggle="tab" data-bs-target="#thresholds" type="button" role="tab">
+                    <i class="bi bi-speedometer2 me-2"></i>Categorias (Thresholds)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="simulator-tab" data-bs-toggle="tab" data-bs-target="#simulator" type="button" role="tab">
+                    <i class="bi bi-calculator me-2"></i>Simulador
+                </button>
+            </li>
+        </ul>
+        
+        <!-- Conteúdo das Tabs -->
+        <div class="tab-content" id="adminTabsContent">
+            
+            <!-- Tab: Critérios e Opções -->
+            <div class="tab-pane fade show active" id="criteria" role="tabpanel">
+                <div class="row">
+                    <div class="col-12 mb-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h4>Critérios de Avaliação</h4>
+                            <button class="btn btn-success" onclick="saveCriteriaChanges()">
+                                <i class="bi bi-check-circle me-2"></i>Salvar Alterações
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="criteriaContainer">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Carregando...</span>
+                            </div>
+                            <p class="mt-3 text-muted">Carregando critérios...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tab: Thresholds -->
+            <div class="tab-pane fade" id="thresholds" role="tabpanel">
+                <div class="row">
+                    <div class="col-12 mb-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h4>Categorias de Complexidade</h4>
+                            <button class="btn btn-success" onclick="saveThresholds()">
+                                <i class="bi bi-check-circle me-2"></i>Salvar Thresholds
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="thresholdsContainer">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Carregando...</span>
+                            </div>
+                            <p class="mt-3 text-muted">Carregando thresholds...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tab: Simulador -->
+            <div class="tab-pane fade" id="simulator" role="tabpanel">
+                <div class="row">
+                    <div class="col-12 mb-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h4>Simulador de Complexidade</h4>
+                                <p class="text-muted">Teste diferentes combinações para ver o impacto das suas configurações</p>
+                            </div>
+                            <button class="btn btn-outline-primary" onclick="reloadSimulatorData()">
+                                <i class="bi bi-arrow-clockwise me-2"></i>Recarregar Dados
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-8">
+                        <div class="card simulator-card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-play-circle me-2"></i>Teste de Avaliação
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="simulatorForm">
+                                    <div class="text-center py-4">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Carregando...</span>
+                                        </div>
+                                        <p class="mt-3 text-muted">Carregando simulador...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-4">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">
+                                    <i class="bi bi-calculator me-2"></i>Resultado
+                                </h5>
+                            </div>
+                            <div class="card-body text-center">
+                                <div class="display-4 mb-3" id="simulatorScore">0</div>
+                                <div class="badge fs-6 px-3 py-2 mb-3 bg-secondary" id="simulatorCategory">Aguardando</div>
+                                <div id="simulatorDetails">
+                                    <small class="text-muted">Selecione opções para ver detalhes</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+        
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay">
+        <div class="spinner-border text-light loading-spinner" role="status">
+            <span class="visually-hidden">Carregando...</span>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- JavaScript -->
+    <script>
+        let criteriaData = [];
+        let thresholdsData = [];
+        
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Página carregada, iniciando...');
+            initializeApp();
+        });
+        
+        async function initializeApp() {
+            try {
+                console.log('Inicializando aplicação...');
+                await Promise.all([
+                    loadCriteria(),
+                    loadThresholds()
+                ]);
+                console.log('Aplicação inicializada com sucesso');
+            } catch (error) {
+                console.error('Erro na inicialização:', error);
+                showAlert('Erro ao carregar dados iniciais', 'danger');
+            }
+        }
+        
+        // Carrega critérios
+        async function loadCriteria() {
+            try {
+                console.log('Carregando critérios...');
+                const response = await fetch('/adminsystem/api/complexity/criteria');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                criteriaData = await response.json();
+                console.log('Critérios carregados:', criteriaData);
+                renderCriteria();
+            } catch (error) {
+                console.error('Erro ao carregar critérios:', error);
+                document.getElementById('criteriaContainer').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Erro ao carregar critérios: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        // Carrega thresholds
+        async function loadThresholds() {
+            try {
+                console.log('Carregando thresholds...');
+                const response = await fetch('/adminsystem/api/complexity/thresholds');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                thresholdsData = await response.json();
+                console.log('Thresholds carregados:', thresholdsData);
+                renderThresholds();
+                updateSimulator();
+            } catch (error) {
+                console.error('Erro ao carregar thresholds:', error);
+                document.getElementById('thresholdsContainer').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Erro ao carregar thresholds: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        // Renderiza critérios
+        function renderCriteria() {
+            const container = document.getElementById('criteriaContainer');
+            
+            if (!criteriaData || criteriaData.length === 0) {
+                container.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Nenhum critério encontrado.
+                    </div>
+                `;
+                return;
+            }
+            
+            const html = criteriaData.map(criterion => `
+                <div class="col-12 mb-4">
+                    <div class="card criteria-card">
+                        <div class="card-header">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <h5 class="mb-0 editable-field" contenteditable="true" data-field="name" data-id="${criterion.id}" onblur="updateCriterion(this)">
+                                        ${criterion.name}
+                                    </h5>
+                                    <small class="text-muted editable-field" contenteditable="true" data-field="description" data-id="${criterion.id}" onblur="updateCriterion(this)">
+                                        ${criterion.description || 'Clique para adicionar descrição'}
+                                    </small>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="active_${criterion.id}" ${criterion.is_active ? 'checked' : ''} onchange="toggleCriterionActive(${criterion.id})">
+                                        <label class="form-check-label" for="active_${criterion.id}">Ativo</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="mb-3">Opções de Resposta:</h6>
+                            ${criterion.options.map(option => `
+                                <div class="option-row">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-4">
+                                            <strong class="editable-field" contenteditable="true" data-field="label" data-id="${option.id}" data-type="option" onblur="updateOption(this)">
+                                                ${option.label}
+                                            </strong>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <small class="text-muted editable-field" contenteditable="true" data-field="description" data-id="${option.id}" data-type="option" onblur="updateOption(this)">
+                                                ${option.description || 'Sem descrição'}
+                                            </small>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">Pts</span>
+                                                <input type="number" class="form-control" value="${option.points}" data-field="points" data-id="${option.id}" data-type="option" onchange="updateOption(this)" min="0" max="200">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="option_active_${option.id}" ${option.is_active ? 'checked' : ''} onchange="toggleOptionActive(${option.id})">
+                                                <label class="form-check-label" for="option_active_${option.id}">Ativo</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = html;
+        }
+        
+        // Renderiza thresholds
+        function renderThresholds() {
+            const container = document.getElementById('thresholdsContainer');
+            
+            if (!thresholdsData || thresholdsData.length === 0) {
+                container.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Nenhum threshold encontrado.
+                    </div>
+                `;
+                return;
+            }
+            
+            const html = thresholdsData.map(threshold => {
+                const categoryClass = threshold.category.toLowerCase().replace('á', 'a').replace('é', 'e');
+                return `
+                    <div class="col-md-4 mb-4">
+                        <div class="card threshold-card ${categoryClass}">
+                            <div class="card-header text-center">
+                                <h5 class="mb-0">${threshold.category_label}</h5>
+                            </div>
+                            <div class="card-body text-center">
+                                <div class="mb-3">
+                                    <label class="form-label">Score Mínimo</label>
+                                    <input type="number" class="form-control" value="${threshold.min_score}" data-field="min_score" data-id="${threshold.id}" onchange="updateThreshold(this)" min="0">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Score Máximo</label>
+                                    <input type="number" class="form-control" value="${threshold.max_score || ''}" data-field="max_score" data-id="${threshold.id}" onchange="updateThreshold(this)" min="0" placeholder="∞">
+                                </div>
+                                <div class="badge bg-secondary">
+                                    ${threshold.min_score} - ${threshold.max_score || '∞'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = html;
+        }
+        
+        // Atualiza simulador
+        function updateSimulator() {
+            console.log('updateSimulator chamado, criteriaData:', criteriaData);
+            const container = document.getElementById('simulatorForm');
+            
+            if (!criteriaData || criteriaData.length === 0) {
+                console.log('Nenhum critério encontrado para o simulador');
+                container.innerHTML = `
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Aguardando carregamento dos critérios...
+                        <br><small class="text-muted">Se os dados não carregarem, clique em "Recarregar Dados"</small>
+                    </div>
+                `;
+                return;
+            }
+            
+            const activeCriteria = criteriaData.filter(c => c.is_active);
+            console.log('Critérios ativos encontrados:', activeCriteria);
+            
+            if (activeCriteria.length === 0) {
+                container.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Nenhum critério ativo encontrado.
+                        <br><small class="text-muted">Ative pelo menos um critério na aba "Critérios e Opções"</small>
+                    </div>
+                `;
+                return;
+            }
+            
+            const html = activeCriteria.map(criterion => {
+                const activeOptions = criterion.options.filter(o => o.is_active);
+                console.log(`Critério ${criterion.name}: ${activeOptions.length} opções ativas`);
+                
+                if (activeOptions.length === 0) {
+                    return `
+                        <div class="mb-4">
+                            <h6>${criterion.name}</h6>
+                            <div class="alert alert-warning">
+                                <small>Nenhuma opção ativa para este critério</small>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                return `
+                    <div class="mb-4">
+                        <h6>${criterion.name}</h6>
+                        <div class="row">
+                            ${activeOptions.map(option => `
+                                <div class="col-md-6 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="sim_${criterion.id}" id="sim_${option.id}" value="${option.id}" onchange="calculateSimulation()">
+                                        <label class="form-check-label" for="sim_${option.id}">
+                                            ${option.label} <span class="badge bg-secondary">${option.points}pts</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            console.log('Simulador atualizado com sucesso');
+            container.innerHTML = html;
+        }
+        
+        // Atualiza critério
+        async function updateCriterion(element) {
+            const id = element.dataset.id;
+            const field = element.dataset.field;
+            const value = element.textContent.trim();
+            
+            try {
+                const response = await fetch('/adminsystem/api/complexity/criteria', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: parseInt(id), [field]: value })
+                });
+                
+                if (response.ok) {
+                    showSaveIndicator(element);
+                    
+                    // Atualiza os dados locais
+                    const criterion = criteriaData.find(c => c.id === parseInt(id));
+                    if (criterion) {
+                        criterion[field] = value;
+                        console.log('Critério atualizado localmente:', criterion);
+                        updateSimulator(); // Atualiza o simulador
+                    }
+                } else {
+                    showAlert('Erro ao salvar alteração', 'danger');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                showAlert('Erro ao salvar alteração', 'danger');
+            }
+        }
+        
+        // Atualiza opção
+        async function updateOption(element) {
+            const id = element.dataset.id;
+            const field = element.dataset.field;
+            const value = element.type === 'number' ? parseInt(element.value) : element.textContent.trim();
+            
+            try {
+                const response = await fetch('/adminsystem/api/complexity/criteria/option', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: parseInt(id), [field]: value })
+                });
+                
+                if (response.ok) {
+                    showSaveIndicator(element);
+                    
+                    // Atualiza os dados locais
+                    criteriaData.forEach(criterion => {
+                        const option = criterion.options.find(o => o.id === parseInt(id));
+                        if (option) {
+                            option[field] = value;
+                            console.log('Opção atualizada localmente:', option);
+                        }
+                    });
+                    
+                    updateSimulator();
+                } else {
+                    showAlert('Erro ao salvar alteração', 'danger');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                showAlert('Erro ao salvar alteração', 'danger');
+            }
+        }
+        
+        // Salva thresholds
+        async function saveThresholds() {
+            try {
+                showLoading(true);
+                
+                const response = await fetch('/adminsystem/api/complexity/thresholds', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ thresholds: thresholdsData })
+                });
+                
+                if (response.ok) {
+                    showAlert('Thresholds salvos com sucesso!', 'success');
+                    await loadThresholds();
+                } else {
+                    showAlert('Erro ao salvar thresholds', 'danger');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                showAlert('Erro ao salvar thresholds', 'danger');
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Calcula simulação
+        function calculateSimulation() {
+            let totalScore = 0;
+            const details = [];
+            
+            criteriaData.filter(c => c.is_active).forEach(criterion => {
+                const selected = document.querySelector(`input[name="sim_${criterion.id}"]:checked`);
+                if (selected) {
+                    const option = criterion.options.find(o => o.id == selected.value);
+                    if (option) {
+                        totalScore += option.points;
+                        details.push(`${criterion.name}: ${option.label} (${option.points}pts)`);
+                    }
+                }
+            });
+            
+            // Determina categoria
+            let category = 'Não Definida';
+            let categoryClass = 'bg-secondary';
+            
+            if (thresholdsData) {
+                for (let threshold of thresholdsData) {
+                    if (totalScore >= threshold.min_score && 
+                        (threshold.max_score === null || totalScore <= threshold.max_score)) {
+                        category = threshold.category_label;
+                        categoryClass = threshold.category.toLowerCase().includes('baixa') ? 'bg-success' : 
+                                       threshold.category.toLowerCase().includes('média') ? 'bg-warning' : 'bg-danger';
+                        break;
+                    }
+                }
+            }
+            
+            // Atualiza display
+            document.getElementById('simulatorScore').textContent = totalScore;
+            const categoryBadge = document.getElementById('simulatorCategory');
+            categoryBadge.textContent = category;
+            categoryBadge.className = `badge fs-6 px-3 py-2 mb-3 ${categoryClass}`;
+            
+            document.getElementById('simulatorDetails').innerHTML = details.length > 0 ? 
+                `<small class="text-muted">${details.join('<br>')}</small>` : 
+                '<small class="text-muted">Selecione opções para ver os detalhes</small>';
+        }
+        
+        // Atualiza threshold
+        function updateThreshold(element) {
+            const id = parseInt(element.dataset.id);
+            const field = element.dataset.field;
+            const value = element.value ? parseInt(element.value) : null;
+            
+            const threshold = thresholdsData.find(t => t.id === id);
+            if (threshold) {
+                threshold[field] = value;
+                showSaveIndicator(element);
+            }
+        }
+        
+        // Toggle functions
+        function toggleCriterionActive(id) {
+            const criterion = criteriaData.find(c => c.id === id);
+            if (criterion) {
+                criterion.is_active = !criterion.is_active;
+                updateSimulator();
+            }
+        }
+        
+        function toggleOptionActive(id) {
+            criteriaData.forEach(criterion => {
+                const option = criterion.options.find(o => o.id === id);
+                if (option) {
+                    option.is_active = !option.is_active;
+                    updateSimulator();
+                }
+            });
+        }
+        
+        // Funções auxiliares
+        function showLoading(show) {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.display = show ? 'flex' : 'none';
+            }
+        }
+        
+        function showAlert(message, type = 'info') {
+            const container = document.getElementById('alertContainer');
+            const alertId = 'alert_' + Date.now();
+            
+            const alertHTML = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert" id="${alertId}">
+                    <strong>${type === 'success' ? 'Sucesso!' : type === 'danger' ? 'Erro!' : 'Info'}</strong> ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            
+            container.innerHTML = alertHTML;
+            
+            // Remove o alerta após 5 segundos
+            setTimeout(() => {
+                const alert = document.getElementById(alertId);
+                if (alert) {
+                    alert.remove();
+                }
+            }, 5000);
+        }
+        
+        function showSaveIndicator(element) {
+            const originalBackground = element.style.background;
+            const originalBorder = element.style.borderColor;
+            
+            element.style.background = '#d4edda';
+            element.style.borderColor = '#28a745';
+            
+            setTimeout(() => {
+                element.style.background = originalBackground;
+                element.style.borderColor = originalBorder;
+            }, 1000);
+        }
+        
+        function saveCriteriaChanges() {
+            showAlert('Alterações salvas automaticamente ao editar cada campo', 'success');
+        }
+        
+        // Recarrega dados do simulador
+        async function reloadSimulatorData() {
+            try {
+                showAlert('Recarregando dados...', 'info');
+                await Promise.all([
+                    loadCriteria(),
+                    loadThresholds()
+                ]);
+                showAlert('Dados recarregados com sucesso!', 'success');
+            } catch (error) {
+                console.error('Erro ao recarregar dados:', error);
+                showAlert('Erro ao recarregar dados', 'danger');
+            }
+        }
+        
+    </script>
+    
+</body>
+</html> 
