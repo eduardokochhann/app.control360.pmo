@@ -167,7 +167,7 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.17.0' = {
           }
           {
             name: 'PORT'
-            value: '5000'
+            value: '80'
           }
         ]
         volumeMounts: [
