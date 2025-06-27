@@ -19,7 +19,7 @@ param identityProxyClientId string = 'c5b9b4ab-76e8-4f42-abca-bebf57ea1102'
 
 @description('Client secret of the app registration used to authenticate the app with Entra ID')
 @secure()
-param identityProxyClientSecret string
+param identityProxyClientSecret string = ''
 
 // Tags that should be applied to all resources.
 // 
