@@ -135,7 +135,7 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.17.0' = {
   name: 'appControl360Sou'
   params: {
     name: 'app-control360-sou'
-    ingressTargetPort: 5000
+    ingressTargetPort: 80
     secrets: [
       {
         keyVaultUrl: '${keyVault.outputs.uri}secrets/stg-appcontrol-360-sou-key1'
