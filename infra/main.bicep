@@ -9,11 +9,17 @@ param environmentName string
 @description('Primary location for all resources')
 param location string
 
-
 param appControl360SouExists bool
 
 @description('Id of the user or app to assign application roles')
 param principalId string
+
+@description('Client ID of the app registration used to authenticate the app with Entra ID')
+param identityProxyClientId string = 'c5b9b4ab-76e8-4f42-abca-bebf57ea1102'
+
+@description('Client secret of the app registration used to authenticate the app with Entra ID')
+@secure()
+param identityProxyClientSecret string
 
 // Tags that should be applied to all resources.
 // 
@@ -39,6 +45,8 @@ module resources 'resources.bicep' = {
     tags: tags
     principalId: principalId
     appControl360SouExists: appControl360SouExists
+    identityProxyClientId: identityProxyClientId
+    identityProxyClientSecret: identityProxyClientSecret
   }
 }
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = resources.outputs.AZURE_CONTAINER_REGISTRY_ENDPOINT
