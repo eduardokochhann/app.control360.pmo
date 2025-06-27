@@ -117,6 +117,42 @@ def serialize_task_for_sprints(task):
         except:
             task_data['segments_count'] = 0
         
+        # === CAMPOS DE DATAS ===
+        # Adiciona todos os campos de data necessários para sincronização com o Backlog
+        try:
+            # Datas editáveis
+            start_date = getattr(task, 'start_date', None)
+            task_data['start_date'] = start_date.isoformat() if start_date else None
+            
+            due_date = getattr(task, 'due_date', None)
+            task_data['due_date'] = due_date.isoformat() if due_date else None
+            
+            # Datas automáticas
+            actually_started_at = getattr(task, 'actually_started_at', None)
+            task_data['actually_started_at'] = actually_started_at.isoformat() if actually_started_at else None
+            
+            completed_at = getattr(task, 'completed_at', None)
+            task_data['completed_at'] = completed_at.isoformat() if completed_at else None
+            
+            # Datas de controle
+            created_at = getattr(task, 'created_at', None)
+            task_data['created_at'] = created_at.isoformat() if created_at else None
+            
+            updated_at = getattr(task, 'updated_at', None)
+            task_data['updated_at'] = updated_at.isoformat() if updated_at else None
+            
+        except Exception as date_error:
+            # Log específico para erro de datas
+            if current_app:
+                current_app.logger.warning(f"Erro ao serializar datas da tarefa {task_data['id']}: {str(date_error)}")
+            # Define valores padrão em caso de erro
+            task_data['start_date'] = None
+            task_data['due_date'] = None
+            task_data['actually_started_at'] = None
+            task_data['completed_at'] = None
+            task_data['created_at'] = None
+            task_data['updated_at'] = None
+        
         return task_data
         
     except Exception as e:
@@ -145,4 +181,11 @@ def serialize_task_for_sprints(task):
             'is_generic': False,
             'status': 'TODO',
             'segments_count': 0,
+            # Campos de data para fallback de erro
+            'start_date': None,
+            'due_date': None,
+            'actually_started_at': None,
+            'completed_at': None,
+            'created_at': None,
+            'updated_at': None,
         } 

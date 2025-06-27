@@ -1055,6 +1055,75 @@
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Campos de Datas da Tarefa -->
+                        <div class="card bg-light">
+                            <div class="card-header py-2">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-calendar-range me-2"></i>Datas da Tarefa
+                                </h6>
+                            </div>
+                            <div class="card-body py-3">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="taskStartDate" class="form-label">
+                                                <i class="bi bi-play-circle text-success me-1"></i>Data de Início Planejada
+                                            </label>
+                                            <input type="date" class="form-control" id="taskStartDate" name="start_date">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="taskDueDate" class="form-label">
+                                                <i class="bi bi-calendar-check text-warning me-1"></i>Data de Vencimento
+                                            </label>
+                                            <input type="date" class="form-control" id="taskDueDate" name="due_date">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="taskActuallyStartedAt" class="form-label">
+                                                <i class="bi bi-stopwatch text-info me-1"></i>Início Real
+                                            </label>
+                                            <input type="datetime-local" class="form-control" id="taskActuallyStartedAt" name="actually_started_at" readonly>
+                                            <small class="form-text text-muted">Preenchido automaticamente quando a tarefa entra "Em Andamento"</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="taskCompletedAt" class="form-label">
+                                                <i class="bi bi-check-circle text-success me-1"></i>Data de Conclusão
+                                            </label>
+                                            <input type="datetime-local" class="form-control" id="taskCompletedAt" name="completed_at" readonly>
+                                            <small class="form-text text-muted">Preenchido automaticamente quando a tarefa é concluída</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="taskCreatedAt" class="form-label">
+                                                <i class="bi bi-plus-circle text-secondary me-1"></i>Criado em
+                                            </label>
+                                            <input type="datetime-local" class="form-control" id="taskCreatedAt" name="created_at" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="taskUpdatedAt" class="form-label">
+                                                <i class="bi bi-pencil-square text-secondary me-1"></i>Atualizado em
+                                            </label>
+                                            <input type="datetime-local" class="form-control" id="taskUpdatedAt" name="updated_at" readonly>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">

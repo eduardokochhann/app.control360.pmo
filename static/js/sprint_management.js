@@ -54,6 +54,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Atualiza filtros após carregar dados
         updateFilterLists();
         applyFilters();
+        
+        // ✅ NOVA FUNCIONALIDADE: Verifica e aplica filtro automático por projeto
+        setTimeout(checkAndApplyAutoFilter, 1000);
+        
     }).catch(error => {
         console.error('❌ Erro ao carregar dados iniciais:', error);
         showToast('Erro ao carregar dados iniciais', 'error');
@@ -1311,6 +1315,49 @@ function openTaskDetailsModal(taskElement, task) {
         // Usa column_name (nome em português) em vez de column_identifier (identificador em inglês)
         document.getElementById('taskColumnIdentifier').value = task.column_name || task.column_identifier || '';
         
+        // === CAMPOS DE DATAS ===
+        // Função auxiliar para converter ISO datetime para formato input date/datetime-local
+        function formatDateForInput(isoString, inputType = 'date') {
+            if (!isoString) return '';
+            
+            try {
+                const date = new Date(isoString);
+                if (isNaN(date.getTime())) return '';
+                
+                if (inputType === 'date') {
+                    // Formato YYYY-MM-DD para input type="date"
+                    return date.toISOString().split('T')[0];
+                } else {
+                    // Formato YYYY-MM-DDTHH:mm para input type="datetime-local"
+                    const offset = date.getTimezoneOffset();
+                    const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+                    return localDate.toISOString().slice(0, 16);
+                }
+            } catch (error) {
+                console.warn('Erro ao formatar data:', isoString, error);
+                return '';
+            }
+        }
+        
+        // Preenche campos de data editáveis
+        document.getElementById('taskStartDate').value = formatDateForInput(task.start_date, 'date');
+        document.getElementById('taskDueDate').value = formatDateForInput(task.due_date, 'date');
+        
+        // Preenche campos de data somente leitura (gerados automaticamente)
+        document.getElementById('taskActuallyStartedAt').value = formatDateForInput(task.actually_started_at, 'datetime-local');
+        document.getElementById('taskCompletedAt').value = formatDateForInput(task.completed_at, 'datetime-local');
+        document.getElementById('taskCreatedAt').value = formatDateForInput(task.created_at, 'datetime-local');
+        document.getElementById('taskUpdatedAt').value = formatDateForInput(task.updated_at, 'datetime-local');
+        
+        console.log('📅 Campos de data preenchidos:', {
+            start_date: task.start_date,
+            due_date: task.due_date,
+            actually_started_at: task.actually_started_at,
+            completed_at: task.completed_at,
+            created_at: task.created_at,
+            updated_at: task.updated_at
+        });
+        
         // Mostra campos específicos do backlog
         const backlogFields = document.getElementById('backlogSpecificFields');
         if (backlogFields) {
@@ -1382,6 +1429,25 @@ async function handleTaskDetailsFormSubmit(event) {
         estimated_hours: formData.get('estimated_hours') ? parseFloat(formData.get('estimated_hours')) : null,
         description: formData.get('description') || ''
     };
+    
+    // Adiciona campos de data editáveis (apenas para tarefas do backlog)
+    if (taskType !== 'generic') {
+        const startDate = formData.get('start_date');
+        const dueDate = formData.get('due_date');
+        
+        if (startDate) {
+            data.start_date = startDate; // Formato YYYY-MM-DD
+        }
+        
+        if (dueDate) {
+            data.due_date = dueDate; // Formato YYYY-MM-DD
+        }
+        
+        console.log('📅 Campos de data incluídos no envio:', {
+            start_date: data.start_date,
+            due_date: data.due_date
+        });
+    }
     
     // Para tarefas do backlog, precisamos mapear o status para o ID da coluna correspondente
     const statusValue = formData.get('status');
@@ -2818,3 +2884,105 @@ function selectSprintForAnalysis(sprintId) {
     // Podemos expandir esta função no futuro para mostrar análises detalhadas
     showToast(`Sprint selecionada! Use o botão de calculadora para calcular datas.`, 'info');
 }
+
+// === FILTRO AUTOMÁTICO POR PROJETO (CENTRAL DE COMANDO PMO) ===
+
+/**
+ * Detecta e aplica filtro automático baseado nos parâmetros da URL
+ */
+function checkAndApplyAutoFilter() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const autoFilterProject = urlParams.get('auto_filter_project');
+    const autoFilterProjectName = urlParams.get('auto_filter_project_name');
+    
+    if (autoFilterProject) {
+        console.log(`🎯 Detectado filtro automático para projeto: ${autoFilterProject} - ${autoFilterProjectName}`);
+        
+        // Aguarda um pouco para garantir que os dados foram carregados
+        setTimeout(() => {
+            applyAutoProjectFilter(autoFilterProject, decodeURIComponent(autoFilterProjectName || ''));
+        }, 1500);
+        
+        // Remove os parâmetros da URL para deixar ela limpa (após um delay)
+        setTimeout(() => {
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.delete('auto_filter_project');
+            newUrl.searchParams.delete('auto_filter_project_name');
+            
+            // Atualiza a URL sem recarregar a página
+            window.history.replaceState({}, document.title, newUrl.toString());
+        }, 3000);
+    }
+}
+
+/**
+ * Aplica filtro automático de projeto
+ */
+function applyAutoProjectFilter(projectId, projectName) {
+    console.log(`🔄 Aplicando filtro automático: ${projectId} - ${projectName}`);
+    
+    // Verifica se o projeto existe na lista
+    if (!allProjects.has(projectId)) {
+        console.warn(`⚠️ Projeto ${projectId} não encontrado na lista de projetos`);
+        
+        // Mostra toast informativo
+        showToast(`Projeto "${projectName}" não foi encontrado nas sprints atuais`, 'warning');
+        return;
+    }
+    
+    // Aplica o filtro usando a função existente
+    selectProjectFilter(projectId, projectName);
+    
+    // Mostra toast de confirmação com destaque
+    showToast(`🎯 Visualizando apenas sprints do projeto "${projectName}"`, 'success');
+    
+    // Destaque visual no filtro aplicado
+    highlightActiveFilter();
+    
+    console.log(`✅ Filtro automático aplicado com sucesso`);
+}
+
+/**
+ * Destaca visualmente que há um filtro ativo
+ */
+function highlightActiveFilter() {
+    const projectFilterBtn = document.getElementById('projectFilterBtn');
+    if (projectFilterBtn) {
+        // Adiciona destaque visual temporário
+        projectFilterBtn.classList.add('btn-warning');
+        projectFilterBtn.style.boxShadow = '0 0 10px rgba(255, 193, 7, 0.5)';
+        
+        // Remove destaque após alguns segundos
+        setTimeout(() => {
+            projectFilterBtn.classList.remove('btn-warning');
+            projectFilterBtn.style.boxShadow = '';
+        }, 4000);
+    }
+    
+    // Adiciona destaque no indicador de filtros ativos
+    const activeFiltersIndicator = document.getElementById('activeFiltersIndicator');
+    if (activeFiltersIndicator) {
+        activeFiltersIndicator.style.animation = 'pulse 1s infinite';
+        
+        setTimeout(() => {
+            activeFiltersIndicator.style.animation = '';
+        }, 3000);
+    }
+}
+
+// Adiciona CSS para animação de pulso se não existir
+if (!document.getElementById('auto-filter-styles')) {
+    const style = document.createElement('style');
+    style.id = 'auto-filter-styles';
+    style.textContent = `
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// A verificação de filtro automático será integrada à inicialização existente
+// Isso será chamado após o carregamento completo dos dados

@@ -598,7 +598,7 @@
                             <button class="btn pmo-action-btn" onclick="loadProjectSprints()">
                                 <i class="bi bi-arrow-clockwise"></i> Atualizar Sprints
                             </button>
-                            <a href="/sprints/" class="btn pmo-action-btn" target="_blank">
+                            <a href="javascript:void(0)" class="btn pmo-action-btn" onclick="openSprintsWithProjectFilter(event)">
                                 <i class="bi bi-box-arrow-up-right"></i> Gerenciar Sprints
                             </a>
                             <button class="btn pmo-action-btn" onclick="exportSprintData()">
@@ -1327,7 +1327,7 @@
                 <div class="text-center text-muted py-4">
                     <i class="bi bi-lightning-charge fs-1"></i>
                     <p>Nenhuma sprint encontrada com tarefas deste projeto</p>
-                    <a href="/sprints/" class="btn btn-primary btn-sm">
+                    <a href="javascript:void(0)" class="btn btn-primary btn-sm" onclick="openSprintsWithProjectFilter(event)">
                         <i class="bi bi-plus-circle"></i> Criar Nova Sprint
                     </a>
                 </div>
@@ -1373,7 +1373,7 @@
                             ${sprint.goal ? `<p class="text-muted small mt-2 mb-0">${escapeHtml(sprint.goal)}</p>` : ''}
                         </div>
                         <div class="d-flex gap-2">
-                            <a href="/sprints/" class="btn btn-outline-primary btn-sm" target="_blank" title="Abrir Gerenciamento de Sprints">
+                            <a href="javascript:void(0)" class="btn btn-outline-primary btn-sm" onclick="openSprintsWithProjectFilter(event)" title="Abrir Gerenciamento de Sprints">
                                 <i class="bi bi-box-arrow-up-right"></i>
                             </a>
                         </div>
@@ -1545,6 +1545,72 @@
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+    }
+    
+    /**
+     * Abre o Sprint Manager com filtro automático pelo projeto atual
+     */
+    function openSprintsWithProjectFilter(event) {
+        // Previne comportamento padrão do link
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        
+        const projectId = window.boardData.projectId;
+        
+        if (!projectId) {
+            console.warn('Project ID não disponível, abrindo Sprint Manager sem filtro');
+            window.open('/sprints/', '_blank', 'noopener,noreferrer');
+            return;
+        }
+        
+        // Busca o nome do projeto atual
+        const currentProject = getCurrentProjectInfo();
+        
+        console.log(`🎯 Abrindo Sprint Manager com filtro para projeto: ${projectId} - ${currentProject.name}`);
+        
+        // Constrói URL com parâmetros de filtro
+        const url = new URL('/sprints/', window.location.origin);
+        url.searchParams.set('auto_filter_project', projectId);
+        url.searchParams.set('auto_filter_project_name', encodeURIComponent(currentProject.name || ''));
+        
+        // Abre em nova aba com configurações específicas
+        window.open(url.toString(), '_blank', 'noopener,noreferrer');
+    }
+    
+    /**
+     * Obtém informações do projeto atual
+     */
+    function getCurrentProjectInfo() {
+        // Primeiro tenta obter do seletor de projeto no topo da página
+        const projectSelector = document.querySelector('#projectSelect option:checked, #currentProjectTitle, .project-title');
+        
+        if (projectSelector) {
+            return {
+                name: projectSelector.textContent.trim()
+            };
+        }
+        
+        // Fallback: busca informações nas tarefas
+        const firstTask = document.querySelector('[data-project-id]');
+        if (firstTask && firstTask.dataset.projectName) {
+            return {
+                name: firstTask.dataset.projectName
+            };
+        }
+        
+        // Último fallback: busca no título da página ou breadcrumb
+        const pageTitle = document.querySelector('h1, .page-title, .breadcrumb-item.active');
+        if (pageTitle) {
+            return {
+                name: pageTitle.textContent.trim()
+            };
+        }
+        
+        return {
+            name: `Projeto ${window.boardData.projectId}`
+        };
     }
     
     // Função para carregar sprints quando a aba for ativada
