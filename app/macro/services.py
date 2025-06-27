@@ -38,9 +38,9 @@ STATUS_ATIVO = ['ATIVO']
 _MACRO_CACHE = {
     'dados': None,
     'timestamp': None,
-    'ttl_seconds': 30,  # Cache de 30 segundos para performance
+    'ttl_seconds': 120,  # ✅ OTIMIZAÇÃO: Cache de dados aumentado para 2 minutos
     'project_details_cache': {},  # Cache específico para detalhes de projetos
-    'project_cache_ttl': 60  # Cache de projetos dura 60 segundos
+    'project_cache_ttl': 300  # ✅ OTIMIZAÇÃO: Cache de projetos aumentado para 5 minutos (reduz logs drasticamente)
 }
 
 def _is_cache_valid():

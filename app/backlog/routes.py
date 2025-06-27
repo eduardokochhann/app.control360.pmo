@@ -9,6 +9,7 @@ import pytz # <<< ADICIONADO
 from sqlalchemy import and_
 from sqlalchemy.orm import joinedload
 from io import BytesIO
+import time
 
 # Define o fuso horário de Brasília
 br_timezone = pytz.timezone('America/Sao_Paulo') # <<< ADICIONADO
@@ -926,6 +927,28 @@ def get_project_header_details(project_id):
 # Adicionar rotas para CRUD de Sprints se necessário... 
 
 # API para obter tarefas não alocadas a sprints, agrupadas por backlog/projeto
+# ✅ CACHE OTIMIZADO: Cache global para projetos ativos (reduz logs MacroService)
+import time
+_ACTIVE_PROJECTS_CACHE = {
+    'data': None,
+    'timestamp': None,
+    'ttl_seconds': 300  # 5 minutos de cache para projetos ativos
+}
+
+def _get_cached_active_projects():
+    """Retorna projetos ativos do cache se válido."""
+    if (_ACTIVE_PROJECTS_CACHE['data'] is not None and 
+        _ACTIVE_PROJECTS_CACHE['timestamp'] is not None):
+        elapsed = time.time() - _ACTIVE_PROJECTS_CACHE['timestamp']
+        if elapsed < _ACTIVE_PROJECTS_CACHE['ttl_seconds']:
+            return _ACTIVE_PROJECTS_CACHE['data']
+    return None
+
+def _set_cached_active_projects(project_ids):
+    """Cacheia IDs de projetos ativos."""
+    _ACTIVE_PROJECTS_CACHE['data'] = project_ids
+    _ACTIVE_PROJECTS_CACHE['timestamp'] = time.time()
+
 @backlog_bp.route('/api/backlogs/unassigned-tasks')
 def get_unassigned_tasks():
     macro_service = MacroService() # Re-adiciona instância do serviço
@@ -959,23 +982,35 @@ def get_unassigned_tasks():
             # Re-adiciona busca de detalhes dos projetos
             project_ids = list(set(b.project_id for b in backlogs)) # Evita buscar o mesmo ID várias vezes
             
-            # NOVO: Filtra apenas projetos ativos
-            active_project_ids = set()
-            if project_ids:
+            # ✅ OTIMIZAÇÃO AGRESSIVA: Usar cache para projetos ativos (reduz logs drasticamente)
+            active_project_ids = _get_cached_active_projects()
+            
+            if active_project_ids is None and project_ids:
                 try:
-                    # Carrega os dados primeiro
+                    # Cache miss - buscar projetos ativos (RARO após implementação)
                     dados_df = macro_service.carregar_dados()
                     if not dados_df.empty:
                         projects_data = macro_service.obter_projetos_ativos(dados_df)
                         if projects_data:
                             active_project_ids = set(str(p.get('numero', '')) for p in projects_data if p.get('numero'))
-                            current_app.logger.info(f"[Unassigned Tasks] Encontrados {len(active_project_ids)} projetos ativos")
+                            # Cacheia resultado para próximas 5 minutos
+                            _set_cached_active_projects(active_project_ids)
+                            current_app.logger.info(f"[Unassigned Tasks] Cache miss: {len(active_project_ids)} projetos ativos carregados e cacheados por 5min")
+                        else:
+                            active_project_ids = set()
+                            _set_cached_active_projects(active_project_ids)
                     else:
                         current_app.logger.warning("DataFrame vazio ao carregar dados para filtrar projetos ativos")
+                        active_project_ids = set(project_ids)
+                        _set_cached_active_projects(active_project_ids)
                 except Exception as e:
                     current_app.logger.warning(f"Erro ao buscar projetos ativos: {e}")
                     # Se falhar, considera todos os projetos como ativos
                     active_project_ids = set(project_ids)
+                    _set_cached_active_projects(active_project_ids)
+            elif active_project_ids is not None:
+                # ✅ Cache hit - ZERO logs para evitar spam (operação mais comum)
+                pass
             
             # OTIMIZAÇÃO: Instanciar macro_service uma vez e usar cache interno
             if project_ids:
@@ -3617,3 +3652,24 @@ def export_wbs_to_excel():
     except Exception as e:
         current_app.logger.error(f"[WBS Export] Erro ao exportar: {str(e)}")
         return jsonify({'error': 'Erro interno do servidor'}), 500
+
+# ✅ CACHE OTIMIZADO: Cache global para projetos ativos (reduz logs MacroService)
+_ACTIVE_PROJECTS_CACHE = {
+    'data': None,
+    'timestamp': None,
+    'ttl_seconds': 300  # 5 minutos de cache para projetos ativos
+}
+
+def _get_cached_active_projects():
+    """Retorna projetos ativos do cache se válido."""
+    if (_ACTIVE_PROJECTS_CACHE['data'] is not None and 
+        _ACTIVE_PROJECTS_CACHE['timestamp'] is not None):
+        elapsed = time.time() - _ACTIVE_PROJECTS_CACHE['timestamp']
+        if elapsed < _ACTIVE_PROJECTS_CACHE['ttl_seconds']:
+            return _ACTIVE_PROJECTS_CACHE['data']
+    return None
+
+def _set_cached_active_projects(project_ids):
+    """Cacheia IDs de projetos ativos."""
+    _ACTIVE_PROJECTS_CACHE['data'] = project_ids
+    _ACTIVE_PROJECTS_CACHE['timestamp'] = time.time()

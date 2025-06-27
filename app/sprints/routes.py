@@ -595,8 +595,8 @@ def export_consolidated_report():
     # 3. Planilha de Detalhes por Sprint
     ws_detalhes = wb.create_sheet("Detalhes por Sprint")
     
-    # Cabeçalhos
-    headers = ["Sprint", "Período", "Tarefa", "Especialista", "Horas Estimadas", "Status"]
+    # ✅ MELHORIA: Adicionando colunas do projeto (número e nome)
+    headers = ["Sprint", "Período", "Tarefa", "Número Projeto", "Nome Projeto", "Especialista", "Horas Estimadas", "Status"]
     for col_idx, header in enumerate(headers, 1):
         cell = ws_detalhes.cell(row=1, column=col_idx, value=header)
         cell.font = header_font
@@ -615,16 +615,59 @@ def export_consolidated_report():
                 if column and ('concluído' in column.name.lower() or 'concluido' in column.name.lower()):
                     status = "Concluído"
             
+            # ✅ OBTENÇÃO DOS DADOS DO PROJETO
+            project_number = "N/A"
+            project_name = "Nome Indisponível"
+            
+            # Para tarefas genéricas, não há projeto associado
+            if not getattr(task, 'is_generic', False) and task.backlog_id:
+                try:
+                    # Busca o backlog da tarefa
+                    backlog = Backlog.query.get(task.backlog_id)
+                    if backlog and backlog.project_id:
+                        project_number = str(backlog.project_id)
+                        
+                        # Busca nome do projeto via MacroService (usando cache)
+                        try:
+                            from app.macro.services import MacroService
+                            macro_service = MacroService()
+                            project_details = macro_service.obter_detalhes_projeto(backlog.project_id)
+                            if project_details:
+                                # Busca o nome com fallback inteligente
+                                project_name = (
+                                    project_details.get('projeto') or 
+                                    project_details.get('Projeto') or 
+                                    project_details.get('cliente') or
+                                    project_details.get('Cliente') or
+                                    project_details.get('cliente_(completo)') or
+                                    project_details.get('Cliente (Completo)') or
+                                    f'Projeto {project_number}'
+                                )
+                        except Exception as e:
+                            # Fallback silencioso
+                            project_name = f'Projeto {project_number}'
+                            current_app.logger.debug(f"Erro ao buscar nome do projeto {project_number}: {e}")
+                        
+                except Exception as e:
+                    current_app.logger.debug(f"Erro ao obter dados do projeto para tarefa {task.id}: {e}")
+            elif getattr(task, 'is_generic', False):
+                project_number = "GENÉRICA"
+                project_name = "Tarefa Genérica"
+            
+            # Escreve dados na planilha
             ws_detalhes.cell(row=current_row, column=1, value=sprint.name)
             ws_detalhes.cell(row=current_row, column=2, value=f"{sprint.start_date.strftime('%d/%m/%Y')} - {sprint.end_date.strftime('%d/%m/%Y')}")
             ws_detalhes.cell(row=current_row, column=3, value=task.title)
-            ws_detalhes.cell(row=current_row, column=4, value=task.specialist_name or "Não Atribuído")
-            ws_detalhes.cell(row=current_row, column=5, value=round(task.estimated_effort or 0, 1))
-            ws_detalhes.cell(row=current_row, column=6, value=status)
+            ws_detalhes.cell(row=current_row, column=4, value=project_number)  # ✅ NOVA COLUNA
+            ws_detalhes.cell(row=current_row, column=5, value=project_name)     # ✅ NOVA COLUNA
+            ws_detalhes.cell(row=current_row, column=6, value=task.specialist_name or "Não Atribuído")
+            ws_detalhes.cell(row=current_row, column=7, value=round(task.estimated_effort or 0, 1))
+            ws_detalhes.cell(row=current_row, column=8, value=status)
             current_row += 1
     
-    # Ajustar larguras das colunas
-    for ws in [ws_resumo, ws_especialistas, ws_detalhes]:
+    # ✅ OTIMIZAÇÃO: Ajustar larguras das colunas com configuração específica
+    # Ajusta larguras automáticas para ws_resumo e ws_especialistas
+    for ws in [ws_resumo, ws_especialistas]:
         for column in ws.columns:
             max_length = 0
             column = list(column)
@@ -636,6 +679,21 @@ def export_consolidated_report():
                     pass
             adjusted_width = (max_length + 2)
             ws.column_dimensions[column[0].column_letter].width = adjusted_width
+    
+    # ✅ CONFIGURAÇÃO ESPECÍFICA para ws_detalhes (com as novas colunas)
+    column_widths = {
+        'A': 20,  # Sprint
+        'B': 22,  # Período
+        'C': 35,  # Tarefa
+        'D': 15,  # Número Projeto
+        'E': 30,  # Nome Projeto
+        'F': 18,  # Especialista
+        'G': 15,  # Horas Estimadas
+        'H': 12   # Status
+    }
+    
+    for column_letter, width in column_widths.items():
+        ws_detalhes.column_dimensions[column_letter].width = width
     
     # Salvar o arquivo
     output = io.BytesIO()

@@ -1269,17 +1269,133 @@ async function handleGenericTaskFormSubmit(event) {
             throw new Error(error.message || `Erro ${response.status}`);
         }
         
+        const savedTask = await response.json();
+        
         // Fecha o modal
         const modal = bootstrap.Modal.getInstance(document.getElementById('genericTaskModal'));
         if (modal) modal.hide();
         
-        // Recarrega tarefas genéricas
-        loadGenericTasks();
+        // 🚀 OTIMIZAÇÃO: Atualização local em vez de reload completo
+        if (editingId) {
+            console.log('✅ Tarefa genérica atualizada, atualizando UI localmente...');
+            await updateGenericTaskCardInUI(editingId, taskData);
+        } else {
+            console.log('✅ Nova tarefa genérica criada, adicionando à UI...');
+            await addNewGenericTaskToUI(savedTask);
+        }
+        
         showToast(editingId ? 'Tarefa atualizada com sucesso!' : 'Tarefa criada com sucesso!', 'success');
         
     } catch (error) {
         console.error('❌ Erro ao salvar tarefa genérica:', error);
         showToast(`Erro ao salvar tarefa: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * 🚀 NOVA FUNÇÃO: Atualiza card de tarefa genérica na UI
+ */
+async function updateGenericTaskCardInUI(taskId, updatedData) {
+    try {
+        const taskCard = document.querySelector(`[data-task-id="${taskId}"]`);
+        if (!taskCard) {
+            console.log('💡 Card da tarefa genérica não encontrado, fazendo reload...');
+            await loadGenericTasks();
+            return;
+        }
+        
+        // Atualiza elementos visuais
+        const titleElement = taskCard.querySelector('.task-title');
+        if (titleElement && updatedData.title) {
+            titleElement.textContent = updatedData.title;
+        }
+        
+        const priorityElement = taskCard.querySelector('.task-priority');
+        if (priorityElement && updatedData.priority) {
+            priorityElement.className = priorityElement.className.replace(/priority-\w+/g, '');
+            priorityElement.classList.add(`priority-${updatedData.priority.toLowerCase()}`);
+            priorityElement.textContent = updatedData.priority;
+        }
+        
+        const hoursElement = taskCard.querySelector('.task-hours');
+        if (hoursElement && updatedData.estimated_hours !== null) {
+            hoursElement.textContent = `${updatedData.estimated_hours}h`;
+            taskCard.dataset.estimatedHours = updatedData.estimated_hours;
+        }
+        
+        const specialistElement = taskCard.querySelector('.task-specialist');
+        if (specialistElement && updatedData.specialist_name) {
+            specialistElement.textContent = updatedData.specialist_name;
+            taskCard.dataset.specialistName = updatedData.specialist_name;
+        }
+        
+        console.log('✅ Card da tarefa genérica atualizado localmente');
+        
+    } catch (error) {
+        console.error('❌ Erro ao atualizar card genérico na UI:', error);
+        await loadGenericTasks();
+    }
+}
+
+/**
+ * 🚀 NOVA FUNÇÃO: Adiciona nova tarefa genérica à UI
+ */
+async function addNewGenericTaskToUI(newTask) {
+    try {
+        const genericTasksList = document.getElementById('genericTasksList');
+        if (!genericTasksList) {
+            console.log('💡 Lista de tarefas genéricas não encontrada');
+            return;
+        }
+        
+        // Cria o HTML do novo card
+        const taskCard = document.createElement('div');
+        taskCard.className = 'generic-task card mb-2';
+        taskCard.dataset.taskId = newTask.id;
+        taskCard.dataset.estimatedHours = newTask.estimated_hours || 0;
+        taskCard.dataset.specialistName = newTask.specialist_name || '';
+        
+        const priorityClass = getPriorityClass(newTask.priority || 'Média');
+        
+        taskCard.innerHTML = `
+            <div class="card-body p-2">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <h6 class="task-title mb-1">${escapeHtml(newTask.title)}</h6>
+                        <div class="d-flex flex-wrap gap-1">
+                            <span class="badge ${priorityClass} task-priority">${newTask.priority || 'Média'}</span>
+                            ${newTask.estimated_hours ? `<span class="badge bg-info task-hours">${newTask.estimated_hours}h</span>` : ''}
+                            ${newTask.specialist_name ? `<span class="badge bg-secondary task-specialist">${escapeHtml(newTask.specialist_name)}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="task-actions">
+                        <button type="button" class="btn btn-sm btn-outline-primary" 
+                                onclick="openTaskDetailsModal(this, ${JSON.stringify(newTask).replace(/"/g, '&quot;')})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Adiciona animação de entrada
+        taskCard.style.opacity = '0';
+        taskCard.style.transform = 'scale(0.8)';
+        taskCard.style.transition = 'all 0.3s ease';
+        
+        genericTasksList.appendChild(taskCard);
+        
+        // Anima a entrada
+        setTimeout(() => {
+            taskCard.style.opacity = '1';
+            taskCard.style.transform = 'scale(1)';
+        }, 10);
+        
+        console.log('✅ Nova tarefa genérica adicionada à UI');
+        
+    } catch (error) {
+        console.error('❌ Erro ao adicionar nova tarefa genérica à UI:', error);
+        await loadGenericTasks();
     }
 }
 
@@ -1421,33 +1537,15 @@ async function handleTaskDetailsFormSubmit(event) {
         return;
     }
     
-    // Prepara dados para envio
     const data = {
-        title: formData.get('title'),
+        name: formData.get('title'),
         priority: formData.get('priority'),
-        specialist_name: formData.get('specialist_name') || null,
+        specialist_name: formData.get('specialist_name'),
         estimated_hours: formData.get('estimated_hours') ? parseFloat(formData.get('estimated_hours')) : null,
-        description: formData.get('description') || ''
+        description: formData.get('description'),
+        start_date: formData.get('start_date') || null,
+        due_date: formData.get('due_date') || null
     };
-    
-    // Adiciona campos de data editáveis (apenas para tarefas do backlog)
-    if (taskType !== 'generic') {
-        const startDate = formData.get('start_date');
-        const dueDate = formData.get('due_date');
-        
-        if (startDate) {
-            data.start_date = startDate; // Formato YYYY-MM-DD
-        }
-        
-        if (dueDate) {
-            data.due_date = dueDate; // Formato YYYY-MM-DD
-        }
-        
-        console.log('📅 Campos de data incluídos no envio:', {
-            start_date: data.start_date,
-            due_date: data.due_date
-        });
-    }
     
     // Para tarefas do backlog, precisamos mapear o status para o ID da coluna correspondente
     const statusValue = formData.get('status');
@@ -1488,18 +1586,96 @@ async function handleTaskDetailsFormSubmit(event) {
         const modal = bootstrap.Modal.getInstance(document.getElementById('taskDetailsModal'));
         if (modal) modal.hide();
         
-        // Recarrega os dados para refletir as mudanças
-        console.log('✅ Tarefa atualizada com sucesso, recarregando dados...');
-        await Promise.all([
-            loadSprints(),
-            taskType === 'generic' ? loadGenericTasks() : loadBacklogTasks()
-        ]);
+        // 🚀 OTIMIZAÇÃO CRÍTICA: Atualização local em vez de reload completo
+        // Em vez de recarregar tudo (loadSprints + loadBacklogTasks), 
+        // atualizamos apenas o card específico na UI
+        console.log('✅ Tarefa atualizada com sucesso, atualizando UI localmente...');
+        
+        // Atualiza o card da tarefa na UI
+        await updateTaskCardInUI(taskId, data, taskType);
         
         showToast('Tarefa atualizada com sucesso!', 'success');
         
     } catch (error) {
         console.error('❌ Erro ao salvar alterações da tarefa:', error);
         showToast(`Erro ao salvar alterações: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * 🚀 NOVA FUNÇÃO: Atualiza apenas o card da tarefa na UI sem reload completo
+ * Isso elimina os logs excessivos e melhora drasticamente a performance
+ */
+async function updateTaskCardInUI(taskId, updatedData, taskType) {
+    try {
+        // Encontra o card da tarefa na UI
+        const taskCard = document.querySelector(`[data-task-id="${taskId}"]`);
+        if (!taskCard) {
+            console.log('💡 Card da tarefa não encontrado na UI atual, fazendo reload seletivo...');
+            // Se não encontrar o card, faz apenas um reload seletivo da área necessária
+            if (taskType === 'generic') {
+                await loadGenericTasks();
+            } else {
+                // Para tarefas do backlog, atualiza apenas se estiver na view de sprints
+                const sprintBoard = document.getElementById('sprintBoard');
+                if (sprintBoard && sprintBoard.querySelector(`[data-task-id="${taskId}"]`)) {
+                    await loadSprints();
+                }
+            }
+            return;
+        }
+        
+        // Atualiza os elementos visuais do card
+        const titleElement = taskCard.querySelector('.task-title');
+        if (titleElement && updatedData.name) {
+            titleElement.textContent = updatedData.name;
+        }
+        
+        const priorityElement = taskCard.querySelector('.task-priority');
+        if (priorityElement && updatedData.priority) {
+            // Remove classes de prioridade antigas
+            priorityElement.className = priorityElement.className.replace(/priority-\w+/g, '');
+            // Adiciona nova classe de prioridade
+            priorityElement.classList.add(`priority-${updatedData.priority.toLowerCase()}`);
+            priorityElement.textContent = updatedData.priority;
+        }
+        
+        const hoursElement = taskCard.querySelector('.task-hours');
+        if (hoursElement && updatedData.estimated_hours !== null) {
+            hoursElement.textContent = `${updatedData.estimated_hours}h`;
+            // Atualiza o dataset para cálculos
+            taskCard.dataset.estimatedHours = updatedData.estimated_hours;
+        }
+        
+        const specialistElement = taskCard.querySelector('.task-specialist');
+        if (specialistElement && updatedData.specialist_name) {
+            specialistElement.textContent = updatedData.specialist_name;
+            // Atualiza o dataset
+            taskCard.dataset.specialistName = updatedData.specialist_name;
+        }
+        
+        // Atualiza tooltips se existirem
+        const tooltipElement = taskCard.querySelector('[data-bs-toggle="tooltip"]');
+        if (tooltipElement && updatedData.description) {
+            tooltipElement.setAttribute('data-bs-original-title', updatedData.description);
+        }
+        
+        // Força atualização dos totais de horas apenas da sprint atual
+        const sprintCard = taskCard.closest('.sprint-card');
+        if (sprintCard) {
+            updateSprintHoursDisplay(taskCard.closest('.sprint-tasks'));
+        }
+        
+        console.log('✅ Card da tarefa atualizado localmente');
+        
+    } catch (error) {
+        console.error('❌ Erro ao atualizar card na UI, fazendo reload:', error);
+        // Em caso de erro, faz reload como fallback
+        if (taskType === 'generic') {
+            await loadGenericTasks();
+        } else {
+            await loadSprints();
+        }
     }
 }
 
@@ -1544,12 +1720,36 @@ async function handleTaskDelete() {
         const modal = bootstrap.Modal.getInstance(document.getElementById('taskDetailsModal'));
         if (modal) modal.hide();
         
-        // Recarrega os dados
-        console.log('✅ Tarefa excluída com sucesso, recarregando dados...');
-        await Promise.all([
-            loadSprints(),
-            taskType === 'generic' ? loadGenericTasks() : loadBacklogTasks()
-        ]);
+        // 🚀 OTIMIZAÇÃO: Remove o card da UI localmente em vez de reload completo
+        console.log('✅ Tarefa excluída com sucesso, removendo da UI...');
+        
+        const taskCard = document.querySelector(`[data-task-id="${taskId}"]`);
+        if (taskCard) {
+            // Atualiza totais de horas antes de remover
+            const sprintCard = taskCard.closest('.sprint-card');
+            if (sprintCard) {
+                const taskHours = parseFloat(taskCard.dataset.estimatedHours) || 0;
+                updateSprintHoursAfterRemoval(sprintCard, taskHours);
+            }
+            
+            // Remove o card com animação
+            taskCard.style.transition = 'all 0.3s ease';
+            taskCard.style.opacity = '0';
+            taskCard.style.transform = 'scale(0.8)';
+            
+            setTimeout(() => {
+                taskCard.remove();
+                console.log('✅ Card da tarefa removido da UI');
+            }, 300);
+        } else {
+            // Se não encontrar o card, faz reload seletivo como fallback
+            console.log('💡 Card não encontrado, fazendo reload seletivo...');
+            if (taskType === 'generic') {
+                await loadGenericTasks();
+            } else {
+                await loadSprints();
+            }
+        }
         
         showToast('Tarefa excluída com sucesso!', 'success');
         
@@ -1592,18 +1792,52 @@ async function handleGenericTaskDelete() {
         const modal = bootstrap.Modal.getInstance(document.getElementById('genericTaskModal'));
         if (modal) modal.hide();
         
-        // Recarrega os dados
-        console.log('✅ Tarefa genérica excluída com sucesso, recarregando dados...');
-        await Promise.all([
-            loadSprints(),
-            loadGenericTasks()
-        ]);
+        // 🚀 OTIMIZAÇÃO: Remove o card da UI localmente
+        console.log('✅ Tarefa genérica excluída com sucesso, removendo da UI...');
+        
+        const taskCard = document.querySelector(`[data-task-id="${taskId}"]`);
+        if (taskCard) {
+            // Remove o card com animação
+            taskCard.style.transition = 'all 0.3s ease';
+            taskCard.style.opacity = '0';
+            taskCard.style.transform = 'scale(0.8)';
+            
+            setTimeout(() => {
+                taskCard.remove();
+                console.log('✅ Card da tarefa genérica removido da UI');
+            }, 300);
+        } else {
+            // Fallback: reload apenas das tarefas genéricas
+            await loadGenericTasks();
+        }
         
         showToast('Tarefa genérica excluída com sucesso!', 'success');
         
     } catch (error) {
         console.error('❌ Erro ao excluir tarefa genérica:', error);
         showToast(`Erro ao excluir tarefa genérica: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * 🚀 NOVA FUNÇÃO: Atualiza totais de horas da sprint após remoção de tarefa
+ */
+function updateSprintHoursAfterRemoval(sprintCard, removedHours) {
+    try {
+        const hoursSpan = sprintCard.querySelector('.sprint-total-hours');
+        if (hoursSpan) {
+            // Extrai horas atuais do texto (formato: "123.5h")
+            const currentText = hoursSpan.textContent;
+            const currentHours = parseFloat(currentText.match(/[\d.]+/)?.[0] || '0');
+            const newHours = Math.max(0, currentHours - removedHours);
+            
+            // Atualiza o display
+            hoursSpan.innerHTML = `<i class="bi bi-clock"></i> ${newHours.toFixed(1)}h`;
+            
+            console.log(`🔄 Horas da sprint atualizadas: ${currentHours.toFixed(1)}h → ${newHours.toFixed(1)}h (-${removedHours.toFixed(1)}h)`);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao atualizar horas da sprint:', error);
     }
 }
 
@@ -1913,21 +2147,60 @@ async function returnTaskToOrigin(taskId, originType) {
             throw new Error(errorData.message || `Erro ${response.status}`);
         }
         
+        // ✅ OTIMIZAÇÃO: Remove tarefa localmente da UI sem recarregar tudo
+        const taskCard = document.querySelector(`[data-task-id="${taskId}"]`);
+        if (taskCard) {
+            // Obtém informações antes de remover
+            const sprintContainer = taskCard.closest('.sprint-tasks');
+            const estimatedHours = parseFloat(taskCard.dataset.estimatedHours) || 0;
+            
+            // Remove tarefa com animação
+            taskCard.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            taskCard.style.opacity = '0';
+            taskCard.style.transform = 'scale(0.8)';
+            
+            setTimeout(() => {
+                taskCard.remove();
+                
+                // Atualiza contador de horas da sprint
+                if (sprintContainer) {
+                    const sprintCard = sprintContainer.closest('.sprint-card');
+                    if (sprintCard && estimatedHours > 0) {
+                        updateSprintHoursAfterRemoval(sprintCard, estimatedHours);
+                    }
+                }
+                
+                console.log(`✅ Tarefa ${taskId} removida da UI`);
+            }, 300);
+            
+            // Recarrega apenas a lista de destino, não todas as listas
+            if (originType === 'generic') {
+                await loadGenericTasks();
+            } else {
+                await loadBacklogTasks();
+            }
+        } else {
+            // Fallback: se não encontrou a tarefa na UI, recarrega sprints apenas
+            console.log(`⚠️ Tarefa ${taskId} não encontrada na UI, recarregando sprints...`);
+            await loadSprints();
+        }
+        
         // Feedback visual
         showToast(successMessage, 'success');
-        
-        // Recarrega dados para atualizar a interface
-        await Promise.all([
-            loadSprints(),
-            loadBacklogTasks(),
-            loadGenericTasks()
-        ]);
         
         console.log(`✅ Tarefa ${taskId} retornada com sucesso para ${originType}`);
         
     } catch (error) {
         console.error('❌ Erro ao retornar tarefa:', error);
         showToast(`Erro ao retornar tarefa: ${error.message}`, 'error');
+        
+        // Em caso de erro, faz fallback para recarregamento completo
+        console.log('🔄 Fazendo fallback para recarregamento completo...');
+        await Promise.all([
+            loadSprints(),
+            loadBacklogTasks(),
+            loadGenericTasks()
+        ]);
     }
 }
 
