@@ -433,6 +433,140 @@
       max-width: 300px !important;
     }
   }
+
+  /* Estilos para Filtros */
+  .dropdown-menu {
+    max-height: 400px;
+    overflow-y: auto;
+    min-width: 280px;
+  }
+
+  .dropdown-item {
+    transition: all 0.2s ease;
+    border-radius: 0.25rem;
+    margin: 0 0.25rem;
+  }
+
+  .dropdown-item:hover {
+    background-color: var(--sprint-hover);
+    transform: translateX(2px);
+  }
+
+  .dropdown-item.active {
+    background-color: var(--sprint-primary);
+    color: white;
+  }
+
+  .dropdown-item.active:hover {
+    background-color: var(--sprint-primary);
+    color: white;
+  }
+
+  /* Estilo para tarefas filtradas */
+  .task-filtered-out {
+    /* Tarefas serão ocultadas via display: none no JavaScript */
+  }
+
+  .task-filtered-in {
+    /* Tarefas visíveis - estilo padrão */
+  }
+
+  /* Transições suaves para filtros */
+  .sprint-task-card,
+  .backlog-task-card {
+    transition: all 0.3s ease-in-out;
+  }
+
+  /* Estilo para sprints com todas as tarefas filtradas */
+  .sprint-card.no-visible-tasks {
+    opacity: 0.4;
+    border: 2px dashed var(--sprint-border);
+    background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 10px,
+      rgba(0,0,0,.03) 10px,
+      rgba(0,0,0,.03) 20px
+    );
+    transition: all 0.4s ease;
+  }
+
+  .sprint-card.no-visible-tasks .sprint-card-header {
+    position: relative;
+  }
+
+  .sprint-card.no-visible-tasks .sprint-card-header::after {
+    content: "🔍 Nenhuma tarefa visível com os filtros atuais";
+    position: absolute;
+    bottom: -25px;
+    left: 0;
+    right: 0;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-align: center;
+    font-style: italic;
+  }
+
+  /* Hover effect para sprints com filtros */
+  .sprint-card.no-visible-tasks:hover {
+    opacity: 0.6;
+    transform: scale(1.01);
+  }
+
+  /* Indicador de filtros ativos */
+  #activeFiltersIndicator .badge {
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0% { opacity: 0.8; }
+    50% { opacity: 1; }
+    100% { opacity: 0.8; }
+  }
+
+  /* Melhorias nos dropdowns de filtro */
+  .filter-project-item,
+  .filter-specialist-item {
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    margin: 0.125rem 0.25rem;
+    transition: all 0.2s ease;
+  }
+
+  .filter-project-item:hover,
+  .filter-specialist-item:hover {
+    background-color: var(--sprint-hover);
+    transform: translateX(3px);
+  }
+
+  .filter-project-item.selected,
+  .filter-specialist-item.selected {
+    background-color: var(--sprint-primary);
+    color: white;
+  }
+
+  .filter-project-item .project-name {
+    font-weight: 500;
+    display: block;
+  }
+
+  .filter-project-item .project-id {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    display: block;
+  }
+
+  .filter-specialist-item .specialist-name {
+    font-weight: 500;
+    display: block;
+  }
+
+  .filter-specialist-item .task-count {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    display: block;
+  }
 </style>
 {% endblock %}
 
@@ -455,6 +589,66 @@
                         onclick="toggleColumnVisibility('genericTasks')" title="Mostrar/Ocultar Tarefas Genéricas">
                     <i class="bi bi-gear"></i> Tarefas
                 </button>
+            </div>
+            
+            <div class="vr"></div>
+            
+            <!-- Novos Filtros por Projeto e Especialista -->
+            <div class="d-flex gap-2 align-items-center">
+                <div class="dropdown">
+                    <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" id="projectFilterBtn" 
+                            data-bs-toggle="dropdown" aria-expanded="false" title="Filtrar por projeto">
+                        <i class="bi bi-funnel"></i> <span id="projectFilterText">Projeto</span>
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="projectFilterBtn" id="projectFilterDropdown">
+                        <li><h6 class="dropdown-header">Filtrar por Projeto</h6></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <button class="dropdown-item" onclick="clearProjectFilter()">
+                                <i class="bi bi-x-circle"></i> Todos os Projetos
+                            </button>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><div class="px-3 pb-2">
+                            <input type="text" class="form-control form-control-sm" id="projectFilterSearch" 
+                                   placeholder="Buscar projeto..." onkeyup="filterProjectDropdown()">
+                        </div></li>
+                        <div id="projectFilterList">
+                            <!-- Projetos serão carregados dinamicamente -->
+                        </div>
+                    </ul>
+                </div>
+                
+                <div class="dropdown">
+                    <button class="btn btn-outline-success btn-sm dropdown-toggle" type="button" id="specialistFilterBtn" 
+                            data-bs-toggle="dropdown" aria-expanded="false" title="Filtrar por especialista">
+                        <i class="bi bi-person-fill"></i> <span id="specialistFilterText">Especialista</span>
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="specialistFilterBtn" id="specialistFilterDropdown">
+                        <li><h6 class="dropdown-header">Filtrar por Especialista</h6></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <button class="dropdown-item" onclick="clearSpecialistFilter()">
+                                <i class="bi bi-x-circle"></i> Todos os Especialistas
+                            </button>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><div class="px-3 pb-2">
+                            <input type="text" class="form-control form-control-sm" id="specialistFilterSearch" 
+                                   placeholder="Buscar especialista..." onkeyup="filterSpecialistDropdown()">
+                        </div></li>
+                        <div id="specialistFilterList">
+                            <!-- Especialistas serão carregados dinamicamente -->
+                        </div>
+                    </ul>
+                </div>
+                
+                <!-- Indicador de filtros ativos -->
+                <div id="activeFiltersIndicator" style="display: none;">
+                    <span class="badge bg-info">
+                        <i class="bi bi-funnel-fill"></i> Filtros ativos
+                    </span>
+                </div>
             </div>
             
             <div class="vr"></div>

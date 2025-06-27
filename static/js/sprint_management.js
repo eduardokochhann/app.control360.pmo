@@ -8,6 +8,15 @@ let editingSprintId = null;
 let sortableInstances = [];
 let popoverInstances = {};
 
+// Variáveis globais para filtros
+let activeFilters = {
+    project: null,
+    specialist: null
+};
+
+let allProjects = new Map(); // Map usando project_id como chave
+let allSpecialists = new Set();
+
 // Elementos DOM
 const sprintBoard = document.getElementById('sprintBoard');
 const sprintModalElement = document.getElementById('sprintModal');
@@ -28,6 +37,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Inicializa controles de visibilidade primeiro
     initializeColumnVisibility();
     
+    // Inicializa sistema de filtros
+    initializeFilters();
+    
     // Carrega dados iniciais
     Promise.all([
         loadSprints(),
@@ -38,6 +50,10 @@ document.addEventListener('DOMContentLoaded', function() {
         initializeSortable();
         setupEventListeners();
         setupSearch();
+        
+        // Atualiza filtros após carregar dados
+        updateFilterLists();
+        applyFilters();
     }).catch(error => {
         console.error('❌ Erro ao carregar dados iniciais:', error);
         showToast('Erro ao carregar dados iniciais', 'error');
@@ -157,6 +173,10 @@ async function loadSprints() {
         initializeSortable();
         initializePopovers();
         
+        // Atualiza filtros mantendo estado atual
+        updateFilterLists();
+        applyFilters();
+        
     } catch (error) {
         console.error('❌ Erro ao carregar sprints:', error);
         renderSprintError(`Erro ao carregar sprints: ${error.message}`);
@@ -191,6 +211,10 @@ async function loadBacklogTasks() {
         console.log(`✅ ${backlogs.length} projetos de backlog carregados`);
         
         renderBacklogProjects(backlogs);
+        
+        // Atualiza filtros para incluir novos dados do backlog
+        updateFilterLists();
+        applyFilters();
         
     } catch (error) {
         console.error('❌ Erro ao carregar backlog:', error);
@@ -374,6 +398,7 @@ function renderSprintTask(task) {
              data-estimated-hours="${task.estimated_effort || 0}"
              data-specialist-name="${escapeHtml(task.specialist_name || '')}"
              data-project-id="${task.project_id || ''}"
+             data-project-name="${escapeHtml(task.project_name || '')}"
              data-backlog-id="${task.backlog_id || ''}"
              data-origin-type="${originType}"
              onclick="openTaskDetailsModal(this, ${JSON.stringify(task).replace(/"/g, '&quot;')})"
@@ -468,6 +493,7 @@ function renderBacklogTask(task) {
              data-estimated-hours="${task.estimated_effort || 0}"
              data-specialist-name="${escapeHtml(task.specialist_name || '')}"
              data-project-id="${task.project_id || ''}"
+             data-project-name="${escapeHtml(task.project_name || '')}"
              data-backlog-id="${task.backlog_id || ''}">
             <div class="task-header">
                 <div class="task-id-badge">${escapeHtml(fullTaskId)}</div>
@@ -497,6 +523,8 @@ function renderGenericTasks(tasks) {
              data-task-id="${task.id}"
              data-estimated-hours="${task.estimated_effort || 0}"
              data-specialist-name="${escapeHtml(task.specialist_name || '')}"
+             data-project-id=""
+             data-project-name="Tarefa Genérica"
              onclick="openGenericTaskModal(${JSON.stringify(task).replace(/"/g, '&quot;')})">
             <div class="task-header">
                 <div class="task-id-badge">GEN-${task.id}</div>
@@ -1824,4 +1852,432 @@ async function returnTaskToOrigin(taskId, originType) {
 // Expõe a função globalmente para uso nos botões
 window.returnTaskToOrigin = returnTaskToOrigin;
 
-console.log('✅ Sprint Management JavaScript carregado'); 
+console.log('✅ Sprint Management JavaScript carregado');
+
+// === SISTEMA DE FILTROS POR PROJETO E ESPECIALISTA ===
+
+/**
+ * Inicializa o sistema de filtros
+ */
+function initializeFilters() {
+    console.log('🔧 Inicializando sistema de filtros...');
+    
+    // Carrega filtros salvos do localStorage
+    loadSavedFilters();
+    
+    // Configura eventos dos dropdowns
+    setupFilterDropdowns();
+    
+    console.log('✅ Sistema de filtros inicializado');
+}
+
+/**
+ * Carrega filtros salvos do localStorage
+ */
+function loadSavedFilters() {
+    try {
+        const savedFilters = localStorage.getItem('sprintFilters');
+        if (savedFilters) {
+            activeFilters = { ...activeFilters, ...JSON.parse(savedFilters) };
+            updateFilterUI();
+        }
+    } catch (error) {
+        console.warn('⚠️ Erro ao carregar filtros salvos:', error);
+    }
+}
+
+/**
+ * Salva filtros no localStorage
+ */
+function saveFilters() {
+    try {
+        localStorage.setItem('sprintFilters', JSON.stringify(activeFilters));
+    } catch (error) {
+        console.warn('⚠️ Erro ao salvar filtros:', error);
+    }
+}
+
+/**
+ * Configura eventos dos dropdowns de filtros
+ */
+function setupFilterDropdowns() {
+    // Previne fechamento ao clicar nos inputs de busca
+    document.getElementById('projectFilterSearch').addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    
+    document.getElementById('specialistFilterSearch').addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+}
+
+/**
+ * Extrai e atualiza listas de projetos e especialistas das sprints
+ */
+function updateFilterLists() {
+    console.log('🔄 Atualizando listas de filtros...');
+    
+    allProjects.clear();
+    allSpecialists.clear();
+    
+    // Percorre todas as sprints carregadas
+    if (window.sprintsData) {
+        window.sprintsData.forEach(sprint => {
+            if (sprint.tasks) {
+                sprint.tasks.forEach(task => {
+                    // Adiciona projeto se existir (usando Map para evitar duplicatas)
+                    if (task.project_name && task.project_id) {
+                        allProjects.set(task.project_id, {
+                            id: task.project_id,
+                            name: task.project_name
+                        });
+                    }
+                    
+                    // Adiciona especialista se existir
+                    if (task.specialist_name && task.specialist_name !== 'Não atribuído') {
+                        allSpecialists.add(task.specialist_name);
+                    }
+                });
+            }
+        });
+    }
+    
+    // Atualiza dropdowns
+    updateProjectFilterDropdown();
+    updateSpecialistFilterDropdown();
+    
+    console.log(`✅ Filtros atualizados: ${allProjects.size} projetos, ${allSpecialists.size} especialistas`);
+}
+
+/**
+ * Atualiza dropdown de filtros de projeto
+ */
+function updateProjectFilterDropdown() {
+    const container = document.getElementById('projectFilterList');
+    if (!container) return;
+    
+    const projectsArray = Array.from(allProjects.values());
+    
+    if (projectsArray.length === 0) {
+        container.innerHTML = '<li class="px-3 py-2 text-muted">Nenhum projeto encontrado</li>';
+        return;
+    }
+    
+    // Ordena projetos por nome
+    projectsArray.sort((a, b) => a.name.localeCompare(b.name));
+    
+    container.innerHTML = projectsArray.map(project => `
+        <li>
+            <div class="filter-project-item ${activeFilters.project === project.id ? 'selected' : ''}" 
+                 onclick="selectProjectFilter('${project.id}', '${escapeHtml(project.name)}')">
+                <span class="project-name">${escapeHtml(project.name)}</span>
+                <span class="project-id">ID: ${project.id}</span>
+            </div>
+        </li>
+    `).join('');
+}
+
+/**
+ * Atualiza dropdown de filtros de especialista
+ */
+function updateSpecialistFilterDropdown() {
+    const container = document.getElementById('specialistFilterList');
+    if (!container) return;
+    
+    const specialistsArray = Array.from(allSpecialists);
+    
+    if (specialistsArray.length === 0) {
+        container.innerHTML = '<li class="px-3 py-2 text-muted">Nenhum especialista encontrado</li>';
+        return;
+    }
+    
+    // Ordena especialistas alfabeticamente
+    specialistsArray.sort();
+    
+    container.innerHTML = specialistsArray.map(specialist => {
+        // Conta tarefas do especialista
+        const taskCount = countTasksBySpecialist(specialist);
+        
+        return `
+            <li>
+                <div class="filter-specialist-item ${activeFilters.specialist === specialist ? 'selected' : ''}" 
+                     onclick="selectSpecialistFilter('${escapeHtml(specialist)}')">
+                    <span class="specialist-name">${escapeHtml(specialist)}</span>
+                    <span class="task-count">${taskCount} tarefa(s)</span>
+                </div>
+            </li>
+        `;
+    }).join('');
+}
+
+/**
+ * Conta tarefas por especialista
+ */
+function countTasksBySpecialist(specialistName) {
+    let count = 0;
+    if (window.sprintsData) {
+        window.sprintsData.forEach(sprint => {
+            if (sprint.tasks) {
+                count += sprint.tasks.filter(task => task.specialist_name === specialistName).length;
+            }
+        });
+    }
+    return count;
+}
+
+/**
+ * Seleciona filtro de projeto
+ */
+function selectProjectFilter(projectId, projectName) {
+    console.log(`🎯 Selecionando filtro de projeto: ${projectId} - ${projectName}`);
+    
+    activeFilters.project = projectId;
+    
+    // Atualiza UI
+    document.getElementById('projectFilterText').textContent = projectName;
+    updateProjectFilterDropdown();
+    
+    // Aplica filtros
+    applyFilters();
+    updateActiveFiltersIndicator();
+    saveFilters();
+    
+    // Fecha dropdown
+    const dropdown = bootstrap.Dropdown.getInstance(document.getElementById('projectFilterBtn'));
+    if (dropdown) dropdown.hide();
+}
+
+/**
+ * Seleciona filtro de especialista
+ */
+function selectSpecialistFilter(specialistName) {
+    console.log(`🎯 Selecionando filtro de especialista: ${specialistName}`);
+    
+    activeFilters.specialist = specialistName;
+    
+    // Atualiza UI
+    document.getElementById('specialistFilterText').textContent = specialistName;
+    updateSpecialistFilterDropdown();
+    
+    // Aplica filtros
+    applyFilters();
+    updateActiveFiltersIndicator();
+    saveFilters();
+    
+    // Fecha dropdown
+    const dropdown = bootstrap.Dropdown.getInstance(document.getElementById('specialistFilterBtn'));
+    if (dropdown) dropdown.hide();
+}
+
+/**
+ * Limpa filtro de projeto
+ */
+function clearProjectFilter() {
+    console.log('🧹 Limpando filtro de projeto');
+    
+    activeFilters.project = null;
+    
+    // Atualiza UI
+    document.getElementById('projectFilterText').textContent = 'Projeto';
+    updateProjectFilterDropdown();
+    
+    // Aplica filtros
+    applyFilters();
+    updateActiveFiltersIndicator();
+    saveFilters();
+    
+    // Fecha dropdown
+    const dropdown = bootstrap.Dropdown.getInstance(document.getElementById('projectFilterBtn'));
+    if (dropdown) dropdown.hide();
+}
+
+/**
+ * Limpa filtro de especialista
+ */
+function clearSpecialistFilter() {
+    console.log('🧹 Limpando filtro de especialista');
+    
+    activeFilters.specialist = null;
+    
+    // Atualiza UI
+    document.getElementById('specialistFilterText').textContent = 'Especialista';
+    updateSpecialistFilterDropdown();
+    
+    // Aplica filtros
+    applyFilters();
+    updateActiveFiltersIndicator();
+    saveFilters();
+    
+    // Fecha dropdown
+    const dropdown = bootstrap.Dropdown.getInstance(document.getElementById('specialistFilterBtn'));
+    if (dropdown) dropdown.hide();
+}
+
+/**
+ * Aplica filtros ativos às tarefas
+ */
+function applyFilters() {
+    console.log('🔍 Aplicando filtros:', activeFilters);
+    
+    const allTaskCards = document.querySelectorAll('.sprint-task-card, .backlog-task-card');
+    const allSprintCards = document.querySelectorAll('.sprint-card');
+    
+    // Se não há filtros ativos, mostra todas as tarefas
+    if (!activeFilters.project && !activeFilters.specialist) {
+        allTaskCards.forEach(card => {
+            // Transição suave para mostrar
+            if (card.style.display === 'none') {
+                card.style.display = '';
+                // Pequeno delay para a transição funcionar
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                }, 10);
+            } else {
+                card.style.display = '';
+                card.style.opacity = '1';
+            }
+            card.classList.remove('task-filtered-out', 'task-filtered-in');
+        });
+        
+        allSprintCards.forEach(card => {
+            card.classList.remove('no-visible-tasks');
+        });
+        
+        return;
+    }
+    
+    // Aplica filtros - OCULTA totalmente as tarefas que não passam
+    allTaskCards.forEach(card => {
+        const taskData = extractTaskDataFromCard(card);
+        const shouldShow = passesFilters(taskData);
+        
+        if (shouldShow) {
+            // Mostra a tarefa com transição suave
+            if (card.style.display === 'none') {
+                card.style.display = '';
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                }, 10);
+            } else {
+                card.style.display = '';
+                card.style.opacity = '1';
+            }
+            card.classList.add('task-filtered-in');
+            card.classList.remove('task-filtered-out');
+        } else {
+            // Oculta com transição suave
+            card.style.opacity = '0';
+            setTimeout(() => {
+                card.style.display = 'none';
+            }, 300); // Aguarda a transição de opacity
+            card.classList.add('task-filtered-out');
+            card.classList.remove('task-filtered-in');
+        }
+    });
+    
+    // Aguarda um pouco para verificar sprints sem tarefas visíveis (após as transições)
+    setTimeout(() => {
+        allSprintCards.forEach(sprintCard => {
+            const visibleTasks = sprintCard.querySelectorAll('.sprint-task-card:not([style*="display: none"]), .backlog-task-card:not([style*="display: none"])');
+            
+            if (visibleTasks.length === 0) {
+                sprintCard.classList.add('no-visible-tasks');
+            } else {
+                sprintCard.classList.remove('no-visible-tasks');
+            }
+        });
+    }, 350);
+}
+
+/**
+ * Extrai dados da tarefa do elemento DOM
+ */
+function extractTaskDataFromCard(taskCard) {
+    return {
+        projectId: taskCard.dataset.projectId,
+        projectName: taskCard.dataset.projectName,
+        specialistName: taskCard.dataset.specialistName
+    };
+}
+
+/**
+ * Verifica se uma tarefa passa pelos filtros ativos
+ */
+function passesFilters(taskData) {
+    // Filtro de projeto
+    if (activeFilters.project && taskData.projectId !== activeFilters.project) {
+        return false;
+    }
+    
+    // Filtro de especialista
+    if (activeFilters.specialist && taskData.specialistName !== activeFilters.specialist) {
+        return false;
+    }
+    
+    return true;
+}
+
+/**
+ * Atualiza indicador de filtros ativos
+ */
+function updateActiveFiltersIndicator() {
+    const indicator = document.getElementById('activeFiltersIndicator');
+    const hasActiveFilters = activeFilters.project || activeFilters.specialist;
+    
+    if (hasActiveFilters) {
+        indicator.style.display = 'block';
+    } else {
+        indicator.style.display = 'none';
+    }
+}
+
+/**
+ * Atualiza UI dos filtros
+ */
+function updateFilterUI() {
+    // Atualiza textos dos botões
+    if (activeFilters.project) {
+        // Busca nome do projeto no Map
+        const project = allProjects.get(activeFilters.project);
+        if (project) {
+            document.getElementById('projectFilterText').textContent = project.name;
+        }
+    }
+    
+    if (activeFilters.specialist) {
+        document.getElementById('specialistFilterText').textContent = activeFilters.specialist;
+    }
+    
+    updateActiveFiltersIndicator();
+}
+
+/**
+ * Filtra dropdown de projetos baseado na busca
+ */
+function filterProjectDropdown() {
+    const searchTerm = document.getElementById('projectFilterSearch').value.toLowerCase();
+    const items = document.querySelectorAll('.filter-project-item');
+    
+    items.forEach(item => {
+        const projectName = item.querySelector('.project-name').textContent.toLowerCase();
+        const projectId = item.querySelector('.project-id').textContent.toLowerCase();
+        
+        const matches = projectName.includes(searchTerm) || projectId.includes(searchTerm);
+        item.parentElement.style.display = matches ? 'block' : 'none';
+    });
+}
+
+/**
+ * Filtra dropdown de especialistas baseado na busca
+ */
+function filterSpecialistDropdown() {
+    const searchTerm = document.getElementById('specialistFilterSearch').value.toLowerCase();
+    const items = document.querySelectorAll('.filter-specialist-item');
+    
+    items.forEach(item => {
+        const specialistName = item.querySelector('.specialist-name').textContent.toLowerCase();
+        
+        const matches = specialistName.includes(searchTerm);
+        item.parentElement.style.display = matches ? 'block' : 'none';
+    });
+} 
