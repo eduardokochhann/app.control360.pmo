@@ -430,6 +430,15 @@
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="pills-sprints-tab" data-bs-toggle="pill" data-bs-target="#pills-sprints" type="button" role="tab" aria-controls="pills-sprints" aria-selected="false">
+                        <div class="tab-content-wrapper">
+                            <i class="bi bi-lightning-charge-fill fs-5"></i>
+                            <span class="tab-label">Sprints & Especialistas</span>
+                            <span class="badge bg-primary ms-1" id="sprints-badge" style="display: none;">0</span>
+                        </div>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
                     <button class="nav-link" id="pills-wbs-tab" data-bs-toggle="pill" data-bs-target="#pills-wbs" type="button" role="tab" aria-controls="pills-wbs" aria-selected="false">
                         <div class="tab-content-wrapper">
                             <i class="bi bi-diagram-3-fill fs-5"></i>
@@ -576,6 +585,109 @@
                                 <div class="text-center text-muted py-4">
                                     <i class="bi bi-bar-chart fs-1"></i>
                                     <p>Carregando informações de complexidade...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Painel de Sprints & Especialistas -->
+                <div class="tab-pane fade" id="pills-sprints" role="tabpanel" aria-labelledby="pills-sprints-tab">
+                    <div class="row mb-4">
+                        <div class="col-12 d-flex gap-2 flex-wrap">
+                            <button class="btn pmo-action-btn" onclick="loadProjectSprints()">
+                                <i class="bi bi-arrow-clockwise"></i> Atualizar Sprints
+                            </button>
+                            <a href="/sprints/" class="btn pmo-action-btn" target="_blank">
+                                <i class="bi bi-box-arrow-up-right"></i> Gerenciar Sprints
+                            </a>
+                            <button class="btn pmo-action-btn" onclick="exportSprintData()">
+                                <i class="bi bi-download"></i> Exportar Dados
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Resumo do Projeto -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title d-flex align-items-center mb-3">
+                                        <i class="bi bi-info-circle-fill me-2 text-primary"></i>
+                                        Resumo do Projeto
+                                    </h6>
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="stat-item text-center">
+                                                <h4 class="text-primary mb-1" id="project-total-tasks">-</h4>
+                                                <small class="text-muted">Total de Tarefas</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="stat-item text-center">
+                                                <h4 class="text-success mb-1" id="project-active-sprints">-</h4>
+                                                <small class="text-muted">Sprints Ativas</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="stat-item text-center">
+                                                <h4 class="text-warning mb-1" id="project-specialists-count">-</h4>
+                                                <small class="text-muted">Especialistas</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="stat-item text-center">
+                                                <h4 class="text-info mb-1" id="project-total-hours">-</h4>
+                                                <small class="text-muted">Horas Estimadas</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lista de Sprints -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0 fw-bold">
+                                        <i class="bi bi-lightning-charge-fill me-2"></i>
+                                        Sprints do Projeto
+                                        <span class="badge bg-light text-primary ms-2" id="sprints-count">0</span>
+                                    </h6>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div id="sprintsContainer">
+                                        <div class="text-center text-muted py-4">
+                                            <i class="bi bi-lightning-charge fs-1"></i>
+                                            <p>Carregando sprints do projeto...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lista de Especialistas -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0 fw-bold">
+                                        <i class="bi bi-people-fill me-2"></i>
+                                        Especialistas Envolvidos
+                                        <span class="badge bg-light text-info ms-2" id="specialists-count">0</span>
+                                    </h6>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div id="specialistsContainer">
+                                        <div class="text-center text-muted py-4">
+                                            <i class="bi bi-people fs-1"></i>
+                                            <p>Carregando especialistas...</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1085,6 +1197,362 @@
             console.warn('Não foi possível carregar estado do toggle:', error);
         }
     }
+
+    // === FUNÇÕES PARA A ABA DE SPRINTS & ESPECIALISTAS ===
+    
+    /**
+     * Carrega informações das Sprints relacionadas ao projeto atual
+     */
+    async function loadProjectSprints() {
+        const projectId = window.boardData.projectId;
+        
+        if (!projectId) {
+            console.warn('Project ID não disponível para carregar sprints');
+            return;
+        }
+        
+        try {
+            console.log(`🔄 Carregando sprints para projeto ${projectId}...`);
+            
+            // Busca todas as sprints
+            const sprintsResponse = await fetch('/sprints/api/sprints');
+            if (!sprintsResponse.ok) {
+                throw new Error(`Erro ao buscar sprints: ${sprintsResponse.status}`);
+            }
+            
+            const allSprints = await sprintsResponse.json();
+            
+            // Filtra sprints que contêm tarefas deste projeto
+            const projectSprints = allSprints.filter(sprint => {
+                return sprint.tasks && sprint.tasks.some(task => 
+                    task.project_id === projectId || task.backlog_id == window.boardData.backlogId
+                );
+            });
+            
+            // Coleta especialistas únicos
+            const specialists = new Set();
+            let totalTasks = 0;
+            let totalHours = 0;
+            
+            projectSprints.forEach(sprint => {
+                if (sprint.tasks) {
+                    sprint.tasks.forEach(task => {
+                        if (task.project_id === projectId || task.backlog_id == window.boardData.backlogId) {
+                            totalTasks++;
+                            totalHours += task.estimated_effort || 0;
+                            if (task.specialist_name && task.specialist_name !== 'Não atribuído') {
+                                specialists.add(task.specialist_name);
+                            }
+                        }
+                    });
+                }
+            });
+            
+            // Atualiza estatísticas do resumo
+            updateProjectSummary({
+                totalTasks,
+                activeSprints: projectSprints.filter(s => !s.is_archived).length,
+                specialistsCount: specialists.size,
+                totalHours
+            });
+            
+            // Renderiza sprints
+            renderProjectSprints(projectSprints);
+            
+            // Renderiza especialistas
+            renderProjectSpecialists(Array.from(specialists), projectSprints);
+            
+            // Atualiza badge da aba
+            const sprintsBadge = document.getElementById('sprints-badge');
+            if (sprintsBadge) {
+                sprintsBadge.textContent = projectSprints.length;
+                sprintsBadge.style.display = projectSprints.length > 0 ? 'inline-block' : 'none';
+            }
+            
+            console.log(`✅ Carregadas ${projectSprints.length} sprints com tarefas do projeto`);
+            
+        } catch (error) {
+            console.error('❌ Erro ao carregar sprints do projeto:', error);
+            
+            // Mostra erro na interface
+            const sprintsContainer = document.getElementById('sprintsContainer');
+            if (sprintsContainer) {
+                sprintsContainer.innerHTML = `
+                    <div class="text-center text-danger py-4">
+                        <i class="bi bi-exclamation-triangle fs-1"></i>
+                        <p>Erro ao carregar sprints: ${error.message}</p>
+                        <button class="btn btn-outline-primary btn-sm" onclick="loadProjectSprints()">
+                            <i class="bi bi-arrow-clockwise"></i> Tentar Novamente
+                        </button>
+                    </div>
+                `;
+            }
+        }
+    }
+    
+    /**
+     * Atualiza o resumo do projeto
+     */
+    function updateProjectSummary(stats) {
+        const elements = {
+            'project-total-tasks': stats.totalTasks,
+            'project-active-sprints': stats.activeSprints,
+            'project-specialists-count': stats.specialistsCount,
+            'project-total-hours': `${stats.totalHours}h`
+        };
+        
+        Object.entries(elements).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+            }
+        });
+    }
+    
+    /**
+     * Renderiza a lista de sprints do projeto
+     */
+    function renderProjectSprints(sprints) {
+        const container = document.getElementById('sprintsContainer');
+        const countElement = document.getElementById('sprints-count');
+        
+        if (!container) return;
+        
+        if (countElement) {
+            countElement.textContent = sprints.length;
+        }
+        
+        if (sprints.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-lightning-charge fs-1"></i>
+                    <p>Nenhuma sprint encontrada com tarefas deste projeto</p>
+                    <a href="/sprints/" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-circle"></i> Criar Nova Sprint
+                    </a>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = sprints.map(sprint => {
+            const projectTasks = sprint.tasks ? sprint.tasks.filter(task => 
+                task.project_id === window.boardData.projectId || task.backlog_id == window.boardData.backlogId
+            ) : [];
+            
+            const totalHours = projectTasks.reduce((sum, task) => sum + (task.estimated_effort || 0), 0);
+            const isActive = !sprint.is_archived;
+            const statusClass = isActive ? 'success' : 'secondary';
+            const statusText = isActive ? 'Ativa' : 'Arquivada';
+            
+            return `
+                <div class="border-bottom p-3 sprint-item" data-sprint-id="${sprint.id}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-2">
+                                <h6 class="mb-0 me-3">${escapeHtml(sprint.name)}</h6>
+                                <span class="badge bg-${statusClass}">${statusText}</span>
+                                ${sprint.criticality && sprint.criticality !== 'Normal' ? 
+                                    `<span class="badge bg-warning ms-2">${sprint.criticality}</span>` : ''
+                                }
+                            </div>
+                            <div class="row text-muted small">
+                                <div class="col-md-3">
+                                    <i class="bi bi-calendar3"></i> ${formatDate(sprint.start_date)} - ${formatDate(sprint.end_date)}
+                                </div>
+                                <div class="col-md-3">
+                                    <i class="bi bi-list-task"></i> ${projectTasks.length} tarefas
+                                </div>
+                                <div class="col-md-3">
+                                    <i class="bi bi-clock"></i> ${totalHours}h estimadas
+                                </div>
+                                <div class="col-md-3">
+                                    <i class="bi bi-people"></i> ${getUniqueSpecialists(projectTasks).length} especialistas
+                                </div>
+                            </div>
+                            ${sprint.goal ? `<p class="text-muted small mt-2 mb-0">${escapeHtml(sprint.goal)}</p>` : ''}
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="/sprints/" class="btn btn-outline-primary btn-sm" target="_blank" title="Abrir Gerenciamento de Sprints">
+                                <i class="bi bi-box-arrow-up-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    /**
+     * Renderiza a lista de especialistas do projeto
+     */
+    function renderProjectSpecialists(specialists, sprints) {
+        const container = document.getElementById('specialistsContainer');
+        const countElement = document.getElementById('specialists-count');
+        
+        if (!container) return;
+        
+        if (countElement) {
+            countElement.textContent = specialists.length;
+        }
+        
+        if (specialists.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-people fs-1"></i>
+                    <p>Nenhum especialista atribuído às tarefas</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Calcula estatísticas por especialista
+        const specialistStats = specialists.map(specialist => {
+            let totalTasks = 0;
+            let totalHours = 0;
+            let activeSprintsCount = 0;
+            const sprintsInvolved = new Set();
+            
+            sprints.forEach(sprint => {
+                if (sprint.tasks) {
+                    const specialistTasks = sprint.tasks.filter(task => 
+                        task.specialist_name === specialist && 
+                        (task.project_id === window.boardData.projectId || task.backlog_id == window.boardData.backlogId)
+                    );
+                    
+                    if (specialistTasks.length > 0) {
+                        totalTasks += specialistTasks.length;
+                        totalHours += specialistTasks.reduce((sum, task) => sum + (task.estimated_effort || 0), 0);
+                        sprintsInvolved.add(sprint.id);
+                        
+                        if (!sprint.is_archived) {
+                            activeSprintsCount++;
+                        }
+                    }
+                }
+            });
+            
+            return {
+                name: specialist,
+                totalTasks,
+                totalHours,
+                sprintsCount: sprintsInvolved.size,
+                activeSprintsCount
+            };
+        });
+        
+        // Ordena por quantidade de tarefas (decrescente)
+        specialistStats.sort((a, b) => b.totalTasks - a.totalTasks);
+        
+        container.innerHTML = specialistStats.map(specialist => `
+            <div class="border-bottom p-3 specialist-item">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <div class="specialist-avatar me-3">
+                            <i class="bi bi-person-circle fs-2 text-primary"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-1">${escapeHtml(specialist.name)}</h6>
+                            <div class="text-muted small">
+                                ${specialist.totalTasks} tarefas • ${specialist.totalHours}h estimadas
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <div class="badge bg-info mb-1">${specialist.sprintsCount} sprints</div>
+                        ${specialist.activeSprintsCount > 0 ? 
+                            `<div class="badge bg-success">${specialist.activeSprintsCount} ativas</div>` : 
+                            '<div class="badge bg-secondary">Sem sprints ativas</div>'
+                        }
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    /**
+     * Obtém especialistas únicos de uma lista de tarefas
+     */
+    function getUniqueSpecialists(tasks) {
+        const specialists = new Set();
+        tasks.forEach(task => {
+            if (task.specialist_name && task.specialist_name !== 'Não atribuído') {
+                specialists.add(task.specialist_name);
+            }
+        });
+        return Array.from(specialists);
+    }
+    
+    /**
+     * Formata data para exibição
+     */
+    function formatDate(dateString) {
+        if (!dateString) return '-';
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('pt-BR');
+        } catch {
+            return '-';
+        }
+    }
+    
+    /**
+     * Escapa HTML para evitar XSS
+     */
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    /**
+     * Exporta dados das sprints para Excel
+     */
+    async function exportSprintData() {
+        try {
+            const data = await prepareSprintExportData();
+            downloadExcel(data, `sprints_projeto_${window.boardData.projectId}.xlsx`);
+        } catch (error) {
+            console.error('Erro ao exportar dados:', error);
+            alert('Erro ao exportar dados: ' + error.message);
+        }
+    }
+    
+    /**
+     * Prepara dados para exportação
+     */
+    async function prepareSprintExportData() {
+        // Por simplicidade, retorna dados básicos
+        // Em uma implementação completa, criaria um arquivo Excel real
+        return {
+            projectId: window.boardData.projectId,
+            exportDate: new Date().toISOString(),
+            message: 'Funcionalidade de exportação será implementada conforme necessidade'
+        };
+    }
+    
+    /**
+     * Download simulado (implementação completa seria feita conforme necessidade)
+     */
+    function downloadExcel(data, filename) {
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename.replace('.xlsx', '.json');
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+    
+    // Função para carregar sprints quando a aba for ativada
+    document.addEventListener('shown.bs.tab', function(e) {
+        if (e.target.id === 'pills-sprints-tab') {
+            loadProjectSprints();
+        }
+    });
 
     // Inicialização unificada
     document.addEventListener('DOMContentLoaded', function() {

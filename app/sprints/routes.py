@@ -682,4 +682,294 @@ def move_task_to_backlog(task_id):
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erro ao mover tarefa {task_id} para fora da sprint: {e}", exc_info=True)
-        return jsonify({"message": "Erro interno ao tentar mover a tarefa."}), 500 
+        return jsonify({"message": "Erro interno ao tentar mover a tarefa."}), 500
+
+# --- NOVAS ROTAS PARA CÁLCULO AUTOMÁTICO DE DATAS ---
+
+@sprints_bp.route('/api/sprints/<int:sprint_id>/calculate-dates', methods=['POST'])
+def calculate_sprint_dates(sprint_id):
+    """API para calcular datas sequenciais das tarefas de uma sprint"""
+    try:
+        from ..utils.base_service import DateCalculationService
+        
+        sprint = Sprint.query.get_or_404(sprint_id)
+        
+        if not sprint.start_date:
+            return jsonify({
+                'success': False, 
+                'error': 'Sprint precisa ter data de início configurada'
+            }), 400
+        
+        # Busca tarefas da sprint ordenadas por posição
+        tasks = Task.query.filter_by(sprint_id=sprint_id).order_by(Task.position).all()
+        
+        if not tasks:
+            return jsonify({
+                'success': True,
+                'message': 'Nenhuma tarefa encontrada na sprint',
+                'updated_tasks': []
+            })
+        
+        # Converte tarefas para formato do serviço
+        task_data = []
+        for task in tasks:
+            task_data.append({
+                'id': task.id,
+                'specialist_name': task.specialist_name,
+                'estimated_effort': task.estimated_effort or 0,
+                'title': task.title
+            })
+        
+        # Calcula datas sequenciais
+        updated_task_data = DateCalculationService.calculate_sequential_dates(
+            task_data, sprint.start_date
+        )
+        
+        # Atualiza tarefas no banco
+        updated_tasks = []
+        for task_info in updated_task_data:
+            task = Task.query.get(task_info['id'])
+            if task:
+                task.start_date = datetime.fromisoformat(task_info['start_date']) if task_info.get('start_date') else None
+                task.due_date = datetime.fromisoformat(task_info['due_date']) if task_info.get('due_date') else None
+                task.updated_at = datetime.utcnow()
+                updated_tasks.append(serialize_task(task))
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Datas calculadas para {len(updated_tasks)} tarefas',
+            'updated_tasks': updated_tasks
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao calcular datas da sprint {sprint_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'Erro ao calcular datas: {str(e)}'
+        }), 500
+
+@sprints_bp.route('/api/sprints/<int:sprint_id>/capacity-alerts', methods=['GET'])
+def get_sprint_capacity_alerts(sprint_id):
+    """API para obter alertas e sugestões de capacidade da sprint"""
+    try:
+        from ..utils.base_service import DateCalculationService
+        
+        sprint = Sprint.query.get_or_404(sprint_id)
+        
+        if not sprint.start_date or not sprint.end_date:
+            return jsonify({
+                'success': False,
+                'error': 'Sprint precisa ter datas de início e fim configuradas'
+            }), 400
+        
+        # Busca tarefas da sprint
+        tasks = Task.query.filter_by(sprint_id=sprint_id).all()
+        
+        # Converte para formato do serviço
+        task_data = []
+        for task in tasks:
+            task_data.append({
+                'id': task.id,
+                'specialist_name': task.specialist_name,
+                'estimated_effort': task.estimated_effort or 0,
+                'title': task.title
+            })
+        
+        # Datas da sprint
+        sprint_dates = {
+            'start_date': sprint.start_date,
+            'end_date': sprint.end_date
+        }
+        
+        # Calcula alertas de capacidade
+        alerts = DateCalculationService.calculate_sprint_capacity_alerts(
+            task_data, sprint_dates
+        )
+        
+        return jsonify({
+            'success': True,
+            'sprint_id': sprint_id,
+            'sprint_name': sprint.name,
+            'alerts': alerts
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao calcular alertas da sprint {sprint_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'Erro ao calcular alertas: {str(e)}'
+        }), 500
+
+@sprints_bp.route('/api/sprints/batch-calculate-dates', methods=['POST'])
+def batch_calculate_sprint_dates():
+    """API para calcular datas de múltiplas sprints em lote"""
+    try:
+        data = request.get_json()
+        sprint_ids = data.get('sprint_ids', [])
+        
+        if not sprint_ids:
+            return jsonify({
+                'success': False,
+                'error': 'Lista de IDs de sprints é obrigatória'
+            }), 400
+        
+        results = []
+        total_updated = 0
+        
+        for sprint_id in sprint_ids:
+            try:
+                sprint = Sprint.query.get(sprint_id)
+                if not sprint or not sprint.start_date:
+                    results.append({
+                        'sprint_id': sprint_id,
+                        'success': False,
+                        'error': 'Sprint não encontrada ou sem data de início'
+                    })
+                    continue
+                
+                # Reutiliza a lógica da rota individual
+                response = calculate_sprint_dates(sprint_id)
+                response_data = response.get_json()
+                
+                if response_data.get('success'):
+                    total_updated += len(response_data.get('updated_tasks', []))
+                    results.append({
+                        'sprint_id': sprint_id,
+                        'sprint_name': sprint.name,
+                        'success': True,
+                        'updated_count': len(response_data.get('updated_tasks', []))
+                    })
+                else:
+                    results.append({
+                        'sprint_id': sprint_id,
+                        'success': False,
+                        'error': response_data.get('error', 'Erro desconhecido')
+                    })
+                    
+            except Exception as e:
+                results.append({
+                    'sprint_id': sprint_id,
+                    'success': False,
+                    'error': str(e)
+                })
+        
+        return jsonify({
+            'success': True,
+            'message': f'Processamento concluído. {total_updated} tarefas atualizadas.',
+            'results': results,
+            'total_updated_tasks': total_updated
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro no cálculo em lote: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'Erro no processamento em lote: {str(e)}'
+        }), 500
+
+@sprints_bp.route('/api/sprints/<int:sprint_id>/sync-backlog-dates', methods=['POST'])
+def sync_backlog_dates(sprint_id):
+    """API para sincronizar datas calculadas de volta para o backlog"""
+    try:
+        sprint = Sprint.query.get_or_404(sprint_id)
+        
+        # Busca tarefas da sprint que tenham datas calculadas
+        tasks = Task.query.filter(
+            Task.sprint_id == sprint_id,
+            Task.start_date.isnot(None),
+            Task.due_date.isnot(None)
+        ).all()
+        
+        if not tasks:
+            return jsonify({
+                'success': True,
+                'message': 'Nenhuma tarefa com datas para sincronizar',
+                'synced_count': 0
+            })
+        
+        # Sincroniza datas para o backlog (mantém as datas mesmo quando movida de volta)
+        synced_count = 0
+        for task in tasks:
+            # As datas já estão salvas no banco, não precisamos fazer nada específico
+            # O backlog vai mostrar essas datas automaticamente
+            synced_count += 1
+        
+        return jsonify({
+            'success': True,
+            'message': f'Datas sincronizadas para {synced_count} tarefas',
+            'synced_count': synced_count,
+            'sprint_name': sprint.name
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao sincronizar datas da sprint {sprint_id}: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'Erro na sincronização: {str(e)}'
+        }), 500
+
+# --- FIM NOVAS ROTAS --- 
+
+# Nova rota para clonagem de tarefas
+@sprints_bp.route('/api/sprints/tasks/<int:task_id>/clone', methods=['POST'])
+def clone_task(task_id):
+    """
+    Clona uma tarefa da sprint para o backlog.
+    Se há sprint ativa, o clone vai direto para ela.
+    Caso contrário, fica no backlog do projeto.
+    """
+    try:
+        # Busca a tarefa original
+        original_task = Task.query.get_or_404(task_id)
+        current_app.logger.info(f"Clonando tarefa {task_id}: {original_task.title}")
+        
+        # Verifica se a tarefa está em uma sprint
+        if not original_task.sprint_id:
+            return jsonify({'error': 'Só é possível clonar tarefas que estão em uma sprint'}), 400
+        
+        # Busca a sprint original (mesma sprint da tarefa original)
+        original_sprint = Sprint.query.get(original_task.sprint_id)
+        if not original_sprint:
+            return jsonify({'error': 'Sprint da tarefa original não encontrada'}), 400
+        
+        # Cria novo título com sufixo
+        clone_title = f"{original_task.title} (Clone)"
+        
+        # Cria a tarefa clonada
+        cloned_task = Task(
+            title=clone_title,
+            description=original_task.description,
+            priority=original_task.priority,
+            estimated_effort=original_task.estimated_effort,
+            specialist_name=original_task.specialist_name,
+            backlog_id=original_task.backlog_id,  # Mantém no mesmo projeto/backlog
+            column_id=original_task.column_id,    # Mantém na mesma coluna
+            status=TaskStatus.TODO,               # Status inicial sempre TODO
+            is_generic=False,                     # Clone não é genérico (vai para rastreamento)
+            sprint_id=original_task.sprint_id     # ✅ MESMA SPRINT DA TAREFA ORIGINAL
+        )
+        
+        # Calcula próxima posição na mesma sprint
+        max_position = db.session.query(db.func.max(Task.position)).filter_by(sprint_id=original_task.sprint_id).scalar()
+        cloned_task.position = (max_position or 0) + 1
+        current_app.logger.info(f"Clone adicionado à mesma sprint da original: {original_sprint.name}")
+        
+        # Salva no banco
+        db.session.add(cloned_task)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Tarefa clonada com sucesso',
+            'original_task': serialize_task(original_task),
+            'cloned_task': serialize_task(cloned_task),
+            'added_to_sprint': original_sprint.name
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao clonar tarefa {task_id}: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Erro ao clonar tarefa: {str(e)}'}), 500

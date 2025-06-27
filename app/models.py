@@ -469,4 +469,99 @@ class ComplexityThreshold(db.Model):
 
 # --- FIM SISTEMA DE COMPLEXIDADE ---
 
-# Tabela de associação para tags das notas (many-to-many) 
+# Tabela de associação para tags das notas (many-to-many)
+
+# --- NOVO MODELO PARA CONFIGURAÇÕES DE ESPECIALISTAS ---
+class SpecialistConfiguration(db.Model):
+    """Configurações individuais por especialista para cálculo de datas e capacidade."""
+    __tablename__ = 'specialist_configuration'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    specialist_name = db.Column(db.String(150), nullable=False, unique=True, index=True)
+    
+    # Configurações de jornada de trabalho
+    daily_work_hours = db.Column(db.Float, nullable=False, default=8.0, server_default='8.0')  # Horas por dia
+    weekly_work_days = db.Column(db.Integer, nullable=False, default=5, server_default='5')    # Dias por semana
+    
+    # Configurações de dias úteis (JSON para flexibilidade)
+    # Formato: {"monday": true, "tuesday": true, ..., "sunday": false}
+    work_days_config = db.Column(db.Text, nullable=False, 
+                                default='{"monday": true, "tuesday": true, "wednesday": true, "thursday": true, "friday": true, "saturday": false, "sunday": false}')
+    
+    # Configurações de feriados e exceções
+    consider_holidays = db.Column(db.Boolean, nullable=False, default=True, server_default='1')
+    custom_holidays = db.Column(db.Text, nullable=True)  # JSON com feriados específicos
+    
+    # Configurações de buffer e margem
+    buffer_percentage = db.Column(db.Float, nullable=False, default=10.0, server_default='10.0')  # % de buffer nas estimativas
+    
+    # Configurações de timezone (se necessário)
+    timezone = db.Column(db.String(50), nullable=False, default='America/Sao_Paulo', server_default='America/Sao_Paulo')
+    
+    # Campos de controle
+    is_active = db.Column(db.Boolean, nullable=False, default=True, server_default='1')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<SpecialistConfiguration {self.specialist_name}>'
+    
+    def get_work_days_config(self):
+        """Retorna configuração de dias úteis como dict."""
+        import json
+        try:
+            return json.loads(self.work_days_config)
+        except:
+            # Fallback para configuração padrão
+            return {
+                "monday": True, "tuesday": True, "wednesday": True, 
+                "thursday": True, "friday": True, "saturday": False, "sunday": False
+            }
+    
+    def set_work_days_config(self, config_dict):
+        """Define configuração de dias úteis a partir de dict."""
+        import json
+        self.work_days_config = json.dumps(config_dict)
+    
+    def get_custom_holidays(self):
+        """Retorna feriados personalizados como lista."""
+        import json
+        try:
+            return json.loads(self.custom_holidays) if self.custom_holidays else []
+        except:
+            return []
+    
+    def set_custom_holidays(self, holidays_list):
+        """Define feriados personalizados a partir de lista."""
+        import json
+        self.custom_holidays = json.dumps(holidays_list)
+    
+    def to_dict(self):
+        """Serializa configuração para dict."""
+        return {
+            'id': self.id,
+            'specialist_name': self.specialist_name,
+            'daily_work_hours': self.daily_work_hours,
+            'weekly_work_days': self.weekly_work_days,
+            'work_days_config': self.get_work_days_config(),
+            'consider_holidays': self.consider_holidays,
+            'custom_holidays': self.get_custom_holidays(),
+            'buffer_percentage': self.buffer_percentage,
+            'timezone': self.timezone,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+    
+    @staticmethod
+    def get_or_create_config(specialist_name):
+        """Obtém configuração existente ou cria uma padrão."""
+        config = SpecialistConfiguration.query.filter_by(specialist_name=specialist_name).first()
+        if not config:
+            config = SpecialistConfiguration(specialist_name=specialist_name)
+            db.session.add(config)
+            db.session.commit()
+        return config
+# --- FIM CONFIGURAÇÕES DE ESPECIALISTAS ---
+
+# <<< FIM: MODELO COMPLETO >>> 

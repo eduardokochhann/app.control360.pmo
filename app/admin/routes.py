@@ -1,10 +1,11 @@
 from flask import render_template, jsonify, request, current_app, redirect, url_for, flash
 from . import admin_bp
 from .. import db
-from ..models import ComplexityCriteria, ComplexityCriteriaOption, ComplexityThreshold, ComplexityCategory
+from ..models import ComplexityCriteria, ComplexityCriteriaOption, ComplexityThreshold, ComplexityCategory, SpecialistConfiguration
 from datetime import datetime
 from .services import AdminService
 from pathlib import Path
+import json
 
 @admin_bp.route('/')
 def dashboard():
@@ -15,6 +16,7 @@ def dashboard():
             'complexity_criteria': ComplexityCriteria.query.filter_by(is_active=True).count(),
             'complexity_options': ComplexityCriteriaOption.query.filter_by(is_active=True).count(),
             'complexity_thresholds': ComplexityThreshold.query.count(),
+            'specialist_configs': SpecialistConfiguration.query.filter_by(is_active=True).count(),
             'last_update': datetime.utcnow()
         }
         
@@ -460,4 +462,210 @@ def test_data_loading():
             'error': str(e),
             'stats_test': 'ERRO',
             'preview_test': 'ERRO'
-        }), 500 
+        }), 500
+
+# --- ROTAS PARA CONFIGURAÇÕES DE ESPECIALISTAS ---
+
+@admin_bp.route('/specialist-configuration')
+def specialist_configuration():
+    """Interface para gerenciar configurações de especialistas"""
+    try:
+        # Busca todas as configurações existentes
+        configurations = SpecialistConfiguration.query.filter_by(is_active=True).all()
+        
+        # Busca especialistas únicos do sistema (da tabela Task)
+        from ..models import Task
+        specialists_in_system = db.session.query(Task.specialist_name).filter(
+            Task.specialist_name.isnot(None), 
+            Task.specialist_name != ''
+        ).distinct().all()
+        
+        specialist_names = [s[0] for s in specialists_in_system if s[0]]
+        
+        return render_template('admin/specialist_configuration.html', 
+                             configurations=configurations,
+                             available_specialists=specialist_names)
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao carregar configurações: {str(e)}", exc_info=True)
+        return render_template('admin/erro.html', erro="Erro ao carregar configurações"), 500
+
+@admin_bp.route('/api/specialist-configuration', methods=['GET'])
+def get_specialist_configurations():
+    """API para obter configurações de especialistas"""
+    try:
+        configurations = SpecialistConfiguration.query.filter_by(is_active=True).all()
+        
+        return jsonify({
+            'success': True,
+            'configurations': [config.to_dict() for config in configurations]
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao obter configurações: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/api/specialist-configuration/<int:config_id>', methods=['GET'])
+def get_specialist_configuration(config_id):
+    """API para obter configuração específica"""
+    try:
+        config = SpecialistConfiguration.query.get_or_404(config_id)
+        
+        return jsonify({
+            'success': True,
+            'configuration': config.to_dict()
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao obter configuração: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/api/specialist-configuration', methods=['POST'])
+def create_specialist_configuration():
+    """API para criar nova configuração de especialista"""
+    try:
+        data = request.get_json()
+        
+        # Valida dados obrigatórios
+        if not data.get('specialist_name'):
+            return jsonify({'success': False, 'error': 'Nome do especialista é obrigatório'}), 400
+        
+        # Verifica se já existe
+        existing = SpecialistConfiguration.query.filter_by(
+            specialist_name=data['specialist_name']
+        ).first()
+        
+        if existing:
+            return jsonify({'success': False, 'error': 'Especialista já possui configuração'}), 400
+        
+        # Cria nova configuração
+        config = SpecialistConfiguration(
+            specialist_name=data['specialist_name'],
+            daily_work_hours=data.get('daily_work_hours', 8.0),
+            weekly_work_days=data.get('weekly_work_days', 5),
+            consider_holidays=data.get('consider_holidays', True),
+            buffer_percentage=data.get('buffer_percentage', 10.0),
+            timezone=data.get('timezone', 'America/Sao_Paulo')
+        )
+        
+        # Configura dias úteis se fornecido
+        if 'work_days_config' in data:
+            config.set_work_days_config(data['work_days_config'])
+        
+        # Configura feriados personalizados se fornecido
+        if 'custom_holidays' in data:
+            config.set_custom_holidays(data['custom_holidays'])
+        
+        db.session.add(config)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Configuração criada com sucesso',
+            'configuration': config.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao criar configuração: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/api/specialist-configuration/<int:config_id>', methods=['PUT'])
+def update_specialist_configuration(config_id):
+    """API para atualizar configuração de especialista"""
+    try:
+        config = SpecialistConfiguration.query.get_or_404(config_id)
+        data = request.get_json()
+        
+        # Atualiza campos
+        if 'daily_work_hours' in data:
+            config.daily_work_hours = float(data['daily_work_hours'])
+        
+        if 'weekly_work_days' in data:
+            config.weekly_work_days = int(data['weekly_work_days'])
+        
+        if 'consider_holidays' in data:
+            config.consider_holidays = bool(data['consider_holidays'])
+        
+        if 'buffer_percentage' in data:
+            config.buffer_percentage = float(data['buffer_percentage'])
+        
+        if 'timezone' in data:
+            config.timezone = data['timezone']
+        
+        if 'work_days_config' in data:
+            config.set_work_days_config(data['work_days_config'])
+        
+        if 'custom_holidays' in data:
+            config.set_custom_holidays(data['custom_holidays'])
+        
+        if 'is_active' in data:
+            config.is_active = bool(data['is_active'])
+        
+        config.updated_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Configuração atualizada com sucesso',
+            'configuration': config.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao atualizar configuração: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/api/specialist-configuration/<int:config_id>', methods=['DELETE'])
+def delete_specialist_configuration(config_id):
+    """API para desativar configuração de especialista"""
+    try:
+        config = SpecialistConfiguration.query.get_or_404(config_id)
+        
+        # Soft delete - apenas desativa
+        config.is_active = False
+        config.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Configuração desativada com sucesso'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao deletar configuração: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/api/available-specialists', methods=['GET'])
+def get_available_specialists():
+    """API para obter lista de especialistas do sistema"""
+    try:
+        from ..models import Task
+        
+        # Busca especialistas únicos que não têm configuração ainda
+        specialists_in_tasks = db.session.query(Task.specialist_name).filter(
+            Task.specialist_name.isnot(None), 
+            Task.specialist_name != ''
+        ).distinct().all()
+        
+        configured_specialists = db.session.query(SpecialistConfiguration.specialist_name).filter(
+            SpecialistConfiguration.is_active == True
+        ).all()
+        
+        specialist_names = [s[0] for s in specialists_in_tasks if s[0]]
+        configured_names = [s[0] for s in configured_specialists]
+        
+        return jsonify({
+            'success': True,
+            'all_specialists': specialist_names,
+            'configured_specialists': configured_names,
+            'unconfigured_specialists': [name for name in specialist_names if name not in configured_names]
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao obter especialistas: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# --- FIM ROTAS ESPECIALISTAS --- 

@@ -130,11 +130,11 @@
                 <div class="card stat-card h-100">
                     <div class="card-body text-center">
                         <div class="display-4 text-info">
-                            <i class="bi bi-clock-fill"></i>
+                            <i class="bi bi-person-gear"></i>
                         </div>
-                        <h5 class="card-title mt-3">Última Atualização</h5>
-                        <h6 class="text-info">{{ stats.last_update.strftime('%d/%m') if stats.last_update else 'N/A' }}</h6>
-                        <small class="text-muted">{{ stats.last_update.strftime('%H:%M') if stats.last_update else 'Nunca' }}</small>
+                        <h5 class="card-title mt-3">Especialistas</h5>
+                        <h2 class="text-info">{{ stats.specialist_configs or 0 }}</h2>
+                        <small class="text-muted">Configurações Ativas</small>
                     </div>
                 </div>
             </div>
@@ -183,19 +183,19 @@
                 <div class="card module-card h-100">
                     <div class="card-header bg-success text-white">
                         <h5 class="mb-0">
-                            <i class="bi bi-database-gear me-2"></i>Gerenciamento de Dados CSV
+                            <i class="bi bi-database-gear me-2"></i>Gerenciamento de Dados
                         </h5>
                     </div>
                     <div class="card-body">
-                        <p class="card-text">Upload inteligente, processamento automático e edição dos dados principais do sistema.</p>
+                        <p class="card-text">Interface para upload, processamento e edição dos dados CSV do sistema.</p>
                         
                         <div class="mb-3">
                             <small class="text-muted d-block">Funcionalidades:</small>
                             <ul class="small">
-                                <li>Upload automático com correções</li>
-                                <li>Visualização tabular dos dados</li>
+                                <li>Upload inteligente de CSV</li>
                                 <li>Edição inline de registros</li>
-                                <li>Sistema de backup integrado</li>
+                                <li>Sistema de backup automático</li>
+                                <li>Validação e correção de dados</li>
                             </ul>
                         </div>
                         
@@ -207,6 +207,37 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Configurações de Especialistas -->
+            <div class="col-lg-6 mb-4">
+                <div class="card module-card h-100">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-person-gear me-2"></i>Configurações de Especialistas
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">Configure jornadas de trabalho, dias úteis e parâmetros individuais para cálculo automático de datas.</p>
+                        
+                        <div class="mb-3">
+                            <small class="text-muted d-block">Funcionalidades:</small>
+                            <ul class="small">
+                                <li>Configurar jornada por especialista</li>
+                                <li>Definir dias úteis individuais</li>
+                                <li>Gerenciar feriados personalizados</li>
+                                <li>Configurar buffers de tempo</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('admin.specialist_configuration') }}" class="btn btn-info">
+                                <i class="bi bi-gear-fill me-2"></i>Configurar Especialistas
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
         </div>
         
         <!-- Zona de Perigo -->

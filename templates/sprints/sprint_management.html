@@ -195,52 +195,77 @@
     transition: all 0.2s ease;
   }
 
-  /* Botão de Retorno à Origem */
+  /* Botões de Ação das Tarefas */
+  .task-action-buttons {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    z-index: 10;
+    display: flex;
+    gap: 2px;
+    opacity: 0.4;
+    transition: opacity 0.2s ease;
+  }
+
+  .task-clone-btn,
   .task-return-btn {
     transition: all 0.2s ease;
     border-radius: 0.25rem !important;
     font-size: 0.65rem !important;
     padding: 1px 4px !important;
-    opacity: 0;
     background-color: rgba(255, 255, 255, 0.95) !important;
     border: 1px solid rgba(108, 117, 125, 0.4) !important;
-    color: #6c757d !important;
-    position: absolute;
-    top: 3px;
-    left: 3px;
-    z-index: 10;
     min-width: auto;
     line-height: 1;
   }
 
-  .task-return-btn:hover {
-    opacity: 1 !important;
-    background-color: #ffffff !important;
-    border-color: #6c757d !important;
-    color: #495057 !important;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  /* Botão de Clonagem */
+  .task-clone-btn {
+    color: #0dcaf0 !important;
   }
 
+  .task-clone-btn:hover {
+    background-color: #0dcaf0 !important;
+    border-color: #0dcaf0 !important;
+    color: white !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(13, 202, 240, 0.3);
+  }
+
+  /* Botão de Retorno */
+  .task-return-btn {
+    color: #6c757d !important;
+  }
+
+  .task-return-btn:hover {
+    background-color: #6c757d !important;
+    border-color: #6c757d !important;
+    color: white !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(108, 117, 125, 0.3);
+  }
+
+  .task-clone-btn:active,
   .task-return-btn:active {
     transform: translateY(0);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }
 
-  /* Responsividade do botão */
+  /* Responsividade dos botões */
   @media (max-width: 768px) {
+    .task-clone-btn,
     .task-return-btn {
       padding: 1px 3px !important;
       font-size: 0.6rem !important;
     }
   }
 
-  /* Hover effect no card da tarefa para mostrar o botão */
-  .sprint-task-card:hover .task-return-btn {
-    opacity: 0.7;
+  /* Hover effect no card da tarefa para mostrar os botões */
+  .sprint-task-card:hover .task-action-buttons {
+    opacity: 0.8;
   }
 
-  .sprint-task-card .task-return-btn:hover {
+  .sprint-task-card .task-action-buttons:hover {
     opacity: 1 !important;
   }
 
@@ -567,6 +592,81 @@
     opacity: 0.7;
     display: block;
   }
+  
+  /* Estilos para o menu de alertas */
+  .alerts-dropdown {
+    min-width: 400px;
+    max-width: 450px;
+  }
+  
+  .alert-item {
+    border-left: 4px solid;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+  }
+  
+  .alert-item.healthy {
+    border-left-color: #28a745;
+    background: #f0fff4;
+  }
+  
+  .alert-item.warning {
+    border-left-color: #ffc107;
+    background: #fffbf0;
+  }
+  
+  .alert-item.critical {
+    border-left-color: #dc3545;
+    background: #fff5f5;
+  }
+  
+  .capacity-indicator {
+    display: inline-block;
+    width: 100px;
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  
+  .capacity-bar {
+    height: 100%;
+    transition: width 0.3s ease;
+  }
+  
+  .capacity-bar.healthy {
+    background: #28a745;
+  }
+  
+  .capacity-bar.warning {
+    background: #ffc107;
+  }
+  
+  .capacity-bar.critical {
+    background: #dc3545;
+  }
+  
+  .suggestion-item {
+    background: #f8f9fa;
+    border-radius: 0.25rem;
+    padding: 0.5rem;
+    margin-bottom: 0.25rem;
+    font-size: 0.8rem;
+  }
+  
+  .suggestion-item.high-priority {
+    border-left: 3px solid #dc3545;
+  }
+  
+  .suggestion-item.medium-priority {
+    border-left: 3px solid #ffc107;
+  }
+  
+  .suggestion-item.low-priority {
+    border-left: 3px solid #28a745;
+  }
 </style>
 {% endblock %}
 
@@ -652,6 +752,48 @@
             </div>
             
             <div class="vr"></div>
+            
+            <!-- Menu de Alertas e Análises (Expansível) -->
+            <div class="dropdown">
+                <button class="btn btn-outline-info btn-sm dropdown-toggle" type="button" id="alertsMenuBtn" 
+                        data-bs-toggle="dropdown" aria-expanded="false" title="Análises e alertas de capacidade">
+                    <i class="bi bi-exclamation-triangle"></i> <span id="alertsMenuText">Análises</span>
+                    <span id="alertsBadge" class="badge bg-danger ms-1" style="display: none;">0</span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="alertsMenuBtn" id="alertsDropdown" style="width: 400px;">
+                    <div class="dropdown-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-graph-up"></i> Análises de Capacidade</span>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="refreshAllAlerts()" title="Atualizar">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    
+                    <!-- Conteúdo dos alertas -->
+                    <div id="alertsContent" class="px-3 py-2">
+                        <div class="text-center text-muted py-3" id="defaultAnalysisMessage">
+                            <i class="bi bi-info-circle"></i>
+                            <p class="mb-0 small">Carregando análises...</p>
+                        </div>
+                        <div id="sprintAnalysisList" style="display: none;">
+                            <!-- Lista de sprints será preenchida dinamicamente -->
+                        </div>
+                    </div>
+                    
+                    <div class="dropdown-divider"></div>
+                    <div class="px-3 py-2">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary btn-sm" onclick="calculateCurrentSprintDates()" 
+                                    id="calculateDatesBtn" disabled>
+                                <i class="bi bi-calculator"></i> Calcular Datas da Sprint
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="showBatchCalculationModal()">
+                                <i class="bi bi-collection"></i> Cálculo em Lote
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
             
             <button type="button" class="btn btn-outline-secondary" onclick="openArchivedSprintsModal()">
                 <i class="bi bi-archive"></i> Sprints Arquivadas

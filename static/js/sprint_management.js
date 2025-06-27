@@ -162,13 +162,13 @@ async function loadSprints() {
         if (!response.ok) {
             throw new Error(`Erro ${response.status}: ${response.statusText}`);
         }
-        
+
         const sprints = await response.json();
         console.log(`✅ ${sprints.length} sprints carregadas`);
         
         // Armazena os dados das sprints globalmente para uso em cálculos
         window.sprintsData = sprints;
-        
+
         renderSprints(sprints);
         initializeSortable();
         initializePopovers();
@@ -177,9 +177,15 @@ async function loadSprints() {
         updateFilterLists();
         applyFilters();
         
+        // ✅ NOVA LINHA: Atualiza botões de análise
+        updateAnalysisButtons();
+        
     } catch (error) {
         console.error('❌ Erro ao carregar sprints:', error);
         renderSprintError(`Erro ao carregar sprints: ${error.message}`);
+        
+        // ✅ NOVA LINHA: Atualiza botões mesmo em caso de erro
+        updateAnalysisButtons();
     }
 }
 
@@ -404,12 +410,22 @@ function renderSprintTask(task) {
              onclick="openTaskDetailsModal(this, ${JSON.stringify(task).replace(/"/g, '&quot;')})"
              style="cursor: pointer; position: relative;">
             
-            <!-- Botão sutil de retorno -->
-            <button class="btn btn-sm btn-outline-secondary task-return-btn" 
-                    onclick="event.stopPropagation(); returnTaskToOrigin(${task.id}, '${originType}')" 
-                    title="${returnTitle}">
-                <i class="bi ${returnIcon}"></i>
-            </button>
+            <!-- Botões de ação da tarefa -->
+            <div class="task-action-buttons">
+                <!-- Botão de clonagem -->
+                <button class="btn btn-sm btn-outline-info task-clone-btn" 
+                        onclick="event.stopPropagation(); cloneTask(${task.id})" 
+                        title="Clonar tarefa para o backlog">
+                    <i class="bi bi-copy"></i>
+                </button>
+                
+                <!-- Botão de retorno -->
+                <button class="btn btn-sm btn-outline-secondary task-return-btn" 
+                        onclick="event.stopPropagation(); returnTaskToOrigin(${task.id}, '${originType}')" 
+                        title="${returnTitle}">
+                    <i class="bi ${returnIcon}"></i>
+                </button>
+            </div>
             
             <div class="task-header">
                 <div class="task-id-badge">${escapeHtml(fullTaskId)}</div>
@@ -2280,4 +2296,525 @@ function filterSpecialistDropdown() {
         const matches = specialistName.includes(searchTerm);
         item.parentElement.style.display = matches ? 'block' : 'none';
     });
-} 
+}
+
+// === SISTEMA DE CÁLCULO AUTOMÁTICO DE DATAS ===
+
+/**
+ * Calcula datas para a sprint selecionada
+ * @param {number} sprintId - ID da sprint
+ */
+async function calculateSelectedSprintDates(sprintId) {
+    try {
+        console.log(`🗓️ Calculando datas para sprint ${sprintId}...`);
+        
+        // Encontra a sprint
+        const sprint = window.sprintsData?.find(s => s.id === sprintId);
+        if (!sprint) {
+            throw new Error('Sprint não encontrada');
+        }
+        
+        // Mostra indicador de carregamento
+        showToast('Calculando datas das tarefas...', 'info');
+        
+        // Chama API para calcular datas
+        const response = await fetch(`/sprints/api/sprints/${sprintId}/calculate-dates`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Erro ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast(`Datas calculadas para ${result.tasks_updated} tarefas`, 'success');
+            
+            // Recarrega sprints para mostrar novas datas
+            await loadSprints();
+            
+            // Atualiza alertas
+            await refreshAllAlerts();
+            
+            console.log(`✅ Datas calculadas com sucesso para sprint ${sprintId}`);
+        } else {
+            throw new Error(result.error || 'Erro no cálculo');
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao calcular datas:', error);
+        showToast(`Erro ao calcular datas: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Atualiza todos os alertas de capacidade das sprints
+ */
+async function refreshAllAlerts() {
+    try {
+        console.log('🔄 Atualizando alertas de capacidade...');
+        
+        // Para cada sprint ativa, busca alertas
+        const activeSprintIds = window.sprintsData?.filter(s => !s.is_archived).map(s => s.id) || [];
+        
+        for (const sprintId of activeSprintIds) {
+            await updateSprintCapacityAlerts(sprintId);
+        }
+        
+        console.log('✅ Alertas atualizados');
+        
+    } catch (error) {
+        console.error('❌ Erro ao atualizar alertas:', error);
+    }
+}
+
+/**
+ * Atualiza alertas de capacidade para uma sprint específica
+ * @param {number} sprintId - ID da sprint
+ */
+async function updateSprintCapacityAlerts(sprintId) {
+    try {
+        const response = await fetch(`/sprints/api/sprints/${sprintId}/capacity-alerts`);
+        
+        if (!response.ok) {
+            console.warn(`⚠️ Erro ao buscar alertas para sprint ${sprintId}`);
+            return;
+        }
+        
+        const result = await response.json();
+        
+        if (result.success && result.alerts) {
+            updateAlertsBadge(sprintId, result.alerts);
+        }
+        
+    } catch (error) {
+        console.warn('⚠️ Erro ao buscar alertas:', error);
+    }
+}
+
+/**
+ * Atualiza badge de alertas no menu de análises
+ * @param {number} sprintId - ID da sprint
+ * @param {Object} alerts - Objeto com alertas
+ */
+function updateAlertsBadge(sprintId, alerts) {
+    // Conta total de alertas
+    let totalAlerts = 0;
+    
+    if (alerts.capacity_warnings) totalAlerts += alerts.capacity_warnings.length;
+    if (alerts.overload_warnings) totalAlerts += alerts.overload_warnings.length;
+    if (alerts.date_conflicts) totalAlerts += alerts.date_conflicts.length;
+    
+    // Atualiza badge no menu de análises (se existir)
+    const analysisBadge = document.querySelector(`[data-sprint-id="${sprintId}"] .analysis-alerts-badge`);
+    if (analysisBadge) {
+        if (totalAlerts > 0) {
+            analysisBadge.textContent = totalAlerts;
+            analysisBadge.style.display = 'inline-block';
+            analysisBadge.className = `analysis-alerts-badge badge ${getAlertBadgeClass(alerts)}`;
+        } else {
+            analysisBadge.style.display = 'none';
+        }
+    }
+}
+
+/**
+ * Retorna classe CSS apropriada para badge de alertas
+ * @param {Object} alerts - Objeto com alertas
+ * @returns {string} Classe CSS
+ */
+function getAlertBadgeClass(alerts) {
+    if (alerts.overload_warnings?.length > 0 || alerts.date_conflicts?.length > 0) {
+        return 'bg-danger'; // Crítico
+    } else if (alerts.capacity_warnings?.length > 0) {
+        return 'bg-warning'; // Aviso
+    }
+    return 'bg-success'; // OK
+}
+
+/**
+ * Mostra modal para cálculo em lote
+ */
+function showBatchCalculationModal() {
+    console.log('📋 Abrindo modal de cálculo em lote...');
+    
+    // Verifica se há sprints ativas
+    const activeSprints = window.sprintsData?.filter(s => !s.is_archived) || [];
+    
+    if (activeSprints.length === 0) {
+        showToast('Nenhuma sprint ativa encontrada', 'warning');
+        return;
+    }
+    
+    // Cria modal dinamicamente
+    const modalHtml = `
+        <div class="modal fade" id="batchCalculationModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="bi bi-calculator me-2"></i>Cálculo em Lote
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Selecione as sprints para calcular as datas automaticamente:</p>
+                        
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="selectAllSprints">
+                            <label class="form-check-label fw-bold" for="selectAllSprints">
+                                Selecionar Todas
+                            </label>
+                        </div>
+                        
+                        <hr>
+                        
+                        ${activeSprints.map(sprint => `
+                            <div class="form-check mb-2">
+                                <input class="form-check-input sprint-checkbox" type="checkbox" 
+                                       id="sprint_${sprint.id}" value="${sprint.id}">
+                                <label class="form-check-label" for="sprint_${sprint.id}">
+                                    ${sprint.name}
+                                    <small class="text-muted">(${sprint.tasks?.length || 0} tarefas)</small>
+                                </label>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-primary" onclick="executeBatchCalculation()">
+                            <i class="bi bi-play-fill me-1"></i>Calcular Datas
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove modal anterior se existir
+    const existingModal = document.getElementById('batchCalculationModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Adiciona ao DOM
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Configura eventos
+    document.getElementById('selectAllSprints').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.sprint-checkbox');
+        checkboxes.forEach(cb => cb.checked = this.checked);
+    });
+    
+    // Mostra modal
+    const modal = new bootstrap.Modal(document.getElementById('batchCalculationModal'));
+    modal.show();
+}
+
+/**
+ * Executa cálculo em lote para sprints selecionadas
+ */
+async function executeBatchCalculation() {
+    try {
+        // Pega sprints selecionadas
+        const selectedSprints = Array.from(document.querySelectorAll('.sprint-checkbox:checked'))
+            .map(cb => parseInt(cb.value));
+        
+        if (selectedSprints.length === 0) {
+            showToast('Selecione pelo menos uma sprint', 'warning');
+            return;
+        }
+        
+        console.log(`🚀 Executando cálculo em lote para ${selectedSprints.length} sprints...`);
+        
+        // Fecha modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('batchCalculationModal'));
+        modal.hide();
+        
+        // Mostra progresso
+        showToast(`Calculando datas para ${selectedSprints.length} sprints...`, 'info');
+        
+        // Chama API para cálculo em lote
+        const response = await fetch('/sprints/api/sprints/batch-calculate-dates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sprint_ids: selectedSprints })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Erro ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            const totalTasks = result.results.reduce((sum, r) => sum + r.tasks_updated, 0);
+            showToast(`Cálculo concluído! ${totalTasks} tarefas atualizadas`, 'success');
+            
+            // Recarrega dados
+            await Promise.all([
+                loadSprints(),
+                refreshAllAlerts()
+            ]);
+            
+            console.log(`✅ Cálculo em lote concluído`);
+        } else {
+            throw new Error(result.error || 'Erro no cálculo em lote');
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro no cálculo em lote:', error);
+        showToast(`Erro no cálculo em lote: ${error.message}`, 'error');
+    }
+}
+
+// Expõe funções globalmente
+window.calculateSelectedSprintDates = calculateSelectedSprintDates;
+window.refreshAllAlerts = refreshAllAlerts;
+window.showBatchCalculationModal = showBatchCalculationModal;
+window.executeBatchCalculation = executeBatchCalculation;
+
+console.log('✅ Funções de cálculo de datas carregadas');
+
+/**
+ * Calcula datas para a sprint atualmente selecionada no menu de análises
+ */
+async function calculateCurrentSprintDates() {
+    try {
+        // Verifica se há uma sprint selecionada (primeira sprint ativa por padrão)
+        const activeSprintCards = document.querySelectorAll('.sprint-card:not([data-archived="true"])');
+        
+        if (activeSprintCards.length === 0) {
+            showToast('Nenhuma sprint ativa encontrada', 'warning');
+            return;
+        }
+        
+        // Pega a primeira sprint ativa ou a que tem mais tarefas
+        let targetSprintId;
+        let maxTasks = 0;
+        
+        activeSprintCards.forEach(card => {
+            const sprintId = parseInt(card.dataset.sprintId);
+            const taskCount = card.querySelectorAll('.sprint-task-card').length;
+            
+            if (taskCount > maxTasks) {
+                maxTasks = taskCount;
+                targetSprintId = sprintId;
+            }
+        });
+        
+        // Se não achou nenhuma com tarefas, pega a primeira
+        if (!targetSprintId && activeSprintCards.length > 0) {
+            targetSprintId = parseInt(activeSprintCards[0].dataset.sprintId);
+        }
+        
+        if (!targetSprintId) {
+            showToast('Não foi possível identificar uma sprint para calcular', 'warning');
+            return;
+        }
+        
+        console.log(`🎯 Calculando datas para sprint ${targetSprintId} (sprint com mais tarefas)`);
+        
+        // Chama a função principal
+        await calculateSelectedSprintDates(targetSprintId);
+        
+    } catch (error) {
+        console.error('❌ Erro ao identificar sprint para cálculo:', error);
+        showToast(`Erro: ${error.message}`, 'error');
+    }
+}
+
+// Expõe funções globalmente
+window.calculateSelectedSprintDates = calculateSelectedSprintDates;
+window.calculateCurrentSprintDates = calculateCurrentSprintDates;
+window.refreshAllAlerts = refreshAllAlerts;
+window.showBatchCalculationModal = showBatchCalculationModal;
+window.executeBatchCalculation = executeBatchCalculation;
+
+// === SISTEMA DE CLONAGEM DE TAREFAS ===
+
+/**
+ * Clona uma tarefa da sprint para o backlog
+ * @param {number} taskId - ID da tarefa a ser clonada
+ */
+async function cloneTask(taskId) {
+    try {
+        console.log(`🔄 Iniciando clonagem da tarefa ${taskId}...`);
+        
+        // Confirmação do usuário
+        const confirmClone = confirm(
+            'Deseja clonar esta tarefa?\n\n' +
+            'A tarefa clonada será criada na MESMA SPRINT da tarefa original, ' +
+            'permitindo "quebrar" a tarefa em partes menores.'
+        );
+        
+        if (!confirmClone) {
+            console.log('🚫 Clonagem cancelada pelo usuário');
+            return;
+        }
+        
+        // Mostra feedback visual
+        showToast('Clonando tarefa...', 'info');
+        
+        // Chama API para clonar
+        const response = await fetch(`/sprints/api/sprints/tasks/${taskId}/clone`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Erro ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Feedback de sucesso
+            let message = `Tarefa clonada com sucesso na Sprint "${result.added_to_sprint}"!`;
+            
+            showToast(message, 'success');
+            
+            // Recarrega dados para mostrar as alterações
+            await Promise.all([
+                loadSprints(),
+                loadBacklogTasks(),
+                loadGenericTasks()
+            ]);
+            
+            console.log(`✅ Tarefa ${taskId} clonada com sucesso. Nova tarefa: ${result.cloned_task.id}`);
+        } else {
+            throw new Error(result.error || 'Erro desconhecido na clonagem');
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao clonar tarefa:', error);
+        showToast(`Erro ao clonar tarefa: ${error.message}`, 'error');
+    }
+}
+
+// Expõe funções globalmente
+window.calculateSelectedSprintDates = calculateSelectedSprintDates;
+window.calculateCurrentSprintDates = calculateCurrentSprintDates;
+window.refreshAllAlerts = refreshAllAlerts;
+window.showBatchCalculationModal = showBatchCalculationModal;
+window.executeBatchCalculation = executeBatchCalculation;
+window.cloneTask = cloneTask;
+window.selectSprintForAnalysis = selectSprintForAnalysis;
+window.updateAnalysisButtons = updateAnalysisButtons;
+
+console.log('✅ Funções de clonagem de tarefas carregadas');
+
+/**
+ * Atualiza estado dos botões de análise baseado nas sprints carregadas
+ */
+function updateAnalysisButtons() {
+    const calculateDatesBtn = document.getElementById('calculateDatesBtn');
+    const alertsMenuText = document.getElementById('alertsMenuText');
+    
+    if (!calculateDatesBtn || !alertsMenuText) return;
+    
+    // Verifica se há sprints ativas carregadas
+    const activeSprintCards = document.querySelectorAll('.sprint-card:not([data-archived="true"])');
+    const hasActiveSprints = activeSprintCards.length > 0;
+    
+    if (hasActiveSprints) {
+        // Habilita botão e atualiza texto
+        calculateDatesBtn.disabled = false;
+        calculateDatesBtn.classList.remove('btn-secondary');
+        calculateDatesBtn.classList.add('btn-primary');
+        alertsMenuText.textContent = `Análises (${activeSprintCards.length})`;
+        
+        console.log(`✅ Botões de análise habilitados - ${activeSprintCards.length} sprints ativas`);
+    } else {
+        // Desabilita botão e atualiza texto
+        calculateDatesBtn.disabled = true;
+        calculateDatesBtn.classList.remove('btn-primary');
+        calculateDatesBtn.classList.add('btn-secondary');
+        alertsMenuText.textContent = 'Análises';
+        
+        console.log('⚠️ Botões de análise desabilitados - nenhuma sprint ativa');
+    }
+    
+    // ✅ NOVA FUNÇÃO: Atualiza conteúdo do menu
+    updateAnalysisMenu();
+}
+
+/**
+ * Atualiza o conteúdo do menu de análises
+ */
+function updateAnalysisMenu() {
+    const defaultMessage = document.getElementById('defaultAnalysisMessage');
+    const analysisList = document.getElementById('sprintAnalysisList');
+    
+    if (!defaultMessage || !analysisList) return;
+    
+    // Verifica se há dados de sprints carregados
+    if (!window.sprintsData || window.sprintsData.length === 0) {
+        defaultMessage.style.display = 'block';
+        analysisList.style.display = 'none';
+        defaultMessage.innerHTML = `
+            <i class="bi bi-exclamation-triangle"></i>
+            <p class="mb-0 small">Nenhuma sprint encontrada</p>
+        `;
+        return;
+    }
+    
+    // Filtra apenas sprints ativas
+    const activeSprints = window.sprintsData.filter(sprint => !sprint.is_archived);
+    
+    if (activeSprints.length === 0) {
+        defaultMessage.style.display = 'block';
+        analysisList.style.display = 'none';
+        defaultMessage.innerHTML = `
+            <i class="bi bi-archive"></i>
+            <p class="mb-0 small">Todas as sprints estão arquivadas</p>
+        `;
+        return;
+    }
+    
+    // Mostra lista de sprints
+    defaultMessage.style.display = 'none';
+    analysisList.style.display = 'block';
+    
+    // Gera HTML das sprints
+    analysisList.innerHTML = activeSprints.map(sprint => {
+        const taskCount = sprint.tasks ? sprint.tasks.length : 0;
+        const totalHours = sprint.tasks ? sprint.tasks.reduce((sum, task) => sum + (task.estimated_effort || 0), 0) : 0;
+        
+        return `
+            <div class="sprint-analysis-item mb-2 p-2 border rounded" style="cursor: pointer;"
+                 onclick="selectSprintForAnalysis(${sprint.id})">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong class="text-primary">${escapeHtml(sprint.name)}</strong>
+                        <div class="small text-muted">
+                            ${taskCount} tarefas • ${totalHours}h estimadas
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" 
+                            onclick="event.stopPropagation(); calculateSelectedSprintDates(${sprint.id})">
+                        <i class="bi bi-calculator"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    console.log(`✅ Menu de análises atualizado com ${activeSprints.length} sprints`);
+}
+
+/**
+ * Seleciona uma sprint para análise detalhada
+ * @param {number} sprintId - ID da sprint
+ */
+function selectSprintForAnalysis(sprintId) {
+    console.log(`🎯 Sprint ${sprintId} selecionada para análise`);
+    
+    // Podemos expandir esta função no futuro para mostrar análises detalhadas
+    showToast(`Sprint selecionada! Use o botão de calculadora para calcular datas.`, 'info');
+}
