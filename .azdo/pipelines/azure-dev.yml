@@ -1,6 +1,6 @@
 # This pipeline was generated using azd pipeline config
 trigger:
-  - feat/refactor-deployment
+  - main
 
 pool:
   vmImage: ubuntu-latest
