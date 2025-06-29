@@ -546,6 +546,25 @@ def update_task_details(task_id):
     if 'is_unplanned' in data:
         task.is_unplanned = bool(data['is_unplanned'])
     
+    # 🎯 NOVOS CAMPOS: actually_started_at e completed_at editáveis
+    if 'actually_started_at' in data:
+        if data['actually_started_at']:
+            try:
+                task.actually_started_at = datetime.fromisoformat(data['actually_started_at'].replace('Z', '+00:00'))
+            except ValueError:
+                current_app.logger.warning(f"Formato inválido para actually_started_at: {data['actually_started_at']}")
+        else:
+            task.actually_started_at = None
+    
+    if 'completed_at' in data:
+        if data['completed_at']:
+            try:
+                task.completed_at = datetime.fromisoformat(data['completed_at'].replace('Z', '+00:00'))
+            except ValueError:
+                current_app.logger.warning(f"Formato inválido para completed_at: {data['completed_at']}")
+        else:
+            task.completed_at = None
+    
     if 'status' in data:
         try:
             status_id = int(data['status'])
@@ -752,11 +771,31 @@ def move_task(task_id):
     task.column_id = new_column_id
     task.position = new_position
 
-    # Define a data de início real APENAS se estiver movendo para "Em Andamento" 
-    # e a tarefa ainda não tiver uma data de início real registrada.
-    if is_moving_to_progress and not task.actually_started_at:
-        task.actually_started_at = datetime.now(br_timezone) # <<< ALTERADO para usar br_timezone
-        current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para Em Andamento, data de INÍCIO REAL definida para {task.actually_started_at} (usando br_timezone)")
+    # 🎯 NOVA LÓGICA: Define data de início real quando sai de "A Fazer"
+    # Verifica se está saindo de "A Fazer" para qualquer status que não seja "Concluído"
+    is_leaving_todo = task.column.name.upper() == 'A FAZER' if task.column else False
+    is_moving_to_review = target_column.name.upper() == 'REVISÃO'
+    
+    # Preenche actually_started_at quando:
+    # 1. Move para "Em Andamento" OU
+    # 2. Move diretamente de "A Fazer" para "Revisão" OU  
+    # 3. Move diretamente de "A Fazer" para "Concluído"
+    # 4. Ainda não tem data de início real
+    should_set_start_time = (
+        is_moving_to_progress or 
+        (is_leaving_todo and is_moving_to_review) or
+        (is_leaving_todo and is_moving_to_done)
+    )
+    
+    if not task.actually_started_at and should_set_start_time:
+        task.actually_started_at = datetime.now(br_timezone)
+        if is_moving_to_progress:
+            action_desc = "Em Andamento"
+        elif is_moving_to_review:
+            action_desc = "Revisão (início direto)"
+        else:
+            action_desc = "Concluído (início direto)"
+        current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para {action_desc}, data de INÍCIO REAL definida para {task.actually_started_at} (usando br_timezone)")
 
     # Atualiza data de início planejada (LEGADO - manter por enquanto se houver dependências)
     # if is_moving_to_progress and not was_in_progress:
@@ -1222,8 +1261,20 @@ def assign_task_to_sprint(task_id):
                             Task.position < old_position
                         ).update({Task.position: Task.position + 1}, synchronize_session=False)
 
+        # 3. Atualiza sprint_id e position
         task.sprint_id = new_sprint_id
         task.position = new_position
+
+        # 🎯 NOVA LÓGICA: Atualiza datas quando atribui à sprint
+        if new_sprint_id is not None and target_sprint:
+            # SEMPRE SOBRESCREVE as datas com as datas da sprint
+            task.start_date = target_sprint.start_date  # Data início planejada = início da sprint
+            task.due_date = target_sprint.end_date      # Data vencimento = fim da sprint
+            current_app.logger.info(f"[AssignTask] Tarefa {task_id} atribuída à sprint {new_sprint_id}. Datas atualizadas: início={target_sprint.start_date}, fim={target_sprint.end_date}")
+        elif new_sprint_id is None:
+            # Quando remove da sprint, mantém as datas (não limpa automaticamente)
+            # Permite que o usuário edite manualmente se necessário
+            current_app.logger.info(f"[AssignTask] Tarefa {task_id} removida da sprint. Datas planejadas mantidas para referência.")
 
         db.session.commit()
         db.session.refresh(task)
