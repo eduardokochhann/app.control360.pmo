@@ -137,6 +137,176 @@
         border-radius: 10px;
         font-size: 0.75em;
     }
+    
+    /* 🎯 ESTILOS PARA EXPANSÃO DE TAREFAS DA SPRINT */
+    .sprint-tasks-toggle {
+        transition: color 0.2s ease;
+    }
+    
+    .sprint-tasks-toggle:hover {
+        color: #0056b3 !important;
+        font-weight: 500;
+    }
+    
+    .toggle-icon {
+        transition: transform 0.3s ease;
+        font-size: 0.8rem;
+    }
+    
+    .sprint-tasks-details {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 8px;
+        margin-top: 10px;
+        overflow: hidden;
+    }
+    
+    /* 🎯 ESTILOS PARA LISTA DE TAREFAS DA SPRINT */
+    .sprint-tasks-list {
+        padding: 0;
+    }
+    
+    .sprint-task-item {
+        background: #ffffff;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 12px 16px;
+        margin-bottom: 6px;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    
+    .sprint-task-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .sprint-task-item:hover {
+        background: #f8f9fa;
+        border-color: #007bff;
+        transform: translateX(4px);
+        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+    }
+    
+    .task-position-indicator {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-weight: 600;
+        font-size: 0.8rem;
+    }
+    
+    /* Estilo para números de posição (tarefas não concluídas) */
+    .task-position-indicator.task-numbered {
+        background: linear-gradient(135deg, #007bff, #0056b3);
+        color: white;
+        box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+    }
+    
+    /* Estilo para ícone de check (tarefas concluídas) */
+    .task-position-indicator.task-completed {
+        background: none;
+        border: none;
+        box-shadow: none;
+    }
+    
+    .task-position-indicator.task-completed i {
+        font-size: 1.3rem;
+        filter: drop-shadow(0 2px 4px rgba(40, 167, 69, 0.3));
+        animation: completedPulse 2s ease-in-out infinite;
+    }
+    
+    /* Animação sutil para tarefas concluídas */
+    @keyframes completedPulse {
+        0%, 100% { 
+            transform: scale(1);
+        }
+        50% { 
+            transform: scale(1.05);
+        }
+    }
+    
+    .task-list-title {
+        color: #2c3e50;
+        font-weight: 600;
+        font-size: 0.95rem;
+        line-height: 1.3;
+        margin-bottom: 0;
+    }
+    
+    .task-list-description {
+        color: #6c757d;
+        font-size: 0.85rem;
+        line-height: 1.4;
+        margin-bottom: 8px;
+    }
+    
+    .task-list-meta {
+        border-top: 1px solid #f1f3f4;
+        padding-top: 8px;
+        margin-top: 8px;
+    }
+    
+    .task-list-meta i {
+        margin-right: 3px;
+    }
+    
+    /* Animação de entrada suave para itens da lista */
+    @keyframes slideInLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    .sprint-task-item {
+        animation: slideInLeft 0.4s ease-out;
+    }
+    
+    /* Responsividade para telas menores */
+    @media (max-width: 768px) {
+        .sprint-task-item {
+            padding: 10px 12px;
+            margin-bottom: 6px;
+        }
+        
+        .task-position-indicator {
+            width: 24px;
+            height: 24px;
+            font-size: 0.75rem;
+        }
+        
+        .task-position-indicator.task-completed i {
+            font-size: 1.1rem;
+        }
+        
+        .task-list-title {
+            font-size: 0.9rem;
+        }
+        
+        .task-list-description {
+            font-size: 0.8rem;
+        }
+        
+        .task-list-meta .d-flex {
+            flex-direction: column;
+            gap: 2px !important;
+        }
+        
+        .sprint-tasks-toggle {
+            font-size: 0.9rem;
+        }
+        
+        .sprint-task-item:hover {
+            transform: translateX(2px);
+        }
+    }
 </style>
 {% endblock %}
 
@@ -1361,7 +1531,11 @@
                                     <i class="bi bi-calendar3"></i> ${formatDate(sprint.start_date)} - ${formatDate(sprint.end_date)}
                                 </div>
                                 <div class="col-md-3">
-                                    <i class="bi bi-list-task"></i> ${projectTasks.length} tarefas
+                                    <i class="bi bi-list-task"></i> 
+                                    <span class="sprint-tasks-toggle" onclick="toggleSprintTasks(${sprint.id})" style="cursor: pointer; color: #007bff; text-decoration: underline;" title="Clique para ver/ocultar tarefas">
+                                        ${projectTasks.length} tarefas
+                                        <i class="bi bi-chevron-down ms-1 toggle-icon" id="toggle-icon-${sprint.id}"></i>
+                                    </span>
                                 </div>
                                 <div class="col-md-3">
                                     <i class="bi bi-clock"></i> ${totalHours}h estimadas
@@ -1376,6 +1550,112 @@
                             <a href="javascript:void(0)" class="btn btn-outline-primary btn-sm" onclick="openSprintsWithProjectFilter(event)" title="Abrir Gerenciamento de Sprints">
                                 <i class="bi bi-box-arrow-up-right"></i>
                             </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Seção Expansível das Tarefas -->
+                    <div class="sprint-tasks-details" id="tasks-${sprint.id}" style="display: none; overflow: hidden;">
+                        <div class="mt-3 pt-3 border-top">
+                            <h6 class="mb-3 text-primary d-flex align-items-center">
+                                <i class="bi bi-list-ol me-2"></i> 
+                                Lista de Tarefas (${projectTasks.length})
+                                <span class="badge bg-light text-dark ms-auto" style="font-size: 0.7rem;">
+                                    Ordenadas por posição
+                                </span>
+                            </h6>
+                            ${projectTasks.length > 0 ? `
+                                <div class="sprint-tasks-list">
+                                    ${(() => {
+                                        // Separar tarefas concluídas e não concluídas
+                                        const completedTasks = projectTasks.filter(task => 
+                                            task.column_identifier === 'concluido' || 
+                                            task.status === 'Concluído' || 
+                                            task.status === 'DONE'
+                                        );
+                                        const activeTasks = projectTasks.filter(task => 
+                                            !(task.column_identifier === 'concluido' || 
+                                              task.status === 'Concluído' || 
+                                              task.status === 'DONE')
+                                        );
+                                        
+                                        // Ordenar ambas as listas
+                                        activeTasks.sort((a, b) => (a.position || 0) - (b.position || 0));
+                                        completedTasks.sort((a, b) => (a.position || 0) - (b.position || 0));
+                                        
+                                        // Combinar: tarefas ativas primeiro, depois concluídas
+                                        const sortedTasks = [...activeTasks, ...completedTasks];
+                                        
+                                        let activeTaskCounter = 0;
+                                        return sortedTasks.map((task, index) => {
+                                            const isCompleted = task.column_identifier === 'concluido' || 
+                                                               task.status === 'Concluído' || 
+                                                               task.status === 'DONE';
+                                            
+                                            // Incrementar contador apenas para tarefas ativas
+                                            if (!isCompleted) {
+                                                activeTaskCounter++;
+                                            }
+                                            
+                                            return `
+                                        <div class="sprint-task-item" style="animation-delay: ${index * 0.05}s;">
+                                            <div class="d-flex align-items-start">
+                                                <!-- Número da posição OU Check de conclusão -->
+                                                ${(() => {
+                                                    if (isCompleted) {
+                                                        return `<div class="task-position-indicator task-completed me-3">
+                                                                    <i class="bi bi-check-circle-fill text-success"></i>
+                                                                </div>`;
+                                                    } else {
+                                                        return `<div class="task-position-indicator task-numbered me-3">
+                                                                    ${task.position || activeTaskCounter}
+                                                                </div>`;
+                                                    }
+                                                })()}
+                                                
+                                                <!-- Conteúdo da tarefa -->
+                                                <div class="flex-grow-1">
+                                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                                        <h6 class="task-list-title mb-0">${escapeHtml(task.title)}</h6>
+                                                        <div class="d-flex gap-1 ms-2">
+                                                            <span class="badge ${getPriorityBadgeClass(task.priority)}" style="font-size: 0.7rem;">${task.priority || 'Média'}</span>
+                                                            ${getTaskStatusBadge(task)}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    ${task.description ? `
+                                                        <p class="task-list-description mb-2">${escapeHtml(task.description.substring(0, 120))}${task.description.length > 120 ? '...' : ''}</p>
+                                                    ` : ''}
+                                                    
+                                                    <div class="task-list-meta">
+                                                        <div class="d-flex flex-wrap gap-3 text-muted small">
+                                                            ${task.specialist_name ? `
+                                                                <span>
+                                                                    <i class="bi bi-person-fill text-primary"></i> ${escapeHtml(task.specialist_name)}
+                                                                </span>
+                                                            ` : ''}
+                                                            <span>
+                                                                <i class="bi bi-clock text-info"></i> ${task.estimated_effort || 0}h estimadas
+                                                            </span>
+                                                            ${task.logged_time ? `
+                                                                <span>
+                                                                    <i class="bi bi-check-circle text-success"></i> ${task.logged_time}h logadas
+                                                                </span>
+                                                            ` : ''}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                        }).join('');
+                                    })()}
+                                </div>
+                            ` : `
+                                <div class="text-center text-muted py-3">
+                                    <i class="bi bi-inbox fs-3"></i>
+                                    <p class="mb-0">Nenhuma tarefa alocada nesta sprint</p>
+                                </div>
+                            `}
                         </div>
                     </div>
                 </div>
@@ -1519,6 +1799,104 @@
         }
     }
     
+    /**
+     * 🎯 TOGGLE DAS TAREFAS DA SPRINT - Expansão fluida
+     */
+    function toggleSprintTasks(sprintId) {
+        const tasksContainer = document.getElementById(`tasks-${sprintId}`);
+        const toggleIcon = document.getElementById(`toggle-icon-${sprintId}`);
+        
+        if (!tasksContainer || !toggleIcon) {
+            console.warn('Elementos não encontrados para sprint:', sprintId);
+            return;
+        }
+        
+        // Inicializar propriedades se necessário
+        if (!tasksContainer.style.transition) {
+            tasksContainer.style.transition = 'all 0.4s ease-in-out';
+        }
+        if (!toggleIcon.style.transition) {
+            toggleIcon.style.transition = 'transform 0.3s ease';
+        }
+        
+        const isHidden = tasksContainer.style.display === 'none' || !tasksContainer.style.display;
+        
+        if (isHidden) {
+            // Expandir - Preparar para animação
+            tasksContainer.style.display = 'block';
+            tasksContainer.style.maxHeight = '0px';
+            tasksContainer.style.opacity = '0';
+            
+            // Forçar reflow para garantir que o estado inicial seja aplicado
+            tasksContainer.offsetHeight;
+            
+            // Trigger da animação de expansão
+            setTimeout(() => {
+                tasksContainer.style.maxHeight = '1200px';
+                tasksContainer.style.opacity = '1';
+            }, 10);
+            
+            // Rotacionar ícone para baixo
+            toggleIcon.style.transform = 'rotate(180deg)';
+            
+            console.log(`📂 Sprint ${sprintId}: Tarefas expandidas`);
+            
+        } else {
+            // Recolher
+            tasksContainer.style.maxHeight = '0px';
+            tasksContainer.style.opacity = '0';
+            
+            // Rotacionar ícone de volta
+            toggleIcon.style.transform = 'rotate(0deg)';
+            
+            // Esconder completamente após animação
+            setTimeout(() => {
+                tasksContainer.style.display = 'none';
+            }, 420);
+            
+            console.log(`📁 Sprint ${sprintId}: Tarefas recolhidas`);
+        }
+    }
+    
+    /**
+     * 🎯 FUNÇÃO AUXILIAR - Badge de prioridade
+     */
+    function getPriorityBadgeClass(priority) {
+        if (!priority) return 'bg-primary';
+        
+        const priorityLower = priority.toLowerCase();
+        switch (priorityLower) {
+            case 'urgente': return 'bg-danger';
+            case 'alta': return 'bg-warning text-dark';
+            case 'baixa': return 'bg-secondary';
+            case 'média':
+            case 'media': return 'bg-primary';
+            default: return 'bg-primary';
+        }
+    }
+    
+    /**
+     * 🎯 FUNÇÃO AUXILIAR - Badge de status da tarefa
+     */
+    function getTaskStatusBadge(task) {
+        if (!task.column_identifier && !task.status) return '';
+        
+        const status = task.column_identifier || task.status;
+        const statusLower = status.toLowerCase();
+        
+        if (statusLower.includes('concluido') || statusLower.includes('done') || statusLower === 'concluído') {
+            return '<span class="badge bg-success" style="font-size: 0.65rem;"><i class="bi bi-check-circle-fill"></i> Concluído</span>';
+        } else if (statusLower.includes('andamento') || statusLower.includes('progress')) {
+            return '<span class="badge bg-info" style="font-size: 0.65rem;"><i class="bi bi-arrow-repeat"></i> Em Andamento</span>';
+        } else if (statusLower.includes('revisao') || statusLower.includes('review')) {
+            return '<span class="badge bg-warning text-dark" style="font-size: 0.65rem;"><i class="bi bi-eye"></i> Revisão</span>';
+        } else if (statusLower.includes('fazer') || statusLower.includes('todo')) {
+            return '<span class="badge bg-light text-dark" style="font-size: 0.65rem;"><i class="bi bi-circle"></i> A Fazer</span>';
+        }
+        
+        return '';
+    }
+
     /**
      * Prepara dados para exportação
      */

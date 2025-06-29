@@ -393,7 +393,10 @@ function createSprintCard(sprint) {
 function renderSprintTask(task) {
     const projectPart = task.project_id || 'PROJ';
     const columnPart = (task.column_identifier || 'UNK').substring(0, 3).toUpperCase();
-    const isCompleted = task.column_identifier === 'concluido';
+    // Verifica se a tarefa está concluída
+    const isCompleted = task.column_identifier === 'concluido' || 
+                       task.status === 'Concluído' || 
+                       task.status === 'DONE';
     const fullTaskId = `${projectPart}-${columnPart}-${task.id}`;
     
     // Determina o tipo de origem da tarefa
@@ -433,7 +436,10 @@ function renderSprintTask(task) {
             
             <div class="task-header">
                 <div class="task-id-badge">${escapeHtml(fullTaskId)}</div>
-                <span class="task-priority-badge ${getPriorityClass(task.priority)}">${escapeHtml(task.priority || 'Média')}</span>
+                <div class="d-flex align-items-center gap-1">
+                    <span class="task-priority-badge ${getPriorityClass(task.priority)}">${escapeHtml(task.priority || 'Média')}</span>
+                    ${isCompleted ? '<span class="badge bg-success text-white" title="Tarefa Concluída"><i class="bi bi-check-circle-fill me-1"></i>Concluído</span>' : ''}
+                </div>
             </div>
             <div class="task-content">
                 <div class="task-title">${escapeHtml(task.title || 'Sem título')}</div>
