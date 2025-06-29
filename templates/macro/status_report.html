@@ -346,6 +346,39 @@
         padding: 1rem;
         box-shadow: 0 0.25rem 1rem rgba(0,0,0,0.15);
         border: 1px solid rgba(7, 48, 79, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .toggle-hide-btn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: none;
+        border: none;
+        color: var(--sou-cinza-escuro);
+        font-size: 0.8rem;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        opacity: 0.6;
+    }
+    
+    .toggle-hide-btn:hover {
+        background-color: rgba(255, 45, 95, 0.1);
+        color: var(--sou-rosa);
+        opacity: 1;
+        transform: scale(1.1);
+    }
+    
+    .hours-visibility-toggle.hidden {
+        transform: translateX(-100%);
+        opacity: 0;
+        pointer-events: none;
     }
     
     .toggle-switch {
@@ -686,7 +719,10 @@
     {% elif report_data %}
         
         <!-- Toggle de Visibilidade de Horas (só na tela) -->
-        <div class="hours-visibility-toggle screen-only">
+        <div class="hours-visibility-toggle screen-only" id="hoursToggleContainer">
+            <button class="toggle-hide-btn" onclick="hideToggle()" title="Ocultar controle (Ctrl+Shift+M para mostrar)">
+                <i class="bi bi-x"></i>
+            </button>
             <div class="d-flex align-items-center">
                 <span class="me-2 small fw-bold">Modo Cliente:</span>
                 <label class="toggle-switch">
@@ -777,7 +813,7 @@
                             <span class="kpi-label">Status Geral</span>
                             {% set status_color_class = report_data.status_geral_indicador | default('cinza') %}
                             {% set status_text_map = {
-                                'verde': 'No Prazo',
+                                'verde': 'Saudável',
                                 'amarelo': 'Atenção',
                                 'vermelho': 'Crítico',
                                 'azul': 'Concluído',
@@ -1708,6 +1744,47 @@ function initCharts() {
         });
     }
 }
+
+// === CONTROLE DE VISIBILIDADE DO TOGGLE ===
+function hideToggle() {
+    const toggleContainer = document.getElementById('hoursToggleContainer');
+    if (toggleContainer) {
+        toggleContainer.classList.add('hidden');
+        // Salvar no localStorage que está oculto
+        localStorage.setItem('toggleHidden', 'true');
+    }
+}
+
+function showToggle() {
+    const toggleContainer = document.getElementById('hoursToggleContainer');
+    if (toggleContainer) {
+        toggleContainer.classList.remove('hidden');
+        // Salvar no localStorage que está visível
+        localStorage.setItem('toggleHidden', 'false');
+    }
+}
+
+// Combinação de teclas Ctrl+Shift+M para mostrar o toggle
+document.addEventListener('keydown', function(event) {
+    if (event.ctrlKey && event.shiftKey && event.key === 'M') {
+        event.preventDefault();
+        const toggleContainer = document.getElementById('hoursToggleContainer');
+        if (toggleContainer && toggleContainer.classList.contains('hidden')) {
+            showToggle();
+        }
+    }
+});
+
+// Verificar localStorage ao carregar a página
+document.addEventListener('DOMContentLoaded', function() {
+    const isHidden = localStorage.getItem('toggleHidden') === 'true';
+    if (isHidden) {
+        const toggleContainer = document.getElementById('hoursToggleContainer');
+        if (toggleContainer) {
+            toggleContainer.classList.add('hidden');
+        }
+    }
+});
 </script>
 
 <!-- Carregar Chart.js -->

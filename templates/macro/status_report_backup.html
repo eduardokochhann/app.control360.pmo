@@ -922,13 +922,13 @@
                                 {% set status_color_class = report_data.status_geral_indicador | default('cinza') %}
                                 <div class="d-flex align-items-center">
                                      <span class="status-dot status-{{ status_color_class }}" data-status-dot></span>
-                                     {% set status_text_map = {
-                                         'verde': 'No Prazo',
-                                         'amarelo': 'Atenção',
-                                         'vermelho': 'Crítico',
-                                         'azul': 'Concluído',
-                                         'cinza': 'Não Iniciado'
-                                     } %}
+                                                                 {% set status_text_map = {
+                                'verde': 'Saudável',
+                                'amarelo': 'Atenção',
+                                'vermelho': 'Crítico',
+                                'azul': 'Concluído',
+                                'cinza': 'Não Iniciado'
+                            } %}
                                      <span class="h5 status-text text-{{ status_color_class }} editable-field" data-field="status-geral" data-status-text>{{ status_text_map.get(status_color_class, 'Não Iniciado') }}</span>
                                      <div class="status-selector ml-2" style="display:none;">
                                         <select class="form-select form-select-sm">

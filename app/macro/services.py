@@ -3867,29 +3867,11 @@ class MacroService(BaseService):
             else:
                 percentual_consumido = 0.0
             
-            # Determinar status geral do indicador
-            # Primeiro verificar se o projeto está realmente concluído
+            # === NOVA LÓGICA DE STATUS GERAL BASEADA EM TAREFAS REAIS ===
+            # Inicializar variáveis para análise posterior
             status_projeto = projeto_row.get('Status', '').upper()
             status_concluidos = ['FECHADO', 'ENCERRADO', 'RESOLVIDO', 'CANCELADO']
-            
-            if status_projeto in status_concluidos:
-                # Projeto realmente concluído
-                status_geral_indicador = 'azul'  # Azul para concluído
-            elif percentual_concluido >= 90:
-                # Alto percentual de conclusão, mas ainda não finalizado
-                status_geral_indicador = 'verde'  # Verde para quase concluído
-            elif percentual_concluido >= 70:
-                # Bom progresso
-                status_geral_indicador = 'verde'
-            elif percentual_concluido >= 30:
-                # Progresso moderado - verificar se está atrasado
-                if status_prazo == 'Atrasado':
-                    status_geral_indicador = 'vermelho'
-                else:
-                    status_geral_indicador = 'amarelo'
-            else:
-                # Baixo progresso
-                status_geral_indicador = 'vermelho'
+            status_geral_indicador = 'cinza'  # Default
             
             # Buscar backlog_id para o projeto
             backlog_id = self.get_backlog_id_for_project(project_id)
@@ -3994,6 +3976,92 @@ class MacroService(BaseService):
             else:
                 logger.warning(f"Backlog não encontrado para projeto {project_id}")
             
+            # === NOVA LÓGICA INTELIGENTE DE STATUS GERAL ===
+            # Usar percentual do CSV (não das tarefas)
+            logger.info(f"Percentual do CSV: {percentual_concluido:.1f}%")
+            
+            # Calcular indicadores de atividade das tarefas
+            total_tarefas = len(tarefas_concluidas) + len(tarefas_em_andamento) + len(tarefas_em_revisao) + len(tarefas_pendentes) + len(tarefas_proximo_prazo)
+            tarefas_ativas = len(tarefas_em_andamento) + len(tarefas_em_revisao)
+            tem_atividade = tarefas_ativas > 0
+            percentual_ativo = (tarefas_ativas / total_tarefas * 100) if total_tarefas > 0 else 0
+            
+            # Verificar se há tarefas atrasadas (vencimento passado)
+            from datetime import datetime
+            hoje = datetime.now()
+            tarefas_atrasadas = 0
+            
+            # Contar tarefas em andamento/pendentes que já passaram do prazo
+            for task_list in [tarefas_em_andamento, tarefas_em_revisao, tarefas_pendentes]:
+                for task in task_list:
+                    data_venc_str = task.get('data_vencimento', 'N/A')
+                    if data_venc_str != 'N/A':
+                        try:
+                            data_venc = datetime.strptime(data_venc_str, '%d/%m/%Y')
+                            if data_venc < hoje:
+                                tarefas_atrasadas += 1
+                        except:
+                            pass
+            
+            tem_tarefas_atrasadas = tarefas_atrasadas > 0
+            logger.info(f"Tarefas atrasadas: {tarefas_atrasadas}/{total_tarefas}")
+            
+            # Verificar status do projeto
+            status_iniciais = ['NOVO', 'ABERTO']
+            projeto_recente = status_projeto in status_iniciais
+            projeto_bloqueado = status_projeto == 'BLOQUEADO'
+            
+            # === ALGORITMO BASEADO NAS ESPECIFICAÇÕES ===
+            if status_projeto in status_concluidos:
+                # 🔵 AZUL - "Concluído" - Status oficial concluído
+                status_geral_indicador = 'azul'
+                logger.info(f"Status AZUL: Projeto oficialmente concluído ({status_projeto})")
+                
+            elif projeto_bloqueado:
+                # 🔴 VERMELHO - "Crítico" - Status BLOQUEADO
+                status_geral_indicador = 'vermelho'
+                logger.info(f"Status VERMELHO: Projeto bloqueado ({status_projeto})")
+                
+            elif projeto_recente:
+                # ⚫ CINZA - "Não Iniciado" - Projeto com status NOVO/ABERTO
+                status_geral_indicador = 'cinza'
+                logger.info(f"Status CINZA: Projeto recente ({status_projeto}) ainda não iniciado")
+                
+            elif not tem_tarefas_atrasadas and status_prazo != 'Atrasado':
+                # 🟢 VERDE - "Saudável" - Tarefas não atrasadas E projeto no prazo
+                status_geral_indicador = 'verde'
+                logger.info(f"Status VERDE: Projeto saudável - tarefas no prazo e projeto no prazo")
+                
+            elif percentual_concluido >= 50 and status_prazo == 'Atrasado':
+                # 🟡 AMARELO - "Atenção" - Progresso bom (≥50%) mas atrasado
+                status_geral_indicador = 'amarelo'
+                logger.info(f"Status AMARELO: Progresso bom ({percentual_concluido:.1f}%) mas projeto atrasado")
+                
+            elif percentual_concluido >= 40 and percentual_concluido < 75 and tem_atividade:
+                # 🟡 AMARELO - "Atenção" - Progresso moderado (40-74%) com atividade
+                status_geral_indicador = 'amarelo'
+                logger.info(f"Status AMARELO: Progresso moderado ({percentual_concluido:.1f}%) com atividade ({tarefas_ativas} tarefas)")
+                
+            elif percentual_concluido >= 15 and percentual_concluido < 40 and percentual_ativo >= 20:
+                # 🟡 AMARELO - "Atenção" - Progresso baixo (15-39%) mas com ≥20% atividade
+                status_geral_indicador = 'amarelo'
+                logger.info(f"Status AMARELO: Progresso baixo ({percentual_concluido:.1f}%) mas com {percentual_ativo:.1f}% de atividade")
+                
+            else:
+                # 🔴 VERMELHO - "Crítico" - Demais casos críticos
+                if percentual_concluido >= 40 and not tem_atividade:
+                    logger.info(f"Status VERMELHO: Progresso moderado ({percentual_concluido:.1f}%) mas sem atividade")
+                elif percentual_concluido >= 15 and percentual_ativo < 20:
+                    logger.info(f"Status VERMELHO: Progresso baixo ({percentual_concluido:.1f}%) sem atividade suficiente ({percentual_ativo:.1f}%)")
+                elif percentual_concluido < 15:
+                    logger.info(f"Status VERMELHO: Progresso muito baixo ({percentual_concluido:.1f}%)")
+                else:
+                    logger.info(f"Status VERMELHO: Situação crítica não categorizada - progresso: {percentual_concluido:.1f}%, atividade: {percentual_ativo:.1f}%")
+                
+                status_geral_indicador = 'vermelho'
+            
+            logger.info(f"Status final: {status_geral_indicador} | Progresso CSV: {percentual_concluido:.1f}% | Tarefas ativas: {tarefas_ativas}/{total_tarefas} | Atrasadas: {tarefas_atrasadas} | Projeto: {status_projeto}")
+            
             # Buscar marcos recentes
             try:
                 marcos_recentes = self.obter_marcos_recentes(project_id)
@@ -4065,8 +4133,8 @@ class MacroService(BaseService):
                 'squad': str(projeto_row.get('Squad', 'N/A')),
                 'especialista': str(projeto_row.get('Especialista', 'N/A')),
                 'account_manager': str(projeto_row.get('Account Manager', 'N/A')),
-                'data_inicio': projeto_row.get('DataInicio', 'N/A'),
-                'data_vencimento': projeto_row.get('VencimentoEm', 'N/A'),
+                'data_inicio': projeto_row.get('DataInicio').strftime('%d/%m/%Y') if pd.notnull(projeto_row.get('DataInicio')) else 'N/A',
+                'data_vencimento': projeto_row.get('VencimentoEm').strftime('%d/%m/%Y') if pd.notnull(projeto_row.get('VencimentoEm')) else 'N/A',
                 'status': str(projeto_row.get('Status', 'N/A')),
                 'status_atual': str(projeto_row.get('Status', 'N/A')),
                 'conclusao': projeto_row.get('Conclusao', 0),
