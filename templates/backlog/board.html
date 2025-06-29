@@ -307,6 +307,88 @@
             transform: translateX(2px);
         }
     }
+    
+    /* 🎯 ESTILOS PARA DRAG AND DROP DA WBS */
+    .wbs-drag-handle {
+        transition: color 0.2s ease;
+        user-select: none;
+    }
+    
+    .wbs-drag-handle:hover {
+        color: #007bff !important;
+    }
+    
+    .wbs-drag-handle:active {
+        cursor: grabbing !important;
+    }
+    
+    .wbs-row {
+        transition: all 0.2s ease;
+    }
+    
+    .wbs-row:hover {
+        background-color: rgba(0, 123, 255, 0.05) !important;
+    }
+    
+    /* Estilos durante o drag */
+    .wbs-sortable-ghost {
+        opacity: 0.4;
+        background: #f8f9fa !important;
+        transform: rotate(2deg);
+    }
+    
+    .wbs-sortable-chosen {
+        background: rgba(0, 123, 255, 0.1) !important;
+        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+    }
+    
+    .wbs-sortable-drag {
+        opacity: 0.8;
+        transform: rotate(-2deg);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Indicador visual de que pode ser arrastado */
+    #wbs-table tbody tr {
+        position: relative;
+    }
+    
+    #wbs-table tbody tr::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: transparent;
+        transition: background-color 0.2s ease;
+    }
+    
+    #wbs-table tbody tr:hover::before {
+        background: #007bff;
+    }
+    
+    /* Responsividade para WBS */
+    @media (max-width: 768px) {
+        .wbs-drag-handle {
+            padding: 4px !important;
+        }
+        
+        .wbs-drag-handle i {
+            font-size: 0.8rem;
+        }
+        
+        #wbs-table th,
+        #wbs-table td {
+            padding: 6px 4px;
+            font-size: 0.85rem;
+        }
+        
+        .wbs-controls .alert {
+            font-size: 0.8rem;
+            padding: 8px 12px;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -902,7 +984,8 @@
                         <div class="col-md-4">
                             <label class="form-label fw-bold">Ordenação:</label>
                             <select class="form-select" id="wbs-sort-order">
-                                <option value="priority" selected>Por Prioridade</option>
+                                <option value="position" selected>Por Posição Salva</option>
+                                <option value="priority">Por Prioridade</option>
                                 <option value="date">Por Data</option>
                                 <option value="specialist">Por Especialista</option>
                                 <option value="column">Por Coluna</option>
@@ -1997,6 +2080,61 @@
             loadProjectSprints();
         }
     });
+
+    // ===== ESTILOS CSS PARA DRAG AND DROP DA WBS =====
+    const wbsStyles = document.createElement('style');
+    wbsStyles.textContent = `
+        /* Estilos para drag and drop da WBS */
+        .wbs-sortable-ghost {
+            opacity: 0.4;
+            background: #e3f2fd;
+        }
+        
+        .wbs-sortable-chosen {
+            background: #bbdefb;
+        }
+        
+        .wbs-sortable-drag {
+            transform: rotate(5deg);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        .wbs-drag-handle {
+            transition: all 0.2s ease;
+        }
+        
+        .wbs-drag-handle:hover {
+            background-color: #f8f9fa !important;
+            cursor: grab;
+        }
+        
+        .wbs-drag-handle:active {
+            cursor: grabbing;
+        }
+        
+        .wbs-row {
+            transition: all 0.2s ease;
+        }
+        
+        .wbs-row:hover {
+            background-color: rgba(0,123,255,0.05);
+        }
+        
+        /* Melhorias visuais */
+        #wbs-table th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        #wbs-table td {
+            vertical-align: middle;
+        }
+    `;
+    document.head.appendChild(wbsStyles);
 
     // Inicialização unificada
     document.addEventListener('DOMContentLoaded', function() {

@@ -6,828 +6,677 @@
 {{ super() }}
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
 <style>
-    /* Classes para controlar visibilidade na tela e no PDF */
+    /* === CORES SOU.CLOUD === */
+    :root {
+        --sou-rosa: #FF2D5F;
+        --sou-azul: #07304F;
+        --sou-azul-claro: #4a90e2;
+        --sou-cinza: #f8f9fc;
+        --sou-cinza-escuro: #5a5c69;
+    }
+
+    /* === CONTROLE DE VISIBILIDADE === */
     .pdf-only {
-        display: none; /* Oculta elementos que devem aparecer apenas no PDF */
+        display: none;
     }
     
-    /* Estilos gerais */
-    .status-dot {
-        height: 25px;
-        width: 25px;
-        border-radius: 50%;
-        display: inline-block;
-        vertical-align: middle;
-        margin-right: 8px;
-        border: 3px solid #fff;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-    }
-    .status-verde { background-color: #1cc88a; } /* Verde do template */
-    .status-amarelo { background-color: #f6c23e; } /* Amarelo do template */
-    .status-vermelho { background-color: #e74a3b; } /* Vermelho do template */
-    .status-azul { background-color: #36b9cc; } /* Azul para concluído */
-    .status-cinza { background-color: #858796; } /* Cinza do template */
-    .status-text { font-weight: 600; font-size: 1.1rem; }
-    
-    /* Layout original do projeto */
-    .project-details-header {
-        font-size: 0.85rem;
-        color: #5a5c69;
-        margin-bottom: 1.5rem;
-        padding: 0.8rem;
-        background-color: #f8f9fc;
-        border-radius: 0.35rem;
-        border: 1px solid #e3e6f0;
-        display: flex; /* Adicionado para garantir o comportamento flex */
-        flex-wrap: wrap; /* Permite que os itens quebrem para a próxima linha */
-        align-items: center; /* Alinha os itens verticalmente */
-    }
-    
-    .project-details-header strong {
-        margin-right: 5px;
-    }
-    
-    .project-details-header span {
-        margin-right: 20px; /* Aumentar um pouco o espaço entre os itens */
-        margin-bottom: 8px; /* Adicionar espaço inferior para quando quebrar a linha */
-        white-space: nowrap; /* Evitar que o texto do item quebre no meio */
-    }
-    
-    /* KPI cards originais */
-    .kpi-card .card-body {
-        display: flex;
-        align-items: center;
-        height: 85px;
-        padding: 0.5rem 0.8rem;
-    }
-    
-    .kpi-card .kpi-content {
-        width: 100%;
-        margin-left: 0.8rem;
-        text-align: left; /* Adicionado para alinhar conteúdo à esquerda */
-    }
-    
-    .kpi-card .kpi-icon {
-        font-size: 1.8rem;
-        color: #dddfeb;
-    }
-    
-    .kpi-card .text-xs {
-        font-size: 0.65rem;
-        display: block;
-        margin-bottom: -2px;
-    }
-    
-    .kpi-card .h1, .kpi-card .h5 {
-        font-size: 1.4rem;
-        margin-bottom: 0;
-        line-height: 1.1;
-    }
-    
-    .kpi-card small.text-muted {
-        font-size: 0.65rem;
-        line-height: 1;
-        display: block;
-        margin-top: 1px;
-    }
-    
-    /* Charts originais */
-    .chart-card .card-body {
-        min-height: 220px; /* Altura original */
-        padding: 0.8rem; /* Revertido para padding original/simples */
-        /* Removidos display:flex e outros que podem ter causado estreitamento */
-    }
-    
-    .chart-card canvas {
-        max-height: 200px; /* Reativado */
-        min-height: 180px; /* Mantido, pode ser !important se necessário */
-        /* Removidos min-width e max-width % para deixar o Chart.js gerenciar mais */
-    }
-    
-    /* Títulos de seções */
-    .section-title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #5a5c69;
-        margin-bottom: 0.5rem;
-        padding-bottom: 0.4rem;
-        border-bottom: 1px solid #e3e6f0;
-    }
-    
-    /* Placeholders originais */
-    .placeholder-section {
-        background-color: #f8f9fc;
-        border: 1px dashed #d1d3e2;
-        padding: 1rem;
-        border-radius: 0.35rem;
-        text-align: center;
-        color: #858796;
-        margin-top: 1rem;
-        font-size: 0.85rem;
-    }
-    
-    .placeholder-section i {
-        font-size: 1.2rem;
-        margin-bottom: 0.4rem;
+    .hours-private {
         display: block;
     }
     
-    .placeholder-section h6 {
-        font-size: 0.9rem;
+    .hours-public {
+        display: none;
     }
     
-    .list-group-item {
-        background-color: transparent;
-        border-left: none;
-        border-right: none;
-        border-top: 1px solid #e3e6f0;
-        padding: 0.6rem 0;
-        font-size: 0.85rem;
+    /* Quando em modo público, inverte a visibilidade */
+    .public-mode .hours-private {
+        display: none !important;
     }
     
-    .list-group-item:first-child {
-        border-top: none;
-    }
-    
-    /* Estilos para campos editáveis */
-    .editable-field {
-        padding: 2px 5px;
-        border-radius: 3px;
-        transition: background-color 0.2s;
-    }
-    
-    .edit-mode .editable-field {
-        border: 1px dashed #4e73df;
-        background-color: rgba(78, 115, 223, 0.1);
-        cursor: pointer;
-    }
-    
-    .editable-field.editing {
-        background-color: white !important;
-        border: 1px solid #4e73df !important;
-        padding: 1px 4px;
-    }
-    
-    /* Estilo para o botão de modo de edição ativo */
-    #editModeBtn.active {
-        background-color: #e74a3b;
-        border-color: #e74a3b;
-        color: white;
-    }
-    
-    /* Estilo para entrada de edição */
-    .edit-input {
-        width: 100%;
-        border: none;
-        background: transparent;
-        font-size: inherit;
-        font-weight: inherit;
-        color: inherit;
-        padding: 0;
-        margin: 0;
-    }
-    
-    .edit-input:focus {
-        outline: none;
-    }
-
-    /* --- Estilos para Geração de PDF (WeasyPrint) --- */
-    @media print {
-        @page {
-            size: A4 portrait;
-            margin: 3mm !important; /* Margens mínimas reduzidas */
-        }
-
-        body {
-            background-color: #fff !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-        }
-
-        /* --- Controle de Visibilidade Essencial para Impressão do Navegador --- */
-        .screen-only,
-        .navbar, 
-        #accordionSidebar, 
-        footer.sticky-footer, 
-        .scroll-to-top,
-        #editModeBtn, 
-        #generatePdfBtn, /* Botão do html2pdf.js */
-        button.btn-outline-secondary.ms-2[onclick="window.print();"], /* Botão "Imprimir" específico */
-        a.btn.btn-sm.btn-primary[title*='Baixar Relatório em PDF'], /* Botão "Baixar PDF (Servidor)" */
-        .d-sm-flex.align-items-center.justify-content-between.mb-3 > .screen-only, /* Container dos botões no header da página */
-        .d-sm-flex.align-items-center.justify-content-between.mb-3 > h1.h3.text-gray-800 /* Oculta o H1 original na impressão */
-        {
-            display: none !important;
-        }
-
-        .pdf-only { /* Elementos que SÓ devem aparecer em qualquer tipo de PDF/impressão */
-            display: block !important; 
-        }
-
-        /* Evitar quebras indesejadas DENTRO de seções importantes */
-        .placeholder-section, .card, .timeline-section, .table-responsive > table {
-            page-break-inside: avoid !important;
-        }
-
-        /* Evitar quebra de página ANTES de um rodapé da empresa, se possível */
-        .company-footer.pdf-only {
-            page-break-before: auto !important; 
-        }
-
-        /* Estilos para o cabeçalho da empresa na impressão do navegador */
-        /* ANTIGO CABEÇALHO - SERÁ OCULTADO ABAIXO */
-        /* .company-header.pdf-only { ... } */
-        /* .company-header.pdf-only .print-logo { ... } */
-        /* .company-header.pdf-only .company-header-text { ... } */
-        /* .company-header.pdf-only .company-logo { ... } */
-        /* .company-header.pdf-only .report-date-print { ... } */
-
-        /* NOVO LAYOUT DO CABEÇALHO DE IMPRESSÃO */
-        .print-header-layout.pdf-only {
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: flex-start !important; /* Alinha blocos internos (logo-area, company-info-area) à esquerda */
-            width: 100% !important;
-            margin-bottom: 10px !important; /* Reduzido para menos espaço antes dos detalhes do projeto */
-        }
-
-        .print-header-layout.pdf-only .print-logo-area {
-            width: 100%; 
-            display: flex !important;
-            justify-content: flex-start !important; /* Alinha o logo à esquerda */
-            margin-bottom: 10px !important;
-        }
-
-        .print-header-layout.pdf-only .print-logo-large {
-            max-height: 30px !important; /* Tamanho do logo reduzido */
-            width: auto !important;
-            opacity: 0.9 !important; 
-        }
-
-        .print-header-layout.pdf-only .company-info-area {
-            width: 100%;
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: flex-start !important; /* Alinha "Control360" e "Data" à esquerda */
-            margin-bottom: 10px !important; /* Espaço entre info empresa e título Status Report */
-        }
-
-        .print-header-layout.pdf-only .company-name {
-            font-size: 10pt !important; 
-            font-weight: bold !important;
-            color: #444 !important;
-            margin-bottom: 3px !important;
-        }
-
-        .print-header-layout.pdf-only .report-date {
-            font-size: 8pt !important;
-            color: #666 !important;
-        }
-        
-        .print-header-layout.pdf-only .print-title-area {
-            width: 100% !important;
-            text-align: center !important; /* Centraliza o título "Status Report" */
-            margin-bottom: 15px !important; /* Espaço após o título */
-            padding-bottom: 10px !important; /* Espaço para a borda */
-            border-bottom: 1px solid #e3e6f0 !important; /* Borda abaixo do título */
-        }
-
-        .print-header-layout.pdf-only .print-main-title {
-            font-size: 1.6rem !important; 
-            font-weight: 600 !important;
-            color: #333 !important;
-            margin: 0 !important;
-        }
-
-        /* Comentar ou remover regras para o antigo .company-header.pdf-only se não forem mais necessárias */
-        /*
-        .company-header.pdf-only,
-        .company-header.pdf-only .print-logo,
-        .company-header.pdf-only .company-header-text,
-        .company-header.pdf-only .company-logo,
-        .company-header.pdf-only .report-date-print {
-            display: none !important;
-        }
-        */
-
-        /* Estilos para a linha de informações do projeto na impressão do navegador */
-        .project-info-line.pdf-only {
-            font-size: 8.5pt !important;
-            padding: 4px 0px !important; /* Mantém padding vertical, zero horizontal */
-            margin-bottom: 30px !important;
-            text-align: left !important;
-            width: 100% !important;
-            box-sizing: border-box !important;
-            padding-left: 0 !important; /* Garante que não haja padding esquerdo */
-            display: block !important; /* Adicionado para garantir o comportamento de bloco */
-        }
-
-    }
-    
-    /* NOVO: Adicionar estilo para status pendente mais visível */
-    .badge-pending {
-        background-color: #6c757d !important;
-        color: white !important;
-    }
-    
-    /* NOVO: Melhores estilos para tabela de marcos */
-    .milestone-name {
-        font-weight: 600 !important;
-        color: #333 !important;
-        text-align: left !important;
-        display: inline-block !important;
-    }
-    
-    .milestone-date {
-        color: #666 !important;
-        font-size: 0.85em !important;
-        text-align: right !important;
+    .public-mode .hours-public {
         display: block !important;
     }
-
-    /* Classe para estilo ao gerar PDF via browser */
-    .print-mode {
-        font-size: 8pt !important;
-        line-height: 1.3 !important;
-        width: 210mm !important; /* Largura exata do A4 */
-        box-sizing: border-box !important;
-        padding: 0 !important;
-        margin: 0 auto !important;
+    
+    /* Forçar visibilidade padrão no modo privado */
+    body:not(.public-mode) .hours-private {
+        display: block !important;
     }
     
-    .print-mode .company-header {
-        margin-bottom: 10px !important;
-        padding-bottom: 5px !important;
-        border-bottom: 1px solid #4e73df !important;
-        display: flex; /* Usar flexbox para alinhar os itens */
-        flex-direction: column; /* Empilhar verticalmente */
-        align-items: flex-start; /* Alinhar itens à esquerda */
-        width: 100% !important; /* Garantir largura total */
-        box-sizing: border-box !important; /* Incluir padding e border na largura total */
-        /* padding-left: 25pt !important; */ /* Removido para alinhar à esquerda da página */
-    }
-    
-    .print-mode .company-logo {
-        font-size: 12pt !important;
-        font-weight: bold; /* Adicionado para destacar */
-        margin-bottom: 3px; /* Espaço entre logo e data do relatório */
+    body:not(.public-mode) .hours-public {
+        display: none !important;
     }
 
-    .print-mode .report-date-print { /* Nova classe para estilizar a data do relatório */
-        font-size: 8pt !important;
-        color: #666 !important;
-        /* align-self: flex-end; */ /* Removido para alinhar à esquerda com o pai */
-        /* margin-top: -1.5em; */ /* Removido */
+    /* === CABEÇALHO PROFISSIONAL === */
+    .sou-header {
+        background: linear-gradient(135deg, var(--sou-azul) 0%, var(--sou-azul-claro) 100%);
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 0.5rem;
+        position: relative;
+        overflow: hidden;
     }
     
-    .print-mode .project-info-line {
-        font-size: 7.8pt !important; /* Reduzido de 8.5pt */
-        padding: 4px 0px !important; /* Ajustando padding, removendo lateral */
-        margin-bottom: 30px !important; /* Aumentando margem inferior para mais espaço */
-        text-align: left !important; /* Garantindo alinhamento à esquerda */
-        width: 100% !important; /* Garantir largura total */
-        box-sizing: border-box !important; /* Incluir padding na largura total */
-        /* padding-left: 25pt !important; */ /* Removido para alinhar à esquerda da página */
+    .sou-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 200px;
+        height: 100%;
+        background: linear-gradient(45deg, transparent 30%, rgba(255, 45, 95, 0.1) 100%);
     }
     
-    .print-mode .row {
-        margin-left: -5px !important;
-        margin-right: -5px !important;
-        margin-bottom: 8px !important;
+    .sou-header .container-fluid {
+        position: relative;
+        z-index: 2;
     }
     
-    .print-mode .col-xl-3,
-    .print-mode .col-md-6,
-    .print-mode .col-lg-6,
-    .print-mode .col-md-4 {
-        padding-left: 5px !important;
-        padding-right: 5px !important;
+    .sou-logo {
+        max-height: 60px;
+        filter: brightness(0) invert(1);
     }
     
-    .print-mode .status-dot {
-        height: 10px !important;
-        width: 10px !important;
-        border-width: 1px !important;
-        margin-right: 3px !important;
+    .report-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 0;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
-    .print-mode .kpi-card {
-        margin-bottom: 8px !important;
-    }
-    
-    .print-mode .kpi-card .card-body {
-        height: auto !important;
-        min-height: 50px !important;
-        padding: 4px 6px !important;
-    }
-    
-    .print-mode .kpi-card .kpi-icon {
-        font-size: 1rem !important;
-    }
-    
-    .print-mode .kpi-card .text-xs {
-        font-size: 6pt !important;
-    }
-    
-    .print-mode .kpi-card .h1 {
-        font-size: 12pt !important;
-    }
-    
-    .print-mode .kpi-card .h5 {
-        font-size: 10pt !important;
-    }
-    
-    .print-mode .kpi-card small.text-muted { 
-        font-size: 6pt !important; 
-    }
-    
-    .print-mode .card-header {
-        padding: 3px 6px !important;
-    }
-    
-    .print-mode .card-header h6 {
-        font-size: 10pt !important;
-        margin: 0 !important;
-    }
-    
-    .print-mode .chart-card .card-body {
-        min-height: 150px !important;
-        padding: 5px !important;
-    }
-    
-    .print-mode canvas {
-        max-height: 140px !important;
-        max-width: none !important;
-    }
-    
-    .print-mode .placeholder-section {
-        height: 80px !important;
-        padding: 5px !important;
-        margin-top: 5px !important;
-    }
-    
-    .print-mode .placeholder-section i {
-        font-size: 0.8rem !important;
-        margin-bottom: 2px !important;
-    }
-    
-    .print-mode .placeholder-section h6 {
-        font-size: 8pt !important;
-        margin-bottom: 3px !important;
-    }
-    
-    .print-mode .placeholder-section p {
-        font-size: 7pt !important;
-        margin-bottom: 0 !important;
-    }
-    
-    .print-mode .company-footer {
-        margin-top: 10px !important;
-        padding-top: 5px !important;
-        font-size: 7pt !important;
-        page-break-before: auto; /* Evitar quebra de página antes se não for necessário */
-    }
-    
-    .print-mode .company-footer p {
-        margin-bottom: 2px !important;
+    .report-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-top: 0.5rem;
     }
 
-    .print-mode .chart-card {
-        margin-bottom: 8px !important;
+    /* === CARDS DE KPI PROFISSIONAIS === */
+    .kpi-card-modern {
+        border: none;
+        border-radius: 1rem;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        background: white;
+        box-shadow: 0 0.25rem 1rem rgba(0,0,0,0.1);
+    }
+    
+    .kpi-card-modern:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 2rem rgba(0,0,0,0.15);
+    }
+    
+    .kpi-card-modern .card-body {
+        padding: 1.5rem;
+        position: relative;
+    }
+    
+    .kpi-icon-modern {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        font-size: 2.5rem;
+        opacity: 0.1;
+        color: var(--sou-azul);
+    }
+    
+    .kpi-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--sou-cinza-escuro);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .kpi-value {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: var(--sou-azul);
+        line-height: 1;
+        margin-bottom: 0.25rem;
+    }
+    
+    .kpi-subtitle {
+        font-size: 0.8rem;
+        color: var(--sou-cinza-escuro);
+        opacity: 0.8;
+    }
+    
+    /* Variações de cores para KPIs */
+    .kpi-status .kpi-icon-modern { color: var(--sou-rosa); }
+    .kpi-progress .kpi-icon-modern { color: #28a745; }
+    .kpi-schedule .kpi-icon-modern { color: #ffc107; }
+    .kpi-effort .kpi-icon-modern { color: var(--sou-azul-claro); }
+
+    /* === STATUS DOTS MELHORADOS === */
+    .status-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .status-dot-modern {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        position: relative;
+    }
+    
+    .status-dot-modern::after {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.3); opacity: 0.5; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    
+    .status-no-prazo { background-color: #28a745; }
+    .status-no-prazo::after { background-color: #28a745; }
+    
+    .status-atencao { background-color: #ffc107; }
+    .status-atencao::after { background-color: #ffc107; }
+    
+    .status-critico { background-color: var(--sou-rosa); }
+    .status-critico::after { background-color: var(--sou-rosa); }
+    
+    .status-concluido { background-color: var(--sou-azul); }
+    .status-concluido::after { background-color: var(--sou-azul); }
+
+    /* === INFORMAÇÕES DO PROJETO === */
+    .project-info-modern {
+        background: linear-gradient(135deg, #ffffff 0%, var(--sou-cinza) 100%);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border: 1px solid rgba(7, 48, 79, 0.1);
+    }
+    
+    .project-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    
+    .project-info-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .project-info-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: var(--sou-cinza-escuro);
+        margin-bottom: 0.25rem;
+        letter-spacing: 0.5px;
+    }
+    
+    .project-info-value {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--sou-azul);
     }
 
-    .print-mode .chart-card .card-body {
-        min-height: 135px !important;
-        max-height: 150px !important;
-        padding: 5px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
+    /* === SEÇÕES DE CONTEÚDO === */
+    .content-section {
+        background: white;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.05);
+        border: 1px solid rgba(7, 48, 79, 0.1);
+    }
+    
+    .section-header-modern {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--sou-cinza);
+    }
+    
+    .section-icon {
+        background: linear-gradient(135deg, var(--sou-rosa) 0%, #ff4569 100%);
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        font-size: 1.1rem;
+    }
+    
+    .section-title-modern {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--sou-azul);
+        margin: 0;
     }
 
-    /* Timeline estilo tabular (igual Marcos) */
+    /* === TABELAS PROFISSIONAIS === */
+    .table-modern {
+        margin-bottom: 0;
+    }
+    
+    .table-modern thead th {
+        background: linear-gradient(135deg, var(--sou-azul) 0%, var(--sou-azul-claro) 100%);
+        color: white;
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border: none;
+        padding: 1rem 0.75rem;
+    }
+    
+    .table-modern tbody td {
+        vertical-align: middle;
+        padding: 0.75rem;
+        border-bottom: 1px solid rgba(7, 48, 79, 0.1);
+    }
+    
+    .table-modern tbody tr:hover {
+        background-color: rgba(7, 48, 79, 0.02);
+    }
+
+    /* === BADGES MODERNOS === */
+    .badge-modern {
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        font-size: 0.75rem;
+    }
+    
+    .badge-success-modern { background-color: #28a745; }
+    .badge-warning-modern { background-color: #ffc107; color: #000; }
+    .badge-danger-modern { background-color: var(--sou-rosa); }
+    .badge-primary-modern { background-color: var(--sou-azul); }
+    .badge-info-modern { background-color: var(--sou-azul-claro); }
+
+    /* === BOTÕES PROFISSIONAIS === */
+    .btn-sou-primary {
+        background: linear-gradient(135deg, var(--sou-azul) 0%, var(--sou-azul-claro) 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        border-radius: 0.5rem;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-sou-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(7, 48, 79, 0.3);
+    }
+    
+    .btn-sou-secondary {
+        background: linear-gradient(135deg, var(--sou-rosa) 0%, #ff4569 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        border-radius: 0.5rem;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-sou-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(255, 45, 95, 0.3);
+    }
+
+    /* === TOGGLE PARA VISIBILIDADE DE HORAS === */
+    .hours-visibility-toggle {
+        position: fixed;
+        top: 100px;
+        left: 20px;
+        z-index: 1000;
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        box-shadow: 0 0.25rem 1rem rgba(0,0,0,0.15);
+        border: 1px solid rgba(7, 48, 79, 0.1);
+    }
+    
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 60px;
+        height: 34px;
+    }
+    
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.4s;
+        border-radius: 34px;
+    }
+    
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 26px;
+        width: 26px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: 0.4s;
+        border-radius: 50%;
+    }
+    
+    input:checked + .toggle-slider {
+        background-color: var(--sou-azul);
+    }
+    
+    input:checked + .toggle-slider:before {
+        transform: translateX(26px);
+    }
+
+    /* === ESTILOS TIMELINE === */
     .timeline-section {
-        margin-bottom: 15px !important;
-        border: 1px solid #e3e6f0 !important;
-        border-radius: 0.25rem !important;
-        overflow: hidden !important;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid rgba(7, 48, 79, 0.1);
     }
-
+    
+    .timeline-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+    
     .timeline-section .section-header {
-        padding: 8px 12px !important;
-        margin: 0 !important;
-        background-color: #f8f9fa !important;
-        border-bottom: 1px solid #e9ecef !important;
-        font-weight: 600 !important;
-        color: #495057 !important;
-        text-align: left !important;
-        display: flex !important;
-        align-items: center !important;
+        display: flex;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        background: rgba(7, 48, 79, 0.02);
+        border-radius: 0.5rem;
+        border-left: 4px solid var(--sou-azul);
     }
     
     .timeline-section .section-header i {
-        margin-right: 8px !important;
-        font-size: 1rem !important;
+        margin-right: 0.5rem;
+        font-size: 1.1rem;
     }
     
     .timeline-section .section-header span {
-        line-height: 1.2 !important;
-        font-size: 0.85rem !important;
-    }
-    
-    /* Cabeçalho da tabela de timeline */
-    .timeline-section .column-headers {
-        display: flex !important;
-        padding: 6px 12px !important;
-        font-size: 0.7rem !important;
-        font-weight: 700 !important;
-        background-color: #eef0f2 !important;
-        border-bottom: 1px solid #dee2e6 !important;
-        color: #555 !important;
-    }
-    
-    .timeline-section .column-headers .task-column {
-        flex: 0 0 50% !important;
-        text-align: left !important;
-        padding-left: 0 !important;
-    }
-    
-    .timeline-section .column-headers .status-column {
-        flex: 0 0 25% !important;
-        text-align: center !important;
-    }
-    
-    .timeline-section .column-headers .date-column {
-        flex: 0 0 25% !important;
-        text-align: right !important;
-        padding-right: 12px !important;
-    }
-    
-    .timeline-section .list-group {
-        margin-bottom: 0 !important;
-    }
-    
-    .timeline-section .list-group-item {
-        padding: 6px 12px !important;
-        font-size: 0.8rem !important;
-        border: none !important;
-        border-bottom: 1px solid #f0f0f0 !important;
-        margin: 0 !important;
-        display: flex !important;
-        align-items: center !important;
-        transition: background-color 0.15s ease-in-out !important;
-    }
-    
-    .timeline-section .list-group-item:hover {
-        background-color: #f8f9fa !important;
-    }
-    
-    .timeline-section .list-group-item:last-child {
-        border-bottom: none !important;
-    }
-    
-    .timeline-section .badge {
-        flex: 0 0 25% !important;
-        font-size: 0.7rem !important;
-        padding: 4px 8px !important;
-        border-radius: 3px !important;
-        margin: 0 auto !important; /* Centralizar horizontalmente */
-        text-align: center !important;
-        display: inline-block !important;
-        width: auto !important;
-        min-width: 80px !important;
-        max-width: 90px !important; /* Limitar largura máxima */
-    }
-    
-    /* Container de status para centralizar o badge */
-    .timeline-section .status-container {
-        flex: 0 0 25% !important;
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-    }
-    
-    /* Badge para A Fazer em cinza */
-    .timeline-section .badge.bg-secondary {
-        background-color: #6c757d !important;
-        color: white !important;
-    }
-    
-    .timeline-section .text-muted.small {
-        flex: 0 0 25% !important;
-        font-size: 0.75rem !important;
-        white-space: nowrap !important;
-        text-align: right !important;
-        color: #6c757d !important;
-        padding-right: 12px !important;
-    }
-    
-    .timeline-task-name {
-        flex: 0 0 50% !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        margin-right: 0 !important;
-        font-weight: 500 !important;
-        color: #495057 !important;
-        text-align: left !important;
-        font-size: 0.8rem !important;
-    }
-    
-    /* Alinhar estilo da tabela de marcos */
-    .table-sm th {
-        font-weight: 700 !important;
-        font-size: 0.7rem !important;
-        background-color: #eef0f2 !important;
-        color: #555 !important;
-        padding: 6px 12px !important;
-        border-bottom: 1px solid #dee2e6 !important;
-    }
-    
-    .table-sm td {
-        font-size: 0.8rem !important;
-        padding: 6px 12px !important;
-        vertical-align: middle !important;
-    }
-    
-    /* Garantir que os ícones e textos de data fiquem lado a lado */
-    .timeline-section .text-muted.small i {
-        margin-right: 2px !important;
-    }
-    
-    .timeline-section .text-muted.small span.mx-1 {
-        margin-left: 3px !important;
-        margin-right: 3px !important;
-        opacity: 0.7 !important;
+        font-weight: 600;
+        font-size: 1rem;
+        color: var(--sou-azul);
     }
 
-    /* Alinhamento específico para a tabela de marcos */
-    .table-sm th:first-child {
-        text-align: left !important;
-    }
-    
-    .table-sm th:last-child {
-        text-align: right !important;
-    }
-    
-    .table-sm td:first-child {
-        text-align: left !important;
-    }
-    
-    .table-sm td:last-child {
-        text-align: right !important;
-    }
-
-    /* Garantir que os badges em ambas as seções sejam idênticos */
-    .timeline-section .badge,
-    .table-sm .badge {
-        font-size: 0.7rem !important;
-        padding: 4px 8px !important;
-        border-radius: 3px !important;
-        display: inline-block !important;
-        text-align: center !important;
-        min-width: 80px !important;
-    }
-
-    /* Ajuste para o ícone de Marco (ponto de exclamação) */
-    .table-sm td .badge.bg-danger {
-        font-size: 0.65rem !important;
-        padding: 2px 4px !important;
-        margin-right: 6px !important;
-        width: auto !important;
-        min-width: auto !important;
-    }
-    
-    /* Ajuste para o badge de status de Marco */
-    .table-sm td:nth-child(2) .badge {
-        font-size: 0.7rem !important;
-        padding: 4px 8px !important;
-        border-radius: 3px !important;
-        display: inline-block !important;
-        text-align: center !important;
-        min-width: 80px !important;
-    }
-
-    /* Estilos para a seção de notas */
-    .note-section .list-group-item {
-        transition: background-color 0.2s ease;
-        text-align: left !important; /* Força o alinhamento do conteúdo à esquerda */
-    }
-
-    .note-section .list-group-item:hover {
-        background-color: rgba(0,0,0,0.02);
-    }
-
-    .note-section .badge {
-        font-size: 0.7rem;
-        padding: 0.35em 0.65em;
-    }
-
-    .note-section .text-muted {
-        font-size: 0.8rem;
-    }
-
-    /* Cores específicas para categorias de notas */
-    .badge.bg-decision { background-color: #4e73df !important; }
-    .badge.bg-impediment { background-color: #e74a3b !important; }
-    .badge.bg-general { background-color: #858796 !important; }
-
-    /* Cores específicas para prioridades */
-    .badge.bg-high { background-color: #e74a3b !important; }
-    .badge.bg-medium { background-color: #f6c23e !important; }
-    .badge.bg-low { background-color: #1cc88a !important; }
-
-    /* Ajustes para impressão */
+    /* === ESTILOS PARA PDF === */
     @media print {
-        .note-section {
-            break-inside: avoid; /* Manter */
-            /* page-break-inside: avoid; */ /* Comentado */
+        @page {
+            size: A4 portrait;
+            margin: 1cm;
         }
         
-        .note-section .list-group-item {
-            break-inside: avoid; /* Manter */
-            /* page-break-inside: avoid; */ /* Comentado, pois a regra acima é mais específica e tem !important */
+        .pdf-only {
+            display: block !important;
+        }
+        
+        .screen-only {
+            display: none !important;
+        }
+        
+        .hours-visibility-toggle {
+            display: none !important;
+        }
+        
+        .sou-header {
+            background: var(--sou-azul) !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+        
+        .kpi-card-modern {
+            page-break-inside: avoid;
+            box-shadow: none;
+            border: 1px solid #ddd;
+        }
+        
+        .content-section {
+            page-break-inside: avoid;
+            box-shadow: none;
+            border: 1px solid #ddd;
+        }
+        
+        .section-icon {
+            background: var(--sou-rosa) !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+        
+        .table-modern thead th {
+            background: var(--sou-azul) !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+        
+        .timeline-section {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #ddd;
+            page-break-inside: avoid;
+        }
+        
+        .timeline-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .timeline-section .section-header {
+            background: rgba(7, 48, 79, 0.05) !important;
+            border-left: 3px solid var(--sou-azul) !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
         }
     }
 
-    /* Permitir quebra dentro do card da seção de notas, mas manter itens de nota juntos */
-    .placeholder-section .card {
-        page-break-inside: auto !important;
-    }
-    /* Reforçar que itens de nota individuais não quebram */
-    .placeholder-section .card .note-section .list-group-item {
-        page-break-inside: avoid !important; 
+    /* === BOTÕES PROFISSIONAIS === */
+    .btn-sou-primary {
+        background: linear-gradient(135deg, var(--sou-azul) 0%, var(--sou-azul-claro) 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        border-radius: 0.5rem;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
     }
     
-    /* Permitir quebra dentro do card da seção de Riscos e Impedimentos */
-    .placeholder-section:has(h6:contains("Riscos e Impedimentos")) .card {
-        page-break-inside: auto !important;
+    .btn-sou-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(7, 48, 79, 0.3);
+        color: white;
+    }
+    
+    .btn-sou-secondary {
+        background: linear-gradient(135deg, var(--sou-rosa) 0%, #ff4569 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        border-radius: 0.5rem;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-sou-secondary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 1rem rgba(255, 45, 95, 0.3);
+        color: white;
     }
 
-    /* Reforçar que itens de nota individuais NÃO quebram */
-    .placeholder-section .card .note-section .list-group-item {
-        page-break-inside: avoid !important; 
+    /* === SEÇÕES DE CONTEÚDO === */
+    .content-section {
+        background: white;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.05);
+        border: 1px solid rgba(7, 48, 79, 0.1);
+    }
+    
+    .section-header-modern {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--sou-cinza);
+    }
+    
+    .section-icon {
+        background: linear-gradient(135deg, var(--sou-rosa) 0%, #ff4569 100%);
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        font-size: 1.1rem;
+    }
+    
+    .section-title-modern {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--sou-azul);
+        margin: 0;
     }
 
-    /* Estilos para o rodapé da empresa na impressão do navegador */
-    .company-footer.pdf-only {
-        /* page-break-before: auto !important; */ /* Comentado pois auto é o padrão e pode não ser necessário forçar */
-        margin-top: 20px !important; /* Aumentado para mais espaço acima */
-        padding-top: 10px !important; /* Aumentado para mais espaço interno acima */
-        border-top: 1px solid #ddd !important; /* Adiciona uma linha sutil no topo do rodapé */
-        text-align: left !important; /* Alinha todo o texto do rodapé à esquerda */
-        font-size: 7pt !important; /* Define um tamanho de fonte base para o rodapé */
-        color: #333 !important; /* Cor de texto principal para o rodapé */
+    /* === TABELAS PROFISSIONAIS === */
+    .table-modern {
+        margin-bottom: 0;
+    }
+    
+    .table-modern thead th {
+        background: linear-gradient(135deg, var(--sou-azul) 0%, var(--sou-azul-claro) 100%);
+        color: white;
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border: none;
+        padding: 1rem 0.75rem;
+    }
+    
+    .table-modern tbody td {
+        vertical-align: middle;
+        padding: 0.75rem;
+        border-bottom: 1px solid rgba(7, 48, 79, 0.1);
+    }
+    
+    .table-modern tbody tr:hover {
+        background-color: rgba(7, 48, 79, 0.02);
     }
 
-    .company-footer.pdf-only .footer-line {
-        margin-bottom: 3px !important; /* Pequeno espaço entre as linhas do rodapé */
+    /* === BADGES MODERNOS === */
+    .badge-modern {
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        font-size: 0.75rem;
+    }
+    
+    .badge-success-modern { background-color: #28a745; }
+    .badge-warning-modern { background-color: #ffc107; color: #000; }
+    .badge-danger-modern { background-color: var(--sou-rosa); }
+    .badge-primary-modern { background-color: var(--sou-azul); }
+    .badge-info-modern { background-color: var(--sou-azul-claro); }
+
+    /* === ESTILOS PARA PDF === */
+    @media print {
+        @page {
+            size: A4 portrait;
+            margin: 1cm;
+        }
+        
+        .pdf-only {
+            display: block !important;
+        }
+        
+        .screen-only {
+            display: none !important;
+        }
+        
+        .hours-visibility-toggle {
+            display: none !important;
+        }
+        
+        .sou-header {
+            background: var(--sou-azul) !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+        
+        .kpi-card-modern {
+            page-break-inside: avoid;
+            box-shadow: none;
+            border: 1px solid #ddd;
+        }
+        
+        .content-section {
+            page-break-inside: avoid;
+            box-shadow: none;
+            border: 1px solid #ddd;
+        }
+        
+        .section-icon {
+            background: var(--sou-rosa) !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+        
+        .table-modern thead th {
+            background: var(--sou-azul) !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
     }
 
-    /* Garantir que o contêiner dos badges de categoria/prioridade alinhe à esquerda */
-    .note-section .list-group-item > .d-flex > div:first-child {
-        text-align: left !important;
+    /* === RESPONSIVIDADE === */
+    @media (max-width: 768px) {
+        .report-title {
+            font-size: 2rem;
+        }
+        
+        .project-info-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .hours-visibility-toggle {
+            position: relative;
+            right: auto;
+            top: auto;
+            margin-bottom: 1rem;
+        }
     }
-
-    /* Garantir que o contêiner das tags (Informação, Combinado) alinhe à esquerda e não tenha padding lateral */
-    .note-section .list-group-item .mt-2 {
-        text-align: left !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-        display: flex !important; /* Para garantir que justify-content funcione */
-        justify-content: flex-start !important; /* Alinha itens flex à esquerda */
-    }
-
-    /* Remover margem direita dos badges dentro da seção de notas para alinhamento à esquerda completo */
-    .note-section .list-group-item .badge.me-1,
-    .note-section .list-group-item .badge.me-2, /* Caso usem me-2, etc. */
-    .note-section .list-group-item .badge.m-1, /* Caso usem m-1, etc. */
-    .note-section .list-group-item .badge.ms-1,
-    .note-section .list-group-item .badge.ms-2 {
-        margin-right: 0 !important;
-        margin-left: 0 !important; /* Adicionado para garantir que não haja margem esquerda também */
-    }
-
-    .note-section .list-group-item:hover {
-        background-color: rgba(0,0,0,0.02);
-    }
-
-    /* NOVO: Melhores estilos para tabela de riscos */
-    .risk-description {
-        font-weight: 500 !important;
-        color: #495057 !important;
-        text-align: left !important;
-        display: inline-block !important;
-        font-size: 0.9rem !important;
-        line-height: 1.4 !important;
-    }
-
 </style>
-
 {% endblock %}
 
 {% block content %}
-
 <div class="container-fluid">
     {% if error %}
         <div class="alert alert-danger" role="alert">
@@ -835,152 +684,163 @@
             <p>{{ error }}</p>
         </div>
     {% elif report_data %}
-        <div class="report-header text-center">
-            <!-- Cabeçalho da Página -->
-            <div class="d-sm-flex align-items-center justify-content-between mb-3">
-                <h1 class="h3 mb-0 text-gray-800">
-                    <i class="bi bi-file-earmark-text me-2"></i>Status Report
-                </h1>
-                <div class="screen-only"> <!-- Div para agrupar data e botão -->
-                    <span class="text-muted small me-3">Gerado em: {{ data_geracao | default('N/A', true) }}</span>
-                    <!-- Botão para o Quadro Kanban -->
-                    <a href="{{ url_for('backlog.board_by_project', project_id=project_id) }}" 
-                       class="btn btn-sm btn-outline-info me-2" 
-                       title="Ir para o Quadro Kanban do Projeto">
-                        <i class="bi bi-kanban me-1"></i> Quadro Kanban
-                    </a>
-                    <!-- Botões de ação - apenas o botão de impressão será visível -->
-                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="window.print();" title="Usar impressão do navegador">
-                        <i class="bi bi-printer me-1"></i> Imprimir
-                    </button>
-                    <!-- Botões ocultos por padrão -->
-                    <button class="btn btn-sm btn-warning me-2 d-none" id="editModeBtn" title="Editar relatório antes de baixar">
-                        <i class="bi bi-pencil-square me-1"></i> <span>Editar Relatório</span>
-                    </button>
-                    {% if pdf_generator_available %}
-                        <a href="{{ url_for('macro.download_status_report', project_id=project_id) }}" 
-                           class="btn btn-sm btn-primary" 
-                           title="Baixar Relatório em PDF ({{ generator_type }})">
-                            <i class="bi bi-download me-1"></i> Baixar PDF (Servidor)
-                        </a>
-                    {% endif %}
-                    <!-- Botão para gerar PDF via JavaScript (oculto) -->
-                    <button class="btn btn-sm btn-success ms-2 d-none" id="generatePdfBtn" title="Gerar PDF usando o navegador">
-                        <i class="bi bi-filetype-pdf me-1"></i> Baixar PDF (Browser)
-                    </button>
+        
+        <!-- Toggle de Visibilidade de Horas (só na tela) -->
+        <div class="hours-visibility-toggle screen-only">
+            <div class="d-flex align-items-center">
+                <span class="me-2 small fw-bold">Modo Cliente:</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="publicModeToggle">
+                    <span class="toggle-slider"></span>
+                </label>
+                <span class="ms-2 small">
+                    <span class="private-label">Detalhado</span>
+                    <span class="public-label" style="display: none;">Público</span>
+                </span>
+            </div>
+            <small class="text-muted d-block mt-1">
+                <span class="private-desc">Mostra valores de horas</span>
+                <span class="public-desc" style="display: none;">Oculta valores sensíveis</span>
+            </small>
+        </div>
+
+        <!-- Cabeçalho Principal -->
+        <div class="sou-header">
+            <div class="container-fluid">
+                <div class="row align-items-center">
+                    <div class="col-md-2">
+                        <img src="{{ url_for('static', filename='images/sou.cloud.png') }}" alt="SOU.cloud" class="sou-logo">
+                    </div>
+                    <div class="col-md-8 text-center">
+                        <h1 class="report-title">Status Report</h1>
+                        <p class="report-subtitle">Relatório Executivo de Acompanhamento</p>
+                    </div>
+                    <div class="col-md-2 text-end">
+                        <div class="screen-only">
+                            <a href="{{ url_for('backlog.board_by_project', project_id=project_id) }}" 
+                               class="btn btn-sou-secondary btn-sm me-2">
+                                <i class="bi bi-kanban me-1"></i> Kanban
+                            </a>
+                            <button class="btn btn-sou-primary btn-sm" onclick="window.print();">
+                                <i class="bi bi-printer me-1"></i> PDF
+                            </button>
+                        </div>
+                        <div class="pdf-only text-white">
+                            <strong>Data:</strong> {{ data_geracao | default('N/A', true) }}<br>
+                            <strong>Versão:</strong> 1.0
+                        </div>
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Container principal que será convertido para PDF -->
-            <div id="pdfContent">
+        <!-- Container principal que será convertido para PDF -->
+        <div id="pdfContent">
             
-            <!-- NOVO CABEÇALHO PARA IMPRESSÃO (logo, info empresa, título) -->
-            <div class="print-header-layout pdf-only">
-                <div class="print-logo-area">
-                    <img src="{{ url_for('static', filename='images/sou.cloud.png') }}" alt="SOU.cloud Logo" class="print-logo-large">
+            <!-- Informações do Projeto -->
+            <div class="project-info-modern">
+                <div class="project-info-grid">
+                    <div class="project-info-item">
+                        <span class="project-info-label">Projeto</span>
+                        <span class="project-info-value">{{ report_data.info_geral.nome | default('N/A') }}</span>
+                    </div>
+                    <div class="project-info-item">
+                        <span class="project-info-label">ID</span>
+                        <span class="project-info-value">{{ report_data.info_geral.id | default('N/A') }}</span>
+                    </div>
+                    <div class="project-info-item">
+                        <span class="project-info-label">Squad</span>
+                        <span class="project-info-value">{{ report_data.info_geral.squad | default('N/A') }}</span>
+                    </div>
+                    <div class="project-info-item">
+                        <span class="project-info-label">Especialista</span>
+                        <span class="project-info-value">{{ report_data.info_geral.especialista | default('N/A') }}</span>
+                    </div>
+                    <div class="project-info-item">
+                        <span class="project-info-label">Prazo</span>
+                        <span class="project-info-value">{{ report_data.info_geral.data_vencimento | default('A definir') }}</span>
+                    </div>
+                    <div class="project-info-item">
+                        <span class="project-info-label">Status</span>
+                        <span class="project-info-value">{{ report_data.info_geral.status_atual | default('N/A') }}</span>
+                    </div>
                 </div>
-                <div class="company-info-area">
-                    <div class="company-name">Control360.SOU - PMO</div>
-                    <div class="report-date">Data: <strong>{{ data_geracao | default('N/A', true) }}</strong></div>
-                </div>
-                <div class="print-title-area">
-                    <h1 class="print-main-title">Status Report</h1>
-                </div>
-            </div>
-            
-            <!-- Detalhes do Projeto - Mantém o original na tela, redesenhado apenas na impressão -->
-            <div class="project-details-header screen-only">
-                <span><strong>Projeto:</strong> <span class="editable-field" data-field="project-name">{{ report_data.info_geral.nome | default('N/A') }}</span></span>
-                <span><strong>ID:</strong> <span class="editable-field" data-field="project-id">{{ report_data.info_geral.id | default('N/A') }}</span></span>
-                <span><strong>Status Atual:</strong> <span class="editable-field" data-field="project-status">{{ report_data.info_geral.status_atual | default('N/A') }}</span></span>
-                <span><strong>Squad:</strong> <span class="editable-field" data-field="project-squad">{{ report_data.info_geral.squad | default('N/A') }}</span></span>
-                <span><strong>Especialista:</strong> <span class="editable-field" data-field="project-specialist">{{ report_data.info_geral.especialista | default('N/A') }}</span></span>
-            </div>
-
-            <!-- Versão para impressão (apenas visível no PDF) -->
-            <div class="project-info-line pdf-only">
-                <span class="project-info-item"><strong>Projeto:</strong> <span class="editable-field" data-field="project-name">{{ report_data.info_geral.nome | default('N/A') }}</span></span>
-                <span class="project-info-separator">|</span>
-                <span class="project-info-item"><strong>ID:</strong> <span class="editable-field" data-field="project-id">{{ report_data.info_geral.id | default('N/A') }}</span></span>
-                <span class="project-info-separator">|</span>
-                <span class="project-info-item"><strong>Status:</strong> <span class="editable-field" data-field="project-status">{{ report_data.info_geral.status_atual | default('N/A') }}</span></span>
-                <span class="project-info-separator">|</span>
-                <span class="project-info-item"><strong>Squad:</strong> <span class="editable-field" data-field="project-squad">{{ report_data.info_geral.squad | default('N/A') }}</span></span>
-                <span class="project-info-separator">|</span>
-                <span class="project-info-item"><strong>Especialista:</strong> <span class="editable-field" data-field="project-specialist">{{ report_data.info_geral.especialista | default('N/A') }}</span></span>
             </div>
 
-            <!-- Linha de KPIs Resumo -->
-            <div class="row">
+            <!-- KPIs Principais -->
+            <div class="row mb-4">
                 <!-- Status Geral -->
                 <div class="col-xl-3 col-md-6 mb-4">
-                    <div class="card border-left-primary shadow h-100 py-2 kpi-card">
+                    <div class="card kpi-card-modern kpi-status h-100">
                         <div class="card-body">
-                            <i class="bi bi-clipboard-data kpi-icon"></i>
-                            <div class="kpi-content">
-                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">STATUS GERAL</div>
-                                {% set status_color_class = report_data.status_geral_indicador | default('cinza') %}
-                                <div class="d-flex align-items-center">
-                                     <span class="status-dot status-{{ status_color_class }}" data-status-dot></span>
-                                     {% set status_text_map = {
-                                         'verde': 'No Prazo',
-                                         'amarelo': 'Atenção',
-                                         'vermelho': 'Crítico',
-                                         'azul': 'Concluído',
-                                         'cinza': 'Não Iniciado'
-                                     } %}
-                                     <span class="h5 status-text text-{{ status_color_class }} editable-field" data-field="status-geral" data-status-text>{{ status_text_map.get(status_color_class, 'Não Iniciado') }}</span>
-                                     <div class="status-selector ml-2" style="display:none;">
-                                        <select class="form-select form-select-sm">
-                                            <option value="verde">No Prazo</option>
-                                            <option value="amarelo">Atenção</option>
-                                            <option value="vermelho">Crítico</option>
-                                            <option value="azul">Concluído</option>
-                                            <option value="cinza">Não Iniciado</option>
-                                        </select>
-                                     </div>
-                                </div>
+                            <i class="bi bi-speedometer2 kpi-icon-modern"></i>
+                            <span class="kpi-label">Status Geral</span>
+                            {% set status_color_class = report_data.status_geral_indicador | default('cinza') %}
+                            {% set status_text_map = {
+                                'verde': 'No Prazo',
+                                'amarelo': 'Atenção',
+                                'vermelho': 'Crítico',
+                                'azul': 'Concluído',
+                                'cinza': 'Não Iniciado'
+                            } %}
+                            <div class="status-indicator">
+                                <span class="status-dot-modern status-{{ status_color_class.replace('verde', 'no-prazo').replace('amarelo', 'atencao').replace('vermelho', 'critico').replace('azul', 'concluido') }}"></span>
+                                <span class="kpi-value">{{ status_text_map.get(status_color_class, 'Não Iniciado') }}</span>
                             </div>
+                            <div class="kpi-subtitle">Situação atual do projeto</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- % Concluído -->
+                <!-- Progresso -->
                 <div class="col-xl-3 col-md-6 mb-4">
-                    <div class="card border-left-info shadow h-100 py-2 kpi-card">
+                    <div class="card kpi-card-modern kpi-progress h-100">
                         <div class="card-body">
-                            <i class="bi bi-check2-circle kpi-icon"></i>
-                            <div class="kpi-content">
-                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">% CONCLUÍDO</div>
-                                <div class="h1 mb-0 font-weight-bold text-gray-800 editable-field" data-field="percentual-concluido">{{ report_data.progresso.percentual_concluido | round(1) }}%</div>
-                            </div>
+                            <i class="bi bi-graph-up kpi-icon-modern"></i>
+                            <span class="kpi-label">Progresso</span>
+                            <div class="kpi-value">{{ report_data.progresso.percentual_concluido | round(1) }}%</div>
+                            <div class="kpi-subtitle">Conclusão das atividades</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Status Prazo -->
+                <!-- Status do Prazo -->
                 <div class="col-xl-3 col-md-6 mb-4">
-                    <div class="card border-left-warning shadow h-100 py-2 kpi-card">
+                    <div class="card kpi-card-modern kpi-schedule h-100">
                         <div class="card-body">
-                            <i class="bi bi-calendar-week kpi-icon"></i>
-                            <div class="kpi-content">
-                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">STATUS DO PRAZO</div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800 editable-field" data-field="status-prazo">{{ report_data.progresso.status_prazo | default('A Definir') }}</div>
-                                <small class="text-muted">Prev: <span class="editable-field" data-field="data-prevista">{{ report_data.progresso.data_prevista_termino | default(report_data.info_geral.data_vencimento | default('N/A', true)) }}</span></small>
-                            </div>
+                            <i class="bi bi-calendar-check kpi-icon-modern"></i>
+                            <span class="kpi-label">Cronograma</span>
+                            <div class="kpi-value" style="font-size: 1.5rem;">{{ report_data.progresso.status_prazo | default('A Definir') }}</div>
+                            <div class="kpi-subtitle">Prev: {{ report_data.progresso.data_prevista_termino | default(report_data.info_geral.data_vencimento | default('N/A', true)) }}</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- % Esforço Consumido -->
+                <!-- Esforço (com controle de visibilidade) -->
                 <div class="col-xl-3 col-md-6 mb-4">
-                    <div class="card border-left-success shadow h-100 py-2 kpi-card">
+                    <div class="card kpi-card-modern kpi-effort h-100">
                         <div class="card-body">
-                            <i class="bi bi-hourglass-split kpi-icon"></i>
-                            <div class="kpi-content">
-                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">% ESFORÇO CONSUMIDO</div>
-                                <div class="h1 mb-0 font-weight-bold text-gray-800 editable-field" data-field="percentual-esforco">{{ report_data.esforco.percentual_consumido | round(1) }}%</div>
-                                <small class="text-muted"><span class="editable-field" data-field="horas-utilizadas">{{ report_data.esforco.horas_utilizadas | round(1) }}</span>h / <span class="editable-field" data-field="horas-planejadas">{{ report_data.esforco.horas_planejadas | round(1) }}</span>h</small>
+                            <i class="bi bi-hourglass-split kpi-icon-modern"></i>
+                            <span class="kpi-label">Esforço</span>
+                            
+                            <!-- Versão Privada (com valores) -->
+                            <div class="hours-private">
+                                <div class="kpi-value">{{ report_data.esforco.percentual_consumido | round(1) }}%</div>
+                                <div class="kpi-subtitle">{{ report_data.esforco.horas_utilizadas | round(1) }}h / {{ report_data.esforco.horas_planejadas | round(1) }}h</div>
+                            </div>
+                            
+                            <!-- Versão Pública (sem valores específicos) -->
+                            <div class="hours-public">
+                                {% if report_data.esforco.percentual_consumido | round(1) <= 80 %}
+                                    <div class="kpi-value" style="font-size: 1.4rem;">Dentro do Previsto</div>
+                                    <div class="kpi-subtitle">Consumo controlado</div>
+                                {% elif report_data.esforco.percentual_consumido | round(1) <= 100 %}
+                                    <div class="kpi-value" style="font-size: 1.4rem;">Próximo ao Limite</div>
+                                    <div class="kpi-subtitle">Monitoramento ativo</div>
+                                {% else %}
+                                    <div class="kpi-value" style="font-size: 1.4rem;">Acima do Previsto</div>
+                                    <div class="kpi-subtitle">Requer atenção</div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -1004,10 +864,17 @@
                 <div class="col-lg-6 mb-4">
                      <div class="card shadow chart-card h-100">
                         <div class="card-header py-3">
-                            <h6 class="m-0 font-weight-bold text-primary">Esforço (Horas Planejado vs Utilizado)</h6>
+                            <!-- Título privado (com valores de horas) -->
+                            <h6 class="m-0 font-weight-bold text-primary hours-private">Esforço (Horas Planejado vs Utilizado)</h6>
+                            <!-- Título público (progresso de tarefas) -->
+                            <h6 class="m-0 font-weight-bold text-primary hours-public">Progresso das Tarefas</h6>
                         </div>
                         <div class="card-body d-flex justify-content-center align-items-center">
-                            <canvas id="esforcoChart" style="max-height: 200px;"></canvas>
+                            <!-- Gráfico privado (com valores de horas detalhados) -->
+                            <canvas id="esforcoChart" class="hours-private" style="max-height: 200px;"></canvas>
+                            
+                            <!-- Gráfico público (tarefas criadas vs concluídas) -->
+                            <canvas id="tarefasChart" class="hours-public" style="max-height: 200px;"></canvas>
                         </div>
                     </div>
                 </div>
@@ -1016,16 +883,18 @@
             <!-- Marcos Recentes (Linha inteira) -->
             <div class="row mb-4">
                 <div class="col-md-12">
-                    <div class="placeholder-section">
-                        <div class="d-flex align-items-center mb-2">
-                            <i class="bi bi-calendar-check text-primary me-2"></i>
-                            <h6 class="section-title mb-0">Marcos Recentes</h6>
+                    <div class="content-section">
+                        <div class="section-header-modern">
+                            <div class="section-icon">
+                                <i class="bi bi-calendar-check"></i>
+                            </div>
+                            <h6 class="section-title-modern">Marcos Recentes</h6>
                         </div>
                         {% if report_data and report_data.marcos_recentes and report_data.marcos_recentes|length > 0 %}
                             <div class="table-responsive">
-                                <table class="table table-sm table-hover">
+                                <table class="table table-modern">
                                     <thead>
-                                        <tr class="table-light">
+                                        <tr>
                                             <th style="width: 50%">Marco</th>
                                             <th style="width: 20%">Status</th>
                                             <th style="width: 30%">Data Planejada</th>
@@ -1065,12 +934,14 @@
             <!-- Linha do Tempo (Linha inteira) -->
             <div class="row mb-4">
                 <div class="col-md-12">
-                    <div class="placeholder-section">
-                        <div class="d-flex align-items-center mb-2">
-                            <i class="bi bi-list-task text-primary me-2"></i>
-                            <h6 class="section-title mb-0">Linha do Tempo (Tarefas)</h6>
+                    <div class="content-section">
+                        <div class="section-header-modern">
+                            <div class="section-icon">
+                                <i class="bi bi-list-task"></i>
+                            </div>
+                            <h6 class="section-title-modern">Linha do Tempo (Tarefas)</h6>
                         </div>
-                        <div class="card shadow-sm h-100">
+                        <div class="card shadow-sm h-100" style="border: none; box-shadow: none !important; background: transparent;">
                             {# Mostrar loading apenas se NÃO for PDF #}
                             <div id="timeline-loading" class="text-center p-3" style="display: none;">
                                 <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
@@ -1090,17 +961,17 @@
                             <!-- Lista de tarefas -->
                             {# Mostrar conteúdo da timeline: se for PDF, renderiza direto; senão, JS controla #}
                             <div id="timeline-content" style="display: block;">
-                                <!-- Próximas tarefas -->
-                                <div class="timeline-section">
+                                <!-- Próximas tarefas - OCULTADO conforme solicitado -->
+                                <div class="timeline-section" style="display: none;">
                                     <div class="section-header">
                                         <i class="bi bi-calendar-event text-warning"></i>
                                         <span class="fw-bold">Próximas Tarefas (7 dias)</span>
                                     </div>
                                     {% if report_data.tarefas_proximo_prazo and report_data.tarefas_proximo_prazo|length > 0 %}
                                         <div class="table-responsive">
-                                            <table class="table table-sm table-hover">
+                                            <table class="table table-modern">
                                                 <thead>
-                                                    <tr class="table-light">
+                                                    <tr>
                                                         <th style="width: 50%">Tarefa</th>
                                                         <th style="width: 20%">Prioridade</th>
                                                         <th style="width: 30%">Prazo</th>
@@ -1128,30 +999,30 @@
                                     {% endif %}
                                 </div>
                                 
-                                <!-- Tarefas em andamento -->
+                                <!-- 1. Tarefas concluídas -->
                                 <div class="timeline-section">
                                     <div class="section-header">
-                                        <i class="bi bi-play-circle text-primary"></i>
-                                        <span class="fw-bold">Em Andamento</span>
+                                        <i class="bi bi-check-circle text-success"></i>
+                                        <span class="fw-bold">Concluídas</span>
                                     </div>
-                                    {% if report_data.tarefas_em_andamento and report_data.tarefas_em_andamento|length > 0 %}
+                                    {% if report_data.tarefas_concluidas and report_data.tarefas_concluidas|length > 0 %}
                                         <div class="table-responsive">
-                                            <table class="table table-sm table-hover">
+                                            <table class="table table-modern">
                                                 <thead>
-                                                    <tr class="table-light">
+                                                    <tr>
                                                         <th style="width: 50%">Tarefa</th>
                                                         <th style="width: 20%">Prioridade</th>
-                                                        <th style="width: 30%">Prazo</th>
+                                                        <th style="width: 30%">Prazo/Conclusão</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {% for task in report_data.tarefas_em_andamento %}
+                                                    {% for task in report_data.tarefas_concluidas %}
                                                         <tr>
                                                             <td>
                                                                 <span class="timeline-task-name">{{ task.titulo | default('Tarefa sem título') }}</span>
                                                             </td>
                                                             <td>
-                                                                <span class="badge bg-primary">{{ task.prioridade | default('N/A')}}</span>
+                                                                <span class="badge bg-success">{{ task.prioridade | default('N/A') }}</span>
                                                             </td>
                                                             <td>
                                                                 <span class="text-muted small">{{ task.data_vencimento | default('-') }}</span>
@@ -1162,11 +1033,11 @@
                                             </table>
                                         </div>
                                     {% else %}
-                                        <div class="text-center text-muted small p-3">Nenhuma tarefa em andamento.</div>
+                                        <div class="text-center text-muted small p-3">Nenhuma tarefa concluída.</div>
                                     {% endif %}
                                 </div>
                                 
-                                <!-- NOVA SEÇÃO: Tarefas em Revisão -->
+                                <!-- 2. Tarefas em Revisão -->
                                 <div class="timeline-section">
                                     <div class="section-header">
                                         <i class="bi bi-search text-info"></i>
@@ -1174,9 +1045,9 @@
                                     </div>
                                     {% if report_data.tarefas_em_revisao and report_data.tarefas_em_revisao|length > 0 %}
                                         <div class="table-responsive">
-                                            <table class="table table-sm table-hover">
+                                            <table class="table table-modern">
                                                 <thead>
-                                                    <tr class="table-light">
+                                                    <tr>
                                                         <th style="width: 50%">Tarefa</th>
                                                         <th style="width: 20%">Prioridade</th>
                                                         <th style="width: 30%">Prazo</th>
@@ -1204,7 +1075,45 @@
                                     {% endif %}
                                 </div>
                                 
-                                <!-- NOVA SEÇÃO: Tarefas Pendentes -->
+                                <!-- 3. Tarefas em andamento -->
+                                <div class="timeline-section">
+                                    <div class="section-header">
+                                        <i class="bi bi-play-circle text-primary"></i>
+                                        <span class="fw-bold">Em Andamento</span>
+                                    </div>
+                                    {% if report_data.tarefas_em_andamento and report_data.tarefas_em_andamento|length > 0 %}
+                                        <div class="table-responsive">
+                                            <table class="table table-modern">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="width: 50%">Tarefa</th>
+                                                        <th style="width: 20%">Prioridade</th>
+                                                        <th style="width: 30%">Prazo</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for task in report_data.tarefas_em_andamento %}
+                                                        <tr>
+                                                            <td>
+                                                                <span class="timeline-task-name">{{ task.titulo | default('Tarefa sem título') }}</span>
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge bg-primary">{{ task.prioridade | default('N/A')}}</span>
+                                                            </td>
+                                                            <td>
+                                                                <span class="text-muted small">{{ task.data_vencimento | default('-') }}</span>
+                                                            </td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    {% else %}
+                                        <div class="text-center text-muted small p-3">Nenhuma tarefa em andamento.</div>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- 4. Tarefas Pendentes -->
                                 <div class="timeline-section">
                                     <div class="section-header">
                                         <i class="bi bi-pause-circle text-secondary"></i>
@@ -1212,9 +1121,9 @@
                                     </div>
                                     {% if report_data.tarefas_pendentes and report_data.tarefas_pendentes|length > 0 %}
                                         <div class="table-responsive">
-                                            <table class="table table-sm table-hover">
+                                            <table class="table table-modern">
                                                 <thead>
-                                                    <tr class="table-light">
+                                                    <tr>
                                                         <th style="width: 50%">Tarefa</th>
                                                         <th style="width: 20%">Prioridade</th>
                                                         <th style="width: 30%">Prazo</th>
@@ -1246,44 +1155,6 @@
                                         <div class="text-center text-muted small p-3">Nenhuma tarefa pendente.</div>
                                     {% endif %}
                                 </div>
-                                
-                                <!-- Tarefas concluídas -->
-                                <div class="timeline-section">
-                                    <div class="section-header">
-                                        <i class="bi bi-check-circle text-success"></i>
-                                        <span class="fw-bold">Concluídas</span>
-                                    </div>
-                                    {% if report_data.tarefas_concluidas and report_data.tarefas_concluidas|length > 0 %}
-                                        <div class="table-responsive">
-                                            <table class="table table-sm table-hover">
-                                                <thead>
-                                                    <tr class="table-light">
-                                                        <th style="width: 50%">Tarefa</th>
-                                                        <th style="width: 20%">Prioridade</th>
-                                                        <th style="width: 30%">Prazo/Conclusão</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {% for task in report_data.tarefas_concluidas %}
-                                                        <tr>
-                                                            <td>
-                                                                <span class="timeline-task-name">{{ task.titulo | default('Tarefa sem título') }}</span>
-                                                            </td>
-                                                            <td>
-                                                                <span class="badge bg-success">{{ task.prioridade | default('N/A') }}</span>
-                                                            </td>
-                                                            <td>
-                                                                <span class="text-muted small">{{ task.data_vencimento | default('-') }}</span>
-                                                            </td>
-                                                        </tr>
-                                                    {% endfor %}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    {% else %}
-                                        <div class="text-center text-muted small p-3">Nenhuma tarefa concluída.</div>
-                                    {% endif %}
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -1293,16 +1164,18 @@
             <!-- Riscos e Impedimentos (Linha inteira) -->
             <div class="row mb-4">
                 <div class="col-md-12">
-                    <div class="placeholder-section">
-                        <div class="d-flex align-items-center mb-2">
-                            <i class="bi bi-exclamation-triangle text-danger me-2"></i>
-                            <h6 class="section-title mb-0">Riscos e Impedimentos</h6>
+                    <div class="content-section">
+                        <div class="section-header-modern">
+                            <div class="section-icon">
+                                <i class="bi bi-exclamation-triangle"></i>
+                            </div>
+                            <h6 class="section-title-modern">Riscos e Impedimentos</h6>
                         </div>
                         {% if report_data and report_data.riscos_impedimentos and report_data.riscos_impedimentos|length > 0 %}
                             <div class="table-responsive">
-                                <table class="table table-sm table-hover">
+                                <table class="table table-modern">
                                     <thead>
-                                        <tr class="table-light">
+                                        <tr>
                                             <th style="width: 50%">Descrição do Risco</th>
                                             <th style="width: 20%">Severidade</th>
                                             <th style="width: 30%">Status</th>
@@ -1349,10 +1222,12 @@
             <!-- Notas e Observações (Linha inteira) -->
             <div class="row mb-4">
                 <div class="col-md-12">
-                    <div class="placeholder-section">
-                        <div class="d-flex align-items-center mb-2">
-                            <i class="bi bi-journal-text text-info me-2"></i>
-                            <h6 class="section-title mb-0">Notas e Observações</h6>
+                    <div class="content-section">
+                        <div class="section-header-modern">
+                            <div class="section-icon">
+                                <i class="bi bi-journal-text"></i>
+                            </div>
+                            <h6 class="section-title-modern">Notas e Observações</h6>
                         </div>
                         {% if report_data and report_data.notas and report_data.notas|length > 0 %}
                             <div class="card">
@@ -1362,11 +1237,11 @@
                                             <div class="d-flex justify-content-between align-items-start">
                                                 <div class="flex-grow-1">
                                                     <div class="mb-2">
-                                                        <span class="badge 
-                                                            {% if nota.categoria == 'decision' %}bg-primary
-                                                            {% elif nota.categoria == 'impediment' %}bg-danger
-                                                            {% elif nota.categoria == 'general' %}bg-secondary
-                                                            {% else %}bg-info{% endif %} me-1">
+                                                        <span class="badge badge-modern
+                                                            {% if nota.categoria == 'decision' %}badge-primary-modern
+                                                            {% elif nota.categoria == 'impediment' %}badge-danger-modern
+                                                            {% elif nota.categoria == 'general' %}badge-info-modern
+                                                            {% else %}badge-info-modern{% endif %} me-1">
                                                             {% if nota.categoria == 'decision' %}Decisão
                                                             {% elif nota.categoria == 'impediment' %}Impedimento
                                                             {% elif nota.categoria == 'general' %}Geral
@@ -1486,7 +1361,219 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Carregar gráficos
     initCharts();
+    
+    // Inicializar toggle de visibilidade de horas
+    initHoursVisibilityToggle();
+    
+    // Inicializar gráfico público de tarefas (só quando necessário)
+    // initPublicTasksChart(); // Será chamado pelo toggle quando necessário
 });
+
+// Variáveis globais para controlar gráficos
+let tarefasChartInstance = null;
+
+// Função para controlar a visibilidade de informações de horas
+function initHoursVisibilityToggle() {
+    const toggle = document.getElementById('publicModeToggle');
+    const body = document.body;
+    const privateLabel = document.querySelector('.private-label');
+    const publicLabel = document.querySelector('.public-label');
+    const privateDesc = document.querySelector('.private-desc');
+    const publicDesc = document.querySelector('.public-desc');
+    
+    if (!toggle) return;
+    
+    // Garantir estado inicial correto
+    if (!toggle.checked) {
+        body.classList.remove('public-mode');
+    }
+    
+    toggle.addEventListener('change', function() {
+        if (this.checked) {
+            // Modo público - ocultar valores sensíveis
+            body.classList.add('public-mode');
+            privateLabel.style.display = 'none';
+            publicLabel.style.display = 'inline';
+            privateDesc.style.display = 'none';
+            publicDesc.style.display = 'block';
+            
+            // Criar gráfico de tarefas se ainda não existe
+            if (!tarefasChartInstance) {
+                console.log('Criando gráfico de tarefas...');
+                initPublicTasksChart();
+            } else {
+                console.log('Gráfico de tarefas já existe, reutilizando...');
+            }
+            
+            console.log('Modo público ativado - valores de horas ocultos');
+            console.log('Classe public-mode aplicada:', body.classList.contains('public-mode'));
+        } else {
+            // Modo privado - mostrar valores detalhados
+            body.classList.remove('public-mode');
+            privateLabel.style.display = 'inline';
+            publicLabel.style.display = 'none';
+            privateDesc.style.display = 'block';
+            publicDesc.style.display = 'none';
+            
+            console.log('Modo privado ativado - valores de horas visíveis');
+            console.log('Classe public-mode removida:', !body.classList.contains('public-mode'));
+        }
+    });
+    
+    console.log('Toggle de visibilidade de horas inicializado');
+    
+    // Debug do estado inicial
+    console.log('Estado inicial do toggle:', toggle.checked);
+    console.log('Classe public-mode inicial:', document.body.classList.contains('public-mode'));
+    console.log('Canvas esforço visível:', document.getElementById('esforcoChart') ? 'SIM' : 'NÃO');
+    console.log('Canvas tarefas visível:', document.getElementById('tarefasChart') ? 'SIM' : 'NÃO');
+}
+
+// Função para inicializar o gráfico público de tarefas
+function initPublicTasksChart() {
+    const tarefasCtx = document.getElementById('tarefasChart');
+    if (!tarefasCtx) {
+        console.log('Canvas de tarefas não encontrado');
+        return;
+    }
+    
+    // Verificar se estamos realmente em modo público
+    if (!document.body.classList.contains('public-mode')) {
+        console.log('Tentativa de criar gráfico de tarefas fora do modo público - ignorando');
+        return;
+    }
+    
+    console.log('Iniciando criação do gráfico de tarefas em modo público...');
+    
+    // Usar dados reais das tarefas do backend
+    const reportData = {
+        // Dados de contagem de tarefas reais - a serem implementados no backend
+        {% if report_data.contagem_tarefas %}
+        contagem_tarefas: {
+            total: {{ report_data.contagem_tarefas.total | default(0) }},
+            concluidas: {{ report_data.contagem_tarefas.concluidas | default(0) }},
+            restantes: {{ report_data.contagem_tarefas.restantes | default(0) }}
+        }
+        {% else %}
+                 // Fallback: calcular baseado nas listas de tarefas disponíveis
+         contagem_tarefas: {
+             concluidas: {{ (report_data.tarefas_concluidas | length) if report_data.tarefas_concluidas else 0 }},
+             em_andamento: {{ (report_data.tarefas_em_andamento | length) if report_data.tarefas_em_andamento else 0 }},
+             proximo_prazo: {{ (report_data.tarefas_proximo_prazo | length) if report_data.tarefas_proximo_prazo else 0 }},
+             em_revisao: {{ (report_data.tarefas_em_revisao | length) if report_data.tarefas_em_revisao else 0 }},
+             pendentes: {{ (report_data.tarefas_pendentes | length) if report_data.tarefas_pendentes else 0 }},
+             // Fallback para usar progresso se as listas estiverem vazias
+             usar_progresso_fallback: true,
+             percentual_progresso: {{ report_data.progresso.percentual_concluido | default(0) | round(1) }}
+         }
+        {% endif %}
+    };
+    
+    let tarefasConcluidas, tarefasRestantes;
+    
+    {% if report_data.contagem_tarefas %}
+    // Usar dados diretos do backend se disponíveis
+    tarefasConcluidas = reportData.contagem_tarefas.concluidas;
+    tarefasRestantes = reportData.contagem_tarefas.restantes;
+         {% else %}
+     // Calcular baseado nas listas de tarefas disponíveis
+     tarefasConcluidas = reportData.contagem_tarefas.concluidas;
+     const tarefasNaoConcluidas = 
+         reportData.contagem_tarefas.em_andamento + 
+         reportData.contagem_tarefas.proximo_prazo + 
+         reportData.contagem_tarefas.em_revisao + 
+         reportData.contagem_tarefas.pendentes;
+     tarefasRestantes = tarefasNaoConcluidas;
+     
+     // Se todas as listas estão vazias, usar progresso como fallback
+     const totalTarefasContadas = tarefasConcluidas + tarefasRestantes;
+     if (totalTarefasContadas === 0 && reportData.contagem_tarefas.usar_progresso_fallback) {
+         console.log('Listas de tarefas vazias, usando progresso como fallback...');
+         const percentual = reportData.contagem_tarefas.percentual_progresso;
+         const estimativa = 15; // Base estimada
+         tarefasConcluidas = Math.round((percentual / 100) * estimativa);
+         tarefasRestantes = estimativa - tarefasConcluidas;
+         console.log('Fallback aplicado:', tarefasConcluidas, 'concluídas de', estimativa);
+     }
+     {% endif %}
+    
+    // Garantir valores mínimos para visualização
+    const tarefasConcluidasDisplay = Math.max(0, tarefasConcluidas);
+    const tarefasRestantesDisplay = Math.max(1, tarefasRestantes);
+    const totalTarefas = tarefasConcluidasDisplay + tarefasRestantesDisplay;
+    
+    tarefasChartInstance = new Chart(tarefasCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Concluídas', 'Restantes'],
+            datasets: [{
+                data: [tarefasConcluidasDisplay, tarefasRestantesDisplay],
+                backgroundColor: [
+                    '#07304F', // Azul SOU.cloud para concluídas
+                    '#e3e6f0'  // Cinza para restantes
+                ],
+                borderWidth: 3,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '60%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        usePointStyle: true,
+                        font: {
+                            size: 12
+                        },
+                        generateLabels: function(chart) {
+                            const data = chart.data;
+                            if (data.labels.length && data.datasets.length) {
+                                return data.labels.map((label, i) => {
+                                    const value = data.datasets[0].data[i];
+                                    const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(0);
+                                    return {
+                                        text: `${label}: ${value} (${percentage}%)`,
+                                        fillStyle: data.datasets[0].backgroundColor[i],
+                                        strokeStyle: data.datasets[0].backgroundColor[i],
+                                        pointStyle: 'circle'
+                                    };
+                                });
+                            }
+                            return [];
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return `${context.label}: ${context.parsed} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    console.log('📊 GRÁFICO DE TAREFAS INICIALIZADO:');
+    console.log('✅ Concluídas:', tarefasConcluidasDisplay);
+    console.log('⏳ Restantes:', tarefasRestantesDisplay); 
+    console.log('📈 Total:', totalTarefas);
+    console.log('📋 Dados brutos:', reportData.contagem_tarefas);
+    console.log('🖼️ Canvas:', !!tarefasCtx);
+    console.log('📊 Chart.js:', !!tarefasChartInstance);
+    
+    // Alerta se os dados parecem incorretos
+    if (totalTarefas < 5) {
+        console.warn('⚠️ ATENÇÃO: Total de tarefas muito baixo. Pode indicar problema nos dados do backend.');
+    }
+}
 
 function initCharts() {
     // Dados do relatório

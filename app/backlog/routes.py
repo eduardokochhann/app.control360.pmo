@@ -3724,3 +3724,82 @@ def _set_cached_active_projects(project_ids):
     """Cacheia IDs de projetos ativos."""
     _ACTIVE_PROJECTS_CACHE['data'] = project_ids
     _ACTIVE_PROJECTS_CACHE['timestamp'] = time.time()
+
+# 🎯 ENDPOINT PARA SALVAR NOVA ORDEM DA WBS
+@backlog_bp.route('/api/wbs/update-order', methods=['POST'])
+def update_wbs_task_order():
+    """
+    Atualiza a ordem/posição das tarefas na WBS
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            abort(400, description="Dados não fornecidos")
+        
+        project_id = data.get('project_id')
+        task_orders = data.get('task_orders', [])
+        
+        if not project_id:
+            abort(400, description="project_id é obrigatório")
+        
+        if not task_orders:
+            abort(400, description="task_orders é obrigatório")
+        
+        current_app.logger.info(f"🔄 Atualizando ordem WBS para projeto {project_id} - {len(task_orders)} tarefas")
+        
+        # Atualiza a posição de cada tarefa
+        updated_tasks = []
+        for task_order in task_orders:
+            task_id = task_order.get('task_id')
+            new_position = task_order.get('new_position')
+            
+            if not task_id or new_position is None:
+                current_app.logger.warning(f"Dados incompletos para tarefa: {task_order}")
+                continue
+            
+            # Busca a tarefa
+            task = Task.query.get(task_id)
+            if not task:
+                current_app.logger.warning(f"Tarefa {task_id} não encontrada")
+                continue
+            
+            # Verifica se a tarefa pertence ao projeto correto
+            if task.backlog and str(task.backlog.project_id) != str(project_id):
+                current_app.logger.warning(f"Tarefa {task_id} não pertence ao projeto {project_id}")
+                continue
+            
+            # Atualiza a posição
+            old_position = task.position
+            task.position = new_position
+            task.updated_at = datetime.now(br_timezone)
+            
+            updated_tasks.append({
+                'task_id': task_id,
+                'title': task.title,
+                'old_position': old_position,
+                'new_position': new_position
+            })
+            
+            current_app.logger.debug(f"📋 Tarefa {task_id} ({task.title}): posição {old_position} → {new_position}")
+        
+        # Salva todas as alterações
+        db.session.commit()
+        
+        current_app.logger.info(f"✅ Ordem WBS atualizada com sucesso! {len(updated_tasks)} tarefas modificadas")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Ordem das tarefas atualizada com sucesso',
+            'updated_tasks_count': len(updated_tasks),
+            'updated_tasks': updated_tasks
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"❌ Erro ao atualizar ordem WBS: {str(e)}", exc_info=True)
+        
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
