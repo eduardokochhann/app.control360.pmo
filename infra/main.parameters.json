@@ -13,6 +13,9 @@
       },
       "principalId": {
         "value": "${AZURE_PRINCIPAL_ID}"
+      },
+      "identityProxyClientId": {
+        "value": "${IDENTITY_PROXY_CLIENT_ID}"
       }
     }
 }

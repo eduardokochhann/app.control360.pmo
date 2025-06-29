@@ -1,6 +1,6 @@
-# Run when commits are pushed to feat/refactor-deployment
+# This pipeline was generated using azd pipeline config
 trigger:
-  - feat/refactor-deployment
+  - main
 
 pool:
   vmImage: ubuntu-latest
@@ -9,6 +9,7 @@ variables:
   AZURE_SUBSCRIPTION_ID: '6f97d0ea-fd4f-4149-9480-729e8f6a966f'
   AZURE_ENV_NAME: 'app-control360-sou-dev'
   AZURE_LOCATION: 'eastus2'
+  IDENTITY_PROXY_CLIENT_ID: 'c5b9b4ab-76e8-4f42-abca-bebf57ea1102'
 
 steps:
   - task: Bash@3
@@ -36,6 +37,7 @@ steps:
       AZURE_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
       AZURE_ENV_NAME: $(AZURE_ENV_NAME)
       AZURE_LOCATION: $(AZURE_LOCATION)
+      IDENTITY_PROXY_CLIENT_ID: $(IDENTITY_PROXY_CLIENT_ID)
 
   - task: AzureCLI@2
     displayName: Provision Infrastructure
@@ -50,6 +52,7 @@ steps:
       AZURE_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
       AZURE_ENV_NAME: $(AZURE_ENV_NAME)
       AZURE_LOCATION: $(AZURE_LOCATION)
+      IDENTITY_PROXY_CLIENT_ID: $(IDENTITY_PROXY_CLIENT_ID)
 
   - task: AzureCLI@2
     displayName: Deploy Application
@@ -64,3 +67,4 @@ steps:
       AZURE_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
       AZURE_ENV_NAME: $(AZURE_ENV_NAME)
       AZURE_LOCATION: $(AZURE_LOCATION)
+      IDENTITY_PROXY_CLIENT_ID: $(IDENTITY_PROXY_CLIENT_ID)

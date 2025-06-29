@@ -1,3 +1,5 @@
+extension 'br:mcr.microsoft.com/bicep/extensions/microsoftgraph/v1.0:0.1.8-preview'
+
 @description('The location used for all deployed resources')
 param location string = resourceGroup().location
 
@@ -8,6 +10,13 @@ param tags object = {}
 param principalId string
 
 param appControl360SouExists bool
+
+@description('Client ID of the app registration used to authenticate the app with Entra ID')
+param identityProxyClientId string = 'c5b9b4ab-76e8-4f42-abca-bebf57ea1102'
+
+@description('Client secret of the app registration used to authenticate the app with Entra ID')
+@secure()
+param identityProxyClientSecret string = ''
 
 var abbrs = loadJsonContent('./abbreviations.json')
 var resourceToken = uniqueString(subscription().id, resourceGroup().id, location)
@@ -46,13 +55,12 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.13.0' = {
         roleDefinitionIdOrName: 'Key Vault Secrets User'
       }
     ]
-  }
-}
-
-module appRegistrationSecret 'modules/fetch-app-registration-secret.bicep' = {
-  name: 'appRegistrationSecret'
-  params: {
-    keyVaultName: keyVault.outputs.name
+    secrets: [
+      empty(identityProxyClientSecret) ? {} : {
+        name: 'microsoft-provider-authentication-secret'
+        value: identityProxyClientSecret
+      }
+    ]
   }
 }
 
@@ -127,7 +135,7 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.17.0' = {
   name: 'appControl360Sou'
   params: {
     name: 'app-control360-sou'
-    ingressTargetPort: 5000
+    ingressTargetPort: 80
     secrets: [
       {
         keyVaultUrl: '${keyVault.outputs.uri}secrets/stg-appcontrol-360-sou-key1'
@@ -135,7 +143,7 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.17.0' = {
         name: 'stg-appcontrol-360-sou-key1'
       }
       {
-        keyVaultUrl: appRegistrationSecret.outputs.appRegistrationSecretUri
+        keyVaultUrl: '${keyVault.outputs.uri}secrets/microsoft-provider-authentication-secret'
         identity: appControl360SouIdentity.outputs.resourceId
         name: 'microsoft-provider-authentication-secret'
       }
@@ -159,7 +167,7 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.17.0' = {
           }
           {
             name: 'PORT'
-            value: '5000'
+            value: '80'
           }
         ]
         volumeMounts: [
@@ -190,89 +198,39 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.17.0' = {
     environmentResourceId: containerAppsEnvironment.outputs.resourceId
     location: location
     tags: union(tags, { 'azd-service-name': 'app-control360-sou' })
-    ipSecurityRestrictions: [
-          {
-            name: 'allow-bernardo-ip'
-            ipAddressRange: '45.230.235.125'
-            action: 'Allow'
+    authConfig: {
+      platform: {
+        enabled: true
+      }
+      globalValidation: {
+        unauthenticatedClientAction: 'RedirectToLoginPage'
+        redirectToProvider: 'azureactivedirectory'
+      }
+      identityProviders: {
+        azureActiveDirectory: {
+          registration: {
+            openIdIssuer: 'https://sts.windows.net/a7220fd8-b71b-44f9-b153-117f6a6a7b2f/v2.0'
+            clientId: identityProxyClientId
+            clientSecretSettingName: 'microsoft-provider-authentication-secret'
           }
-    ]
-  //   authConfig: {
-  //     platform: {
-  //       enabled: true
-  //     }
-  //     globalValidation: {
-  //       unauthenticatedClientAction: 'RedirectToLoginPage'
-  //       redirectToProvider: 'azureactivedirectory'
-  //     }
-  //     identityProviders: {
-  //       azureActiveDirectory: {
-  //         registration: {
-  //           openIdIssuer: 'https://sts.windows.net/a7220fd8-b71b-44f9-b153-117f6a6a7b2f/v2.0'
-  //           clientId: 'c5b9b4ab-76e8-4f42-abca-bebf57ea1102'
-  //           // TODO: Set up the app registration using bicep and reference it here
-  //           clientSecretSettingName: 'microsoft-provider-authentication-secret'
-  //         }
-  //         validation: {
-  //           allowedAudiences: []
-  //           defaultAuthorizationPolicy: {
-  //             allowedPrincipals: {}
-  //           }
-  //         }
-  //         isAutoProvisioned: false
-  //       }
-  //     }
-  //   }
+        }
+      }
+    }
   }
 }
 
-// resource appRegistration 'Microsoft.Graph/applications@v1.0' = {
-//   displayName: 'app-control360-sou'
-//   uniqueName: 'app-control360-sou'
-//   signInAudience: 'AzureADMyOrg'
-//   identifierUris: [
-//     'api://c5b9b4ab-76e8-4f42-abca-bebf57ea1102'
-//   ]
-//   api: {
-//     oauth2PermissionScopes: [
-//       {
-//         adminConsentDescription: 'Allow the application to access app-control360-sou on behalf of the signed-in user.'
-//         adminConsentDisplayName: 'Access app-control360-sou'
-//         id: 'cbd18bc1-89dd-4e34-9c6a-2f5bbe32ded4'
-//         isEnabled: true
-//         type: 'User'
-//         userConsentDescription: 'Allow the application to access app-control360-sou on your behalf.'
-//         userConsentDisplayName: 'Access app-control360-sou'
-//         value: 'user_impersonation'
-//       }
-//     ]
-//   }
-//   passwordCredentials: [
-//     {
-//       displayName: 'Generated by App Service'
-//       endDateTime: '2025-12-10T19:54:43.845Z'
-//       keyId: 'aa59b809-2775-4c2d-b50d-e812e47e01ef'
-//       startDateTime: '2025-06-13T19:54:43.845Z'
-//     }
-//   ]
-//   requiredResourceAccess: [
-//     {
-//       resourceAppId: '00000003-0000-0000-c000-000000000000'
-//       resourceAccess: [
-//         {
-//           id: 'e1fe6dd8-ba31-4d61-89e7-88639da4683d'
-//           type: 'Scope'
-//         }
-//       ]
-//     }
-//   ]
-//   web: {
-//     homePageUrl: 'https://${appControl360Sou.outputs.fqdn}'
-//     redirectUris: [
-//       'https://${appControl360Sou.outputs.fqdn}/.auth/login/aad/callback'
-//     ]
-//   }
-// }
+// As a first time setup for an existing app registration, follow the docs below:
+// https://learn.microsoft.com/en-us/graph/templates/bicep/how-to-reference-existing-resources?view=graph-bicep-1.0&tabs=PowerShell
+resource appRegistration 'Microsoft.Graph/applications@v1.0' = {
+  displayName: 'app-control360-sou'
+  uniqueName: 'appControl360Sou'
+  web: {
+    homePageUrl: 'https://${appControl360Sou.outputs.fqdn}'
+    redirectUris: [
+      'https://${appControl360Sou.outputs.fqdn}/.auth/login/aad/callback'
+    ]
+  }
+}
 
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.outputs.loginServer
 output AZURE_RESOURCE_APP_CONTROL360_SOU_ID string = appControl360Sou.outputs.resourceId
