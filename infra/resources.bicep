@@ -9,7 +9,7 @@ param tags object = {}
 @description('Id of the user or app to assign application roles')
 param principalId string
 
-param appControl360SouExists bool
+param appControl360SouExists bool = false
 
 @description('Client ID of the app registration used to authenticate the app with Entra ID')
 param identityProxyClientId string = 'c5b9b4ab-76e8-4f42-abca-bebf57ea1102'

@@ -9,7 +9,7 @@
         "value": "${AZURE_LOCATION}"
       },
       "appControl360SouExists": {
-        "value": "${SERVICE_APP_CONTROL360_SOU_RESOURCE_EXISTS=false}"
+        "value": "${SERVICE_APP_CONTROL360_SOU_RESOURCE_EXISTS}"
       },
       "principalId": {
         "value": "${AZURE_PRINCIPAL_ID}"
