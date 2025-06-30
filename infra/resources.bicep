@@ -222,18 +222,5 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.17.0' = {
   }
 }
 
-// As a first time setup for an existing app registration, follow the docs below:
-// https://learn.microsoft.com/en-us/graph/templates/bicep/how-to-reference-existing-resources?view=graph-bicep-1.0&tabs=PowerShell
-resource appRegistration 'Microsoft.Graph/applications@v1.0' = {
-  displayName: 'app-control360-sou'
-  uniqueName: 'appControl360Sou'
-  web: {
-    homePageUrl: 'https://${appControl360Sou.outputs.fqdn}'
-    redirectUris: [
-      'https://${appControl360Sou.outputs.fqdn}/.auth/login/aad/callback'
-    ]
-  }
-}
-
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.outputs.loginServer
 output AZURE_RESOURCE_APP_CONTROL360_SOU_ID string = appControl360Sou.outputs.resourceId
