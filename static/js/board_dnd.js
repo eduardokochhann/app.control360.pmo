@@ -155,9 +155,39 @@ function initializeSortable() {
         taskDiv.dataset.taskId = task.id;
         taskDiv.dataset.columnId = task.column_id;
         
+        // Função para formatar datas
+        function formatDate(dateString) {
+            if (!dateString) return null;
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('pt-BR');
+            } catch (e) {
+                return null;
+            }
+        }
+        
+        // Formatar datas
+        const startDate = formatDate(task.start_date);
+        const dueDate = formatDate(task.due_date);
+        
         taskDiv.innerHTML = `
             <div class="task-title">${task.title}</div>
             ${task.description ? `<div class="task-description">${task.description}</div>` : ''}
+            
+            <!-- ✅ NOVA SEÇÃO: Datas -->
+            ${(startDate || dueDate) ? `
+                <div class="task-dates" style="margin-bottom: 0.5rem; font-size: 0.75em; color: #666;">
+                    ${startDate ? `<div style="display: flex; align-items: center; margin-bottom: 2px;">
+                        <i class="bi bi-play-circle" style="margin-right: 4px; color: #28a745;"></i>
+                        <span>Início: ${startDate}</span>
+                    </div>` : ''}
+                    ${dueDate ? `<div style="display: flex; align-items: center;">
+                        <i class="bi bi-flag" style="margin-right: 4px; color: #dc3545;"></i>
+                        <span>Prazo: ${dueDate}</span>
+                    </div>` : ''}
+                </div>
+            ` : ''}
+            
             <div class="task-meta">
                 <div>
                     ${task.priority ? `<span class="task-priority priority-${task.priority.toLowerCase()}">${task.priority}</span>` : ''}
@@ -272,7 +302,14 @@ function initializeSortable() {
             document.getElementById('taskModalLabel').textContent = 'Editar Tarefa';
             document.getElementById('taskId').value = task.id;
             document.getElementById('taskTitle').value = task.title;
-            document.getElementById('taskDescription').value = task.description || '';
+            
+            // ✅ CORRIGIDO: Carrega descrição considerando editor rico
+            if (window.loadContentIntoField) {
+                window.loadContentIntoField('taskDescription', task.description || '');
+            } else {
+                document.getElementById('taskDescription').value = task.description || '';
+                console.log('⚠️ loadContentIntoField não encontrada, usando fallback');
+            }
             document.getElementById('taskPriority').value = task.priority || 'Média';
             document.getElementById('taskStatus').value = task.column_id;
             document.getElementById('taskSpecialistId').value = task.specialist_name || '';

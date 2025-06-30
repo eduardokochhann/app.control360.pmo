@@ -3938,32 +3938,36 @@ class MacroService(BaseService):
                             
                             # Categorizar tarefa baseado no status da coluna PRIMEIRO
                             status_lower = status_nome.lower()
+                            logger.debug(f"Categorizando tarefa '{task.title}' com status '{status_nome}' (lower: '{status_lower}')")
                             
                             # PRIORIDADE 1: Status da coluna (define o estado atual da tarefa)
                             if 'concluído' in status_lower or 'concluido' in status_lower or 'done' in status_lower or 'finalizado' in status_lower:
                                 tarefas_concluidas.append(task_data)
+                                logger.debug(f"  → Categorizada como CONCLUÍDA")
                             elif 'andamento' in status_lower or 'progresso' in status_lower or 'doing' in status_lower or 'em progresso' in status_lower:
                                 tarefas_em_andamento.append(task_data)
+                                logger.debug(f"  → Categorizada como EM ANDAMENTO")
                             elif 'revisão' in status_lower or 'revisao' in status_lower or 'review' in status_lower:
                                 tarefas_em_revisao.append(task_data)
+                                logger.debug(f"  → Categorizada como EM REVISÃO")
                             
-                            # PRIORIDADE 2: Para tarefas pendentes (A Fazer, etc), verificar data de vencimento
+                            # PRIORIDADE 2: Tarefas pendentes SEMPRE vão para "Pendente" (independente da data)
                             elif 'fazer' in status_lower or 'todo' in status_lower or 'pendente' in status_lower:
-                                # Verificar se tem data de vencimento e se está próxima (no futuro)
-                                if data_vencimento and data_vencimento > hoje and data_vencimento <= sete_dias:
-                                    # Tarefas com vencimento futuro em até 7 dias
-                                    tarefas_proximo_prazo.append(task_data)
-                                else:
-                                    # Tarefas pendentes sem prazo próximo (incluindo atrasadas)
-                                    tarefas_pendentes.append(task_data)
+                                # TODAS as tarefas pendentes vão para seção "Pendente"
+                                tarefas_pendentes.append(task_data)
+                                logger.debug(f"  → Categorizada como PENDENTE (status reconhecido)")
                             
-                            # PRIORIDADE 3: Demais tarefas (status não reconhecido)
+                            # PRIORIDADE 3: Demais tarefas (status não reconhecido) - verificar data
                             else:
                                 # Verificar data para categorizar tarefas com status desconhecido
                                 if data_vencimento and data_vencimento > hoje and data_vencimento <= sete_dias:
+                                    # Tarefas com status desconhecido mas com prazo próximo
                                     tarefas_proximo_prazo.append(task_data)
+                                    logger.debug(f"  → Categorizada como PRÓXIMO PRAZO (status desconhecido, data próxima)")
                                 else:
+                                    # Tarefas com status desconhecido sem prazo próximo
                                     tarefas_pendentes.append(task_data)
+                                    logger.debug(f"  → Categorizada como PENDENTE (status desconhecido, sem data próxima)")
                             
                         except Exception as e:
                             logger.error(f"Erro ao processar tarefa {task.id}: {str(e)}")
@@ -4083,6 +4087,8 @@ class MacroService(BaseService):
                     for risk in project_risks:
                         risco_data = {
                             'id': risk.id,
+                            'titulo': risk.title,  # ✅ ADICIONADO: Campo título
+                            'title': risk.title,   # ✅ FALLBACK: Para compatibilidade
                             'descricao': risk.description,
                             'impacto': risk.impact.value if risk.impact else 'N/A',
                             'probabilidade': risk.probability.value if risk.probability else 'N/A',

@@ -620,12 +620,17 @@ class RichTextEditorManager {
     }
 
     /**
-     * 🎨 Muda para modo rico
+     * 🎨 Muda para modo rico - PRESERVANDO CONTEÚDO
      */
     switchToRichMode(elementId, button, eventKey) {
         console.log(`🎨 Mudando para modo rico: ${elementId}`);
         button.disabled = true;
         button.innerHTML = '<i class="bi bi-hourglass-split"></i> Processando...';
+        
+        // ✅ CAPTURA CONTEÚDO ANTES DE DESTRUIR
+        const originalElement = document.getElementById(elementId);
+        const currentContent = originalElement ? originalElement.value : '';
+        console.log(`📄 Conteúdo capturado para ${elementId}:`, currentContent);
         
         // LIMPEZA FORÇADA antes de criar
         this.destroyEditor(elementId);
@@ -642,6 +647,12 @@ class RichTextEditorManager {
                                  document.getElementById(`${elementId}_quill`);
                 
                 if (hasEditor) {
+                    // ✅ TRANSFERE CONTEÚDO PARA O EDITOR RICO
+                    if (currentContent) {
+                        console.log(`🔄 Transferindo conteúdo para editor rico: ${elementId}`);
+                        this.setContent(elementId, currentContent);
+                    }
+                    
                     button.disabled = false;
                     button.innerHTML = '<i class="bi bi-keyboard"></i> Modo Simples';
                     this.showToast('Editor rico ativado', 'success');

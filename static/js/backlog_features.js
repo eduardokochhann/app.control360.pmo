@@ -197,18 +197,15 @@ function initializeProjectTools() {
             
             document.getElementById('riskId').value = risk.id;
             document.getElementById('riskTitle').value = risk.title || '';
-            document.getElementById('riskDescription').value = risk.description || '';
             document.getElementById('riskProbability').value = risk.probability.key || 'MEDIUM';
             document.getElementById('riskImpact').value = risk.impact.key || 'MEDIUM';
             document.getElementById('riskStatus').value = risk.status.key || 'IDENTIFIED';
-            document.getElementById('riskMitigationPlan').value = risk.mitigation_plan || '';
         } else {
             modalTitle.textContent = 'Novo Risco';
             deleteBtn.style.display = 'none';
             document.getElementById('riskId').value = '';
             // Limpa os campos para um novo risco
             document.getElementById('riskTitle').value = '';
-            document.getElementById('riskDescription').value = '';
             // Define valores padrão corretos para novo risco
             document.getElementById('riskProbability').value = 'MEDIUM';
             document.getElementById('riskImpact').value = 'MEDIUM';
@@ -216,7 +213,116 @@ function initializeProjectTools() {
         }
         
         riskModal.show();
+        
+        // ✅ CARREGA CONTEÚDO APÓS O MODAL SER MOSTRADO E SISTEMA PROCESSAR
+        setTimeout(() => {
+            console.log('🕒 Timeout executado - iniciando carregamento do risco');
+            
+            // Debug antes do carregamento
+            window.debugModalContent('riskDescription');
+            window.debugModalContent('riskMitigationPlan');
+            
+            if (risk) {
+                console.log('🔄 Carregando conteúdo do risco após modal abrir:', risk);
+                loadContentIntoField('riskDescription', risk.description || '');
+                loadContentIntoField('riskMitigationPlan', risk.mitigation_plan || '');
+                
+                // Debug após o carregamento
+                setTimeout(() => {
+                    console.log('🔍 Estado após carregamento:');
+                    window.debugModalContent('riskDescription');
+                    window.debugModalContent('riskMitigationPlan');
+                }, 100);
+            } else {
+                loadContentIntoField('riskDescription', '');
+                loadContentIntoField('riskMitigationPlan', '');
+            }
+        }, 500); // ⏰ Aumentado para 500ms para aguardar sistema processar
     }
+
+    // ✅ NOVA FUNÇÃO: Carrega conteúdo no campo adequado (textarea ou editor rico)
+    function loadContentIntoField(fieldId, content) {
+        console.log(`🎯 loadContentIntoField chamada para ${fieldId} com conteúdo:`, content);
+        
+        const textarea = document.getElementById(fieldId);
+        if (!textarea) {
+            console.error(`❌ Elemento ${fieldId} não encontrado!`);
+            return;
+        }
+        
+        // Função para carregar com múltiplas tentativas
+        const loadContent = (attempt = 1) => {
+            console.log(`🔄 Tentativa ${attempt} de carregar conteúdo para ${fieldId}`);
+            
+            // Se há um editor rico ativo para este campo
+            if (window.richTextManager && window.richTextManager.editors.has(fieldId)) {
+                const editorData = window.richTextManager.editors.get(fieldId);
+                if (editorData && editorData.quill) {
+                    // Aguarda um pouco para o editor estar totalmente pronto
+                    setTimeout(() => {
+                        editorData.quill.clipboard.dangerouslyPasteHTML(content);
+                        console.log(`✅ Conteúdo HTML carregado no editor rico: ${fieldId} (tentativa ${attempt})`);
+                    }, 50);
+                    return true;
+                } else {
+                    console.warn(`⚠️ Editor rico existe mas Quill não está pronto para ${fieldId} (tentativa ${attempt})`);
+                }
+            } 
+            
+            // Carrega no textarea normal
+            textarea.value = content;
+            console.log(`✅ Conteúdo carregado no textarea: ${fieldId} (tentativa ${attempt})`);
+            return true;
+        };
+        
+        // Múltiplas tentativas com delays crescentes
+        const tryLoad = (attempt) => {
+            if (attempt > 5) {
+                console.error(`❌ Falha ao carregar conteúdo para ${fieldId} após 5 tentativas`);
+                return;
+            }
+            
+            if (!loadContent(attempt)) {
+                const delay = attempt * 200; // 200ms, 400ms, 600ms, etc.
+                setTimeout(() => {
+                    tryLoad(attempt + 1);
+                }, delay);
+            }
+        };
+        
+        // Inicia as tentativas
+        tryLoad(1);
+    }
+
+    // ✅ EXPORTA A FUNÇÃO GLOBALMENTE
+    window.loadContentIntoField = loadContentIntoField;
+
+    // 🔍 DEBUG: Função para monitorar estado dos modais
+    window.debugModalContent = function(fieldId) {
+        console.log(`🔍 DEBUG para ${fieldId}:`);
+        
+        const textarea = document.getElementById(fieldId);
+        console.log(`📝 Textarea encontrada:`, !!textarea);
+        console.log(`📝 Valor atual textarea:`, textarea ? textarea.value : 'N/A');
+        
+        const hasRichEditor = window.richTextManager && window.richTextManager.editors.has(fieldId);
+        console.log(`🎨 Tem editor rico:`, hasRichEditor);
+        
+        if (hasRichEditor) {
+            const editorData = window.richTextManager.editors.get(fieldId);
+            console.log(`🎨 Editor data:`, !!editorData);
+            console.log(`🎨 Quill instance:`, !!editorData?.quill);
+            
+            if (editorData?.quill) {
+                console.log(`🎨 Conteúdo do Quill:`, editorData.quill.getContents());
+                console.log(`🎨 HTML do Quill:`, editorData.quill.root.innerHTML);
+            }
+        }
+        
+        const toggleBtn = document.getElementById(`toggleBtn_${fieldId}`);
+        console.log(`🔘 Botão toggle encontrado:`, !!toggleBtn);
+        console.log(`🔘 Texto do botão:`, toggleBtn ? toggleBtn.innerHTML : 'N/A');
+    };
 
     async function saveRisk() {
         const riskId = document.getElementById('riskId').value;
@@ -378,7 +484,6 @@ function initializeProjectTools() {
             
             document.getElementById('milestoneId').value = milestone.id;
             document.getElementById('milestoneName').value = milestone.name || '';
-            document.getElementById('milestoneDescription').value = milestone.description || '';
             document.getElementById('milestonePlannedDate').value = milestone.planned_date || '';
             document.getElementById('milestoneActualDate').value = milestone.actual_date || '';
             document.getElementById('milestoneStatus').value = milestone.status.key || 'PENDING';
@@ -390,7 +495,6 @@ function initializeProjectTools() {
             deleteBtn.style.display = 'none';
             document.getElementById('milestoneId').value = '';
             document.getElementById('milestoneName').value = '';
-            document.getElementById('milestoneDescription').value = '';
             document.getElementById('milestonePlannedDate').value = '';
             document.getElementById('milestoneActualDate').value = '';
             document.getElementById('milestoneStatus').value = 'PENDING';
@@ -399,6 +503,16 @@ function initializeProjectTools() {
         }
 
         milestoneModal.show();
+        
+        // ✅ CARREGA CONTEÚDO APÓS O MODAL SER MOSTRADO E SISTEMA PROCESSAR
+        setTimeout(() => {
+            if (milestone) {
+                console.log('🔄 Carregando conteúdo do marco após modal abrir:', milestone);
+                loadContentIntoField('milestoneDescription', milestone.description || '');
+            } else {
+                loadContentIntoField('milestoneDescription', '');
+            }
+        }, 500); // ⏰ Aumentado para 500ms para aguardar sistema processar
     }
 
     async function saveMilestone() {
@@ -665,7 +779,6 @@ function initializeProjectTools() {
             deleteBtn.style.display = 'block';
             
             document.getElementById('noteId').value = note.id;
-            document.getElementById('noteContent').value = note.content || '';
             document.getElementById('noteCategory').value = note.category || 'general';
             document.getElementById('notePriority').value = note.priority || 'medium';
             document.getElementById('noteEventDate').value = note.event_date || '';
@@ -678,6 +791,16 @@ function initializeProjectTools() {
         }
         
         noteModal.show();
+        
+        // ✅ CARREGA CONTEÚDO APÓS O MODAL SER MOSTRADO E SISTEMA PROCESSAR
+        setTimeout(() => {
+            if (note) {
+                console.log('🔄 Carregando conteúdo da nota após modal abrir:', note);
+                loadContentIntoField('noteContent', note.content || '');
+            } else {
+                loadContentIntoField('noteContent', '');
+            }
+        }, 500); // ⏰ Aumentado para 500ms para aguardar sistema processar
     }
 
     async function saveNote() {

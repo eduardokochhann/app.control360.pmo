@@ -2379,7 +2379,7 @@
                         const originalElement = document.getElementById(fieldId);
                         if (originalElement) {
                             originalElement.style.display = '';
-                            originalElement.value = ''; // Limpa o conteúdo
+                            // ❌ REMOVIDO: originalElement.value = ''; // Não limpa mais o conteúdo automaticamente
                         }
                     });
 
@@ -2472,7 +2472,7 @@
          };
      }
 
-     // 🎯 Função global para alternar modo do editor
+     // 🎯 Função global para alternar modo do editor - PRESERVANDO CONTEÚDO
      window.toggleRichEditorMode = function(fieldId) {
          console.log(`🔄 Toggle solicitado para ${fieldId}`);
          
@@ -2501,14 +2501,20 @@
              
              showEditorToast(`Modo simples ativado para ${getFieldLabel(fieldId)}`, 'info');
          } else {
-             // Simples -> Rico
+             // Simples -> Rico - COM PRESERVAÇÃO DE CONTEÚDO
              console.log(`➡️ Mudando para modo rico: ${fieldId}`);
+             
+             // ✅ CAPTURA CONTEÚDO ANTES DE CRIAR
+             const originalElement = document.getElementById(fieldId);
+             const currentContent = originalElement ? originalElement.value : '';
+             console.log(`📄 Conteúdo capturado para ${fieldId}:`, currentContent);
+             
              const config = getRichEditorConfig(fieldId);
              
              // Cria o editor (agora é assíncrono)
              window.createRichEditor(fieldId, config);
              
-             // Ajusta altura mínima após a criação
+             // Ajusta altura mínima após a criação E TRANSFERE CONTEÚDO
              setTimeout(() => {
                  const editorContainer = document.getElementById(`${fieldId}_quill`);
                  if (editorContainer) {
@@ -2517,6 +2523,12 @@
                          qlEditor.style.minHeight = config.minHeight || '100px';
                          console.log(`✅ Altura ajustada para ${fieldId}: ${config.minHeight || '100px'}`);
                      }
+                 }
+                 
+                 // ✅ TRANSFERE CONTEÚDO PARA O EDITOR RICO
+                 if (currentContent && window.richTextManager) {
+                     console.log(`🔄 Transferindo conteúdo para editor rico: ${fieldId}`);
+                     window.richTextManager.setContent(fieldId, currentContent);
                  }
                  
                  // Reabilita o botão com texto de "Modo Simples"
