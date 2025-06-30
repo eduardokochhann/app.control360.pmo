@@ -5,6 +5,9 @@
 {% block extra_css %}
 <link href="{{ url_for('static', filename='css/complexity_form.css') }}" rel="stylesheet">
 <link href="{{ url_for('static', filename='css/pmo_command_center.css') }}" rel="stylesheet">
+<!-- 🎨 Quill.js Rich Text Editor -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/rich_text_editor.css') }}" rel="stylesheet">
 <style>
     .kanban-column {
         background-color: #f8f9fa;
@@ -538,7 +541,15 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label for="taskDescription" class="form-label">Descrição</label>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label for="taskDescription" class="form-label mb-0">Descrição</label>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                    onclick="toggleRichEditorMode('taskDescription')" 
+                                    title="Alternar entre modo simples e rico"
+                                    id="toggleBtn_taskDescription">
+                                <i class="bi bi-magic"></i> Editor Rico
+                            </button>
+                        </div>
                         <textarea class="form-control" id="taskDescription" rows="3"></textarea>
                     </div>
                     
@@ -628,9 +639,23 @@
                         <p class="mb-0 text-white-50">Gestão Completa do Projeto</p>
                     </div>
                 </div>
-                <button class="btn btn-outline-light btn-lg" onclick="toggleProjectTools()">
-                    <i class="bi bi-x-lg"></i>
-                </button>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-light btn-sm" onclick="window.debugRichEditors()" 
+                            title="Debug Rich Editors">
+                        <i class="bi bi-bug"></i>
+                    </button>
+                    <button class="btn btn-outline-light btn-sm" onclick="window.forceCleanup()" 
+                            title="Limpeza Forçada">
+                        <i class="bi bi-trash3"></i>
+                    </button>
+                    <button class="btn btn-outline-light" onclick="$('#richEditorHelpModal').modal('show')" 
+                            title="Ajuda do Rich Text Editor">
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                    <button class="btn btn-outline-light btn-lg" onclick="toggleProjectTools()">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
             </div>
         </div>
         <div class="card-body p-4" style="background-color: #ffffff;">
@@ -1044,7 +1069,15 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label for="riskDescription" class="form-label">Descrição*</label>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label for="riskDescription" class="form-label mb-0">Descrição*</label>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                    onclick="toggleRichEditorMode('riskDescription')" 
+                                    title="Alternar entre modo simples e rico"
+                                    id="toggleBtn_riskDescription">
+                                <i class="bi bi-magic"></i> Editor Rico
+                            </button>
+                        </div>
                         <textarea class="form-control" id="riskDescription" rows="3" required></textarea>
                     </div>
                     
@@ -1077,7 +1110,15 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label for="riskMitigationPlan" class="form-label">Plano de Mitigação</label>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label for="riskMitigationPlan" class="form-label mb-0">Plano de Mitigação</label>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                    onclick="toggleRichEditorMode('riskMitigationPlan')" 
+                                    title="Alternar entre modo simples e rico"
+                                    id="toggleBtn_riskMitigationPlan">
+                                <i class="bi bi-magic"></i> Editor Rico
+                            </button>
+                        </div>
                         <textarea class="form-control" id="riskMitigationPlan" rows="3"></textarea>
                     </div>
                 </form>
@@ -1113,7 +1154,15 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label for="milestoneDescription" class="form-label">Descrição</label>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label for="milestoneDescription" class="form-label mb-0">Descrição</label>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                    onclick="toggleRichEditorMode('milestoneDescription')" 
+                                    title="Alternar entre modo simples e rico"
+                                    id="toggleBtn_milestoneDescription">
+                                <i class="bi bi-magic"></i> Editor Rico
+                            </button>
+                        </div>
                         <textarea class="form-control" id="milestoneDescription" rows="3"></textarea>
                     </div>
                     
@@ -1184,7 +1233,15 @@
                     <input type="hidden" id="noteId" value="">
                     
                     <div class="mb-3">
-                        <label for="noteContent" class="form-label">Conteúdo*</label>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label for="noteContent" class="form-label mb-0">Conteúdo*</label>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                    onclick="toggleRichEditorMode('noteContent')" 
+                                    title="Alternar entre modo simples e rico"
+                                    id="toggleBtn_noteContent">
+                                <i class="bi bi-magic"></i> Editor Rico
+                            </button>
+                        </div>
                         <textarea class="form-control" id="noteContent" rows="4" required></textarea>
                     </div>
                     
@@ -1276,9 +1333,17 @@
                         <div class="col-md-8">
                             <div class="card border-0 shadow-sm h-100">
                                 <div class="card-header bg-light border-0">
-                                    <h6 class="mb-0 text-muted">
-                                        <i class="bi bi-chat-text me-2"></i>Observações da Avaliação
-                                    </h6>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0 text-muted">
+                                            <i class="bi bi-chat-text me-2"></i>Observações da Avaliação
+                                        </h6>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                                onclick="toggleRichEditorMode('complexityNotes')" 
+                                                title="Alternar entre modo simples e rico"
+                                                id="toggleBtn_complexityNotes">
+                                            <i class="bi bi-magic"></i> Editor Rico
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="card-body">
                                     <textarea class="form-control border-0 bg-light" id="complexityNotes" rows="4" 
@@ -1332,6 +1397,77 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Ajuda do Rich Text Editor -->
+<div class="modal fade" id="richEditorHelpModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #07304F 0%, #0d5aa7 100%); color: white;">
+                <h5 class="modal-title">
+                    <i class="bi bi-magic me-2"></i> Rich Text Editor - Guia de Uso
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-primary">🖼️ Colar Imagens</h6>
+                        <ul class="list-unstyled ms-3">
+                            <li><i class="bi bi-check-circle text-success me-2"></i> <strong>Ctrl+C</strong> em qualquer imagem</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i> <strong>Ctrl+V</strong> no editor</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i> Arrastar imagens do computador</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i> Botão 🖼️ para selecionar arquivo</li>
+                        </ul>
+
+                        <h6 class="fw-bold text-primary mt-4">📊 Colar Planilhas</h6>
+                        <ul class="list-unstyled ms-3">
+                            <li><i class="bi bi-check-circle text-success me-2"></i> Copie dados do <strong>Excel</strong></li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i> Copie tabelas do <strong>Google Sheets</strong></li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i> Cole com <strong>Ctrl+V</strong></li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i> Formatação preservada automaticamente</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-primary">✨ Formatação de Texto</h6>
+                        <ul class="list-unstyled ms-3">
+                            <li><i class="bi bi-type-bold text-primary me-2"></i> <strong>Negrito</strong>, <em>Itálico</em>, <u>Sublinhado</u></li>
+                            <li><i class="bi bi-palette text-primary me-2"></i> <span style="color: #FF2D5F;">Cores</span> e <span style="background: #f8f9fa; padding: 2px 4px;">destaques</span></li>
+                            <li><i class="bi bi-list-ul text-primary me-2"></i> Listas numeradas e com marcadores</li>
+                            <li><i class="bi bi-link text-primary me-2"></i> Links e citações</li>
+                        </ul>
+
+                        <h6 class="fw-bold text-primary mt-4">🔧 Funcionalidades Extras</h6>
+                        <ul class="list-unstyled ms-3">
+                            <li><i class="bi bi-arrows-move text-primary me-2"></i> Alinhamento de texto</li>
+                            <li><i class="bi bi-code text-primary me-2"></i> Blocos de código</li>
+                            <li><i class="bi bi-quote text-primary me-2"></i> Citações destacadas</li>
+                            <li><i class="bi bi-eraser text-primary me-2"></i> Limpar formatação</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <hr class="my-4">
+                
+                <div class="alert alert-info">
+                    <h6 class="alert-heading">
+                        <i class="bi bi-lightbulb me-2"></i> Dicas Importantes
+                    </h6>
+                    <ul class="mb-0">
+                        <li>Use o botão <strong>"Editor Rico"</strong> para alternar entre modo simples e avançado</li>
+                        <li>Imagens são inseridas automaticamente quando coladas</li>
+                        <li>Tabelas do Excel mantêm a formatação original</li>
+                        <li>Todos os dados são salvos automaticamente</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                    <i class="bi bi-check-lg me-2"></i> Entendi!
+                </button>
             </div>
         </div>
     </div>
@@ -2174,4 +2310,432 @@
         }
     });
 </script>
-{% endblock %} 
+
+<!-- 🎨 Rich Text Editor Dependencies -->
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+<script src="{{ url_for('static', filename='js/rich_text_editor.js') }}"></script>
+
+<script>
+    // 🚀 Inicialização do Rich Text Editor
+    document.addEventListener('DOMContentLoaded', function() {
+        // Aguarda um pouco para garantir que o Quill esteja carregado
+        setTimeout(() => {
+            console.log('🎨 Inicializando Rich Text Editors...');
+            
+            // Lista de campos para converter em Rich Editors
+            const richEditorFields = [
+                {
+                    id: 'taskDescription',
+                    placeholder: 'Descreva a tarefa... (Ctrl+V para colar imagens e planilhas)',
+                    minHeight: '100px'
+                },
+                {
+                    id: 'riskDescription',
+                    placeholder: 'Descreva o risco identificado...',
+                    minHeight: '100px'
+                },
+                {
+                    id: 'riskMitigationPlan',
+                    placeholder: 'Detalhe o plano de mitigação...',
+                    minHeight: '100px'
+                },
+                {
+                    id: 'milestoneDescription',
+                    placeholder: 'Descreva o marco do projeto...',
+                    minHeight: '80px'
+                },
+                {
+                    id: 'noteContent',
+                    placeholder: 'Digite sua nota... (suporte a formatação rica)',
+                    minHeight: '120px'
+                },
+                {
+                    id: 'complexityNotes',
+                    placeholder: 'Adicione observações sobre a complexidade...',
+                    minHeight: '100px'
+                }
+            ];
+
+            // Configura limpeza quando modais são fechados (SEM criar automaticamente)
+            function initializeEditorOnModalShow(modalId, fieldId, config) {
+                const modal = document.getElementById(modalId);
+                if (modal && !modal.hasRichEditorListener) {
+                    modal.hasRichEditorListener = true; // Previne múltiplos listeners
+                    
+                    modal.addEventListener('shown.bs.modal', function() {
+                        console.log(`📂 Modal aberto para ${fieldId} - MODO SIMPLES por padrão`);
+                        
+                        // Força limpeza completa quando abre (garante modo simples)
+                        window.richTextManager.destroyEditor(fieldId);
+                        
+                        // Reseta o botão para modo simples
+                        const toggleBtn = document.getElementById(`toggleBtn_${fieldId}`);
+                        if (toggleBtn) {
+                            toggleBtn.disabled = false;
+                            toggleBtn.innerHTML = '<i class="bi bi-magic"></i> Editor Rico';
+                        }
+                        
+                        // Garante que o textarea esteja visível
+                        const originalElement = document.getElementById(fieldId);
+                        if (originalElement) {
+                            originalElement.style.display = '';
+                            originalElement.value = ''; // Limpa o conteúdo
+                        }
+                    });
+
+                    // Limpa o editor quando o modal for fechado
+                    modal.addEventListener('hidden.bs.modal', function() {
+                        console.log(`📂 Modal fechado para ${fieldId} - limpando editor`);
+                        if (window.richTextManager.editors.has(fieldId)) {
+                            window.destroyRichEditor(fieldId);
+                        }
+                        
+                        // Reseta o botão
+                        const toggleBtn = document.getElementById(`toggleBtn_${fieldId}`);
+                        if (toggleBtn) {
+                            toggleBtn.disabled = false;
+                            toggleBtn.innerHTML = '<i class="bi bi-magic"></i> Editor Rico';
+                        }
+                    });
+                }
+            }
+
+            // Configura editores para cada modal
+            initializeEditorOnModalShow('taskModal', 'taskDescription', 
+                richEditorFields.find(f => f.id === 'taskDescription'));
+            
+            initializeEditorOnModalShow('riskModal', 'riskDescription', 
+                richEditorFields.find(f => f.id === 'riskDescription'));
+            
+            initializeEditorOnModalShow('riskModal', 'riskMitigationPlan', 
+                richEditorFields.find(f => f.id === 'riskMitigationPlan'));
+            
+            initializeEditorOnModalShow('milestoneModal', 'milestoneDescription', 
+                richEditorFields.find(f => f.id === 'milestoneDescription'));
+            
+            initializeEditorOnModalShow('noteModal', 'noteContent', 
+                richEditorFields.find(f => f.id === 'noteContent'));
+
+            // Para o campo de complexidade, que fica sempre visível
+            let complexityTabInitialized = false;
+            document.addEventListener('shown.bs.tab', function(e) {
+                if (e.target.id === 'pills-complexity-tab' && !complexityTabInitialized) {
+                    complexityTabInitialized = true;
+                    console.log('📝 Aba complexidade aberta pela primeira vez');
+                    
+                    // Força limpeza completa antes de criar
+                    window.richTextManager.destroyEditor('complexityNotes');
+                    
+                    setTimeout(() => {
+                        console.log('🔨 Criando editor para complexityNotes');
+                        
+                        window.createRichEditor('complexityNotes', {
+                            placeholder: 'Adicione observações sobre a complexidade...',
+                            modules: {
+                                toolbar: [
+                                    ['bold', 'italic', 'underline'],
+                                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                                    ['blockquote'],
+                                    ['clean']
+                                ]
+                            }
+                        });
+                        
+                        // Ajusta altura após criação
+                        setTimeout(() => {
+                            const editorContainer = document.getElementById('complexityNotes_quill');
+                            if (editorContainer) {
+                                const qlEditor = editorContainer.querySelector('.ql-editor');
+                                if (qlEditor) {
+                                    qlEditor.style.minHeight = '100px';
+                                    console.log('📏 Altura configurada para complexityNotes: 100px');
+                                }
+                            }
+                        }, 50);
+                    }, 300);
+                }
+            });
+
+            console.log('🎨 Rich Text Editors configurados!');
+        }, 500);
+    });
+
+         // 🔄 Sobrescreve funções de save para usar conteúdo dos Rich Editors
+     const originalSaveTask = window.saveTask;
+     if (originalSaveTask) {
+         window.saveTask = function() {
+             if (window.richTextManager.editors.has('taskDescription')) {
+                 const content = window.getRichEditorContent('taskDescription');
+                 document.getElementById('taskDescription').value = content;
+             }
+             return originalSaveTask.apply(this, arguments);
+         };
+     }
+
+     // 🎯 Função global para alternar modo do editor
+     window.toggleRichEditorMode = function(fieldId) {
+         console.log(`🔄 Toggle solicitado para ${fieldId}`);
+         
+         const hasEditor = window.richTextManager.editors.has(fieldId);
+         console.log(`📊 Estado atual: ${hasEditor ? 'Tem editor' : 'Sem editor'}`);
+         
+         // Desabilita o botão temporariamente
+         const toggleBtn = document.getElementById(`toggleBtn_${fieldId}`);
+         if (toggleBtn) {
+             toggleBtn.disabled = true;
+             toggleBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processando...';
+         }
+         
+         if (hasEditor) {
+             // Modo Rico -> Simples
+             console.log(`➡️ Mudando para modo simples: ${fieldId}`);
+             window.destroyRichEditor(fieldId);
+             
+             // Reabilita o botão
+             setTimeout(() => {
+                 if (toggleBtn) {
+                     toggleBtn.disabled = false;
+                     toggleBtn.innerHTML = '<i class="bi bi-magic"></i> Editor Rico';
+                 }
+             }, 100);
+             
+             showEditorToast(`Modo simples ativado para ${getFieldLabel(fieldId)}`, 'info');
+         } else {
+             // Simples -> Rico
+             console.log(`➡️ Mudando para modo rico: ${fieldId}`);
+             const config = getRichEditorConfig(fieldId);
+             
+             // Cria o editor (agora é assíncrono)
+             window.createRichEditor(fieldId, config);
+             
+             // Ajusta altura mínima após a criação
+             setTimeout(() => {
+                 const editorContainer = document.getElementById(`${fieldId}_quill`);
+                 if (editorContainer) {
+                     const qlEditor = editorContainer.querySelector('.ql-editor');
+                     if (qlEditor) {
+                         qlEditor.style.minHeight = config.minHeight || '100px';
+                         console.log(`✅ Altura ajustada para ${fieldId}: ${config.minHeight || '100px'}`);
+                     }
+                 }
+                 
+                 // Reabilita o botão com texto de "Modo Simples"
+                 if (toggleBtn) {
+                     toggleBtn.disabled = false;
+                     toggleBtn.innerHTML = '<i class="bi bi-keyboard"></i> Modo Simples';
+                 }
+                 
+                 showEditorToast(`Editor rico ativado para ${getFieldLabel(fieldId)}! 🎨`, 'success');
+             }, 200);
+         }
+     };
+
+     // 🏷️ Obtém label amigável do campo
+     function getFieldLabel(fieldId) {
+         const labels = {
+             'taskDescription': 'Descrição da Tarefa',
+             'riskDescription': 'Descrição do Risco',
+             'riskMitigationPlan': 'Plano de Mitigação',
+             'milestoneDescription': 'Descrição do Marco',
+             'noteContent': 'Conteúdo da Nota',
+             'complexityNotes': 'Notas de Complexidade'
+         };
+         return labels[fieldId] || fieldId;
+     }
+
+     // ⚙️ Configurações específicas por campo
+     function getRichEditorConfig(fieldId) {
+         const configs = {
+             'taskDescription': {
+                 placeholder: 'Descreva a tarefa... (Ctrl+V para colar imagens e planilhas)',
+                 minHeight: '100px',
+                 modules: {
+                     toolbar: [
+                         [{ 'header': [1, 2, 3, false] }],
+                         ['bold', 'italic', 'underline'],
+                         [{ 'color': [] }],
+                         [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                         ['blockquote', 'link', 'image'],
+                         ['clean']
+                     ]
+                 }
+             },
+             'riskDescription': {
+                 placeholder: 'Descreva o risco identificado...',
+                 minHeight: '100px',
+                 modules: {
+                     toolbar: [
+                         ['bold', 'italic', 'underline'],
+                         [{ 'color': [] }],
+                         [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                         ['blockquote', 'link'],
+                         ['clean']
+                     ]
+                 }
+             },
+             'riskMitigationPlan': {
+                 placeholder: 'Detalhe o plano de mitigação...',
+                 minHeight: '100px',
+                 modules: {
+                     toolbar: [
+                         ['bold', 'italic', 'underline'],
+                         [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                         ['blockquote'],
+                         ['clean']
+                     ]
+                 }
+             },
+             'milestoneDescription': {
+                 placeholder: 'Descreva o marco do projeto...',
+                 minHeight: '80px',
+                 modules: {
+                     toolbar: [
+                         ['bold', 'italic'],
+                         [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                         ['clean']
+                     ]
+                 }
+             },
+             'noteContent': {
+                 placeholder: 'Digite sua nota... (suporte a formatação rica)',
+                 minHeight: '120px',
+                 modules: {
+                     toolbar: [
+                         [{ 'header': [1, 2, 3, false] }],
+                         ['bold', 'italic', 'underline'],
+                         [{ 'color': [] }],
+                         [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                         ['blockquote', 'link', 'image'],
+                         ['clean']
+                     ]
+                 }
+             },
+             'complexityNotes': {
+                 placeholder: 'Adicione observações sobre a complexidade...',
+                 minHeight: '100px',
+                 modules: {
+                     toolbar: [
+                         ['bold', 'italic', 'underline'],
+                         [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                         ['blockquote'],
+                         ['clean']
+                     ]
+                 }
+             }
+         };
+         return configs[fieldId] || {};
+     }
+
+     // 📢 Toast de notificação
+     function showEditorToast(message, type = 'info') {
+         const toastHtml = `
+             <div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'info'} border-0" role="alert">
+                 <div class="d-flex">
+                     <div class="toast-body">
+                         <i class="bi bi-magic"></i> ${message}
+                     </div>
+                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                 </div>
+             </div>
+         `;
+         
+         let toastContainer = document.querySelector('.toast-container');
+         if (!toastContainer) {
+             toastContainer = document.createElement('div');
+             toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+             document.body.appendChild(toastContainer);
+         }
+         
+         toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+         const toastElement = toastContainer.lastElementChild;
+         const toast = new bootstrap.Toast(toastElement);
+         toast.show();
+         
+         toastElement.addEventListener('hidden.bs.toast', () => {
+             toastElement.remove();
+         });
+     }
+
+     // 🔍 Função de debug para verificar duplicação
+     window.debugRichEditors = function() {
+         console.log('🔍 DEBUG: Estado atual dos Rich Editors');
+         
+         // Verifica editores na memória
+         const stats = window.richTextManager.getStats();
+         console.log('📊 Editores na memória:', stats);
+         
+         // Verifica containers no DOM
+         const allContainers = document.querySelectorAll('[id$="_quill"]');
+         console.log('🏗️ Containers no DOM:', allContainers.length);
+         allContainers.forEach(container => {
+             console.log(`  - ${container.id} (${container.children.length} filhos)`);
+         });
+         
+         // Verifica toolbars órfãs
+         const allToolbars = document.querySelectorAll('.ql-toolbar');
+         console.log('🛠️ Toolbars no DOM:', allToolbars.length);
+         
+         return {
+             editorsInMemory: stats.totalEditors,
+             containersInDOM: allContainers.length,
+             toolbarsInDOM: allToolbars.length
+         };
+     };
+
+     // 🧹 Função de limpeza forçada
+     window.forceCleanup = function() {
+         console.log('🧹 FORÇA LIMPEZA DE TODOS OS EDITORES');
+         
+         // Destroi todos os editores na memória
+         window.richTextManager.editors.forEach((data, elementId) => {
+             window.richTextManager.destroyEditor(elementId);
+         });
+         
+         // Remove todos os containers órfãos
+         const allContainers = document.querySelectorAll('[id$="_quill"]');
+         allContainers.forEach(container => {
+             container.remove();
+             console.log(`🗑️ Container removido: ${container.id}`);
+         });
+         
+         console.log('✅ Limpeza forçada concluída');
+     };
+
+    const originalSaveRisk = window.saveRisk;
+    if (originalSaveRisk) {
+        window.saveRisk = function() {
+            if (window.richTextManager.editors.has('riskDescription')) {
+                const content = window.getRichEditorContent('riskDescription');
+                document.getElementById('riskDescription').value = content;
+            }
+            if (window.richTextManager.editors.has('riskMitigationPlan')) {
+                const content = window.getRichEditorContent('riskMitigationPlan');
+                document.getElementById('riskMitigationPlan').value = content;
+            }
+            return originalSaveRisk.apply(this, arguments);
+        };
+    }
+
+    const originalSaveMilestone = window.saveMilestone;
+    if (originalSaveMilestone) {
+        window.saveMilestone = function() {
+            if (window.richTextManager.editors.has('milestoneDescription')) {
+                const content = window.getRichEditorContent('milestoneDescription');
+                document.getElementById('milestoneDescription').value = content;
+            }
+            return originalSaveMilestone.apply(this, arguments);
+        };
+    }
+
+    const originalSaveNote = window.saveNote;
+    if (originalSaveNote) {
+        window.saveNote = function() {
+            if (window.richTextManager.editors.has('noteContent')) {
+                const content = window.getRichEditorContent('noteContent');
+                document.getElementById('noteContent').value = content;
+            }
+            return originalSaveNote.apply(this, arguments);
+        };
+    }
+  </script>
+ {% endblock %} 
