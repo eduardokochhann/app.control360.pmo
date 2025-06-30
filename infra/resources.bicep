@@ -56,7 +56,10 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.13.0' = {
       }
     ]
     secrets: [
-      empty(identityProxyClientSecret) ? {} : {
+      empty(identityProxyClientSecret) ? {
+        name: 'placeholder'
+        value: 'identity secret was not passed as a parameter in the deployment'
+      } : {
         name: 'microsoft-provider-authentication-secret'
         value: identityProxyClientSecret
       }
