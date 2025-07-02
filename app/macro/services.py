@@ -3145,7 +3145,8 @@ class MacroService(BaseService):
                         if mes_hist == 3: fonte_historico = 'dadosr_apt_mar'
                         if mes_hist == 4: fonte_historico = 'dadosr_apt_abr'  # ADICIONADO: mapeamento para abril
                         if mes_hist == 5: fonte_historico = 'dadosr_apt_mai'  # ADICIONADO: mapeamento para maio
-                        # Adicionar mapeamentos futuros aqui (Junho, Julho, etc.)
+                        if mes_hist == 6: fonte_historico = 'dadosr_apt_jun'  # ADICIONADO: mapeamento para junho
+                        # Adicionar mapeamentos futuros aqui (Julho, Agosto, etc.)
                     
                     if fonte_historico:
                         logger.info(f"    Tentando carregar dados da fonte: {fonte_historico}")
@@ -3662,6 +3663,11 @@ class MacroService(BaseService):
             # Processa cada arquivo encontrado
             for arquivo in arquivos_apt:
                 nome_arquivo = arquivo.stem  # Remove a extensão .csv
+                
+                # Ignora arquivos de backup (que contêm '_backup_' no nome)
+                if '_backup_' in nome_arquivo:
+                    logger.info(f"Ignorando arquivo de backup: {nome_arquivo}")
+                    continue
                 
                 # Extrai a abreviação do mês do nome do arquivo
                 # Formato esperado: dadosr_apt_abr, dadosr_apt_jan, etc.

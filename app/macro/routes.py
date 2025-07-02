@@ -2569,6 +2569,61 @@ def api_test_reader():
 
 from app.macro.periodo_fiscal_service import StatusReportHistoricoService, PeriodoFiscalManager
 
+@macro_bp.route('/api/arquivar-mensal', methods=['POST'])
+def api_arquivar_mensal():
+    """API para Adminsystem solicitar arquivamento mensal automático"""
+    try:
+        logger.info("Recebida solicitação de arquivamento mensal via API")
+        
+        # Importa e executa o módulo de arquivamento
+        import subprocess
+        import sys
+        from pathlib import Path
+        
+        # Caminho para o script de arquivamento
+        script_path = Path(__file__).parent.parent.parent / "scripts" / "arquivar_dados_mensais.py"
+        
+        if not script_path.exists():
+            logger.error(f"Script de arquivamento não encontrado: {script_path}")
+            return jsonify({
+                "status": "error", 
+                "mensagem": f"Script não encontrado: {script_path}"
+            }), 500
+        
+        # Executa o script com parâmetros automáticos
+        comando = [sys.executable, str(script_path), "--automatico"]
+        
+        logger.info(f"Executando comando: {' '.join(comando)}")
+        resultado = subprocess.run(comando, capture_output=True, text=True, timeout=60)
+        
+        if resultado.returncode == 0:
+            logger.info("Arquivamento mensal executado com sucesso")
+            return jsonify({
+                "status": "success", 
+                "mensagem": "Arquivamento mensal realizado com sucesso",
+                "output": resultado.stdout
+            })
+        else:
+            logger.error(f"Falha no arquivamento: {resultado.stderr}")
+            return jsonify({
+                "status": "error", 
+                "mensagem": "Falha no arquivamento mensal",
+                "error": resultado.stderr
+            }), 500
+            
+    except subprocess.TimeoutExpired:
+        logger.error("Timeout no arquivamento mensal")
+        return jsonify({
+            "status": "error", 
+            "mensagem": "Timeout no processo de arquivamento"
+        }), 500
+    except Exception as e:
+        logger.exception(f"Erro na API de arquivamento mensal: {str(e)}")
+        return jsonify({
+            "status": "error", 
+            "mensagem": f"Erro interno: {str(e)}"
+        }), 500
+
 @macro_bp.route('/apresentacao-periodo')
 def apresentacao_periodo():
     try:

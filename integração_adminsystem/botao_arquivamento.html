@@ -1,0 +1,102 @@
+<!-- ===========================================
+     BOTÃO DE ARQUIVAMENTO MENSAL - CONTROL360
+     Adicionar na seção de gerenciamento do AdminSystem
+     =========================================== -->
+
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0">
+            <i class="bi bi-archive"></i> Arquivamento Mensal Control360
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <h6>📦 Criar Snapshot Mensal</h6>
+                <p class="text-muted mb-2">
+                    Arquiva os dados atuais para análise histórica no Status Report da Diretoria.
+                    <br><small>Execute sempre no início do mês para preservar dados do mês anterior.</small>
+                </p>
+                
+                <!-- Status do último arquivamento -->
+                <div id="statusArquivamento" class="alert alert-secondary" style="display: none;">
+                    <small id="statusTexto"></small>
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <button id="btnArquivarMensal" class="btn btn-info btn-lg" title="Arquivar dados do mês anterior">
+                    <i class="bi bi-calendar-plus me-2"></i>
+                    Arquivar Mês Anterior
+                </button>
+                
+                <!-- Loading spinner -->
+                <div id="loadingArquivamento" style="display: none;" class="mt-2">
+                    <div class="spinner-border spinner-border-sm text-info" role="status">
+                        <span class="visually-hidden">Processando...</span>
+                    </div>
+                    <small class="text-muted ms-2">Processando arquivamento...</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Informações adicionais (expandível) -->
+        <div class="row mt-3">
+            <div class="col-12">
+                <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#infoArquivamento">
+                    <i class="bi bi-info-circle me-1"></i> Mais informações
+                </button>
+                
+                <div class="collapse mt-2" id="infoArquivamento">
+                    <div class="alert alert-light">
+                        <h6>Como funciona:</h6>
+                        <ul class="mb-0 small">
+                            <li><strong>Automaticamente detecta</strong> o mês anterior baseado na data atual</li>
+                            <li><strong>Cria arquivo histórico</strong> dadosr_apt_[mes].csv</li>
+                            <li><strong>Gera backup</strong> do arquivo anterior se existir</li>
+                            <li><strong>Valida integridade</strong> dos dados copiados</li>
+                            <li><strong>Nova aba aparece</strong> automaticamente no Status Report</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Confirmação -->
+<div class="modal fade" id="modalConfirmacao" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Confirmar Arquivamento
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Você está prestes a arquivar os dados do mês anterior.</strong></p>
+                <p>Esta ação irá:</p>
+                <ul>
+                    <li>Criar um snapshot dos dados atuais</li>
+                    <li>Gerar uma nova aba no Status Report</li>
+                    <li>Fazer backup de arquivos existentes</li>
+                </ul>
+                <div class="alert alert-info">
+                    <small>
+                        <i class="bi bi-info-circle me-1"></i>
+                        <strong>Mês a ser arquivado:</strong> <span id="mesParaArquivar"></span>
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i> Cancelar
+                </button>
+                <button type="button" class="btn btn-warning" id="confirmarArquivamento">
+                    <i class="bi bi-check-circle me-1"></i> Confirmar Arquivamento
+                </button>
+            </div>
+        </div>
+    </div>
+</div> 

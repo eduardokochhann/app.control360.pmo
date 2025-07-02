@@ -83,7 +83,7 @@ class StatusReportHistoricoService:
             'mar': {'arquivo': 'dadosr_apt_mar.csv', 'nome': 'Março', 'numero': 3, 'filtro_mes': '2025-03'},
             'abr': {'arquivo': 'dadosr_apt_abr.csv', 'nome': 'Abril', 'numero': 4, 'filtro_mes': '2025-04'},
             'mai': {'arquivo': 'dadosr_apt_mai.csv', 'nome': 'Maio', 'numero': 5, 'filtro_mes': '2025-05'},
-            'jun': {'arquivo': 'dadosr_parc_jun.csv', 'nome': 'Junho', 'numero': 6, 'filtro_mes': '2025-06'},
+            'jun': {'arquivo': 'dadosr_apt_jun.csv', 'nome': 'Junho', 'numero': 6, 'filtro_mes': '2025-06'},
         }
     
     def listar_meses_disponiveis(self):
