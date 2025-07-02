@@ -9,7 +9,7 @@ param tags object = {}
 @description('Id of the user or app to assign application roles')
 param principalId string
 
-param appControl360SouExists bool
+param appControl360SouExists bool = false
 
 @description('Client ID of the app registration used to authenticate the app with Entra ID')
 param identityProxyClientId string = 'c5b9b4ab-76e8-4f42-abca-bebf57ea1102'
@@ -56,7 +56,10 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.13.0' = {
       }
     ]
     secrets: [
-      empty(identityProxyClientSecret) ? {} : {
+      empty(identityProxyClientSecret) ? {
+        name: 'placeholder'
+        value: 'identity secret was not passed as a parameter in the deployment'
+      } : {
         name: 'microsoft-provider-authentication-secret'
         value: identityProxyClientSecret
       }
@@ -135,7 +138,7 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.17.0' = {
   name: 'appControl360Sou'
   params: {
     name: 'app-control360-sou'
-    ingressTargetPort: 80
+    ingressTargetPort: 5000
     secrets: [
       {
         keyVaultUrl: '${keyVault.outputs.uri}secrets/stg-appcontrol-360-sou-key1'
@@ -167,7 +170,7 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.17.0' = {
           }
           {
             name: 'PORT'
-            value: '80'
+            value: '5000'
           }
         ]
         volumeMounts: [
@@ -216,19 +219,6 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.17.0' = {
         }
       }
     }
-  }
-}
-
-// As a first time setup for an existing app registration, follow the docs below:
-// https://learn.microsoft.com/en-us/graph/templates/bicep/how-to-reference-existing-resources?view=graph-bicep-1.0&tabs=PowerShell
-resource appRegistration 'Microsoft.Graph/applications@v1.0' = {
-  displayName: 'app-control360-sou'
-  uniqueName: 'appControl360Sou'
-  web: {
-    homePageUrl: 'https://${appControl360Sou.outputs.fqdn}'
-    redirectUris: [
-      'https://${appControl360Sou.outputs.fqdn}/.auth/login/aad/callback'
-    ]
   }
 }
 

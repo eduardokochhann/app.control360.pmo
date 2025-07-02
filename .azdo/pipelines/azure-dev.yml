@@ -25,21 +25,6 @@ steps:
     displayName: Configure AZD to Use AZ CLI Authentication.
 
   - task: AzureCLI@2
-    displayName: Check infrastructure changes
-    inputs:
-      azureSubscription: arm-mpn-subscription-bernardo-mesko
-      scriptType: bash
-      scriptLocation: inlineScript
-      keepAzSessionActive: true
-      inlineScript: |
-        azd provision --preview --no-prompt
-    env:
-      AZURE_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
-      AZURE_ENV_NAME: $(AZURE_ENV_NAME)
-      AZURE_LOCATION: $(AZURE_LOCATION)
-      IDENTITY_PROXY_CLIENT_ID: $(IDENTITY_PROXY_CLIENT_ID)
-
-  - task: AzureCLI@2
     displayName: Provision Infrastructure
     inputs:
       azureSubscription: arm-mpn-subscription-bernardo-mesko
