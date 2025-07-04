@@ -39,6 +39,17 @@ module containerRegistry 'br/public:avm/res/container-registry/registry:0.1.1' =
   }
 }
 
+module acrPurgeTask './modules/acr-purge-task.bicep' = {
+  name: 'acr-purge-task'
+  params: {
+    registryName: containerRegistry.outputs.name
+    location: location
+    tags: tags
+    schedule: '0 3 * * *' // daily at 3 AM UTC
+    tagsToKeep: 3
+  }
+}
+
 module keyVault 'br/public:avm/res/key-vault/vault:0.13.0' = {
   name: 'keyVault'
   params: {
@@ -221,6 +232,8 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.17.0' = {
     }
   }
 }
+
+
 
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.outputs.loginServer
 output AZURE_RESOURCE_APP_CONTROL360_SOU_ID string = appControl360Sou.outputs.resourceId
