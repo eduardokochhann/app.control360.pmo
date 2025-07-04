@@ -233,7 +233,44 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.17.0' = {
   }
 }
 
-
+// Azure Budget: Cap spending at R$40 per month
+// The startDate is when the budget begins tracking. It can be any date in the past; Azure will apply the budget to each month from then on.
+resource monthlyBudget 'Microsoft.Consumption/budgets@2023-05-01' = {
+  name: 'monthly-budget-r40'
+  scope: resourceGroup()
+  properties: {
+    category: 'Cost'
+    amount: 40
+    timeGrain: 'Monthly'
+    timePeriod: {
+      startDate: '2024-01-01' // Hardcoded: any date in the past is valid
+    }
+    notifications: {
+      actualGt80: {
+        enabled: true
+        operator: 'GreaterThan'
+        threshold: 80
+        contactEmails: []
+        contactRoles: [ 'Owner' ]
+      }
+      actualGt100: {
+        enabled: true
+        operator: 'GreaterThan'
+        threshold: 100
+        contactEmails: []
+        contactRoles: [ 'Owner' ]
+      }
+      forecastedGt120: {
+        enabled: true
+        operator: 'GreaterThan'
+        threshold: 120
+        contactEmails: []
+        contactRoles: [ 'Owner' ]
+        thresholdType: 'Forecasted'
+      }
+    }
+  }
+}
 
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.outputs.loginServer
 output AZURE_RESOURCE_APP_CONTROL360_SOU_ID string = appControl360Sou.outputs.resourceId
