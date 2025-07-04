@@ -18,6 +18,9 @@ param identityProxyClientId string = 'c5b9b4ab-76e8-4f42-abca-bebf57ea1102'
 @secure()
 param identityProxyClientSecret string = ''
 
+@description('The first day of the current month, required for Azure Budget startDate (e.g. 2025-07-01)')
+param budgetStartDate string = utcNow('yyyy-MM-dd')
+
 var abbrs = loadJsonContent('./abbreviations.json')
 var resourceToken = uniqueString(subscription().id, resourceGroup().id, location)
 
@@ -233,8 +236,9 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.17.0' = {
   }
 }
 
+
 // Azure Budget: Cap spending at R$40 per month
-// The startDate is when the budget begins tracking. It can be any date in the past; Azure will apply the budget to each month from then on.
+// The startDate is when the budget begins tracking. It must be the first day of the current month.
 resource monthlyBudget 'Microsoft.Consumption/budgets@2023-05-01' = {
   name: 'monthly-budget-r40'
   scope: resourceGroup()
@@ -243,7 +247,7 @@ resource monthlyBudget 'Microsoft.Consumption/budgets@2023-05-01' = {
     amount: 40
     timeGrain: 'Monthly'
     timePeriod: {
-      startDate: '2024-01-01' // Hardcoded: any date in the past is valid
+      startDate: budgetStartDate // Must be the first day of the current month
     }
     notifications: {
       actualGt80: {
