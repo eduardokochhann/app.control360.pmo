@@ -18,6 +18,9 @@ param identityProxyClientId string = 'c5b9b4ab-76e8-4f42-abca-bebf57ea1102'
 @secure()
 param identityProxyClientSecret string = ''
 
+@description('The first day of the current month, required for Azure Budget startDate (e.g. 2025-07-01)')
+param budgetStartDate string = utcNow('yyyy-MM-dd')
+
 var abbrs = loadJsonContent('./abbreviations.json')
 var resourceToken = uniqueString(subscription().id, resourceGroup().id, location)
 
@@ -36,6 +39,17 @@ module containerRegistry 'br/public:avm/res/container-registry/registry:0.1.1' =
         roleDefinitionIdOrName: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
       }
     ]
+  }
+}
+
+module acrPurgeTask './modules/acr-purge-task.bicep' = {
+  name: 'acr-purge-task'
+  params: {
+    registryName: containerRegistry.outputs.name
+    location: location
+    tags: tags
+    schedule: '0 3 * * *' // daily at 3 AM UTC
+    tagsToKeep: 3
   }
 }
 
@@ -217,6 +231,46 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.17.0' = {
             clientSecretSettingName: 'microsoft-provider-authentication-secret'
           }
         }
+      }
+    }
+  }
+}
+
+
+// Azure Budget: Cap spending at R$40 per month
+// The startDate is when the budget begins tracking. It must be the first day of the current month.
+resource monthlyBudget 'Microsoft.Consumption/budgets@2023-05-01' = {
+  name: 'monthly-budget-r40'
+  scope: resourceGroup()
+  properties: {
+    category: 'Cost'
+    amount: 40
+    timeGrain: 'Monthly'
+    timePeriod: {
+      startDate: budgetStartDate // Must be the first day of the current month
+    }
+    notifications: {
+      actualGt80: {
+        enabled: true
+        operator: 'GreaterThan'
+        threshold: 80
+        contactEmails: []
+        contactRoles: [ 'Owner' ]
+      }
+      actualGt100: {
+        enabled: true
+        operator: 'GreaterThan'
+        threshold: 100
+        contactEmails: []
+        contactRoles: [ 'Owner' ]
+      }
+      forecastedGt120: {
+        enabled: true
+        operator: 'GreaterThan'
+        threshold: 120
+        contactEmails: []
+        contactRoles: [ 'Owner' ]
+        thresholdType: 'Forecasted'
       }
     }
   }

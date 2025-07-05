@@ -28,6 +28,10 @@ param identityProxyClientSecret string = ''
 //   tags: union(tags, { 'azd-service-name': <service name in azure.yaml> })
 var tags = {
   'azd-env-name': environmentName
+  Ambiente: 'Produção'
+  Custo: 'R$40'
+  Autorizado: 'Rodrigo Castro'
+  Chamado: '12479'
 }
 
 // Organize resources in a resource group
