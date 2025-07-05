@@ -472,7 +472,7 @@ def get_tasks():
 @backlog_bp.route('/api/tasks/<int:task_id>', methods=['GET'])
 def get_task_details(task_id):
     task = Task.query.get_or_404(task_id)
-    return jsonify(task.to_dict())
+    return jsonify(serialize_task(task))
 
 # API para atualizar detalhes de uma tarefa existente
 @backlog_bp.route('/api/tasks/<int:task_id>', methods=['PUT'])
@@ -569,7 +569,45 @@ def update_task_details(task_id):
         try:
             status_id = int(data['status'])
             if status_id in status_map:
-                # O ID da coluna é o próprio status_id no novo modelo
+                # 🎯 NOVA LÓGICA: Verifica mudança de status para preencher actually_started_at automaticamente
+                old_column_name = task.column.name.upper() if task.column else ''
+                new_column_name = status_map[status_id].upper()
+                
+                current_app.logger.info(f"[Status Change] Tarefa {task_id}: '{old_column_name}' -> '{new_column_name}'")
+                
+                # Verifica se está movendo para "Em Andamento" e ainda não tem data de início real
+                is_moving_to_progress = new_column_name == 'EM ANDAMENTO'
+                is_leaving_todo = old_column_name == 'A FAZER'
+                is_moving_to_review = new_column_name == 'REVISÃO'
+                is_moving_to_done = new_column_name == 'CONCLUÍDO'
+                
+                # Preenche actually_started_at quando:
+                # 1. Move para "Em Andamento" OU
+                # 2. Move diretamente de "A Fazer" para "Revisão" OU  
+                # 3. Move diretamente de "A Fazer" para "Concluído"
+                # 4. Ainda não tem data de início real
+                should_set_start_time = (
+                    is_moving_to_progress or 
+                    (is_leaving_todo and is_moving_to_review) or
+                    (is_leaving_todo and is_moving_to_done)
+                )
+                
+                if not task.actually_started_at and should_set_start_time:
+                    task.actually_started_at = datetime.now(br_timezone)
+                    if is_moving_to_progress:
+                        action_desc = "Em Andamento"
+                    elif is_moving_to_review:
+                        action_desc = "Revisão (início direto)"
+                    else:
+                        action_desc = "Concluído (início direto)"
+                    current_app.logger.info(f"[Status Change] Tarefa {task_id} movida para {action_desc}, INÍCIO REAL definido para {task.actually_started_at} (fuso BR)")
+                
+                # Preenche completed_at quando move para "Concluído"
+                if is_moving_to_done and not task.completed_at:
+                    task.completed_at = datetime.now(br_timezone)
+                    current_app.logger.info(f"[Status Change] Tarefa {task_id} movida para Concluído, DATA DE CONCLUSÃO definida para {task.completed_at} (fuso BR)")
+                
+                # Atualiza a coluna
                 task.column_id = status_id
             else:
                 current_app.logger.error(f"Status ID '{status_id}' inválido recebido.")
@@ -807,7 +845,7 @@ def move_task(task_id):
     if is_moving_to_done:
         task.status = TaskStatus.DONE
         if not task.completed_at: # Define apenas se NÃO houver data de conclusão prévia
-            task.completed_at = datetime.utcnow()
+            task.completed_at = datetime.now(br_timezone)
             current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para Concluído, data de conclusão definida.")
         else:
             current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para Concluído, data de conclusão existente mantida: {task.completed_at}")
@@ -1359,7 +1397,7 @@ def update_milestone(milestone_id):
             try:
                 milestone.status = MilestoneStatus[status_key]
                 if milestone.status == MilestoneStatus.COMPLETED and not milestone.actual_date:
-                    milestone.actual_date = datetime.utcnow().date()
+                    milestone.actual_date = datetime.now(br_timezone).date()
             except KeyError:
                 valid_statuses = [s.name for s in MilestoneStatus]
                 abort(400, description=f"Chave de Status inválida '{status_key}'. Válidas: {valid_statuses}")
@@ -1379,7 +1417,7 @@ def update_milestone(milestone_id):
             milestone.is_checkpoint = bool(data['is_checkpoint'])
         
         # Atualiza timestamp
-        milestone.updated_at = datetime.utcnow()
+        milestone.updated_at = datetime.now(br_timezone)
         
         db.session.commit()
         
@@ -1491,7 +1529,7 @@ def create_risk():
         contingency_plan=contingency_plan,
         trend=trend,
         backlog_id=backlog.id,
-        identified_date=datetime.utcnow() # Data de identificação é agora
+        identified_date=datetime.now(br_timezone) # Data de identificação é agora
     )
 
     try:
@@ -1546,7 +1584,7 @@ def update_risk(risk_id):
             resolved_date_str = data.get('resolved_date')
             risk.resolved_date = datetime.strptime(resolved_date_str, '%Y-%m-%d') if resolved_date_str else None
         
-        risk.updated_at = datetime.utcnow() # Atualiza a data de modificação
+        risk.updated_at = datetime.now(br_timezone) # Atualiza a data de modificação
 
     except KeyError as e:
         # Captura erro se alguma CHAVE de Enum for inválida
@@ -2013,12 +2051,12 @@ def import_tasks_from_excel(backlog_id):
                         col_name_lower = target_column_obj.name.lower()
                         if 'andamento' in col_name_lower:
                             new_task.status = TaskStatus.IN_PROGRESS
-                            if not new_task.start_date: new_task.actually_started_at = datetime.utcnow()
+                            if not new_task.start_date: new_task.actually_started_at = datetime.now(br_timezone)
                         elif 'revis' in col_name_lower:
                             new_task.status = TaskStatus.REVIEW
                         elif 'concluído' in col_name_lower or 'concluido' in col_name_lower:
                             new_task.status = TaskStatus.DONE
-                            if not new_task.completed_at: new_task.completed_at = datetime.utcnow()
+                            if not new_task.completed_at: new_task.completed_at = datetime.now(br_timezone)
                         
                     db.session.add(new_task)
                     db.session.flush() # Para obter o ID da new_task
@@ -2362,7 +2400,7 @@ def complete_segment(segment_id):
         # Se todos os segmentos estão concluídos, marca a tarefa como concluída
         if len(completed_segments) == len(all_segments):
             task.status = TaskStatus.DONE
-            task.completed_at = datetime.utcnow()
+            task.completed_at = datetime.now(br_timezone)
             
             # Move para coluna "Concluído" se existir
             done_column = Column.query.filter_by(name='Concluído').first()
@@ -3803,3 +3841,467 @@ def update_wbs_task_order():
             'success': False,
             'error': str(e)
         }), 500
+
+# --- INÍCIO: API DE DEBUG PARA KANBAN SEMANAL ---
+
+@backlog_bp.route('/api/debug/specialist/<path:specialist_name>/kanban-data', methods=['GET'])
+def debug_specialist_kanban_data(specialist_name):
+    """
+    API de debug para investigar problemas do Kanban Semanal
+    """
+    try:
+        from urllib.parse import unquote
+        from datetime import datetime, timedelta
+        
+        # Decodifica o nome do especialista
+        specialist_name = unquote(specialist_name)
+        debug_info = {
+            'specialist_name_input': specialist_name,
+            'specialist_name_decoded': specialist_name,
+            'debug_steps': []
+        }
+        
+        # PASSO 1: Busca tarefas do especialista
+        debug_info['debug_steps'].append("PASSO 1: Buscando tarefas do especialista")
+        
+        specialist_trimmed = specialist_name.strip()
+        
+        # Busca 1: Híbrida (trim + case-insensitive)
+        tasks_hybrid = Task.query.filter(
+            db.func.lower(db.func.trim(Task.specialist_name)) == specialist_trimmed.lower()
+        ).all()
+        debug_info['search_hybrid'] = {
+            'count': len(tasks_hybrid),
+            'tasks': [{'id': t.id, 'title': t.title, 'specialist': t.specialist_name} for t in tasks_hybrid[:5]]
+        }
+        
+        # Busca 2: Case-insensitive
+        tasks_ilike = Task.query.filter(
+            Task.specialist_name.ilike(f"%{specialist_name}%")
+        ).all()
+        debug_info['search_ilike'] = {
+            'count': len(tasks_ilike),
+            'tasks': [{'id': t.id, 'title': t.title, 'specialist': t.specialist_name} for t in tasks_ilike[:5]]
+        }
+        
+        # Busca 3: Exata
+        tasks_exact = Task.query.filter_by(specialist_name=specialist_name).all()
+        debug_info['search_exact'] = {
+            'count': len(tasks_exact),
+            'tasks': [{'id': t.id, 'title': t.title, 'specialist': t.specialist_name} for t in tasks_exact[:5]]
+        }
+        
+        # Usa a busca que encontrou mais tarefas
+        if tasks_hybrid:
+            selected_tasks = tasks_hybrid
+            search_method = 'hybrid'
+        elif tasks_ilike:
+            selected_tasks = tasks_ilike
+            search_method = 'ilike'
+        else:
+            selected_tasks = tasks_exact
+            search_method = 'exact'
+            
+        debug_info['selected_search_method'] = search_method
+        debug_info['selected_tasks_count'] = len(selected_tasks)
+        
+        # PASSO 2: Verifica se as tarefas têm segmentos
+        debug_info['debug_steps'].append("PASSO 2: Verificando segmentos das tarefas")
+        
+        tasks_with_segments = []
+        for task in selected_tasks[:10]:  # Analisa apenas as 10 primeiras
+            segments = TaskSegment.query.filter_by(task_id=task.id).all()
+            tasks_with_segments.append({
+                'task_id': task.id,
+                'task_title': task.title,
+                'segments_count': len(segments),
+                'segments': [
+                    {
+                        'id': s.id,
+                        'start': s.segment_start_datetime.isoformat() if s.segment_start_datetime else None,
+                        'end': s.segment_end_datetime.isoformat() if s.segment_end_datetime else None
+                    } for s in segments[:3]  # Mostra apenas os 3 primeiros
+                ]
+            })
+        
+        debug_info['tasks_segments_analysis'] = tasks_with_segments
+        
+        # PASSO 3: Verifica projetos ativos
+        debug_info['debug_steps'].append("PASSO 3: Verificando projetos ativos")
+        
+        try:
+            macro_service = MacroService()
+            active_projects_data = macro_service.carregar_dados()
+            
+            if not active_projects_data.empty:
+                active_projects = macro_service.obter_projetos_ativos(active_projects_data)
+                active_project_ids = [str(p.get('numero', '')) for p in active_projects]
+                debug_info['active_projects'] = {
+                    'count': len(active_project_ids),
+                    'project_ids': active_project_ids[:10],  # Mostra apenas os 10 primeiros
+                    'data_source_rows': len(active_projects_data)
+                }
+            else:
+                debug_info['active_projects'] = {
+                    'count': 0,
+                    'error': 'MacroService retornou dados vazios'
+                }
+        except Exception as e:
+            debug_info['active_projects'] = {
+                'error': f'Erro ao carregar projetos: {str(e)}'
+            }
+        
+        # PASSO 4: Verifica backlog das tarefas e projetos
+        debug_info['debug_steps'].append("PASSO 4: Verificando backlog e projetos das tarefas")
+        
+        backlog_analysis = []
+        for task in selected_tasks[:5]:  # Analisa apenas as 5 primeiras
+            backlog = task.backlog
+            backlog_analysis.append({
+                'task_id': task.id,
+                'task_title': task.title,
+                'backlog_id': backlog.id if backlog else None,
+                'project_id': backlog.project_id if backlog else None,
+                'project_active': backlog.project_id in debug_info.get('active_projects', {}).get('project_ids', []) if backlog else False
+            })
+        
+        debug_info['backlog_analysis'] = backlog_analysis
+        
+        # PASSO 5: Busca segmentos da semana atual
+        debug_info['debug_steps'].append("PASSO 5: Buscando segmentos da semana atual")
+        
+        # Calcula semana atual
+        reference_date = datetime.now().date()
+        days_since_monday = reference_date.weekday()
+        week_start = reference_date - timedelta(days=days_since_monday)
+        week_end = week_start + timedelta(days=4)  # Sexta-feira
+        
+        week_start_datetime = datetime.combine(week_start, datetime.min.time())
+        week_end_datetime = datetime.combine(week_end, datetime.max.time())
+        
+        debug_info['week_analysis'] = {
+            'reference_date': reference_date.isoformat(),
+            'week_start': week_start_datetime.isoformat(),
+            'week_end': week_end_datetime.isoformat()
+        }
+        
+        # Busca segmentos da semana
+        if selected_tasks:
+            task_ids = [task.id for task in selected_tasks]
+            
+            segments_week = TaskSegment.query.filter(
+                TaskSegment.task_id.in_(task_ids),
+                TaskSegment.segment_start_datetime >= week_start_datetime,
+                TaskSegment.segment_start_datetime <= week_end_datetime
+            ).all()
+            
+            debug_info['segments_this_week'] = {
+                'count': len(segments_week),
+                'segments': [
+                    {
+                        'id': s.id,
+                        'task_id': s.task_id,
+                        'task_title': s.task.title if s.task else 'N/A',
+                        'start': s.segment_start_datetime.isoformat(),
+                        'end': s.segment_end_datetime.isoformat(),
+                        'project_id': s.task.backlog.project_id if s.task and s.task.backlog else 'N/A'
+                    } for s in segments_week[:10]
+                ]
+            }
+        else:
+            debug_info['segments_this_week'] = {'count': 0, 'error': 'Nenhuma tarefa encontrada'}
+        
+        # PASSO 6: Lista todos os especialistas únicos
+        debug_info['debug_steps'].append("PASSO 6: Listando todos os especialistas")
+        
+        all_specialists = db.session.query(Task.specialist_name).distinct().filter(
+            Task.specialist_name.isnot(None),
+            Task.specialist_name != ''
+        ).all()
+        
+        debug_info['all_specialists'] = {
+            'count': len(all_specialists),
+            'specialists': [s[0] for s in all_specialists if s[0]]
+        }
+        
+        return jsonify(debug_info)
+        
+    except Exception as e:
+        current_app.logger.error(f"[Debug Kanban] Erro: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+# --- FIM: API DE DEBUG ---
+
+# --- INÍCIO: API KANBAN SEMANAL BASEADO EM DATAS DE TAREFAS ---
+
+@backlog_bp.route('/api/specialists/<path:specialist_name>/kanban-weekly-tasks', methods=['GET'])
+def get_specialist_kanban_weekly_tasks(specialist_name):
+    """
+    API específica para o Kanban Semanal que usa as datas das tarefas (start_date/due_date)
+    ao invés dos segmentos para distribuir as tarefas pelos dias da semana
+    """
+    try:
+        from urllib.parse import unquote
+        from datetime import datetime, timedelta
+        
+        # Decodifica o nome do especialista
+        specialist_name = unquote(specialist_name)
+        
+        # Parâmetros opcionais para semana específica
+        week_offset = request.args.get('week_offset', 0, type=int)  # 0 = semana atual, -1 = anterior, +1 = próxima
+        reference_date_str = request.args.get('reference_date')  # Data de referência opcional
+        
+        # Calcula a semana de trabalho (segunda a sexta)
+        if reference_date_str:
+            try:
+                reference_date = datetime.strptime(reference_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                reference_date = datetime.now().date()
+        else:
+            reference_date = datetime.now().date()
+        
+        # Ajusta para a semana desejada
+        reference_date = reference_date + timedelta(weeks=week_offset)
+        
+        # Calcula início e fim da semana (segunda a sexta)
+        days_since_monday = reference_date.weekday()
+        week_start = reference_date - timedelta(days=days_since_monday)
+        week_end = week_start + timedelta(days=4)  # Sexta-feira
+        
+        # 1. Busca tarefas do especialista (usando mesma lógica do debug)
+        specialist_trimmed = specialist_name.strip()
+        
+        # Busca híbrida (mais confiável)
+        tasks = Task.query.filter(
+            db.func.lower(db.func.trim(Task.specialist_name)) == specialist_trimmed.lower()
+        ).all()
+        
+        # Se não encontrou, tenta busca menos restritiva
+        if not tasks:
+            tasks = Task.query.filter(
+                Task.specialist_name.ilike(f"%{specialist_name}%")
+            ).all()
+        
+        current_app.logger.info(f"[Kanban Weekly] Encontradas {len(tasks)} tarefas para {specialist_name}")
+        
+        # 2. Filtra tarefas que se sobrepõem com a semana atual
+        weekly_tasks = []
+        macro_service = MacroService()
+        
+        try:
+            # Carrega projetos ativos para filtrar apenas tarefas de projetos ativos
+            active_projects_data = macro_service.carregar_dados()
+            if not active_projects_data.empty:
+                active_projects = macro_service.obter_projetos_ativos(active_projects_data)
+                active_project_ids = {str(p.get('numero', '')) for p in active_projects}
+            else:
+                active_project_ids = set()
+        except Exception as e:
+            current_app.logger.warning(f"[Kanban Weekly] Erro ao carregar projetos ativos: {e}")
+            active_project_ids = set()
+        
+        for task in tasks:
+            # Verifica se a tarefa tem datas válidas
+            if not task.start_date or not task.due_date:
+                continue
+            
+            # Converte datas para datetime.date se necessário
+            if isinstance(task.start_date, datetime):
+                task_start = task.start_date.date()
+            elif isinstance(task.start_date, date):
+                task_start = task.start_date
+            else:
+                continue  # Pula se a data não é válida
+            
+            if isinstance(task.due_date, datetime):
+                task_end = task.due_date.date()
+            elif isinstance(task.due_date, date):
+                task_end = task.due_date
+            else:
+                continue  # Pula se a data não é válida
+            
+            # Verifica se a tarefa se sobrepõe com a semana
+            if task_end < week_start or task_start > week_end:
+                continue  # Tarefa está fora da semana
+            
+            # Verifica se é de projeto ativo (ou tarefa genérica)
+            is_active_project = True
+            if task.backlog and task.backlog.project_id:
+                is_active_project = str(task.backlog.project_id) in active_project_ids
+            
+            # Inclui tarefas genéticas ou de projetos ativos
+            if not (task.is_generic or is_active_project):
+                continue
+            
+            # 3. Calcula em quais dias da semana a tarefa aparece
+            dias_presentes = []
+            
+            # Calcula sobreposição entre a tarefa e a semana
+            overlap_start = max(task_start, week_start)
+            overlap_end = min(task_end, week_end)
+            
+            # Para cada dia da sobreposição, adiciona à lista
+            current_day = overlap_start
+            while current_day <= overlap_end:
+                day_of_week = current_day.weekday() + 1  # 1=segunda, 2=terça, ..., 5=sexta
+                if day_of_week <= 5:  # Apenas dias úteis
+                    dias_presentes.append(day_of_week)
+                current_day += timedelta(days=1)
+            
+            if not dias_presentes:
+                continue  # Tarefa não tem dias na semana útil
+            
+            # 4. Busca informações do projeto
+            project_name = 'Projeto Desconhecido'
+            if task.is_generic:
+                project_name = 'Tarefa Genérica'
+            elif task.backlog and task.backlog.project_id:
+                try:
+                    project_details = macro_service.obter_detalhes_projeto(task.backlog.project_id)
+                    if project_details:
+                        project_name = project_details.get('projeto', project_details.get('Projeto', 'Projeto Desconhecido'))
+                except Exception as e:
+                    current_app.logger.warning(f"Erro ao buscar projeto {task.backlog.project_id}: {e}")
+            
+            # 5. Prepara dados da tarefa para o Kanban
+            task_data = {
+                'id': task.id,
+                'name': task.title,
+                'title': task.title,
+                'description': task.description or '',
+                'status': task.status.value if task.status else 'TODO',
+                'priority': task.priority or 'Média',
+                'estimated_hours': task.estimated_effort or 0,
+                'logged_time': task.logged_time or 0,
+                'start_date': task_start.isoformat(),
+                'due_date': task_end.isoformat(),
+                'project_name': project_name,
+                'project_id': task.backlog.project_id if task.backlog else None,
+                'specialist_name': task.specialist_name,
+                'is_generic': task.is_generic or False,
+                'backlog_id': task.backlog_id,
+                'column_id': task.column_id,
+                'dias_presentes': dias_presentes,  # Lista de dias (1-5) em que a tarefa aparece
+                'task_start_original': task.start_date.isoformat() if task.start_date else None,
+                'task_end_original': task.due_date.isoformat() if task.due_date else None
+            }
+            
+            weekly_tasks.append(task_data)
+        
+        # 6. Prepara resposta
+        response_data = {
+            'specialist_name': specialist_name,
+            'week_info': {
+                'week_start': week_start.isoformat(),
+                'week_end': week_end.isoformat(),
+                'week_offset': week_offset,
+                'reference_date': reference_date.isoformat(),
+                'dias_semana': {
+                    1: 'Segunda-feira',
+                    2: 'Terça-feira', 
+                    3: 'Quarta-feira',
+                    4: 'Quinta-feira',
+                    5: 'Sexta-feira'
+                }
+            },
+            'tasks': weekly_tasks,
+            'summary': {
+                'total_tasks': len(weekly_tasks),
+                'tasks_by_day': {
+                    str(day): len([t for t in weekly_tasks if day in t['dias_presentes']])
+                    for day in range(1, 6)
+                },
+                'total_hours': sum(t['estimated_hours'] for t in weekly_tasks),
+                'active_projects_count': len(active_project_ids),
+                'data_source': 'task_dates'  # Indica que usa datas das tarefas, não segmentos
+            }
+        }
+        
+        current_app.logger.info(f"[Kanban Weekly] Retornando {len(weekly_tasks)} tarefas para {specialist_name} na semana {week_start} - {week_end}")
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        current_app.logger.error(f"[Kanban Weekly] Erro para {specialist_name}: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': f'Erro ao buscar tarefas semanais: {str(e)}',
+            'specialist_name': specialist_name,
+            'tasks': [],
+            'summary': {'total_tasks': 0}
+        }), 500
+
+# --- FIM: API KANBAN SEMANAL ---
+
+# API para marcar uma tarefa como concluída
+@backlog_bp.route('/api/tasks/<int:task_id>/complete', methods=['POST'])
+def complete_task(task_id):
+    task = Task.query.get_or_404(task_id)
+    
+    try:
+        # Busca a coluna "Concluído"
+        completed_column = Column.query.filter(Column.name.ilike('%concluído%')).first()
+        if not completed_column:
+            completed_column = Column.query.filter(Column.name.ilike('%concluido%')).first()
+        
+        if not completed_column:
+            return jsonify({'error': 'Coluna "Concluído" não encontrada'}), 400
+        
+        # Atualiza a tarefa
+        task.column_id = completed_column.id
+        task.status = TaskStatus.DONE  # Atualiza o status para DONE
+        task.completed_at = datetime.now(br_timezone)
+        db.session.commit()
+        
+        return jsonify(serialize_task(task))
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao marcar tarefa {task_id} como concluída: {str(e)}")
+        return jsonify({'error': f"Erro ao marcar tarefa como concluída: {str(e)}"}), 500
+
+# --- INÍCIO: API PARA SINCRONIZAÇÃO EM TEMPO REAL ---
+
+@backlog_bp.route('/api/backlog/check_updates', methods=['GET'])
+def check_backlog_updates():
+    """
+    Verifica se há atualizações recentes no backlog.
+    Usado pelo sistema de sincronização em tempo real.
+    """
+    try:
+        # Verifica mudanças nos últimos 30 segundos
+        time_threshold = datetime.now(br_timezone) - timedelta(seconds=30)
+        
+        # Conta tarefas modificadas recentemente
+        recent_tasks = Task.query.filter(
+            Task.updated_at >= time_threshold
+        ).count()
+        
+        # Verifica se há tarefas novas
+        new_tasks = Task.query.filter(
+            Task.created_at >= time_threshold
+        ).count()
+        
+        has_updates = recent_tasks > 0 or new_tasks > 0
+        
+        response = {
+            'has_updates': has_updates,
+            'recent_tasks': recent_tasks,
+            'new_tasks': new_tasks,
+            'last_check': datetime.now(br_timezone).isoformat(),
+            'threshold_seconds': 30
+        }
+        
+        # Log apenas se houver atualizações
+        if has_updates:
+            current_app.logger.info(f"[Sync Check] Atualizações encontradas: {recent_tasks} modificadas, {new_tasks} novas")
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        current_app.logger.error(f"[Sync Check] Erro ao verificar atualizações: {str(e)}")
+        return jsonify({
+            'has_updates': False,
+            'error': str(e)
+        }), 500
+
+# --- FIM: API PARA SINCRONIZAÇÃO EM TEMPO REAL ---

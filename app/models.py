@@ -1,6 +1,14 @@
 from . import db  # Importa a instância db de app/__init__.py
 from datetime import datetime
 import enum
+import pytz
+
+# Define o fuso horário brasileiro
+br_timezone = pytz.timezone('America/Sao_Paulo')
+
+def get_brasilia_now():
+    """Retorna datetime atual no fuso horário de Brasília."""
+    return datetime.now(br_timezone)
 
 # Enum para Status da Tarefa (pode ser útil)
 class TaskStatus(enum.Enum):
@@ -94,7 +102,7 @@ class Backlog(db.Model):
     project_id = db.Column(db.String, nullable=False, index=True)
     name = db.Column(db.String(150), nullable=False, default='Backlog Principal') # Ex: Backlog do Projeto X
     description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_brasilia_now)
     available_for_sprint = db.Column(db.Boolean, nullable=False, server_default='1') # Adicionado
     tasks = db.relationship('Task', backref='backlog', lazy=True, order_by='Task.position') # Tarefas neste backlog
 
@@ -114,8 +122,8 @@ class Task(db.Model):
     priority = db.Column(db.String(50), nullable=True, default='Média')
     estimated_effort = db.Column(db.Float, nullable=True)
     position = db.Column(db.Integer, nullable=False, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_brasilia_now)
+    updated_at = db.Column(db.DateTime, default=get_brasilia_now, onupdate=get_brasilia_now)
     start_date = db.Column(db.DateTime, nullable=True)
     due_date = db.Column(db.DateTime, nullable=True)
     completed_at = db.Column(db.DateTime, nullable=True)
@@ -175,8 +183,8 @@ class ProjectMilestone(db.Model):
     status = db.Column(db.Enum(MilestoneStatus), default=MilestoneStatus.PENDING, nullable=False)
     criticality = db.Column(db.Enum(MilestoneCriticality), default=MilestoneCriticality.MEDIUM, nullable=False)
     is_checkpoint = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_brasilia_now)
+    updated_at = db.Column(db.DateTime, default=get_brasilia_now, onupdate=get_brasilia_now)
 
     # Chave Estrangeira para Backlog
     backlog_id = db.Column(db.Integer, db.ForeignKey('backlog.id'), nullable=False)
@@ -185,7 +193,7 @@ class ProjectMilestone(db.Model):
     @property
     def is_delayed(self):
         # Está atrasado se a data planejada passou, não tem data real e não está concluído
-        return (self.planned_date < datetime.utcnow().date() and 
+        return (self.planned_date < get_brasilia_now().date() and 
                 self.actual_date is None and 
                 self.status != MilestoneStatus.COMPLETED)
 
@@ -233,14 +241,14 @@ class ProjectRisk(db.Model):
     impact = db.Column(db.Enum(RiskImpact), default=RiskImpact.MEDIUM, nullable=False)
     probability = db.Column(db.Enum(RiskProbability), default=RiskProbability.MEDIUM, nullable=False)
     status = db.Column(db.Enum(RiskStatus), default=RiskStatus.IDENTIFIED, nullable=False)
-    identified_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    identified_date = db.Column(db.DateTime, default=get_brasilia_now, nullable=False)
     resolved_date = db.Column(db.DateTime, nullable=True)
     mitigation_plan = db.Column(db.Text)
     contingency_plan = db.Column(db.Text)
     responsible = db.Column(db.String(150))
     trend = db.Column(db.String(50), default='Estável') # Ex: Aumentando, Diminuindo, Estável
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_brasilia_now)
+    updated_at = db.Column(db.DateTime, default=get_brasilia_now, onupdate=get_brasilia_now)
 
     # Chave Estrangeira para Backlog
     backlog_id = db.Column(db.Integer, db.ForeignKey('backlog.id'), nullable=False)
@@ -314,7 +322,7 @@ class Tag(db.Model):
     __tablename__ = 'tags'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), unique=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_brasilia_now)
 
     def __repr__(self):
         return f'<Tag {self.name}>'
@@ -338,8 +346,8 @@ class Note(db.Model):
     task_id = db.Column(db.Integer, db.ForeignKey('task.id', ondelete='CASCADE'), nullable=True)
     
     # Campos de controle
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_brasilia_now)
+    updated_at = db.Column(db.DateTime, default=get_brasilia_now, onupdate=get_brasilia_now)
     report_date = db.Column(db.DateTime, nullable=True)
     event_date = db.Column(db.Date, nullable=True)
     
@@ -403,7 +411,7 @@ class ComplexityCriteria(db.Model):
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_brasilia_now)
     criteria_order = db.Column(db.Integer, default=0)
     
     options = db.relationship('ComplexityCriteriaOption', backref='criteria', lazy=True, order_by='ComplexityCriteriaOption.option_order')
@@ -434,8 +442,8 @@ class ProjectComplexityAssessment(db.Model):
     complexity_category = db.Column(db.String(20), nullable=False)
     assessed_by = db.Column(db.String(150), nullable=False)
     assessment_notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_brasilia_now)
+    updated_at = db.Column(db.DateTime, default=get_brasilia_now)
     category = db.Column(db.String(20))
     notes = db.Column(db.Text)
 
@@ -500,8 +508,8 @@ class SpecialistConfiguration(db.Model):
     
     # Campos de controle
     is_active = db.Column(db.Boolean, nullable=False, default=True, server_default='1')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_brasilia_now)
+    updated_at = db.Column(db.DateTime, default=get_brasilia_now, onupdate=get_brasilia_now)
     
     def __repr__(self):
         return f'<SpecialistConfiguration {self.specialist_name}>'

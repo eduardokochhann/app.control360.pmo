@@ -10,6 +10,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Kanban Semanal CSS -->
+    <link href="{{ url_for('static', filename='css/kanban_weekly.css') }}" rel="stylesheet">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- jQuery (necessário para Bootstrap) -->
@@ -416,6 +418,115 @@
             padding: 0.75rem !important;
         }
         /* === FIM CONTROLE GRÁFICOS === */
+        /* ============================================
+           KANBAN SEMANAL - ESTILOS VISUAIS
+           ============================================ */
+
+        /* Animação shimmer para o header */
+        @keyframes headerShimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        /* Cards de tarefas no Kanban */
+        .tarefa-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tarefa-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-color: #007bff;
+        }
+
+        .tarefa-card.concluida {
+            background: #f8f9fa;
+            opacity: 0.8;
+        }
+
+        .tarefa-card.concluida .tarefa-titulo {
+            text-decoration: line-through;
+            color: #6c757d;
+        }
+
+        /* Status badges */
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .status-todo { background: #e9ecef; color: #495057; }
+        .status-progress { background: #cfe2ff; color: #0c63e4; }
+        .status-done { background: #d1e7dd; color: #0a3622; }
+        .status-blocked { background: #f8d7da; color: #721c24; }
+
+        /* Indicadores de capacidade por dia */
+        .capacidade-status {
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        /* Cores para capacidade */
+        .capacidade-normal { color: #28a745; }
+        .capacidade-alerta { color: #ffc107; }
+        .capacidade-critica { color: #dc3545; }
+
+        /* Drop zones para drag & drop */
+        .drop-zone {
+            min-height: 50px;
+            border: 2px dashed #dee2e6;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            margin: 4px 0;
+            transition: all 0.2s ease;
+        }
+
+        .drop-zone.drag-over {
+            border-color: #007bff;
+            background-color: rgba(0,123,255,0.1);
+            color: #007bff;
+        }
+
+        /* Loader personalizado */
+        .kanban-loader {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            flex-direction: column;
+            color: #6c757d;
+        }
+
+        /* Animação para cards sendo arrastados */
+        .tarefa-card.dragging {
+            opacity: 0.6;
+            transform: rotate(5deg);
+            z-index: 1000;
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .kanban-dia {
+                min-width: 250px;
+            }
+            
+            #kanbanSemanal {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+            }
+        }
     </style>
 </head>
 <body style="padding-top: 70px;">
@@ -1893,176 +2004,347 @@
 
         </div>
 
-        <!-- Modal Sprint Semanal do Especialista - VERSÃO MELHORADA -->
+        <!-- Modal Sprint Semanal do Especialista - NOVA VERSÃO KANBAN SEMANAL -->
         <div class="modal fade" id="modalSprintSemanal" tabindex="-1" aria-labelledby="modalSprintSemanalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-sprint-custom" style="max-width: 95vw;">
-                <div class="modal-content">
-                    <div class="modal-header bg-info text-white">
-                        <h5 class="modal-title" id="modalSprintSemanalLabel">
-                            <i class="bi bi-calendar-week"></i> Sprint Semanal - <span id="especialistaNomeSprint"></span>
-                        </h5>
-                        <div class="d-flex align-items-center">
-                            <!-- MELHORADO: Indicadores de Performance mais ricos -->
+            <div class="modal-dialog modal-sprint-custom" style="max-width: 98vw; height: 95vh;">
+                <div class="modal-content h-100">
+                    <div class="modal-header text-white p-4" style="background: linear-gradient(135deg, #07304F 0%, #0A4A70 100%); position: relative; overflow: hidden;">
+                        <!-- Efeito shimmer similar à Central de Comando -->
+                        <div style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent); animation: headerShimmer 4s infinite; z-index: 1;"></div>
+                        
+                        <div class="d-flex align-items-center position-relative" style="z-index: 2;">
+                            <div class="command-center-icon me-3" style="background: rgba(255,255,255,0.2); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
+                                <i class="bi bi-kanban fs-3"></i>
+                            </div>
+                            <div>
+                                <h4 class="mb-0 fw-bold">Kanban Semanal</h4>
+                                <p class="mb-0 text-white-75"><span id="especialistaNomeSprint">Especialista</span> • Visão por Dia da Semana</p>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex align-items-center position-relative" style="z-index: 2;">
+                            <!-- Indicadores de Performance melhorados -->
                             <div class="me-3">
-                                <span class="badge bg-light text-dark me-2" title="Percentual de tarefas concluídas">
-                                    <i class="bi bi-target"></i> Produtividade: <span id="indicadorProdutividade">-</span>%
+                                <span class="badge bg-light text-dark me-2" title="Produtividade semanal">
+                                    <i class="bi bi-target"></i> <span id="indicadorProdutividade">0</span>%
                                 </span>
-                                <span class="badge bg-light text-dark me-2" title="Cumprimento de horas estimadas">
-                                    <i class="bi bi-clock-history"></i> Cumprimento: <span id="indicadorCumprimento">-</span>%
+                                <span class="badge bg-light text-dark me-2" title="Capacidade utilizada">
+                                    <i class="bi bi-speedometer2"></i> <span id="indicadorCapacidade">0</span>h/36h
                                 </span>
-                                <!-- NOVO: Indicador de Capacidade -->
-                                <span class="badge bg-light text-dark" title="Utilização da capacidade semanal (máx 36h)">
-                                    <i class="bi bi-speedometer2"></i> Capacidade: <span id="indicadorCapacidade">-</span>%
+                                <span class="badge bg-light text-dark" title="Status da semana">
+                                    <i class="bi bi-calendar-check" id="iconStatusSemana"></i> <span id="statusSemana">Normal</span>
                                 </span>
                             </div>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                     </div>
-                    <div class="modal-body p-0">
-                        <!-- MELHORADA: Barra de Controles mais Rica -->
+                    <div class="modal-body p-0 h-100 d-flex flex-column">
+                        <!-- Barra de Controles aprimorada -->
                         <div class="bg-light border-bottom p-3">
                             <div class="row align-items-center">
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <div class="btn-group" role="group" id="weekNavigation">
-                                        <!-- Semanas serão adicionadas dinamicamente -->
+                                        <!-- Navegação de semanas será inserida aqui -->
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="d-flex justify-content-end align-items-center">
-                                        <!-- NOVO: Filtros Rápidos -->
-                                        <div class="btn-group me-2" role="group">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary active" onclick="filtrarTarefas('todas')" id="btnFiltroTodas">
+                                <div class="col-md-8">
+                                    <div class="d-flex justify-content-end align-items-center gap-2">
+                                        <!-- Filtros por status -->
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button class="btn btn-outline-secondary active" onclick="filtrarTarefasPorStatus('all')" id="filtroAll">
                                                 <i class="bi bi-list"></i> Todas
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-outline-warning" onclick="filtrarTarefas('pendentes')" id="btnFiltroPendentes">
+                                            <button class="btn btn-outline-warning" onclick="filtrarTarefasPorStatus('pending')" id="filtroPending">
                                                 <i class="bi bi-clock"></i> Pendentes
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-outline-success" onclick="filtrarTarefas('concluidas')" id="btnFiltroConcluidas">
+                                            <button class="btn btn-outline-success" onclick="filtrarTarefasPorStatus('completed')" id="filtroCompleted">
                                                 <i class="bi bi-check-circle"></i> Concluídas
-                                            </button>
-                                            <!-- NOVO: Filtro por sobrecarga -->
-                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="filtrarTarefas('sobrecarga')" id="btnFiltroSobrecarga">
-                                                <i class="bi bi-exclamation-triangle"></i> Sobrecarga
                                             </button>
                                         </div>
 
-                                        <!-- MELHORADO: Indicadores e Ações -->
-                                        <div class="badge bg-info me-2">
-                                            <i class="bi bi-clock"></i> Total: <span id="totalHorasSemana">0</span>h
-                                        </div>
-                                        
-                                        <!-- NOVO: Indicador de Capacidade -->
-                                        <div class="badge me-2" id="badgeCapacidadeSemana">
-                                            <i class="bi bi-battery-half"></i> <span id="capacidadeSemana">0/36</span>h
-                                        </div>
-                                        
-                                        <!-- MELHORADO: Dropdown de Ações -->
-                                        <div class="dropdown me-2">
-                                            <button class="btn btn-sm btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        <!-- Ações rápidas -->
+                                        <div class="dropdown">
+                                            <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                                 <i class="bi bi-magic"></i> Ações
                                             </button>
                                             <ul class="dropdown-menu">
-                                                <li><a class="dropdown-item" href="#" onclick="autoSegmentarTarefas()">
-                                                    <i class="bi bi-magic"></i> Auto-Segmentar Tarefas
+                                                <li><a class="dropdown-item" href="#" onclick="autoBalancearSemana()">
+                                                    <i class="bi bi-balance-scale text-primary"></i> Auto-Balancear Semana
                                                 </a></li>
-                                                <li><a class="dropdown-item" href="#" onclick="redistribuirCarga()">
-                                                    <i class="bi bi-distribute-horizontal"></i> Redistribuir Carga
-                                                </a></li>
-                                                <!-- NOVO: Balanceamento automático -->
-                                                <li><a class="dropdown-item" href="#" onclick="autoBalancearCapacidade()">
-                                                    <i class="bi bi-balance-scale"></i> Balancear Capacidade
-                                                </a></li>
-                                                <!-- NOVO: Sugestões inteligentes -->
-                                                <li><a class="dropdown-item" href="#" onclick="obterSugestoes()">
-                                                    <i class="bi bi-lightbulb"></i> Sugestões Inteligentes
+                                                <li><a class="dropdown-item" href="#" onclick="redistribuirTarefas()">
+                                                    <i class="bi bi-arrow-left-right text-info"></i> Redistribuir Tarefas
                                                 </a></li>
                                                 <li><hr class="dropdown-divider"></li>
-                                                <li><a class="dropdown-item" href="#" onclick="exportarSprint()">
-                                                    <i class="bi bi-download"></i> Exportar Sprint
-                                                </a></li>
-                                                <li><a class="dropdown-item" href="#" onclick="debugSprint()">
-                                                    <i class="bi bi-bug"></i> Debug Técnico
+                                                <li><a class="dropdown-item" href="#" onclick="exportarKanbanSemanal()">
+                                                    <i class="bi bi-download text-success"></i> Exportar Dados
                                                 </a></li>
                                             </ul>
                                         </div>
                                         
-                                        <!-- MELHORADO: Toggle de Visualização -->
-                                        <div class="btn-group" role="group">
-                                            <button type="button" class="btn btn-sm btn-outline-info active" onclick="alterarVisualizacao('kanban')" id="btnVisuKanban" title="Visualização por Projeto">
-                                                <i class="bi bi-kanban"></i>
-                                            </button>
-                                            <button type="button" class="btn btn-sm btn-outline-info" onclick="alterarVisualizacao('timeline')" id="btnVisuTimeline" title="Timeline por Dia">
-                                                <i class="bi bi-calendar3"></i>
-                                            </button>
-                                            <!-- NOVO: Visualização de capacidade -->
-                                            <button type="button" class="btn btn-sm btn-outline-info" onclick="alterarVisualizacao('capacity')" id="btnVisuCapacity" title="Análise de Capacidade">
-                                                <i class="bi bi-speedometer2"></i>
-                                            </button>
+                                        <!-- Indicador de capacidade -->
+                                        <div class="badge fs-6" id="badgeCapacidadeGeral" style="background: #07304F; color: white;">
+                                            <i class="bi bi-hourglass-split"></i> <span id="horasUtilizadas">0</span>/36h
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             
-                            <!-- MELHORADO: Barra de Progresso da Semana com Capacidade -->
-                            <div class="mt-3">
+                            <!-- Barra de progresso da semana -->
+                            <div class="mt-2">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <small class="text-muted">Progresso da Semana</small>
+                                    <small class="text-muted fw-bold">Progresso da Semana</small>
                                     <small class="text-muted">
-                                        <span id="horasConcluidas">0</span>h / <span id="horasTotal">0</span>h
-                                        <span class="text-info ms-2">
-                                            (Capacidade: <span id="capacidadeUtilizada">0</span>/36h)
-                                        </span>
+                                        <span id="progressoTexto">0% concluído</span>
                                     </small>
                                 </div>
-                                <div class="progress" style="height: 8px;">
-                                    <div class="progress-bar bg-success" role="progressbar" id="progressoSemana" style="width: 0%"></div>
-                                    <!-- NOVO: Linha de capacidade máxima -->
-                                    <div class="position-absolute w-100 h-100" style="pointer-events: none;">
-                                        <div id="linhaCapacidadeMaxima" style="position: absolute; left: 100%; top: 0; height: 100%; width: 2px; background-color: #dc3545; display: none;"></div>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar" role="progressbar" id="barraProgressoSemana" style="width: 0%; background: linear-gradient(90deg, #1cc88a, #36b9cc);"></div>
                                     </div>
                                 </div>
-                                <!-- NOVO: Alertas de capacidade -->
-                                <div id="alertaCapacidade" class="mt-1" style="display: none;">
-                                    <small class="text-warning">
-                                        <i class="bi bi-exclamation-triangle"></i> 
-                                        <span id="textoAlertaCapacidade"></span>
-                                    </small>
-                                </div>
-                            </div>
                         </div>
 
-                        <!-- Container das Tarefas da Sprint -->
-                        <div class="container-fluid p-3">
-                            <!-- NOVO: Área de drop para reorganização -->
-                            <div id="dropZoneGlobal" class="d-none">
-                                <div class="alert alert-info text-center">
-                                    <i class="bi bi-arrow-down-circle"></i>
-                                    Solte aqui para reorganizar ou mover entre dias
+                        <!-- Kanban Semanal - 5 Colunas -->
+                        <div class="container-fluid p-3 flex-fill overflow-auto">
+                            <div class="row g-3" id="kanbanBoard">
+                                <!-- Segunda-feira -->
+                                <div class="col">
+                                    <div class="card h-100 shadow-sm border-start border-3" style="border-left-color: #007bff !important;">
+                                        <div class="card-header text-white py-2" style="background: linear-gradient(135deg, #007bff, #0056b3);">
+                                            <h6 class="mb-0 fw-bold">
+                                                <i class="bi bi-calendar-event"></i> Segunda-feira
+                                            </h6>
+                                        </div>
+                                        <div class="card-body p-2 tarefas-container" data-dia="1" style="min-height: 400px; max-height: 500px; overflow-y: auto;">
+                                            <div class="text-center text-muted p-4">
+                                                <i class="bi bi-calendar-plus fs-3 opacity-25"></i>
+                                                <p class="mt-2 small">Nenhuma tarefa</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                            
-                            <div id="sprintContainer">
-                                <!-- Tarefas serão exibidas aqui em formato Trello, Timeline ou Capacidade -->
+                                
+                                <!-- Terça-feira -->
+                                <div class="col">
+                                    <div class="card h-100 shadow-sm border-start border-3" style="border-left-color: #28a745 !important;">
+                                        <div class="card-header text-white py-2" style="background: linear-gradient(135deg, #28a745, #1e7e34);">
+                                            <h6 class="mb-0 fw-bold">
+                                                <i class="bi bi-calendar-event"></i> Terça-feira
+                                            </h6>
+                                        </div>
+                                        <div class="card-body p-2 tarefas-container" data-dia="2" style="min-height: 400px; max-height: 500px; overflow-y: auto;">
+                                            <div class="text-center text-muted p-4">
+                                                <i class="bi bi-calendar-plus fs-3 opacity-25"></i>
+                                                <p class="mt-2 small">Nenhuma tarefa</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Quarta-feira -->
+                                <div class="col">
+                                    <div class="card h-100 shadow-sm border-start border-3" style="border-left-color: #ffc107 !important;">
+                                        <div class="card-header text-white py-2" style="background: linear-gradient(135deg, #ffc107, #e0a800);">
+                                            <h6 class="mb-0 fw-bold">
+                                                <i class="bi bi-calendar-event"></i> Quarta-feira
+                                            </h6>
+                                        </div>
+                                        <div class="card-body p-2 tarefas-container" data-dia="3" style="min-height: 400px; max-height: 500px; overflow-y: auto;">
+                                            <div class="text-center text-muted p-4">
+                                                <i class="bi bi-calendar-plus fs-3 opacity-25"></i>
+                                                <p class="mt-2 small">Nenhuma tarefa</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Quinta-feira -->
+                                <div class="col">
+                                    <div class="card h-100 shadow-sm border-start border-3" style="border-left-color: #dc3545 !important;">
+                                        <div class="card-header text-white py-2" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+                                            <h6 class="mb-0 fw-bold">
+                                                <i class="bi bi-calendar-event"></i> Quinta-feira
+                                            </h6>
+                                        </div>
+                                        <div class="card-body p-2 tarefas-container" data-dia="4" style="min-height: 400px; max-height: 500px; overflow-y: auto;">
+                                            <div class="text-center text-muted p-4">
+                                                <i class="bi bi-calendar-plus fs-3 opacity-25"></i>
+                                                <p class="mt-2 small">Nenhuma tarefa</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Sexta-feira -->
+                                <div class="col">
+                                    <div class="card h-100 shadow-sm border-start border-3" style="border-left-color: #E91E63 !important;">
+                                        <div class="card-header text-white py-2" style="background: linear-gradient(135deg, #E91E63, #F06292);">
+                                            <h6 class="mb-0 fw-bold">
+                                                <i class="bi bi-calendar-event"></i> Sexta-feira
+                                            </h6>
+                                        </div>
+                                        <div class="card-body p-2 tarefas-container" data-dia="5" style="min-height: 400px; max-height: 500px; overflow-y: auto;">
+                                            <div class="text-center text-muted p-4">
+                                                <i class="bi bi-calendar-plus fs-3 opacity-25"></i>
+                                                <p class="mt-2 small">Nenhuma tarefa</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer bg-light">
-                        <!-- MELHORADO: Resumo de Estatísticas mais detalhado -->
+                    <div class="modal-footer bg-light border-top-0 p-3">
                         <div class="me-auto">
                             <small class="text-muted">
-                                <i class="bi bi-list-task"></i> <span id="totalTarefas">0</span> tarefas • 
-                                <i class="bi bi-check-circle text-success"></i> <span id="totalConcluidas">0</span> concluídas • 
-                                <i class="bi bi-clock text-warning"></i> <span id="totalPendentes">0</span> pendentes •
-                                <i class="bi bi-exclamation-triangle text-danger"></i> <span id="totalSobrecarga">0</span> dias sobrecarregados
+                                <i class="bi bi-info-circle"></i> 
+                                <span id="resumoTarefas">0 tarefas • 0h total • 0% concluído</span>
                             </small>
                         </div>
-                        
-                        <!-- NOVO: Botões adicionais -->
-                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="modoFoco()" id="btnModoFoco" title="Visualizar apenas esta semana em tela cheia">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleModoFoco()">
                             <i class="bi bi-fullscreen"></i> Modo Foco
                         </button>
-                        
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para Editar Tarefa (usado pelo kanban_weekly.js) -->
+        <div class="modal fade" id="taskModal" tabindex="-1" aria-labelledby="taskModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="taskModalLabel">Editar Tarefa</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="taskForm">
+                            <input type="hidden" id="taskId" name="task_id">
+                            
+                            <div class="mb-3">
+                                <label for="taskTitle" class="form-label">Título</label>
+                                <input type="text" class="form-control" id="taskTitle" name="title" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="taskDescription" class="form-label">Descrição</label>
+                                <textarea class="form-control" id="taskDescription" name="description" rows="3"></textarea>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="taskStatus" class="form-label">Status</label>
+                                        <select class="form-select" id="taskStatus" name="status">
+                                            <option value="TODO">A Fazer</option>
+                                            <option value="IN_PROGRESS">Em Progresso</option>
+                                            <option value="REVIEW">Revisão</option>
+                                            <option value="DONE">Concluído</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="taskHours" class="form-label">Horas Estimadas</label>
+                                        <input type="number" step="0.5" class="form-control" id="taskHours" name="estimated_hours">
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-primary" onclick="salvarTarefa()">Salvar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para Editar Tarefa no Kanban -->
+        <div class="modal fade" id="modalEditarTarefaKanban" tabindex="-1" aria-labelledby="modalEditarTarefaKanbanLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="modalEditarTarefaKanbanLabel">
+                            <i class="bi bi-pencil-square"></i> Editar Tarefa
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formEditarTarefaKanban">
+                            <input type="hidden" id="editTaskId" name="task_id">
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="editTaskNome" class="form-label">Nome da Tarefa</label>
+                                        <input type="text" class="form-control" id="editTaskNome" name="task_name" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="editTaskProjeto" class="form-label">Projeto</label>
+                                        <input type="text" class="form-control" id="editTaskProjeto" name="project_name" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="editTaskDataInicio" class="form-label">Data de Início</label>
+                                        <input type="date" class="form-control" id="editTaskDataInicio" name="start_date" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="editTaskDataFim" class="form-label">Data de Fim</label>
+                                        <input type="date" class="form-control" id="editTaskDataFim" name="end_date" required>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="editTaskHorasEstimadas" class="form-label">Horas Estimadas</label>
+                                        <input type="number" step="0.5" class="form-control" id="editTaskHorasEstimadas" name="estimated_hours" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="editTaskEspecialista" class="form-label">Especialista</label>
+                                        <select class="form-select" id="editTaskEspecialista" name="specialist_name" required>
+                                            <!-- Options serão preenchidas dinamicamente -->
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="editTaskStatus" class="form-label">Status</label>
+                                <select class="form-select" id="editTaskStatus" name="status" required>
+                                    <option value="TODO">A Fazer</option>
+                                    <option value="IN_PROGRESS">Em Progresso</option>
+                                    <option value="DONE">Concluída</option>
+                                    <option value="BLOCKED">Bloqueada</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="editTaskDescricao" class="form-label">Descrição</label>
+                                <textarea class="form-control" id="editTaskDescricao" name="description" rows="3"></textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-danger" onclick="excluirTarefaKanban()" id="btnExcluirTarefa">
+                            <i class="bi bi-trash"></i> Excluir
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-primary" onclick="salvarTarefaKanban()">
+                            <i class="bi bi-check-lg"></i> Salvar
+                        </button>
                     </div>
                 </div>
             </div>
@@ -3107,18 +3389,20 @@
         });
 
         // ==============================
-        // SISTEMA DE SPRINT SEMANAL - VERSÃO MELHORADA
+        // SISTEMA DE KANBAN SEMANAL - NOVA VERSÃO
         // ==============================
         
-        let especialistaAtualSprint = null;
-        let semanaAtualSprint = null;
-        let semanasDisponiveis = [];
-        let capacidadeAtualSprint = null; // NOVO: dados de capacidade
-        let modoFocoAtivo = false; // NOVO: controle do modo foco
+        let especialistaAtualKanban = null;
+        let especialistaAtualSprint = null; // Variável global para Sprint
+        let semanaAtualKanban = null;
+        let semanasDisponiveisKanban = [];
+        let tarefasKanban = []; // Array com todas as tarefas da semana
+        let filtroAtualKanban = 'all'; // all, pending, completed
+        let modoFocoKanban = false;
 
-        // NOVO: Variáveis para Drag & Drop
-        let draggedElement = null;
-        let dropZoneActive = false;
+        // Variáveis para drag & drop
+        let draggedTaskCard = null;
+        let dropZoneAtiva = false;
 
         // Função para truncar nome do projeto de forma inteligente
         function truncarNomeProjeto(nomeCompleto) {
@@ -3147,15 +3431,15 @@
             return resultado;
         }
 
-        // Função para abrir o modal de Sprint Semanal
+        // Função principal para abrir o Kanban Semanal
         function abrirSprintSemanal() {
-            // *** MÉTODO MELHORADO: Busca o nome do especialista de múltiplas formas ***
+            // Busca o nome do especialista de múltiplas formas
             let nomeEspecialista = null;
             
-            // 1. Primeiro, tenta pegar do atributo data guardado no clique
+            // 1. Tenta pegar do atributo data guardado no clique
             if (window.ultimoEspecialistaClicado) {
                 nomeEspecialista = window.ultimoEspecialistaClicado;
-                console.log('[Sprint] Nome via variável global:', nomeEspecialista);
+                console.log('[Kanban] Nome via variável global:', nomeEspecialista);
             }
             
             // 2. Se não conseguiu, tenta extrair do título do modal
@@ -3164,7 +3448,7 @@
                 const nomeMatch = titulo.match(/Projetos Ativos - (.+)/);
                 if (nomeMatch) {
                     nomeEspecialista = nomeMatch[1].trim();
-                    console.log('[Sprint] Nome via título modal:', nomeEspecialista);
+                    console.log('[Kanban] Nome via título modal:', nomeEspecialista);
                 }
             }
             
@@ -3174,71 +3458,562 @@
                 return;
             }
             
-            especialistaAtualSprint = nomeEspecialista;
-            document.getElementById('especialistaNomeSprint').textContent = especialistaAtualSprint;
+            especialistaAtualKanban = nomeEspecialista;
+            especialistaAtualSprint = nomeEspecialista; // Define também para funções de Sprint
+            document.getElementById('especialistaNomeSprint').textContent = especialistaAtualKanban;
             
-            console.log('[Sprint] Abrindo Sprint Semanal para:', especialistaAtualSprint);
+            console.log('[Kanban] Abrindo Kanban Semanal para:', especialistaAtualKanban);
             
-            // Fecha o modal atual e abre o Sprint
+            // Fecha o modal atual e abre o Kanban
             bootstrap.Modal.getInstance(document.getElementById('modalEspecialistaProjetos')).hide();
             
-            const modalSprint = new bootstrap.Modal(document.getElementById('modalSprintSemanal'));
-            modalSprint.show();
+            const modalKanban = new bootstrap.Modal(document.getElementById('modalSprintSemanal'));
+            modalKanban.show();
             
-            // Carrega os dados da sprint E capacidade
-            carregarSprintSemanal();
-            carregarCapacidadeEspecialista(); // NOVO: carrega dados de capacidade
+            // Carrega os dados do Kanban
+            carregarKanbanSemanal();
         }
 
-        // NOVO: Função para carregar dados de capacidade
-        function carregarCapacidadeEspecialista() {
-            if (!especialistaAtualSprint) return;
+        // Função principal para carregar dados do Kanban Semanal
+        function carregarKanbanSemanal() {
+            if (!especialistaAtualKanban) return;
             
-            const url = `/backlog/api/specialists/${encodeURIComponent(especialistaAtualSprint)}/capacity?weeks=3`;
+            mostrarLoaderKanban();
+            
+            // NOVA API: Usa datas das tarefas ao invés de segmentos
+            const url = `/backlog/api/specialists/${encodeURIComponent(especialistaAtualKanban)}/kanban-weekly-tasks`;
             
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    console.log('[Capacity] Dados de capacidade recebidos:', data);
-                    capacidadeAtualSprint = data;
-                    atualizarIndicadoresCapacidade();
-                })
-                .catch(error => {
-                    console.error('[Capacity] Erro ao carregar capacidade:', error);
-                    capacidadeAtualSprint = null;
-                });
-        }
-
-        // Função para carregar dados da Sprint Semanal
-        function carregarSprintSemanal() {
-            if (!especialistaAtualSprint) return;
-            
-            document.getElementById('sprintContainer').innerHTML = '<p class="text-center">Carregando sprint...</p>';
-            
-            // Busca segmentos da semana atual + 2 próximas
-            const url = `/backlog/api/specialists/${encodeURIComponent(especialistaAtualSprint)}/weekly-segments?view=extended`;
-            
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    console.log('[Sprint] Dados recebidos:', data);
+                    console.log('[Kanban] Dados recebidos da nova API:', data);
                     
-                    if (data.weeks && data.weeks.length > 0) {
-                        semanasDisponiveis = data.weeks;
-                        semanaAtualSprint = data.weeks[0]; // Primeira semana (atual)
+                    if (data.tasks && data.tasks.length > 0) {
+                        // Armazena dados da semana atual
+                        semanaAtualKanban = {
+                            week_start: data.week_info.week_start,
+                            week_end: data.week_info.week_end,
+                            summary: data.summary
+                        };
                         
-                        criarNavegacaoSemanas(data.weeks);
-                        exibirSemana(semanaAtualSprint);
+                        // Os dados já vêm no formato correto da nova API
+                        tarefasKanban = data.tasks;
+                        
+                        console.log(`[Kanban] ${tarefasKanban.length} tarefas carregadas para ${data.specialist_name}`);
+                        console.log(`[Kanban] Período: ${data.week_info.week_start} a ${data.week_info.week_end}`);
+                        console.log(`[Kanban] Resumo por dia:`, data.summary.tasks_by_day);
+                        console.log(`[Kanban] Total de horas: ${data.summary.total_hours}h`);
+                        
+                        exibirKanbanSemanal();
                     } else {
-                        document.getElementById('sprintContainer').innerHTML = 
-                            '<p class="text-center text-muted">Nenhuma tarefa encontrada para este especialista</p>';
+                        console.log('[Kanban] Nenhuma tarefa encontrada - executando diagnóstico');
+                        mostrarMensagemVaziaKanbanComDiagnostico();
                     }
                 })
                 .catch(error => {
-                    console.error('[Sprint] Erro ao carregar:', error);
-                    document.getElementById('sprintContainer').innerHTML = 
-                        '<p class="text-center text-danger">Erro ao carregar dados da sprint</p>';
+                    console.error('[Kanban] Erro ao carregar:', error);
+                    mostrarMensagemVaziaKanban('Erro ao carregar dados do kanban', 'danger');
                 });
+        }
+
+        // FUNÇÃO REMOVIDA: processarTarefasParaKanban
+        // A nova API já retorna os dados no formato correto, não precisamos mais processar segmentos
+        /* 
+        FUNÇÃO ANTIGA que processava segmentos - não é mais necessária
+        A nova API /kanban-weekly-tasks já retorna os dados prontos
+        */
+
+        // Função para exibir o Kanban Semanal
+        function exibirKanbanSemanal() {
+            console.log('[Kanban] === INICIANDO EXIBIÇÃO ===');
+            console.log('[Kanban] tarefasKanban:', tarefasKanban);
+            console.log('[Kanban] Quantidade de tarefas:', tarefasKanban ? tarefasKanban.length : 'undefined');
+            
+            if (!tarefasKanban || tarefasKanban.length === 0) {
+                console.log('[Kanban] Nenhuma tarefa - mostrando diagnóstico');
+                mostrarMensagemVaziaKanbanComDiagnostico();
+                return;
+            }
+
+            // Limpa os containers dos dias
+            console.log('[Kanban] Limpando containers...');
+            for (let dia = 1; dia <= 5; dia++) {
+                const container = document.querySelector(`.tarefas-container[data-dia="${dia}"]`);
+                console.log(`[Kanban] Container dia ${dia}:`, container);
+                if (container) {
+                    container.innerHTML = '';
+                    console.log(`[Kanban] Container dia ${dia} limpo`);
+                } else {
+                    console.error(`[Kanban] ❌ Container dia ${dia} NÃO ENCONTRADO!`);
+                }
+            }
+
+            console.log('[Kanban] Distribuindo tarefas...');
+            
+            // Distribui tarefas pelos dias
+            tarefasKanban.forEach((tarefa, index) => {
+                console.log(`[Kanban] Processando tarefa ${index + 1}:`, tarefa);
+                console.log(`[Kanban] Tarefa "${tarefa.title || tarefa.name}" - Dias presentes:`, tarefa.dias_presentes);
+                
+                // Aplica filtro se necessário
+                if (!passaFiltro(tarefa)) {
+                    console.log(`[Kanban] Tarefa "${tarefa.title || tarefa.name}" filtrada (não passa no filtro)`);
+                    return;
+                }
+
+                if (!tarefa.dias_presentes || !Array.isArray(tarefa.dias_presentes)) {
+                    console.error(`[Kanban] ❌ Tarefa "${tarefa.title || tarefa.name}" sem dias_presentes válidos:`, tarefa.dias_presentes);
+                    return;
+                }
+
+                tarefa.dias_presentes.forEach(dia => {
+                    console.log(`[Kanban] Tentando colocar tarefa "${tarefa.title || tarefa.name}" no dia ${dia}`);
+                    
+                    if (dia >= 1 && dia <= 5) {
+                        const container = document.querySelector(`.tarefas-container[data-dia="${dia}"]`);
+                        if (container) {
+                            console.log(`[Kanban] ✅ Container dia ${dia} encontrado, criando card...`);
+                            try {
+                                const cardTarefa = criarCardTarefa(tarefa, dia);
+                                container.appendChild(cardTarefa);
+                                console.log(`[Kanban] ✅ Card adicionado ao dia ${dia}`);
+                            } catch (error) {
+                                console.error(`[Kanban] ❌ Erro ao criar/adicionar card:`, error);
+                            }
+                        } else {
+                            console.error(`[Kanban] ❌ Container dia ${dia} não encontrado!`);
+                        }
+                    } else {
+                        console.log(`[Kanban] Dia ${dia} fora do range (1-5), pulando`);
+                    }
+                });
+            });
+
+            console.log('[Kanban] Finalizando exibição...');
+            
+            // Atualiza indicadores
+            try {
+                // TEMPORÁRIO: Funções de indicadores comentadas até serem implementadas
+                // atualizarIndicadoresKanban();
+                // atualizarCapacidadePorDia();
+                console.log('[Kanban] ✅ Indicadores pulados (ainda não implementados)');
+            } catch (error) {
+                console.error('[Kanban] ❌ Erro ao atualizar indicadores:', error);
+            }
+            
+            console.log('[Kanban] === EXIBIÇÃO FINALIZADA ===');
+        }
+
+        // Função para criar um card de tarefa
+        function criarCardTarefa(tarefa, dia) {
+            console.log(`[Kanban] Criando card para tarefa:`, tarefa);
+            
+            const card = document.createElement('div');
+            card.className = `tarefa-card ${tarefa.status === 'DONE' ? 'concluida' : ''}`;
+            card.draggable = true;
+            card.dataset.taskId = tarefa.backlog_id;
+            card.dataset.dia = dia;
+
+            const statusClass = getStatusClass(tarefa.status);
+            const horasFormatadas = tarefa.estimated_hours ? `${tarefa.estimated_hours}h` : '0h';
+            
+            // CORRIGIDO: Usa title em vez de name (compatível com nossa API)
+            const tituloTarefa = tarefa.title || tarefa.name || 'Sem título';
+            const nomeProjeto = tarefa.project_name || 'Projeto desconhecido';
+
+            card.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h6 class="tarefa-titulo mb-0 me-2" style="font-size: 0.85rem; line-height: 1.2;">
+                        ${truncarTexto(tituloTarefa, 40)}
+                    </h6>
+                    <span class="status-badge ${statusClass}">
+                        ${getStatusText(tarefa.status)}
+                    </span>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted d-block">
+                        <i class="bi bi-folder"></i> ${truncarTexto(nomeProjeto, 30)}
+                    </small>
+                    <small class="text-muted">
+                        <i class="bi bi-clock"></i> ${horasFormatadas}
+                    </small>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="btn-group btn-group-sm" role="group">
+                        ${tarefa.status !== 'DONE' ? `
+                            <button class="btn btn-outline-success btn-sm" onclick="marcarComoConcluida('${tarefa.backlog_id}')" title="Marcar como concluída">
+                                <i class="bi bi-check"></i>
+                            </button>
+                        ` : `
+                            <button class="btn btn-outline-secondary btn-sm" onclick="marcarComoPendente('${tarefa.backlog_id}')" title="Marcar como pendente">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        `}
+                        <button class="btn btn-outline-primary btn-sm" onclick="editarTarefaKanban('${tarefa.backlog_id}')" title="Editar tarefa">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="excluirTarefaRapida('${tarefa.backlog_id}')" title="Excluir tarefa">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                    <small class="text-muted">
+                        <i class="bi bi-grip-vertical"></i>
+                    </small>
+                </div>
+            `;
+
+            // TEMPORÁRIO: Comentando eventos até implementar as funções
+            try {
+                // card.addEventListener('dragstart', iniciarArrastar);
+                // card.addEventListener('dragend', finalizarArrastar);
+                card.addEventListener('click', (e) => {
+                    if (!e.target.closest('button')) {
+                        console.log(`[Kanban] Clique na tarefa ${tarefa.backlog_id} - edição será implementada`);
+                        // editarTarefaKanban(tarefa.id);
+                    }
+                });
+                console.log(`[Kanban] ✅ Card criado com sucesso para "${tituloTarefa}"`);
+            } catch (error) {
+                console.error(`[Kanban] ❌ Erro ao adicionar eventos ao card:`, error);
+            }
+
+            return card;
+        }
+
+        // Funções auxiliares para status
+        function getStatusClass(status) {
+            console.log(`[Kanban] Mapeando status "${status}" para classe CSS`);
+            
+            // Mapeia tanto os status em inglês quanto em português
+            switch (status) {
+                case 'TODO':
+                case 'A Fazer':
+                case 'NOVO':
+                    return 'status-todo';
+                case 'IN_PROGRESS':
+                case 'Em Andamento':
+                    return 'status-progress';
+                case 'DONE':
+                case 'Concluído':
+                case 'Concluida':
+                    return 'status-done';
+                case 'BLOCKED':
+                case 'Bloqueada':
+                    return 'status-blocked';
+                case 'Revisão':
+                case 'REVISAO':
+                    return 'status-review';
+                default:
+                    console.log(`[Kanban] Status "${status}" não mapeado, usando padrão`);
+                    return 'status-todo';
+            }
+        }
+
+        function getStatusText(status) {
+            console.log(`[Kanban] Mapeando status "${status}" para texto`);
+            
+            // Mapeia tanto os status em inglês quanto em português  
+            switch (status) {
+                case 'TODO':
+                case 'A Fazer':
+                case 'NOVO':
+                    return 'A Fazer';
+                case 'IN_PROGRESS':
+                case 'Em Andamento':
+                    return 'Em Andamento';
+                case 'DONE':
+                case 'Concluído':
+                case 'Concluida':
+                    return 'Concluída';
+                case 'BLOCKED':
+                case 'Bloqueada':
+                    return 'Bloqueada';
+                case 'Revisão':
+                case 'REVISAO':
+                    return 'Revisão';
+                default:
+                    console.log(`[Kanban] Status "${status}" não mapeado, retornando original`);
+                    return status || 'A Fazer';
+            }
+        }
+
+        // Função para truncar texto
+        function truncarTexto(texto, limite) {
+            if (!texto) return 'N/A';
+            return texto.length > limite ? texto.substring(0, limite) + '...' : texto;
+        }
+
+        // Função para aplicar filtros
+        function passaFiltro(tarefa) {
+            const filtro = filtroAtualKanban || 'all';
+            console.log(`[Kanban] Aplicando filtro "${filtro}" na tarefa "${tarefa.title || tarefa.name}" (status: ${tarefa.status})`);
+            
+            let passa = true;
+            switch (filtro) {
+                case 'pending':
+                    passa = tarefa.status !== 'DONE';
+                    break;
+                case 'completed':
+                    passa = tarefa.status === 'DONE';
+                    break;
+                case 'all':
+                default:
+                    passa = true;
+                    break;
+            }
+            
+            console.log(`[Kanban] Resultado do filtro: ${passa ? 'PASSA' : 'NÃO PASSA'}`);
+            return passa;
+        }
+
+        // Função para filtrar tarefas por status
+        function filtrarTarefasPorStatus(filtro) {
+            filtroAtualKanban = filtro;
+            
+            // Atualiza botões ativos
+            document.querySelectorAll('[id^="filtro"]').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`filtro${filtro.charAt(0).toUpperCase() + filtro.slice(1)}`).classList.add('active');
+            
+            // Reexibe o Kanban com o filtro aplicado
+            exibirKanbanSemanal();
+        }
+
+        // Funções para mostrar estados do Kanban
+        function mostrarLoaderKanban() {
+            for (let dia = 1; dia <= 5; dia++) {
+                const container = document.querySelector(`.tarefas-container[data-dia="${dia}"]`);
+                if (container) {
+                    container.innerHTML = `
+                        <div class="kanban-loader">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Carregando...</span>
+                            </div>
+                            <small class="mt-2">Carregando...</small>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        function mostrarMensagemVaziaKanban(mensagem, tipo = 'muted') {
+            for (let dia = 1; dia <= 5; dia++) {
+                const container = document.querySelector(`.tarefas-container[data-dia="${dia}"]`);
+                if (container) {
+                    container.innerHTML = `
+                        <div class="text-center text-${tipo} p-4">
+                            <i class="bi bi-calendar-plus fs-1 opacity-25"></i>
+                            <p class="mt-2">${mensagem}</p>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // Nova função que faz diagnóstico inteligente quando o Kanban está vazio
+        function mostrarMensagemVaziaKanbanComDiagnostico() {
+            if (!especialistaAtualKanban) {
+                mostrarMensagemVaziaKanban('Nenhum especialista selecionado');
+                return;
+            }
+
+            // Mostra loading inicial
+            mostrarLoaderKanban();
+
+            // Busca informações de debug para diagnóstico
+            fetch(`/backlog/api/debug/specialist/${encodeURIComponent(especialistaAtualKanban)}/kanban-data`)
+                .then(response => response.json())
+                .then(debugData => {
+                    const totalTarefas = debugData.selected_tasks_count || 0;
+                    const segmentosComData = debugData.tasks_segments_analysis?.filter(task => task.segments_count > 0) || [];
+                    
+                    let conteudo = '';
+                    
+                    if (totalTarefas > 0 && segmentosComData.length > 0) {
+                        // Caso: Existem tarefas com segmentos, mas em outras semanas
+                        const datasSegmentos = segmentosComData
+                            .flatMap(task => task.segments.map(seg => seg.start.split('T')[0]))
+                            .sort()
+                            .filter((data, index, arr) => arr.indexOf(data) === index);
+                        
+                        const primeiraData = datasSegmentos[0];
+                        const ultimaData = datasSegmentos[datasSegmentos.length - 1];
+                        const dataAtual = new Date().toISOString().split('T')[0];
+                        
+                        conteudo = `
+                            <div class="alert alert-warning border-0 shadow-sm">
+                                <div class="text-center mb-3">
+                                    <i class="bi bi-calendar-x fs-1 text-warning"></i>
+                                    <h5 class="text-warning mt-2 mb-1">Nenhuma tarefa nesta semana</h5>
+                                    <p class="text-muted mb-0">Mas encontramos ${totalTarefas} tarefas em outras datas!</p>
+                                </div>
+                                
+                                <div class="row text-center mb-3">
+                                    <div class="col-4">
+                                        <div class="p-2 bg-light rounded">
+                                            <strong class="text-primary">${totalTarefas}</strong><br>
+                                            <small class="text-muted">Tarefas</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="p-2 bg-light rounded">
+                                            <strong class="text-info">${segmentosComData.length}</strong><br>
+                                            <small class="text-muted">Com Agenda</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="p-2 bg-light rounded">
+                                            <strong class="text-success">${datasSegmentos.length}</strong><br>
+                                            <small class="text-muted">Dias Úteis</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="text-center mb-3">
+                                    <strong>📅 Período com tarefas agendadas:</strong><br>
+                                    <span class="badge bg-primary">${formatarDataBrasil(primeiraData)}</span> até 
+                                    <span class="badge bg-primary">${formatarDataBrasil(ultimaData)}</span>
+                                </div>
+                                
+                                <div class="d-flex flex-wrap gap-2 justify-content-center">
+                                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="debugKanbanSemanal()">
+                                        <i class="bi bi-bug"></i> Debug Detalhado
+                                    </button>
+                                    <button type="button" class="btn btn-warning btn-sm" onclick="alert('🚧 Navegação entre semanas em desenvolvimento!\\n\\nEm breve você poderá navegar para ver as semanas com tarefas.')">
+                                        <i class="bi bi-calendar-week"></i> Ver Outras Semanas
+                                    </button>
+                                    <button type="button" class="btn btn-success btn-sm" onclick="sugerirRealocacaoTarefas()">
+                                        <i class="bi bi-arrow-right-circle"></i> Realocar para Esta Semana
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        
+                    } else if (totalTarefas > 0) {
+                        // Caso: Existem tarefas mas sem segmentos
+                        conteudo = `
+                            <div class="alert alert-info border-0 shadow-sm">
+                                <div class="text-center mb-3">
+                                    <i class="bi bi-exclamation-triangle-fill fs-1 text-info"></i>
+                                    <h5 class="text-info mt-2 mb-1">Tarefas sem agendamento</h5>
+                                    <p class="text-muted mb-0">${totalTarefas} tarefas encontradas, mas sem horários definidos</p>
+                                </div>
+                                
+                                <div class="text-center mb-3">
+                                    <div class="p-3 bg-light rounded">
+                                        <strong class="fs-4 text-primary">${totalTarefas}</strong><br>
+                                        <small class="text-muted">Tarefas sem agenda</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="text-center">
+                                    <p><strong>💡 Possíveis soluções:</strong></p>
+                                    <ul class="list-unstyled text-start">
+                                        <li>• Agendar horários para as tarefas</li>
+                                        <li>• Verificar se as tarefas estão em projetos ativos</li>
+                                        <li>• Revisar o backlog do especialista</li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="d-flex gap-2 justify-content-center">
+                                    <button type="button" class="btn btn-outline-info btn-sm" onclick="debugKanbanSemanal()">
+                                        <i class="bi bi-bug"></i> Analisar Problema
+                                    </button>
+                                    <button type="button" class="btn btn-info btn-sm" onclick="irParaBacklog()">
+                                        <i class="bi bi-list-task"></i> Ver Backlog
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        
+                    } else {
+                        // Caso: Nenhuma tarefa encontrada
+                        conteudo = `
+                            <div class="alert alert-secondary border-0 shadow-sm">
+                                <div class="text-center">
+                                    <i class="bi bi-person-x fs-1 text-muted"></i>
+                                    <h5 class="text-muted mt-2 mb-1">Nenhuma tarefa encontrada</h5>
+                                    <p class="text-muted mb-3">Este especialista não possui tarefas no sistema</p>
+                                    
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="debugKanbanSemanal()">
+                                        <i class="bi bi-search"></i> Verificar Sistema
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Aplica o conteúdo em todos os dias
+                    for (let dia = 1; dia <= 5; dia++) {
+                        const container = document.querySelector(`.tarefas-container[data-dia="${dia}"]`);
+                        if (container) {
+                            if (dia === 3) { // Mostra apenas no meio (quarta-feira)
+                                container.innerHTML = conteudo;
+                            } else {
+                                container.innerHTML = `
+                                    <div class="text-center text-muted p-4">
+                                        <i class="bi bi-calendar-plus fs-3 opacity-25"></i>
+                                        <p class="mt-2 small">Nenhuma tarefa</p>
+                                    </div>
+                                `;
+                            }
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar informações de debug:', error);
+                    mostrarMensagemVaziaKanban('Nenhuma tarefa para esta semana');
+                });
+        }
+
+        // Função auxiliar para formatar data brasileira
+        function formatarDataBrasil(dataISO) {
+            const data = new Date(dataISO + 'T00:00:00');
+            return data.toLocaleDateString('pt-BR');
+        }
+
+        // Função para sugerir realocação de tarefas
+        function sugerirRealocacaoTarefas() {
+            alert('🚧 Funcionalidade em desenvolvimento!\\n\\nEm breve você poderá:\\n• Mover tarefas entre semanas\\n• Realocar automaticamente\\n• Balancear carga de trabalho');
+        }
+
+        // Função para ir para o backlog
+        function irParaBacklog() {
+            window.location.href = '/backlog/';
+        }
+
+        // Função para criar navegação entre semanas
+        function criarNavegacaoSemanasKanban(semanas) {
+            const nav = document.getElementById('weekNavigation');
+            nav.innerHTML = '';
+
+            semanas.forEach((semana, index) => {
+                const btn = document.createElement('button');
+                btn.className = `btn btn-sm ${index === 0 ? 'btn-primary' : 'btn-outline-primary'}`;
+                btn.textContent = `${semana.week_start} - ${semana.week_end}`;
+                btn.onclick = () => selecionarSemanaKanban(index);
+                nav.appendChild(btn);
+            });
+        }
+
+        function selecionarSemanaKanban(index) {
+            // FUNÇÃO ATUALIZADA: Não usa mais segmentos, será implementada navegação entre semanas futuramente
+            console.log('[Kanban] Navegação entre semanas em desenvolvimento');
+            alert('🚧 Navegação entre semanas em desenvolvimento!\n\nPor enquanto, o Kanban mostra apenas a semana atual.');
+            
+            /* CÓDIGO ANTIGO - removido pois não usamos mais segmentos
+            if (index >= 0 && index < semanasDisponiveisKanban.length) {
+                semanaAtualKanban = semanasDisponiveisKanban[index];
+                processarTarefasParaKanban(semanaAtualKanban); // REMOVIDO
+                exibirKanbanSemanal();
+
+                // Atualiza botões de navegação
+                document.querySelectorAll('#weekNavigation button').forEach((btn, i) => {
+                    btn.className = `btn btn-sm ${i === index ? 'btn-primary' : 'btn-outline-primary'}`;
+                });
+            }
+            */
         }
 
         // NOVO: Função para atualizar indicadores de capacidade
@@ -3791,7 +4566,7 @@
             console.log('[DragDrop] Movendo segmento', segmentId, 'para', targetDate);
             
             // Chama API para mover o segmento
-            fetch(`/backlog/api/segments/${segmentId}/move-week`, {
+                            fetch(`/backlog/api/segments/${segmentId}/move-week`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -4070,10 +4845,11 @@
                 return;
             }
             
-            especialistaAtualSprint = nomeEspecialista;
-            document.getElementById('especialistaNomeSprint').textContent = especialistaAtualSprint;
+            especialistaAtualKanban = nomeEspecialista;
+            especialistaAtualSprint = nomeEspecialista; // Define também para funções de Sprint
+            document.getElementById('especialistaNomeSprint').textContent = especialistaAtualKanban;
             
-            console.log('[Sprint] Abrindo Sprint Semanal para:', especialistaAtualSprint);
+            console.log('[Kanban] Abrindo Kanban Semanal para:', especialistaAtualKanban);
             
             // Fecha o modal atual e abre o Sprint
             bootstrap.Modal.getInstance(document.getElementById('modalEspecialistaProjetos')).hide();
@@ -4081,8 +4857,8 @@
             const modalSprint = new bootstrap.Modal(document.getElementById('modalSprintSemanal'));
             modalSprint.show();
             
-            // Carrega os dados da sprint E capacidade
-            carregarSprintSemanal();
+            // Carrega os dados do Kanban
+            carregarKanbanSemanal();
             carregarCapacidadeEspecialista(); // NOVO: carrega dados de capacidade
         };
 
@@ -6052,6 +6828,238 @@
 
     // Exportar função globalmente
     window.carregarTiposServico = carregarTiposServico;
+
+    // ==============================
+    // FUNÇÃO DE DEBUG DO KANBAN SEMANAL
+    // ==============================
+
+    // Função para debugar dados do Kanban
+    function debugKanbanSemanal() {
+        if (!especialistaAtualKanban) {
+            console.log('[Debug] Nenhum especialista selecionado para debug');
+            alert('⚠️ Nenhum especialista selecionado!\n\nAbra o Kanban Semanal de um especialista primeiro.');
+            return;
+        }
+
+        console.log(`[Debug] Iniciando debug para especialista: ${especialistaAtualKanban}`);
+        
+        fetch(`/backlog/api/debug/specialist/${encodeURIComponent(especialistaAtualKanban)}/kanban-data`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('[Debug] Dados de debug recebidos:', data);
+                
+                // Mostra informações no console de forma organizada
+                console.group('🔍 DEBUG KANBAN SEMANAL');
+                
+                console.log('👤 Especialista:', data.specialist_name_decoded);
+                
+                if (data.search_hybrid) {
+                    console.log('🔍 Busca Híbrida:', data.search_hybrid.count, 'tarefas encontradas');
+                }
+                if (data.search_ilike) {
+                    console.log('🔍 Busca ILIKE:', data.search_ilike.count, 'tarefas encontradas');
+                }
+                if (data.search_exact) {
+                    console.log('🔍 Busca Exata:', data.search_exact.count, 'tarefas encontradas');
+                }
+                
+                console.log('✅ Método selecionado:', data.selected_search_method);
+                console.log('📋 Total de tarefas:', data.selected_tasks_count);
+                
+                if (data.tasks_segments_analysis) {
+                    console.log('📊 Análise de segmentos:');
+                    data.tasks_segments_analysis.forEach(task => {
+                        console.log(`  - Tarefa "${task.task_title}": ${task.segments_count} segmentos`);
+                    });
+                }
+                
+                if (data.active_projects) {
+                    console.log('🎯 Projetos ativos:', data.active_projects.count || 'Erro: ' + data.active_projects.error);
+                }
+                
+                if (data.segments_this_week) {
+                    console.log('📅 Segmentos desta semana:', data.segments_this_week.count);
+                    if (data.segments_this_week.segments) {
+                        data.segments_this_week.segments.forEach(seg => {
+                            console.log(`  - Segmento "${seg.task_title}" (${seg.start} - ${seg.end})`);
+                        });
+                    }
+                }
+                
+                if (data.all_specialists) {
+                    console.log('👥 Todos os especialistas:', data.all_specialists.count);
+                    console.log('   Lista:', data.all_specialists.specialists);
+                }
+                
+                console.groupEnd();
+                
+                // Alerta para o usuário
+                const totalSegmentosEncontrados = data.segments_this_week?.count || 0;
+                const totalTarefas = data.selected_tasks_count || 0;
+                
+                let mensagem = `🔍 DEBUG CONCLUÍDO!\n\n`;
+                mensagem += `👤 Especialista: ${data.specialist_name_decoded}\n`;
+                mensagem += `📋 Tarefas encontradas: ${totalTarefas}\n`;
+                mensagem += `📅 Segmentos desta semana: ${totalSegmentosEncontrados}\n\n`;
+                
+                if (totalSegmentosEncontrados === 0) {
+                    mensagem += `⚠️ PROBLEMA IDENTIFICADO: Nenhum segmento encontrado para esta semana!\n\n`;
+                    mensagem += `Possíveis causas:\n`;
+                    mensagem += `• Tarefas não têm segmentos criados\n`;
+                    mensagem += `• Segmentos estão fora do período da semana atual\n`;
+                    mensagem += `• Projetos não estão ativos\n`;
+                    mensagem += `• Nome do especialista não confere\n\n`;
+                } else {
+                    mensagem += `✅ Segmentos encontrados! O problema pode estar na renderização.\n\n`;
+                }
+                
+                mensagem += `📋 Verifique o console (F12) para detalhes completos.`;
+                
+                alert(mensagem);
+            })
+            .catch(error => {
+                console.error('[Debug] Erro ao buscar dados de debug:', error);
+                alert(`❌ Erro ao executar debug:\n\n${error.message}\n\nVerifique se a aplicação está rodando e tente novamente.`);
+            });
+    }
+
+    // Expõe a função globalmente para uso no console
+    window.debugKanbanSemanal = debugKanbanSemanal;
+
+    // === FUNÇÕES DE AÇÃO DOS CARDS DO KANBAN ===
+        
+    // Função para marcar tarefa como concluída
+    function marcarComoConcluida(taskId) {
+        console.log(`[Kanban] Marcando tarefa ${taskId} como concluída`);
+        
+        const url = `/backlog/api/tasks/${taskId}/complete`;
+        
+        fetch(url, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                console.log('[Kanban] Tarefa marcada como concluída:', data);
+                // Recarrega o Kanban
+                carregarKanbanSemanal();
+                // Atualiza indicadores se necessário
+                if (typeof atualizarIndicadoresCapacidade === 'function') {
+                    atualizarIndicadoresCapacidade();
+                }
+            })
+            .catch(error => {
+                console.error('[Kanban] Erro ao concluir tarefa:', error);
+                alert('❌ Erro ao marcar tarefa como concluída. Tente novamente.');
+            });
+    }
+
+    // Função para marcar tarefa como pendente
+    function marcarComoPendente(taskId) {
+        console.log(`[Kanban] Marcando tarefa ${taskId} como pendente`);
+        
+        const url = `/backlog/api/tasks/${taskId}/uncomplete`;
+        
+        fetch(url, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                console.log('[Kanban] Tarefa marcada como pendente:', data);
+                // Recarrega o Kanban
+                carregarKanbanSemanal();
+                // Atualiza indicadores se necessário
+                if (typeof atualizarIndicadoresCapacidade === 'function') {
+                    atualizarIndicadoresCapacidade();
+                }
+            })
+            .catch(error => {
+                console.error('[Kanban] Erro ao marcar como pendente:', error);
+                alert('❌ Erro ao marcar tarefa como pendente. Tente novamente.');
+            });
+    }
+
+    // Função para editar tarefa
+    function editarTarefaKanban(taskId) {
+        console.log(`[Kanban] Editando tarefa ${taskId}`);
+        
+        // Fecha o modal do Kanban
+        const modalKanban = bootstrap.Modal.getInstance(document.getElementById('modalSprintSemanal'));
+        modalKanban.hide();
+        
+        // Abre o modal de edição do backlog
+        const url = `/backlog/api/tasks/${taskId}`;
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                console.log('[Kanban] Dados da tarefa para edição:', data);
+                // Abre o modal de edição existente do backlog
+                if (typeof editarTarefa === 'function') {
+                    editarTarefa(taskId);
+                } else {
+                    console.error('[Kanban] Função editarTarefa não encontrada');
+                    alert('❌ Erro ao abrir edição. Função não encontrada.');
+                }
+            })
+            .catch(error => {
+                console.error('[Kanban] Erro ao buscar dados para edição:', error);
+                alert('❌ Erro ao carregar dados da tarefa. Tente novamente.');
+            });
+    }
+
+    // Função para excluir tarefa
+    function excluirTarefaRapida(taskId) {
+        console.log(`[Kanban] Excluindo tarefa ${taskId}`);
+        
+        if (!confirm('⚠️ Tem certeza que deseja excluir esta tarefa?')) {
+            return;
+        }
+        
+        const url = `/backlog/api/tasks/${taskId}`;
+        
+        fetch(url, { method: 'DELETE' })
+            .then(response => response.json())
+            .then(data => {
+                console.log('[Kanban] Tarefa excluída:', data);
+                // Recarrega o Kanban
+                carregarKanbanSemanal();
+                // Atualiza indicadores se necessário
+                if (typeof atualizarIndicadoresCapacidade === 'function') {
+                    atualizarIndicadoresCapacidade();
+                }
+            })
+            .catch(error => {
+                console.error('[Kanban] Erro ao excluir tarefa:', error);
+                alert('❌ Erro ao excluir tarefa. Tente novamente.');
+            });
+    }
+
+    // Torna as funções acessíveis globalmente
+    window.marcarComoConcluida = marcarComoConcluida;
+    window.marcarComoPendente = marcarComoPendente;
+    window.editarTarefaKanban = editarTarefaKanban;
+    window.excluirTarefaRapida = excluirTarefaRapida;
+
+    console.log('[Sistema] Função de debug do Kanban disponível: debugKanbanSemanal()');
+    console.log('[Sistema] Para debugar, abra o Kanban de um especialista e execute: debugKanbanSemanal()');
+    
+    // Função de teste rápido para o Kanban
+    window.testarKanbanSemanal = function() {
+        console.log('[Teste] === INICIANDO TESTE DO KANBAN ===');
+        
+        if (!especialistaAtualKanban) {
+            console.log('[Teste] Nenhum especialista atual, definindo Eduardo Kochhann');
+            especialistaAtualKanban = 'Eduardo Kochhann';
+        }
+        
+        console.log('[Teste] Especialista atual:', especialistaAtualKanban);
+        console.log('[Teste] Chamando carregarKanbanSemanal()...');
+        
+        carregarKanbanSemanal();
+    };
+    
+    console.log('[Sistema] Função de teste disponível: testarKanbanSemanal()');
     </script>
     
     <!-- CSS customizado para melhorar o visual dos cards de tipos de serviço -->
@@ -6113,6 +7121,61 @@
             }
         }
         
+        /* CSS para cards de tarefas do Kanban */
+        .tarefa-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .tarefa-card:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-1px);
+        }
+        
+        .tarefa-card.concluida {
+            opacity: 0.7;
+            background-color: #f8f9fa;
+        }
+        
+        /* Status badges */
+        .status-badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        
+        .status-todo {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .status-progress {
+            background-color: #0dcaf0;
+            color: white;
+        }
+        
+        .status-done {
+            background-color: #198754;
+            color: white;
+        }
+        
+        .status-blocked {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .status-review {
+            background-color: #fd7e14;
+            color: white;
+        }
+        
         /* Efeito glassmorphism nos cards de ação */
         .action-buttons-card {
             backdrop-filter: blur(10px);
@@ -6137,5 +7200,9 @@
             transform: scale(1.05);
         }
     </style>
+
+    <!-- Script do Kanban Semanal -->
+    <script src="{{ url_for('static', filename='js/kanban_weekly.js') }}"></script>
+
 </body>
 </html>

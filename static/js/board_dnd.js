@@ -391,8 +391,18 @@ function initializeSortable() {
                 if (index !== -1) {
                     tasksData[index] = result.task || result;
                 }
+                
+                // 🔄 SINCRONIZAÇÃO: Emite evento de tarefa atualizada
+                if (window.SyncManager) {
+                    window.SyncManager.emitTaskUpdated(taskId, result.task || result, 'backlog');
+                }
             } else { // Criação
                 tasksData.push(result.task || result);
+                
+                // 🔄 SINCRONIZAÇÃO: Emite evento de tarefa criada
+                if (window.SyncManager) {
+                    window.SyncManager.emitTaskCreated(result.task || result, 'backlog');
+                }
             }
             renderTasks();
 
@@ -424,6 +434,11 @@ function initializeSortable() {
 
             taskModal.hide();
             showToast('Tarefa excluída com sucesso!', 'success');
+            
+            // 🔄 SINCRONIZAÇÃO: Emite evento de tarefa excluída
+            if (window.SyncManager) {
+                window.SyncManager.emitTaskDeleted(taskId, 'backlog');
+            }
             
             // Atualiza UI
             tasksData = tasksData.filter(t => t.id != taskId);
@@ -507,8 +522,50 @@ function initializeSortable() {
     window.importTasks = () => importFileInput.click();
     window.exportTasks = exportTasks;
 
+    // 🔄 SINCRONIZAÇÃO: Registra listeners para eventos de outros módulos
+    function registerSyncListeners() {
+        if (window.SyncManager) {
+            // Listener para tarefas atualizadas em outros módulos
+            window.SyncManager.on('task_updated', (data, source) => {
+                console.log(`🔄 [Backlog] Tarefa atualizada em ${source}:`, data);
+                // Atualiza a tarefa na lista local se existir
+                const taskIndex = tasksData.findIndex(t => t.id == data.taskId);
+                if (taskIndex !== -1) {
+                    tasksData[taskIndex] = { ...tasksData[taskIndex], ...data.taskData };
+                    renderTasks();
+                }
+            }, 'backlog');
+            
+            // Listener para tarefas excluídas em outros módulos
+            window.SyncManager.on('task_deleted', (data, source) => {
+                console.log(`🔄 [Backlog] Tarefa excluída em ${source}:`, data);
+                // Remove a tarefa da lista local se existir
+                const originalLength = tasksData.length;
+                tasksData = tasksData.filter(t => t.id != data.taskId);
+                if (tasksData.length < originalLength) {
+                    renderTasks();
+                }
+            }, 'backlog');
+            
+            // Listener para tarefas movidas entre sprints
+            window.SyncManager.on('task_moved', (data, source) => {
+                console.log(`🔄 [Backlog] Tarefa movida em ${source}:`, data);
+                // Se a tarefa foi movida para fora de uma sprint, pode aparecer no backlog
+                if (data.toSprintId === null) {
+                    // Recarrega tarefas para incluir a tarefa que voltou ao backlog
+                    reloadTasks();
+                }
+            }, 'backlog');
+            
+            console.log('✅ [Backlog] Listeners de sincronização registrados');
+        }
+    }
+    
     // Inicializa automaticamente
     init();
+    
+    // Registra listeners de sincronização após inicialização
+    registerSyncListeners();
 }
 
 // Expõe a função principal globalmente para ser chamada pelo template

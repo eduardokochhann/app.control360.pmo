@@ -5,6 +5,10 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 import io
 import os
+import pytz
+
+# Define o fuso horário brasileiro
+br_timezone = pytz.timezone('America/Sao_Paulo')
 
 from . import sprints_bp
 from .. import db
@@ -164,7 +168,7 @@ def archive_sprint(sprint_id):
     
     # Arquiva a sprint
     sprint.is_archived = True
-    sprint.archived_at = datetime.utcnow()
+    sprint.archived_at = datetime.now(br_timezone)
     sprint.archived_by = request.json.get('archived_by', 'Sistema') if request.json else 'Sistema'
     
     db.session.commit()
@@ -790,7 +794,7 @@ def calculate_sprint_dates(sprint_id):
             if task:
                 task.start_date = datetime.fromisoformat(task_info['start_date']) if task_info.get('start_date') else None
                 task.due_date = datetime.fromisoformat(task_info['due_date']) if task_info.get('due_date') else None
-                task.updated_at = datetime.utcnow()
+                task.updated_at = datetime.now(br_timezone)
                 updated_tasks.append(serialize_task(task))
         
         db.session.commit()

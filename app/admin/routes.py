@@ -6,6 +6,10 @@ from datetime import datetime
 from .services import AdminService
 from pathlib import Path
 import json
+import pytz
+
+# Define o fuso horário brasileiro
+br_timezone = pytz.timezone('America/Sao_Paulo')
 
 @admin_bp.route('/')
 def dashboard():
@@ -17,7 +21,7 @@ def dashboard():
             'complexity_options': ComplexityCriteriaOption.query.filter_by(is_active=True).count(),
             'complexity_thresholds': ComplexityThreshold.query.count(),
             'specialist_configs': SpecialistConfiguration.query.filter_by(is_active=True).count(),
-            'last_update': datetime.utcnow()
+            'last_update': datetime.now(br_timezone)
         }
         
         return render_template('admin/dashboard.html', stats=stats)
@@ -222,7 +226,7 @@ def create_backup():
         thresholds = ComplexityThreshold.query.all()
         
         backup_data = {
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(br_timezone).isoformat(),
             'criteria': [
                 {
                     'id': c.id, 'name': c.name, 'description': c.description,
@@ -602,7 +606,7 @@ def update_specialist_configuration(config_id):
         if 'is_active' in data:
             config.is_active = bool(data['is_active'])
         
-        config.updated_at = datetime.utcnow()
+        config.updated_at = datetime.now(br_timezone)
         db.session.commit()
         
         return jsonify({
@@ -624,7 +628,7 @@ def delete_specialist_configuration(config_id):
         
         # Soft delete - apenas desativa
         config.is_active = False
-        config.updated_at = datetime.utcnow()
+        config.updated_at = datetime.now(br_timezone)
         
         db.session.commit()
         

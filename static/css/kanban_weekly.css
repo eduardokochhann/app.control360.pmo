@@ -1,0 +1,181 @@
+/* Estilos para o Kanban Semanal */
+.kanban-board {
+    min-height: 500px;
+}
+
+.kanban-column {
+    min-height: 500px;
+}
+
+.kanban-column-header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.kanban-column-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #495057;
+    margin: 0;
+}
+
+.task-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: all 0.2s ease;
+}
+
+.task-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.task-header {
+    margin-bottom: 0.5rem;
+}
+
+.task-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #212529;
+    margin: 0;
+}
+
+.task-project {
+    font-size: 0.8rem;
+    color: #6c757d;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+.task-body {
+    margin-bottom: 0.5rem;
+}
+
+.task-description {
+    font-size: 0.9rem;
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+.task-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+}
+
+.task-hours {
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.task-status {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.task-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.task-card.concluida {
+    background-color: #f8f9fa;
+    opacity: 0.8;
+}
+
+.task-card.em-andamento {
+    border-left: 3px solid #0d6efd;
+}
+
+.task-card.revisao {
+    border-left: 3px solid #ffc107;
+}
+
+/* Cores dos status */
+.bg-success {
+    background-color: #198754 !important;
+}
+
+.bg-primary {
+    background-color: #0d6efd !important;
+}
+
+.bg-warning {
+    background-color: #ffc107 !important;
+}
+
+.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+/* Cores dos Cards por Dia da Semana - Cores SOU */
+.kanban-board .col:nth-child(1) .card-header {
+    background: linear-gradient(135deg, #07304F, #0a4066) !important;
+    color: white;
+}
+
+.kanban-board .col:nth-child(2) .card-header {
+    background: linear-gradient(135deg, #FF2D5F, #ff4570) !important;
+    color: white;
+}
+
+.kanban-board .col:nth-child(3) .card-header {
+    background: linear-gradient(135deg, #07304F, #0a4066) !important;
+    color: white;
+}
+
+.kanban-board .col:nth-child(4) .card-header {
+    background: linear-gradient(135deg, #FF2D5F, #ff4570) !important;
+    color: white;
+}
+
+.kanban-board .col:nth-child(5) .card-header {
+    background: linear-gradient(135deg, #07304F, #0a4066) !important;
+    color: white;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    #kanbanBoard .col {
+        flex: 0 0 100%;
+        max-width: 100%;
+        margin-bottom: 1rem;
+    }
+    
+    .card-body.tarefas-container {
+        min-height: 200px !important;
+        max-height: 300px !important;
+    }
+}
+
+@media (max-width: 992px) {
+    #kanbanBoard .col {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+}
+
+/* Estilos específicos para o layout de cards */
+#kanbanBoard .col {
+    transition: all 0.3s ease;
+}
+
+#kanbanBoard .card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+#kanbanBoard .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+} 

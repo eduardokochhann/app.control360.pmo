@@ -58,11 +58,57 @@ document.addEventListener('DOMContentLoaded', function() {
         // ✅ NOVA FUNCIONALIDADE: Verifica e aplica filtro automático por projeto
         setTimeout(checkAndApplyAutoFilter, 1000);
         
+        // 🔄 SINCRONIZAÇÃO: Registra listeners para eventos de outros módulos
+        registerSyncListeners();
+        
     }).catch(error => {
         console.error('❌ Erro ao carregar dados iniciais:', error);
         showToast('Erro ao carregar dados iniciais', 'error');
     });
 });
+
+// 🔄 SINCRONIZAÇÃO: Registra listeners para eventos de outros módulos
+function registerSyncListeners() {
+    if (window.SyncManager) {
+        // Listener para tarefas atualizadas em outros módulos
+        window.SyncManager.on('task_updated', (data, source) => {
+            console.log(`🔄 [Sprints] Tarefa atualizada em ${source}:`, data);
+            // Atualiza o card da tarefa na UI se existir
+            const taskCard = document.querySelector(`[data-task-id="${data.taskId}"]`);
+            if (taskCard) {
+                updateTaskCardInUI(data.taskId, data.taskData, 'backlog');
+            }
+        }, 'sprints');
+        
+        // Listener para tarefas excluídas em outros módulos
+        window.SyncManager.on('task_deleted', (data, source) => {
+            console.log(`🔄 [Sprints] Tarefa excluída em ${source}:`, data);
+            // Remove o card da tarefa da UI se existir
+            const taskCard = document.querySelector(`[data-task-id="${data.taskId}"]`);
+            if (taskCard) {
+                taskCard.remove();
+            }
+        }, 'sprints');
+        
+        // Listener para tarefas criadas em outros módulos
+        window.SyncManager.on('task_created', (data, source) => {
+            console.log(`🔄 [Sprints] Tarefa criada em ${source}:`, data);
+            // Recarrega backlog para incluir nova tarefa
+            if (source === 'backlog') {
+                loadBacklogTasks();
+            }
+        }, 'sprints');
+        
+        // Listener para tarefas movidas entre sprints
+        window.SyncManager.on('task_moved', (data, source) => {
+            console.log(`🔄 [Sprints] Tarefa movida em ${source}:`, data);
+            // Recarrega sprints para refletir mudanças
+            loadSprints();
+        }, 'sprints');
+        
+        console.log('✅ [Sprints] Listeners de sincronização registrados');
+    }
+}
 
 // Funções utilitárias
 function showModalLoading(isLoading) {
@@ -393,10 +439,8 @@ function createSprintCard(sprint) {
 function renderSprintTask(task) {
     const projectPart = task.project_id || 'PROJ';
     const columnPart = (task.column_identifier || 'UNK').substring(0, 3).toUpperCase();
-    // Verifica se a tarefa está concluída
-    const isCompleted = task.column_identifier === 'concluido' || 
-                       task.status === 'Concluído' || 
-                       task.status === 'DONE';
+    // 🔄 CORREÇÃO: Usa função centralizada para verificar se está concluída
+    const isCompleted = checkIfTaskCompleted(task);
     const fullTaskId = `${projectPart}-${columnPart}-${task.id}`;
     
     // Determina o tipo de origem da tarefa
@@ -510,7 +554,8 @@ function renderBacklogProject(backlog) {
 function renderBacklogTask(task) {
     const projectPart = task.project_id || 'PROJ';
     const columnPart = (task.column_identifier || 'UNK').substring(0, 3).toUpperCase();
-    const isCompleted = task.column_identifier === 'concluido';
+    // 🔄 CORREÇÃO: Usa função centralizada para verificar se está concluída
+    const isCompleted = checkIfTaskCompleted(task);
     const fullTaskId = `${projectPart}-${columnPart}-${task.id}`;
     
     return `
@@ -710,12 +755,23 @@ async function updateTaskAssignment(taskId, sprintId, position) {
             throw new Error(`Erro ${response.status}`);
         }
         
-        console.log(`✅ Tarefa ${taskId} atualizada`);
+        // 🚀 ATUALIZAÇÃO EM TEMPO REAL: Atualiza o card da tarefa sem reload
+        const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+        if (taskElement && window.SprintRealtimeUpdater) {
+            await window.SprintRealtimeUpdater.updateMovedTask(taskId, sprintId, taskElement);
+        }
+        
+        // 🔄 SINCRONIZAÇÃO: Emite evento de tarefa movida
+        if (window.SyncManager) {
+            window.SyncManager.emitTaskMoved(taskId, null, sprintId, 'sprints');
+        }
+        
+        console.log(`✅ Tarefa ${taskId} atualizada em tempo real`);
         
     } catch (error) {
         console.error('❌ Erro ao atualizar tarefa:', error);
         showToast('Erro ao mover tarefa', 'error');
-        // Recarrega para reverter mudança visual
+        // Recarrega para reverter mudança visual apenas em caso de falha
         loadSprints();
     }
 }
@@ -1410,7 +1466,7 @@ async function addNewGenericTaskToUI(newTask) {
  * @param {HTMLElement} taskElement - Elemento da tarefa clicada
  * @param {Object} task - Dados da tarefa
  */
-function openTaskDetailsModal(taskElement, task) {
+async function openTaskDetailsModal(taskElement, task) {
     console.log('🔄 Abrindo modal de detalhes da tarefa:', task);
     
     const modal = document.getElementById('taskDetailsModal');
@@ -1493,14 +1549,123 @@ function openTaskDetailsModal(taskElement, task) {
         }
     }
     
-    // Define o status se disponível
+    // 🔄 CORREÇÃO COMPLETA: Define o status baseado na coluna atual da tarefa
     const statusSelect = document.getElementById('taskStatus');
-    if (statusSelect && task.status) {
-        // Mapeia os valores do enum para os valores do select
-        let statusValue = task.status;
+    if (statusSelect) {
+        let statusValue = 'TODO'; // Valor padrão
         
-        // Se o status vier como string do enum, mapeia para os valores corretos
-        if (typeof task.status === 'string') {
+        console.log('🔍 Debug completo da tarefa:', {
+            task: task,
+            column_identifier: task.column_identifier,
+            status: task.status,
+            column: task.column,
+            full_task: JSON.stringify(task, null, 2)
+        });
+        
+        // 🔄 MÉTODO MELHORADO: Busca dados atualizados da API para garantir status correto
+        try {
+            const response = await fetch(`/backlog/api/tasks/${task.id}`);
+            if (response.ok) {
+                const freshTask = await response.json();
+                console.log('📡 Dados frescos da API:', freshTask);
+                
+                // Usa dados frescos se disponíveis
+                if (freshTask.column && freshTask.column.name) {
+                    const columnName = freshTask.column.name.toLowerCase();
+                    console.log('🏷️ Nome da coluna atual:', columnName);
+                    
+                    // Mapeia nome da coluna para status
+                    if (columnName.includes('fazer') || columnName.includes('todo') || columnName.includes('pendente')) {
+                        statusValue = 'TODO';
+                    } else if (columnName.includes('andamento') || columnName.includes('progress') || columnName.includes('desenvolvimento')) {
+                        statusValue = 'IN_PROGRESS';
+                    } else if (columnName.includes('revisão') || columnName.includes('revisao') || columnName.includes('review') || columnName.includes('teste')) {
+                        statusValue = 'REVIEW';
+                    } else if (columnName.includes('concluí') || columnName.includes('done') || columnName.includes('finalizado') || columnName.includes('pronto')) {
+                        statusValue = 'DONE';
+                    } else if (columnName.includes('arquivado') || columnName.includes('cancelado')) {
+                        statusValue = 'ARCHIVED';
+                    }
+                } else if (freshTask.column_identifier) {
+                    // Fallback para column_identifier
+                    const columnLower = freshTask.column_identifier.toLowerCase();
+                    const columnToStatus = {
+                        'afazer': 'TODO',
+                        'a_fazer': 'TODO',
+                        'todo': 'TODO',
+                        'pendente': 'TODO',
+                        'andamento': 'IN_PROGRESS',
+                        'em_andamento': 'IN_PROGRESS',
+                        'progresso': 'IN_PROGRESS',
+                        'desenvolvimento': 'IN_PROGRESS',
+                        'revisao': 'REVIEW',
+                        'revisão': 'REVIEW',
+                        'review': 'REVIEW',
+                        'validacao': 'REVIEW',
+                        'teste': 'REVIEW',
+                        'concluido': 'DONE',
+                        'concluído': 'DONE',
+                        'done': 'DONE',
+                        'finalizado': 'DONE',
+                        'pronto': 'DONE',
+                        'arquivado': 'ARCHIVED',
+                        'cancelado': 'ARCHIVED'
+                    };
+                    statusValue = columnToStatus[columnLower] || statusValue;
+                }
+                
+                console.log('✅ Status final baseado em dados frescos:', statusValue);
+            } else {
+                console.warn('⚠️ Não foi possível buscar dados frescos, usando dados locais');
+                // Usa dados locais como fallback
+                statusValue = getStatusFromLocalTask(task);
+            }
+        } catch (error) {
+            console.warn('⚠️ Erro ao buscar dados frescos:', error);
+            // Usa dados locais como fallback
+            statusValue = getStatusFromLocalTask(task);
+        }
+        
+        console.log('🔄 Definindo status do modal:', { 
+            final_status: statusValue,
+            task_id: task.id
+        });
+        
+        statusSelect.value = statusValue;
+    }
+    
+    // 🔄 FUNÇÃO AUXILIAR: Determina status baseado em dados locais
+    function getStatusFromLocalTask(task) {
+        let statusValue = 'TODO';
+        
+        if (checkIfTaskCompleted(task)) {
+            statusValue = 'DONE';
+        } else if (task.column_identifier) {
+            const columnLower = task.column_identifier.toLowerCase();
+            const columnToStatus = {
+                'afazer': 'TODO',
+                'a_fazer': 'TODO',
+                'todo': 'TODO',
+                'pendente': 'TODO',
+                'andamento': 'IN_PROGRESS',
+                'em_andamento': 'IN_PROGRESS',
+                'progresso': 'IN_PROGRESS',
+                'desenvolvimento': 'IN_PROGRESS',
+                'revisao': 'REVIEW',
+                'revisão': 'REVIEW',
+                'review': 'REVIEW',
+                'validacao': 'REVIEW',
+                'teste': 'REVIEW',
+                'concluido': 'DONE',
+                'concluído': 'DONE',
+                'done': 'DONE',
+                'finalizado': 'DONE',
+                'pronto': 'DONE',
+                'arquivado': 'ARCHIVED',
+                'cancelado': 'ARCHIVED'
+            };
+            statusValue = columnToStatus[columnLower] || statusValue;
+        } else if (task.status) {
             const statusMapping = {
                 'A Fazer': 'TODO',
                 'Em Andamento': 'IN_PROGRESS', 
@@ -1508,14 +1673,10 @@ function openTaskDetailsModal(taskElement, task) {
                 'Concluído': 'DONE',
                 'Arquivado': 'ARCHIVED'
             };
-            
-            // Se o status já está no formato correto (TODO, IN_PROGRESS, etc), usa direto
-            // Se está no formato de texto (A Fazer, Em Andamento, etc), converte
             statusValue = statusMapping[task.status] || task.status;
         }
         
-        console.log('🔄 Definindo status:', { original: task.status, mapped: statusValue });
-        statusSelect.value = statusValue;
+        return statusValue;
     }
     
     // Atualiza título do modal
@@ -1597,8 +1758,14 @@ async function handleTaskDetailsFormSubmit(event) {
         // atualizamos apenas o card específico na UI
         console.log('✅ Tarefa atualizada com sucesso, atualizando UI localmente...');
         
-        // Atualiza o card da tarefa na UI
-        await updateTaskCardInUI(taskId, data, taskType);
+        // 🔄 CORREÇÃO: Força reload da sprint para mostrar símbolos de concluído
+        console.log('🔄 Forçando reload da sprint para atualizar símbolos visuais...');
+        await loadSprints();
+        
+        // 🔄 SINCRONIZAÇÃO: Emite evento de tarefa atualizada
+        if (window.SyncManager) {
+            window.SyncManager.emitTaskUpdated(taskId, data, 'sprints');
+        }
         
         showToast('Tarefa atualizada com sucesso!', 'success');
         
@@ -1609,11 +1776,23 @@ async function handleTaskDetailsFormSubmit(event) {
 }
 
 /**
- * 🚀 NOVA FUNÇÃO: Atualiza apenas o card da tarefa na UI sem reload completo
- * Isso elimina os logs excessivos e melhora drasticamente a performance
+ * 🚀 FUNÇÃO CORRIGIDA: Atualiza apenas o card da tarefa na UI sem reload completo
+ * Agora inclui atualização do status visual e busca dados atualizados
  */
 async function updateTaskCardInUI(taskId, updatedData, taskType) {
     try {
+        // 🔄 CORREÇÃO: Busca dados atualizados da API para garantir sincronização
+        let updatedTask = null;
+        try {
+            const response = await fetch(`/backlog/api/tasks/${taskId}`);
+            if (response.ok) {
+                updatedTask = await response.json();
+                console.log('📡 Dados atualizados da tarefa:', updatedTask);
+            }
+        } catch (error) {
+            console.warn('⚠️ Não foi possível buscar dados atualizados, usando dados locais');
+        }
+        
         // Encontra o card da tarefa na UI
         const taskCard = document.querySelector(`[data-task-id="${taskId}"]`);
         if (!taskCard) {
@@ -1631,39 +1810,79 @@ async function updateTaskCardInUI(taskId, updatedData, taskType) {
             return;
         }
         
+        // Usa dados atualizados da API se disponíveis, senão usa dados locais
+        const dataToUse = updatedTask || updatedData;
+        
         // Atualiza os elementos visuais do card
         const titleElement = taskCard.querySelector('.task-title');
-        if (titleElement && updatedData.name) {
-            titleElement.textContent = updatedData.name;
+        if (titleElement && dataToUse.name) {
+            titleElement.textContent = dataToUse.name;
         }
         
-        const priorityElement = taskCard.querySelector('.task-priority');
-        if (priorityElement && updatedData.priority) {
+        const priorityElement = taskCard.querySelector('.task-priority-badge');
+        if (priorityElement && dataToUse.priority) {
             // Remove classes de prioridade antigas
-            priorityElement.className = priorityElement.className.replace(/priority-\w+/g, '');
+            priorityElement.className = priorityElement.className.replace(/text-bg-\w+/g, '');
             // Adiciona nova classe de prioridade
-            priorityElement.classList.add(`priority-${updatedData.priority.toLowerCase()}`);
-            priorityElement.textContent = updatedData.priority;
+            priorityElement.classList.add(getPriorityClass(dataToUse.priority));
+            priorityElement.textContent = dataToUse.priority;
         }
         
         const hoursElement = taskCard.querySelector('.task-hours');
-        if (hoursElement && updatedData.estimated_hours !== null) {
-            hoursElement.textContent = `${updatedData.estimated_hours}h`;
+        if (hoursElement && dataToUse.estimated_hours !== null) {
+            hoursElement.innerHTML = `⏱️ ${dataToUse.estimated_hours}h`;
             // Atualiza o dataset para cálculos
-            taskCard.dataset.estimatedHours = updatedData.estimated_hours;
+            taskCard.dataset.estimatedHours = dataToUse.estimated_hours;
         }
         
         const specialistElement = taskCard.querySelector('.task-specialist');
-        if (specialistElement && updatedData.specialist_name) {
-            specialistElement.textContent = updatedData.specialist_name;
+        if (specialistElement && dataToUse.specialist_name) {
+            specialistElement.innerHTML = `👤 ${dataToUse.specialist_name}`;
             // Atualiza o dataset
-            taskCard.dataset.specialistName = updatedData.specialist_name;
+            taskCard.dataset.specialistName = dataToUse.specialist_name;
+        }
+        
+        // 🔄 CORREÇÃO: Atualiza status visual da tarefa (concluído/não concluído)
+        if (updatedTask) {
+            const isCompleted = checkIfTaskCompleted(updatedTask);
+            
+            // Atualiza badge de concluído no header
+            const taskHeader = taskCard.querySelector('.task-header .d-flex');
+            if (taskHeader) {
+                // Remove badge existente
+                const existingBadge = taskHeader.querySelector('.badge.bg-success');
+                if (existingBadge) {
+                    existingBadge.remove();
+                }
+                
+                // Adiciona badge se concluído
+                if (isCompleted) {
+                    const completedBadge = document.createElement('span');
+                    completedBadge.className = 'badge bg-success text-white';
+                    completedBadge.title = 'Tarefa Concluída';
+                    completedBadge.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Concluído';
+                    taskHeader.appendChild(completedBadge);
+                }
+            }
+            
+            // Atualiza overlay de concluído
+            let completedOverlay = taskCard.querySelector('.task-completed-overlay');
+            if (isCompleted && !completedOverlay) {
+                // Adiciona overlay se não existir
+                completedOverlay = document.createElement('div');
+                completedOverlay.className = 'task-completed-overlay';
+                completedOverlay.innerHTML = '<i class="bi bi-check-circle-fill"></i>';
+                taskCard.appendChild(completedOverlay);
+            } else if (!isCompleted && completedOverlay) {
+                // Remove overlay se existir
+                completedOverlay.remove();
+            }
         }
         
         // Atualiza tooltips se existirem
         const tooltipElement = taskCard.querySelector('[data-bs-toggle="tooltip"]');
-        if (tooltipElement && updatedData.description) {
-            tooltipElement.setAttribute('data-bs-original-title', updatedData.description);
+        if (tooltipElement && dataToUse.description) {
+            tooltipElement.setAttribute('data-bs-original-title', dataToUse.description);
         }
         
         // Força atualização dos totais de horas apenas da sprint atual
@@ -1672,7 +1891,7 @@ async function updateTaskCardInUI(taskId, updatedData, taskType) {
             updateSprintHoursDisplay(taskCard.closest('.sprint-tasks'));
         }
         
-        console.log('✅ Card da tarefa atualizado localmente');
+        console.log('✅ Card da tarefa atualizado localmente com status visual');
         
     } catch (error) {
         console.error('❌ Erro ao atualizar card na UI, fazendo reload:', error);
@@ -1683,6 +1902,53 @@ async function updateTaskCardInUI(taskId, updatedData, taskType) {
             await loadSprints();
         }
     }
+}
+
+/**
+ * 🔄 FUNÇÃO MELHORADA: Verifica se uma tarefa está concluída
+ * Centraliza a lógica de detecção de tarefa concluída com múltiplas verificações
+ */
+function checkIfTaskCompleted(task) {
+    console.log('🔍 Verificando se tarefa está concluída:', {
+        task_id: task.id,
+        column_identifier: task.column_identifier,
+        status: task.status,
+        column: task.column
+    });
+    
+    // Múltiplas verificações para detectar tarefa concluída
+    const checks = [
+        // Por column_identifier
+        task.column_identifier === 'concluido',
+        task.column_identifier === 'concluído',
+        task.column_identifier === 'done',
+        
+        // Por status direto
+        task.status === 'Concluído',
+        task.status === 'DONE',
+        task.status === 'done',
+        task.status === 'finalizado',
+        task.status === 'pronto',
+        
+        // Por objeto column
+        task.column && task.column.name && task.column.name.toLowerCase().includes('conclu'),
+        task.column && task.column.name && task.column.name.toLowerCase().includes('done'),
+        task.column && task.column.name && task.column.name.toLowerCase().includes('finalizado'),
+        
+        // Por ID da coluna (se for numérico e corresponder à coluna concluído)
+        task.column_id === 15, // ID típico da coluna concluído
+        task.status === 15 // Status pode ser o ID da coluna
+    ];
+    
+    const isCompleted = checks.some(check => check);
+    
+    console.log('✅ Resultado da verificação:', {
+        task_id: task.id,
+        is_completed: isCompleted,
+        checks_passed: checks.filter(c => c).length
+    });
+    
+    return isCompleted;
 }
 
 /**
@@ -1757,6 +2023,11 @@ async function handleTaskDelete() {
             }
         }
         
+        // 🔄 SINCRONIZAÇÃO: Emite evento de tarefa excluída
+        if (window.SyncManager) {
+            window.SyncManager.emitTaskDeleted(taskId, 'sprints');
+        }
+        
         showToast('Tarefa excluída com sucesso!', 'success');
         
     } catch (error) {
@@ -1815,6 +2086,11 @@ async function handleGenericTaskDelete() {
         } else {
             // Fallback: reload apenas das tarefas genéricas
             await loadGenericTasks();
+        }
+        
+        // 🔄 SINCRONIZAÇÃO: Emite evento de tarefa excluída
+        if (window.SyncManager) {
+            window.SyncManager.emitTaskDeleted(taskId, 'sprints');
         }
         
         showToast('Tarefa genérica excluída com sucesso!', 'success');

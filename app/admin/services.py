@@ -16,7 +16,10 @@ import re
 import logging
 # import chardet  # Temporariamente comentado
 from io import StringIO
+import pytz
 
+# Define o fuso horário brasileiro
+br_timezone = pytz.timezone('America/Sao_Paulo')
 
 class AdminService:
     """Serviço principal para operações administrativas"""
@@ -30,12 +33,12 @@ class AdminService:
                     'criteria_count': ComplexityCriteria.query.filter_by(is_active=True).count(),
                     'options_count': ComplexityCriteriaOption.query.filter_by(is_active=True).count(),
                     'thresholds_count': ComplexityThreshold.query.count(),
-                    'last_modified': datetime.utcnow()
+                    'last_modified': datetime.now(br_timezone)
                 },
                 'system': {
                     'version': '1.0.0',
                     'modules': ['admin', 'backlog', 'macro', 'micro', 'gerencial', 'sprints'],
-                    'uptime': datetime.utcnow()
+                    'uptime': datetime.now(br_timezone)
                 }
             }
             return stats
@@ -77,7 +80,7 @@ class AdminService:
             thresholds = ComplexityThreshold.query.all()
             
             backup = {
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(br_timezone).isoformat(),
                 'version': '1.0',
                 'complexity_config': {
                     'criteria': [
@@ -284,7 +287,7 @@ class AdminService:
             if not os.path.exists(backup_dir):
                 os.makedirs(backup_dir)
             
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(br_timezone).strftime("%Y%m%d_%H%M%S")
             backup_file = os.path.join(backup_dir, f"dadosr_backup_{timestamp}.csv")
             
             # Backup do arquivo atual se existir
@@ -875,7 +878,7 @@ class AdminService:
             backup_dir.mkdir(exist_ok=True)
             
             # Nome do backup com timestamp
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(br_timezone).strftime("%Y%m%d_%H%M%S")
             backup_filename = f"dadosr_backup_{timestamp}.csv"
             backup_path = backup_dir / backup_filename
             
