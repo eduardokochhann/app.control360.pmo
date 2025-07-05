@@ -3829,8 +3829,17 @@ class MacroService(BaseService):
             
             projeto_row = projeto.iloc[0]
             
-            # Calcular progresso
-            percentual_concluido = float(projeto_row.get('Conclusao', 0.0))
+            # Calcular progresso - LÓGICA ESPECIAL PARA DEMANDAS INTERNAS
+            servico_terceiro_nivel = projeto_row.get('TipoServico', '')
+            
+            if servico_terceiro_nivel == 'Demandas Internas':
+                # Para Demandas Internas, calcular percentual baseado em tarefas
+                percentual_concluido = self._calcular_percentual_por_tarefas(project_id)
+                logger.info(f"Projeto Demandas Internas detectado - Percentual calculado por tarefas: {percentual_concluido:.1f}%")
+            else:
+                # Para projetos normais, usar percentual do CSV
+                percentual_concluido = float(projeto_row.get('Conclusao', 0.0))
+                logger.info(f"Projeto normal - Percentual do CSV: {percentual_concluido:.1f}%")
             data_vencimento = projeto_row.get('VencimentoEm', 'N/A')
             logger.info(f"Data vencimento bruta: {repr(data_vencimento)} (tipo: {type(data_vencimento)})")
             
@@ -4117,17 +4126,28 @@ class MacroService(BaseService):
                     project_notes = Note.query.filter_by(
                         backlog_id=backlog_id, 
                         include_in_status_report=True
-                    ).order_by(Note.created_at.desc()).all()
+                    ).order_by(
+                        Note.event_date.desc().nulls_last(),  # Ordena por data do evento (mais recente primeiro)
+                        Note.created_at.desc()  # Fallback para data de criação
+                    ).all()
                     
                     for note in project_notes:
+                        # Traduzir campos para português
+                        categoria_pt = self._traduzir_categoria(note.category)
+                        prioridade_pt = self._traduzir_prioridade(note.priority)
+                        
+                        # Usar data do evento quando disponível, senão usar data de criação
+                        data_exibicao = note.event_date.strftime('%d/%m/%Y') if note.event_date else (note.created_at.strftime('%d/%m/%Y %H:%M') if note.created_at else 'N/A')
+                        
                         nota_data = {
                             'id': note.id,
                             'conteudo': note.content,
-                            'categoria': note.category,
-                            'prioridade': note.priority,
+                            'categoria': categoria_pt,
+                            'prioridade': prioridade_pt,
                             'status_relatorio': note.report_status,
                             'data_criacao': note.created_at.strftime('%d/%m/%Y %H:%M') if note.created_at else 'N/A',
                             'data_evento': note.event_date.strftime('%d/%m/%Y') if note.event_date else None,
+                            'data_exibicao': data_exibicao,  # Campo unificado para exibição
                             'tags': [tag.name for tag in note.tags] if note.tags else []
                         }
                         notas_observacoes.append(nota_data)
@@ -4851,6 +4871,81 @@ class MacroService(BaseService):
         except Exception as e:
             logger.error(f"Erro ao aplicar filtros: {e}")
             return dados  # Retorna dados originais em caso de erro
+
+    def _traduzir_categoria(self, categoria):
+        """
+        Traduz categorias do inglês para português.
+        """
+        traducoes = {
+            'decision': 'Decisão',
+            'impediment': 'Impedimento',
+            'general': 'Geral',
+            'risk': 'Risco',
+            'meeting': 'Reunião',
+            'update': 'Atualização'
+        }
+        return traducoes.get(categoria, categoria.title() if categoria else 'Geral')
+
+    def _traduzir_prioridade(self, prioridade):
+        """
+        Traduz prioridades do inglês para português.
+        """
+        traducoes = {
+            'high': 'Alta',
+            'medium': 'Média',
+            'low': 'Baixa',
+            'urgent': 'Urgente',
+            'normal': 'Normal'
+        }
+        return traducoes.get(prioridade.lower() if prioridade else '', prioridade.title() if prioridade else 'Normal')
+
+    def _calcular_percentual_por_tarefas(self, project_id):
+        """
+        Calcula o percentual de conclusão baseado nas tarefas do backlog.
+        Usado especificamente para projetos de "Demandas Internas".
+        """
+        try:
+            logger.info(f"Calculando percentual por tarefas para projeto {project_id}")
+            
+            # Buscar backlog_id do projeto
+            backlog_id = self.get_backlog_id_for_project(project_id)
+            if not backlog_id:
+                logger.warning(f"Nenhum backlog encontrado para projeto {project_id}")
+                return 0.0
+            
+            # Buscar todas as tarefas do backlog
+            from app.models import Task, Column
+            
+            total_tarefas = Task.query.filter_by(backlog_id=backlog_id).count()
+            logger.info(f"Total de tarefas no backlog {backlog_id}: {total_tarefas}")
+            
+            if total_tarefas == 0:
+                logger.info("Nenhuma tarefa encontrada - retornando 0%")
+                return 0.0
+            
+            # Contar tarefas concluídas baseado no nome da coluna
+            tarefas_concluidas = Task.query.filter_by(backlog_id=backlog_id)\
+                .join(Column, Task.column_id == Column.id)\
+                .filter(
+                    Column.name.ilike('%concluí%') |
+                    Column.name.ilike('%concluido%') |
+                    Column.name.ilike('%done%') |
+                    Column.name.ilike('%finalizado%') |
+                    Column.name.ilike('%finalizada%')
+                ).count()
+            
+            logger.info(f"Tarefas concluídas no backlog {backlog_id}: {tarefas_concluidas}")
+            
+            # Calcular percentual
+            percentual = round((tarefas_concluidas / total_tarefas) * 100, 1)
+            
+            logger.info(f"Percentual calculado: {tarefas_concluidas}/{total_tarefas} = {percentual}%")
+            
+            return percentual
+            
+        except Exception as e:
+            logger.error(f"Erro ao calcular percentual por tarefas para projeto {project_id}: {str(e)}")
+            return 0.0
 
 
 # Funções auxiliares fora da classe

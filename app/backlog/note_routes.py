@@ -16,9 +16,12 @@ def get_backlog_notes(backlog_id):
     # Verifica se o backlog existe
     backlog = Backlog.query.get_or_404(backlog_id)
     
-    # Busca notas do backlog
-    notes = Note.query.filter_by(backlog_id=backlog_id).order_by(Note.created_at.desc()).all()
-    logger.info(f"[API Notes] Retornando {len(notes)} notas para backlog {backlog_id}")
+    # Busca notas do backlog ordenadas por data do evento (quando disponível) e data de criação
+    notes = Note.query.filter_by(backlog_id=backlog_id).order_by(
+        Note.event_date.desc().nulls_last(),  # Ordena por data do evento (mais recente primeiro)
+        Note.created_at.desc()  # Fallback para data de criação
+    ).all()
+    logger.info(f"[API Notes] Retornando {len(notes)} notas para backlog {backlog_id} ordenadas por data do evento")
     
     return jsonify([note.to_dict() for note in notes])
 
@@ -45,8 +48,11 @@ def get_notes():
         logger.info(f"[API Notes] Filtrando por backlog_id: {backlog_id}")
         query = query.filter_by(backlog_id=backlog_id)
     
-    notes = query.order_by(Note.created_at.desc()).all()
-    logger.info(f"[API Notes] Retornando {len(notes)} notas")
+    notes = query.order_by(
+        Note.event_date.desc().nulls_last(),  # Ordena por data do evento (mais recente primeiro)
+        Note.created_at.desc()  # Fallback para data de criação
+    ).all()
+    logger.info(f"[API Notes] Retornando {len(notes)} notas ordenadas por data do evento")
     return jsonify([note.to_dict() for note in notes])
 
 @backlog_bp.route('/api/notes/<int:note_id>', methods=['GET'])
@@ -243,9 +249,12 @@ def get_task_notes(task_id):
     """Retorna todas as notas de uma tarefa específica."""
     logger.info(f"[API Notes] Recebendo requisição GET para /api/tasks/{task_id}/notes")
     
-    # Busca notas da tarefa
-    notes = Note.query.filter_by(task_id=task_id).order_by(Note.created_at.desc()).all()
-    logger.info(f"[API Notes] Retornando {len(notes)} notas para tarefa {task_id}")
+    # Busca notas da tarefa ordenadas por data do evento
+    notes = Note.query.filter_by(task_id=task_id).order_by(
+        Note.event_date.desc().nulls_last(),  # Ordena por data do evento (mais recente primeiro)
+        Note.created_at.desc()  # Fallback para data de criação
+    ).all()
+    logger.info(f"[API Notes] Retornando {len(notes)} notas para tarefa {task_id} ordenadas por data do evento")
     
     return jsonify([note.to_dict() for note in notes])
 
@@ -338,11 +347,14 @@ def preview_report():
     # Limpar project_id
     cleaned_project_id = str(project_id).strip().split('.')[0]
     
-    # Buscar notas do projeto que devem ser incluídas no relatório
+    # Buscar notas do projeto que devem ser incluídas no relatório, ordenadas por data do evento
     notes = Note.query.filter_by(
         project_id=cleaned_project_id,
         include_in_status_report=True
-    ).order_by(Note.created_at.desc()).all()
+    ).order_by(
+        Note.event_date.desc().nulls_last(),  # Ordena por data do evento (mais recente primeiro)
+        Note.created_at.desc()  # Fallback para data de criação
+    ).all()
     
     # Agrupar por categoria
     grouped_notes = {}
@@ -398,7 +410,10 @@ def generate_report():
     if categories:
         query = query.filter(Note.category.in_(categories))
     
-    notes = query.order_by(Note.created_at.desc()).all()
+    notes = query.order_by(
+        Note.event_date.desc().nulls_last(),  # Ordena por data do evento (mais recente primeiro)
+        Note.created_at.desc()  # Fallback para data de criação
+    ).all()
     
     # Gerar relatório estruturado
     report = {
