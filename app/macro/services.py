@@ -3872,10 +3872,18 @@ class MacroService(BaseService):
                 data_prevista_termino = 'N/A'
                 status_prazo = 'N/A'
             
-            # Calcular esforço
+            # Calcular esforço - LÓGICA ESPECIAL PARA DEMANDAS INTERNAS
             horas_trabalhadas = float(projeto_row.get('HorasTrabalhadas', 0))
             horas_restantes = float(projeto_row.get('HorasRestantes', 0))
-            horas_planejadas = horas_trabalhadas + horas_restantes
+            
+            if servico_terceiro_nivel == 'Demandas Internas':
+                # Para Demandas Internas, calcular esforço baseado em tarefas
+                horas_planejadas = self._calcular_esforco_por_tarefas(project_id)
+                logger.info(f"Projeto Demandas Internas detectado - Esforço calculado por tarefas: {horas_planejadas}h")
+            else:
+                # Para projetos normais, usar esforço do CSV
+                horas_planejadas = horas_trabalhadas + horas_restantes
+                logger.info(f"Projeto normal - Esforço do CSV: {horas_planejadas}h")
             
             if horas_planejadas > 0:
                 percentual_consumido = round((horas_trabalhadas / horas_planejadas) * 100, 1)
@@ -4945,6 +4953,48 @@ class MacroService(BaseService):
             
         except Exception as e:
             logger.error(f"Erro ao calcular percentual por tarefas para projeto {project_id}: {str(e)}")
+            return 0.0
+
+    def _calcular_esforco_por_tarefas(self, project_id):
+        """
+        Calcula o esforço total (horas planejadas) baseado nas tarefas do backlog.
+        Usado especificamente para projetos de "Demandas Internas".
+        """
+        try:
+            logger.info(f"Calculando esforço por tarefas para projeto {project_id}")
+            
+            # Buscar backlog_id do projeto
+            backlog_id = self.get_backlog_id_for_project(project_id)
+            if not backlog_id:
+                logger.warning(f"Nenhum backlog encontrado para projeto {project_id}")
+                return 0.0
+            
+            # Buscar todas as tarefas do backlog
+            from app.models import Task
+            
+            all_tasks = Task.query.filter_by(backlog_id=backlog_id).all()
+            
+            if not all_tasks:
+                logger.info(f"Nenhuma tarefa encontrada no backlog {backlog_id} - retornando 0h")
+                return 0.0
+            
+            # Somar esforço estimado de todas as tarefas
+            total_esforco = 0.0
+            tarefas_com_esforco = 0
+            
+            for task in all_tasks:
+                esforco_tarefa = float(task.estimated_effort or 0)
+                total_esforco += esforco_tarefa
+                if esforco_tarefa > 0:
+                    tarefas_com_esforco += 1
+                logger.debug(f"Tarefa '{task.title}' - Esforço: {esforco_tarefa}h")
+            
+            logger.info(f"Esforço total calculado: {total_esforco}h ({tarefas_com_esforco}/{len(all_tasks)} tarefas com esforço)")
+            
+            return total_esforco
+            
+        except Exception as e:
+            logger.error(f"Erro ao calcular esforço por tarefas para projeto {project_id}: {str(e)}")
             return 0.0
 
 
