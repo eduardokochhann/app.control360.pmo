@@ -322,6 +322,7 @@ def relatorio_projetos_criticos():
 # === NOVA ABA DE RELATÓRIOS ===
 
 @macro_bp.route('/relatorios')
+@feature_required('macro.suite_relatorios')
 def relatorios_dashboard():
     """Dashboard principal da aba de relatórios"""
     try:
@@ -343,6 +344,7 @@ def relatorios_dashboard():
                              hora_atualizacao=datetime.now())
 
 @macro_bp.route('/relatorios/geral')
+@feature_required('macro.suite_relatorios')
 def relatorio_geral():
     """Página de seleção de meses para o relatório geral"""
     try:
@@ -367,6 +369,7 @@ def relatorio_geral():
                              hora_atualizacao=datetime.now())
 
 @macro_bp.route('/relatorios/geral/gerar', methods=['POST'])
+@feature_required('macro.suite_relatorios')
 def gerar_relatorio_geral():
     """Gera o relatório geral com base nos meses selecionados e filtros aplicados"""
     try:
@@ -415,6 +418,7 @@ def gerar_relatorio_geral():
         return redirect(url_for('macro.relatorio_geral'))
 
 @macro_bp.route('/relatorios/entregues')
+@feature_required('macro.suite_relatorios')
 def relatorio_projetos_entregues():
     """Rota para o relatório de projetos entregues"""
     try:
@@ -449,6 +453,7 @@ def relatorio_projetos_entregues():
 # === APIs PARA OS NOVOS RELATÓRIOS ===
 
 @macro_bp.route('/api/projetos/entregues')
+@feature_required('macro.suite_relatorios')
 def get_projetos_entregues():
     """API para obter projetos entregues"""
     try:
@@ -513,6 +518,7 @@ def get_projetos_entregues():
         return jsonify([])
 
 @macro_bp.route('/api/projetos/entregues/todos')
+@feature_required('macro.suite_relatorios')
 def get_todos_projetos_entregues():
     """API para obter todos os projetos entregues (histórico completo)"""
     try:
@@ -2290,6 +2296,7 @@ def api_resumo_especialistas():
         return jsonify([]), 500
 
 @macro_bp.route('/api/tipos-servico-simples')
+@feature_required('macro.tipos_servico')
 def api_tipos_servico_simples():
     """API simples para testar tipos de serviço com CSV"""
     try:
@@ -2334,6 +2341,7 @@ def api_tipos_servico_simples():
         }), 500
 
 @macro_bp.route('/api/mapeamento-dexpra')
+@feature_required('macro.tipos_servico')
 def api_mapeamento_dexpra():
     """API para análise DexPra - tipos de serviço nos projetos vs CSV"""
     try:
@@ -2368,6 +2376,7 @@ def api_mapeamento_dexpra():
         }), 500
 
 @macro_bp.route('/api/refresh-tipos-servico', methods=['POST'])
+@feature_required('macro.tipos_servico')
 def api_refresh_tipos_servico():
     """API para forçar refresh do cache de tipos de serviço"""
     try:
@@ -2406,6 +2415,7 @@ def api_refresh_tipos_servico():
         }), 500
 
 @macro_bp.route('/api/debug-normalizacao')
+@feature_required('macro.tipos_servico')
 def api_debug_normalizacao():
     """API para debug da normalização de tipos de serviço - ajuda a identificar problemas de mapeamento"""
     try:

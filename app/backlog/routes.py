@@ -1348,6 +1348,7 @@ def get_available_specialists():
 
 # --- API para Marcos do Projeto --- 
 @backlog_bp.route('/api/backlogs/<int:backlog_id>/milestones', methods=['GET'])
+@feature_required('backlog.gestao_marco')
 def get_milestones(backlog_id):
     """Retorna os marcos do projeto associado ao backlog."""
     try:
@@ -1361,12 +1362,14 @@ def get_milestones(backlog_id):
         abort(500, description="Erro interno ao buscar marcos do projeto.")
 
 @backlog_bp.route('/api/milestones/<int:milestone_id>', methods=['GET'])
+@feature_required('backlog.gestao_marco')
 def get_milestone_details(milestone_id):
     """Retorna os detalhes de um marco específico."""
     milestone = ProjectMilestone.query.get_or_404(milestone_id)
     return jsonify(milestone.to_dict())
 
 @backlog_bp.route('/api/milestones/<int:milestone_id>', methods=['PUT'])
+@feature_required('backlog.gestao_marco')
 def update_milestone(milestone_id):
     """Atualiza um marco existente."""
     milestone = ProjectMilestone.query.get_or_404(milestone_id)
@@ -1437,6 +1440,7 @@ def update_milestone(milestone_id):
         abort(500, description="Erro interno ao atualizar marco do projeto.")
 
 @backlog_bp.route('/api/milestones/<int:milestone_id>', methods=['DELETE'])
+@feature_required('backlog.gestao_marco')
 def delete_milestone(milestone_id):
     """Exclui um marco."""
     milestone = ProjectMilestone.query.get_or_404(milestone_id)
@@ -1456,6 +1460,7 @@ def delete_milestone(milestone_id):
 # --- API para Riscos e Impedimentos ---
 
 @backlog_bp.route('/api/backlogs/<int:backlog_id>/risks', methods=['GET'])
+@feature_required('backlog.gestao_risco')
 def get_backlog_risks(backlog_id):
     """Retorna todos os riscos associados a um backlog específico."""
     current_app.logger.info(f"[API GET RISKS] Buscando riscos para o backlog ID: {backlog_id}")
@@ -1467,12 +1472,14 @@ def get_backlog_risks(backlog_id):
     return jsonify([risk.to_dict() for risk in risks])
 
 @backlog_bp.route('/api/risks/<int:risk_id>', methods=['GET'])
+@feature_required('backlog.gestao_risco')
 def get_risk_details(risk_id):
     """Retorna os detalhes de um risco específico."""
     risk = ProjectRisk.query.get_or_404(risk_id)
     return jsonify(risk.to_dict())
 
 @backlog_bp.route('/api/risks', methods=['POST'])
+@feature_required('backlog.gestao_risco')
 def create_risk():
     """Cria um novo risco para o projeto (backlog_id vem no corpo)."""
     data = request.get_json()
@@ -1547,6 +1554,7 @@ def create_risk():
         abort(500, description="Erro interno ao salvar o risco no banco de dados.")
 
 @backlog_bp.route('/api/risks/<int:risk_id>', methods=['PUT'])
+@feature_required('backlog.gestao_risco')
 def update_risk(risk_id):
     """Atualiza um risco existente."""
     risk = ProjectRisk.query.get_or_404(risk_id)
@@ -1617,6 +1625,7 @@ def update_risk(risk_id):
         abort(500, description="Erro interno ao atualizar o risco no banco de dados.")
 
 @backlog_bp.route('/api/risks/<int:risk_id>', methods=['DELETE'])
+@feature_required('backlog.gestao_risco')
 def delete_risk_from_api(risk_id):
     """Exclui um risco específico."""
     current_app.logger.info(f"[API DELETE RISK] Recebida requisição para excluir Risco ID: {risk_id}")
@@ -1725,6 +1734,7 @@ def get_timeline_tasks(backlog_id):
 
 # ROTA PARA A AGENDA TÉCNICA
 @backlog_bp.route('/agenda')
+@feature_required('backlog.agenda')
 def technical_agenda():
     try:
         # Inicialmente, não estamos ligando a agenda a um projeto específico,
@@ -1748,6 +1758,7 @@ def technical_agenda():
 
 # NOVA API PARA TAREFAS DA AGENDA TÉCNICA
 @backlog_bp.route('/api/agenda/tasks', methods=['GET'])
+@feature_required('backlog.agenda')
 def get_agenda_tasks():
     try:
         # Modificado para buscar TaskSegments e fazer join com Task para acessar os campos da tarefa pai
@@ -3230,6 +3241,7 @@ def _assess_prediction_risks(metricas: dict, tendencias: dict) -> dict:
 
 # Rota modificada para POST (sem backlog_id na URL)
 @backlog_bp.route('/api/milestones', methods=['POST'])
+@feature_required('backlog.gestao_marco')
 def create_milestone():
     """Cria um novo marco (milestone) para o projeto."""
     current_app.logger.info("!!! ROTA POST /api/milestones ACESSADA !!!")
@@ -3304,6 +3316,7 @@ def create_milestone():
 # =====================================================
 
 @backlog_bp.route('/api/complexity/criteria', methods=['GET'])
+@feature_required('backlog.complexidade')
 def get_complexity_criteria():
     try:
         from ..models import ComplexityCriteria, ComplexityCriteriaOption
@@ -3337,6 +3350,7 @@ def get_complexity_criteria():
         return jsonify({'error': 'Erro interno do servidor'}), 500
 
 @backlog_bp.route('/api/complexity/thresholds', methods=['GET'])
+@feature_required('backlog.complexidade')
 def get_complexity_thresholds():
     """Retorna os thresholds de complexidade."""
     try:
@@ -3360,6 +3374,7 @@ def get_complexity_thresholds():
         return jsonify({'error': 'Erro interno do servidor'}), 500
 
 @backlog_bp.route('/api/projects/<string:project_id>/complexity/assessment', methods=['GET'])
+@feature_required('backlog.complexidade')
 def get_project_complexity_assessment(project_id):
     try:
         from ..models import ProjectComplexityAssessment, ComplexityCriteria, ComplexityCriteriaOption
@@ -3402,6 +3417,7 @@ def get_project_complexity_assessment(project_id):
         return jsonify({'error': 'Erro interno do servidor'}), 500
 
 @backlog_bp.route('/api/projects/<string:project_id>/complexity/assessment', methods=['POST'])
+@feature_required('backlog.complexidade')
 def create_project_complexity_assessment(project_id):
     try:
         from ..models import ProjectComplexityAssessment, ProjectComplexityAssessmentDetail, ComplexityCriteriaOption, ComplexityThreshold
@@ -3491,6 +3507,7 @@ def create_project_complexity_assessment(project_id):
         return jsonify({'error': 'Erro interno do servidor'}), 500
 
 @backlog_bp.route('/api/projects/<string:project_id>/complexity/history', methods=['GET'])
+@feature_required('backlog.complexidade')
 def get_project_complexity_history(project_id):
     try:
         from ..models import ProjectComplexityAssessment
@@ -3612,6 +3629,7 @@ def get_project_milestones_for_wbs(project_id):
 
 
 @backlog_bp.route('/api/wbs/export', methods=['POST'])
+@feature_required('backlog.wbs')
 def export_wbs_to_excel():
     """
     Exporta a WBS para um arquivo Excel
@@ -3770,6 +3788,7 @@ def _set_cached_active_projects(project_ids):
 
 # 🎯 ENDPOINT PARA SALVAR NOVA ORDEM DA WBS
 @backlog_bp.route('/api/wbs/update-order', methods=['POST'])
+@feature_required('backlog.wbs')
 def update_wbs_task_order():
     """
     Atualiza a ordem/posição das tarefas na WBS

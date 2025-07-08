@@ -2,6 +2,7 @@ from flask import request, jsonify, current_app, abort
 from app import db
 from app.models import Note, Tag, Backlog
 from . import backlog_bp
+from app.utils.decorators import feature_required
 import logging
 from datetime import datetime
 
@@ -9,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 # API para Notas de Backlog
 @backlog_bp.route('/api/backlogs/<int:backlog_id>/notes', methods=['GET'])
+@feature_required('backlog.gestao_notas')
 def get_backlog_notes(backlog_id):
     """Retorna todas as notas de um backlog específico."""
     logger.info(f"[API Notes] Recebendo requisição GET para /api/backlogs/{backlog_id}/notes")
@@ -27,6 +29,7 @@ def get_backlog_notes(backlog_id):
 
 # API para Notas
 @backlog_bp.route('/api/notes', methods=['GET']) # URL final: /backlog/api/notes
+@feature_required('backlog.gestao_notas')
 def get_notes():
     """Retorna todas as notas de um projeto ou tarefa específica."""
     logger.info("[API Notes] Recebendo requisição GET para /api/notes")
@@ -56,6 +59,7 @@ def get_notes():
     return jsonify([note.to_dict() for note in notes])
 
 @backlog_bp.route('/api/notes/<int:note_id>', methods=['GET'])
+@feature_required('backlog.gestao_notas')
 def get_note(note_id):
     """Retorna uma nota específica."""
     logger.info(f"[API Notes] Recebendo requisição GET para /api/notes/{note_id}")
@@ -64,6 +68,7 @@ def get_note(note_id):
     return jsonify(note.to_dict())
 
 @backlog_bp.route('/api/notes', methods=['POST'])
+@feature_required('backlog.gestao_notas')
 def create_note():
     """Cria uma nova nota."""
     logger.info("[API Notes] Recebendo requisição POST para /api/notes")
@@ -159,6 +164,7 @@ def create_note():
         return jsonify({'error': f'Erro ao salvar nota: {str(e)}'}), 500
 
 @backlog_bp.route('/api/notes/<int:note_id>', methods=['PUT'])
+@feature_required('backlog.gestao_notas')
 def update_note(note_id):
     """Atualiza uma nota existente."""
     logger.info(f"[API Notes] Recebendo requisição PUT para /api/notes/{note_id}")
@@ -221,6 +227,7 @@ def update_note(note_id):
         return jsonify({'error': f'Erro ao atualizar nota: {str(e)}'}), 500
 
 @backlog_bp.route('/api/notes/<int:note_id>', methods=['DELETE'])
+@feature_required('backlog.gestao_notas')
 def delete_note(note_id):
     """Exclui uma nota."""
     logger.info(f"[API Notes] Recebendo requisição DELETE para /api/notes/{note_id}")
@@ -237,6 +244,7 @@ def delete_note(note_id):
         return jsonify({'error': f'Erro ao excluir nota: {str(e)}'}), 500
 
 @backlog_bp.route('/api/tags', methods=['GET'])
+@feature_required('backlog.gestao_notas')
 def get_tags():
     """Retorna todas as tags disponíveis."""
     logger.info("[API Notes] Recebendo requisição GET para /api/tags")
@@ -245,6 +253,7 @@ def get_tags():
 
 # Rotas específicas para notas de tarefas
 @backlog_bp.route('/api/tasks/<int:task_id>/notes', methods=['GET'])
+@feature_required('backlog.gestao_notas')
 def get_task_notes(task_id):
     """Retorna todas as notas de uma tarefa específica."""
     logger.info(f"[API Notes] Recebendo requisição GET para /api/tasks/{task_id}/notes")
@@ -259,6 +268,7 @@ def get_task_notes(task_id):
     return jsonify([note.to_dict() for note in notes])
 
 @backlog_bp.route('/api/tasks/<int:task_id>/notes', methods=['POST'])
+@feature_required('backlog.gestao_notas')
 def create_task_note(task_id):
     """Cria uma nova nota para uma tarefa específica."""
     logger.info(f"[API Notes] Recebendo requisição POST para /api/tasks/{task_id}/notes")
@@ -336,6 +346,7 @@ def create_task_note(task_id):
         return jsonify({'error': f'Erro ao salvar nota: {str(e)}'}), 500
 
 @backlog_bp.route('/api/notes/report/preview', methods=['GET'])
+@feature_required('backlog.gestao_notas')
 def preview_report():
     """Gera uma prévia do relatório de notas."""
     logger.info("[API Notes] Recebendo requisição GET para /api/notes/report/preview")
@@ -372,6 +383,7 @@ def preview_report():
     })
 
 @backlog_bp.route('/api/notes/report/generate', methods=['POST'])
+@feature_required('backlog.gestao_notas')
 def generate_report():
     """Gera um relatório completo de notas."""
     logger.info("[API Notes] Recebendo requisição POST para /api/notes/report/generate")

@@ -426,15 +426,19 @@
                     <button class="btn btn-primary btn-sm" onclick="openTaskModal()">
                         <i class="bi bi-plus-circle"></i> Nova Tarefa
                     </button>
+                    {% if is_module_enabled('backlog.agenda') %}
                     <button class="btn btn-info btn-sm" onclick="location.href='/backlog/agenda'">
                         <i class="bi bi-calendar3"></i> Agenda
                     </button>
+                    {% endif %}
                     <div class="dropdown">
                         <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" id="dropdownTools" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-tools"></i> Ferramentas
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownTools">
+                            {% if is_module_enabled('backlog.gestao_risco') or is_module_enabled('backlog.gestao_marco') or is_module_enabled('backlog.gestao_notas') or is_module_enabled('backlog.complexidade') or is_module_enabled('backlog.wbs') %}
                             <li><a class="dropdown-item" href="#" onclick="toggleProjectTools()"><i class="bi bi-kanban"></i> Ferramentas do Projeto</a></li>
+                            {% endif %}
                             <li><a class="dropdown-item" href="#" onclick="importTasks()"><i class="bi bi-file-earmark-excel"></i> Importar Excel</a></li>
                             <li><a class="dropdown-item" href="#" onclick="exportTasks()"><i class="bi bi-download"></i> Exportar</a></li>
                         </ul>
@@ -625,8 +629,9 @@
     </div>
 </div>
 
-<!-- Central de Comando PMO -->
-<div class="container-fluid mt-4" id="projectToolsSection" style="display: none;">
+        <!-- Central de Comando PMO -->
+        {% if is_module_enabled('backlog.pmo_command') %}
+        <div class="container-fluid mt-4" id="projectToolsSection" style="display: none;">
     <div class="card border-0 shadow-lg command-center">
         <div class="card-header border-0 text-white p-4" style="background-color: #07304F;">
             <div class="d-flex justify-content-between align-items-center">
@@ -662,6 +667,7 @@
 
             <!-- Nav tabs -->
             <ul class="nav nav-pills pmo-tabs" id="pills-tab" role="tablist">
+                {% if is_module_enabled('backlog.gestao_risco') %}
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="pills-risks-tab" data-bs-toggle="pill" data-bs-target="#pills-risks" type="button" role="tab" aria-controls="pills-risks" aria-selected="true">
                         <div class="tab-content-wrapper">
@@ -671,6 +677,8 @@
                         </div>
                     </button>
                 </li>
+                {% endif %}
+                {% if is_module_enabled('backlog.gestao_marco') %}
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="pills-milestones-tab" data-bs-toggle="pill" data-bs-target="#pills-milestones" type="button" role="tab" aria-controls="pills-milestones" aria-selected="false">
                         <div class="tab-content-wrapper">
@@ -680,6 +688,7 @@
                         </div>
                     </button>
                 </li>
+                {% endif %}
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="pills-timeline-tab" data-bs-toggle="pill" data-bs-target="#pills-timeline" type="button" role="tab" aria-controls="pills-timeline" aria-selected="false">
                         <div class="tab-content-wrapper">
@@ -688,6 +697,7 @@
                         </div>
                     </button>
                 </li>
+                {% if is_module_enabled('backlog.gestao_notas') %}
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="pills-notes-tab" data-bs-toggle="pill" data-bs-target="#pills-notes" type="button" role="tab" aria-controls="pills-notes" aria-selected="false">
                         <div class="tab-content-wrapper">
@@ -697,6 +707,8 @@
                         </div>
                     </button>
                 </li>
+                {% endif %}
+                {% if is_module_enabled('backlog.complexidade') %}
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="pills-complexity-tab" data-bs-toggle="pill" data-bs-target="#pills-complexity" type="button" role="tab" aria-controls="pills-complexity" aria-selected="false">
                         <div class="tab-content-wrapper">
@@ -706,6 +718,8 @@
                         </div>
                     </button>
                 </li>
+                {% endif %}
+                {% if is_module_enabled('backlog.sprint_especialista') %}
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="pills-sprints-tab" data-bs-toggle="pill" data-bs-target="#pills-sprints" type="button" role="tab" aria-controls="pills-sprints" aria-selected="false">
                         <div class="tab-content-wrapper">
@@ -715,6 +729,8 @@
                         </div>
                     </button>
                 </li>
+                {% endif %}
+                {% if is_module_enabled('backlog.wbs') %}
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="pills-wbs-tab" data-bs-toggle="pill" data-bs-target="#pills-wbs" type="button" role="tab" aria-controls="pills-wbs" aria-selected="false">
                         <div class="tab-content-wrapper">
@@ -724,10 +740,12 @@
                         </div>
                     </button>
                 </li>
+                {% endif %}
             </ul>
 
             <!-- Tab content -->
             <div class="tab-content" id="pills-tabContent">
+                {% if is_module_enabled('backlog.gestao_risco') %}
                 <!-- Painel de Riscos -->
                 <div class="tab-pane fade show active" id="pills-risks" role="tabpanel" aria-labelledby="pills-risks-tab">
                     <div class="row mb-4">
@@ -754,7 +772,9 @@
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
+                {% if is_module_enabled('backlog.gestao_marco') %}
                 <!-- Painel de Marcos -->
                 <div class="tab-pane fade" id="pills-milestones" role="tabpanel" aria-labelledby="pills-milestones-tab">
                     <div class="row mb-4">
@@ -781,6 +801,7 @@
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- Painel de Timeline -->
                 <div class="tab-pane fade" id="pills-timeline" role="tabpanel" aria-labelledby="pills-timeline-tab">
@@ -814,6 +835,7 @@
                     </div>
                 </div>
 
+                {% if is_module_enabled('backlog.gestao_notas') %}
                 <!-- Painel de Notas -->
                 <div class="tab-pane fade" id="pills-notes" role="tabpanel" aria-labelledby="pills-notes-tab">
                     <div class="row mb-4">
@@ -840,7 +862,9 @@
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
+                {% if is_module_enabled('backlog.complexidade') %}
                 <!-- Painel de Complexidade -->
                 <div class="tab-pane fade" id="pills-complexity" role="tabpanel" aria-labelledby="pills-complexity-tab">
                     <div class="row mb-4">
@@ -867,7 +891,9 @@
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
+                {% if is_module_enabled('backlog.sprint_especialista') %}
                 <!-- Painel de Sprints & Especialistas -->
                 <div class="tab-pane fade" id="pills-sprints" role="tabpanel" aria-labelledby="pills-sprints-tab">
                     <div class="row mb-4">
@@ -970,7 +996,9 @@
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
+                {% if is_module_enabled('backlog.wbs') %}
                 <!-- Painel WBS - Estrutura Analítica do Projeto -->
                 <div class="tab-pane fade" id="pills-wbs" role="tabpanel" aria-labelledby="pills-wbs-tab">
                     <div class="row mb-4">
@@ -1046,9 +1074,13 @@
                         </div>
                     </div>
                 </div>
+                {% endif %}
             </div>
         </div>
     </div>
+</div>
+{% endif %}
+</div>
 </div>
 
 <!-- Modal para Formulário de Risco -->
