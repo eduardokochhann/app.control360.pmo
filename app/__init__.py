@@ -1,12 +1,13 @@
 # app/__init__.py
 
-from flask import Flask, redirect, url_for
+from flask import Flask, redirect, url_for, render_template
 import logging
 # Logging handlers removidos para evitar problemas de rotação no Windows
 import os # Pode ser útil para caminhos ou variáveis de ambiente
 from pathlib import Path
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from datetime import datetime
 
 # Importe o JSON Provider customizado
 # Ajuste o caminho se sua pasta 'utils' estiver em outro lugar relativo a este __init__.py
@@ -142,10 +143,26 @@ def create_app():
     # Registra os blueprints
     register_blueprints(app)
 
-    # Adiciona rota raiz para redirecionar para o dashboard gerencial
+    # Adiciona contexto ao template para obter a data atual (útil para o copyright)
+    @app.context_processor
+    def inject_now():
+        return {'now': datetime.utcnow}
+
+    # Modifica a rota raiz para renderizar a nova página inicial
     @app.route('/')
     def index():
-        return redirect(url_for('gerencial.dashboard'))
+        # URLs para os cards da página inicial
+        # CORREÇÃO: Usar os endpoints corretos para cada módulo principal
+        # Status Report (apresentacao) é separado da Visão Macro (dashboard)
+        cards = [
+            {'url': url_for('gerencial.dashboard'), 'title': 'Visão Gerencial', 'icon': 'bi-kanban', 'desc': 'Visão gerencial e métricas de performance.', 'css_class': 'card-gerencial'},
+            {'url': url_for('macro.dashboard'), 'title': 'Visão Macro', 'icon': 'bi-speedometer2', 'desc': 'Dashboard com indicadores de alto nível.', 'css_class': 'card-macro'},
+            {'url': url_for('macro.apresentacao'), 'title': 'Status Report', 'icon': 'bi-file-earmark-slides', 'desc': 'Gere e visualize o Status Report dos projetos.', 'css_class': 'card-status-report'},
+            {'url': url_for('backlog.project_selection'), 'title': 'Backlog de Projetos', 'icon': 'bi-view-list', 'desc': 'Gerencie tarefas no quadro Kanban.', 'css_class': 'card-backlog'},
+            {'url': url_for('sprints.sprint_management_page'), 'title': 'Sprints Semanais', 'icon': 'bi-calendar3-week', 'desc': 'Planeje e execute as Sprints da equipe.', 'css_class': 'card-sprints'},
+            {'url': url_for('admin.dashboard'), 'title': 'Configurações', 'icon': 'bi-gear', 'desc': 'Administração do sistema e usuários.', 'css_class': 'card-admin'}
+        ]
+        return render_template('index.html', cards=cards)
 
     # Verifica a existência de templates essenciais
     check_templates(app)
@@ -161,7 +178,8 @@ def check_templates(app):
         'gerencial/erro.html',
         'macro/dashboard.html',
         'macro/partials/tabela_especialistas.html',
-        'micro/dashboard.html',
+        # 'micro/dashboard.html', # Bloco micro comentado
+        'index.html' # Adiciona o novo template à verificação
     ]
 
     all_found = True

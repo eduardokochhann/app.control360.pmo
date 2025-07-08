@@ -1,0 +1,151 @@
+/* ============================================
+   INDEX - CENTRAL DE COMANDO
+   ============================================ */
+
+:root {
+    --cor-principal-azul: #07304F;
+    --cor-principal-rosa: #FF2D5F;
+    --cor-fundo: #f0f2f5;
+    --cor-texto: #333;
+    --cor-texto-claro: #f8f9fa;
+    --sombra-card: 0 10px 30px rgba(0, 0, 0, 0.07);
+    --sombra-card-hover: 0 15px 40px rgba(0, 0, 0, 0.1);
+}
+
+body {
+    background-color: var(--cor-fundo);
+    font-family: 'Poppins', sans-serif;
+    color: var(--cor-texto);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem 0;
+}
+
+.command-center-container {
+    width: 100%;
+    max-width: 1200px;
+    padding: 0 15px;
+}
+
+/* --- CABEÇALHO --- */
+.logo {
+    width: 120px;
+    height: auto;
+    margin-bottom: 1.5rem;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
+}
+
+.main-title {
+    font-weight: 700;
+    font-size: 3rem;
+    color: var(--cor-principal-azul);
+    margin-bottom: 0.5rem;
+}
+
+.subtitle {
+    font-size: 1.25rem;
+    font-weight: 300;
+    color: #6c757d;
+    margin-bottom: 3rem;
+}
+
+/* --- CARDS DOS MÓDULOS --- */
+.module-card {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    text-align: center;
+    text-decoration: none;
+    color: var(--cor-texto);
+    border: 1px solid #e9ecef;
+    box-shadow: var(--sombra-card);
+    transition: all 0.3s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.module-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--sombra-card-hover);
+    border-left: 5px solid var(--cor-principal-rosa);
+}
+
+.card-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    display: inline-block;
+    color: var(--cor-principal-azul);
+    transition: all 0.3s ease;
+}
+
+.module-card:hover .card-icon {
+    color: var(--cor-principal-rosa);
+    transform: scale(1.1);
+}
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--cor-principal-azul);
+}
+
+.card-description {
+    font-size: 0.95rem;
+    color: #6c757d;
+    flex-grow: 1; /* Faz a descrição ocupar o espaço e empurrar o footer para baixo */
+}
+
+.card-footer-text {
+    margin-top: 1.5rem;
+    font-weight: 600;
+    color: var(--cor-principal-azul);
+    opacity: 0.7;
+    transition: all 0.3s ease;
+}
+
+.module-card:hover .card-footer-text {
+    color: var(--cor-principal-rosa);
+    opacity: 1;
+}
+
+/* --- ANIMAÇÕES --- */
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in-down {
+    animation: fadeInDown 0.8s ease-out forwards;
+}
+
+.animate-fade-in-up {
+    animation: fadeInUp 0.8s ease-out 0.3s forwards;
+    opacity: 0; /* Começa invisível para a animação funcionar */
+}
+
+/* --- RODAPÉ --- */
+footer p {
+    color: #adb5bd;
+    font-size: 0.9rem;
+} 
