@@ -13,9 +13,8 @@ from ..utils.decorators import admin_required
 br_timezone = pytz.timezone('America/Sao_Paulo')
 
 @admin_bp.route('/')
-@admin_required()
 def dashboard():
-    """Dashboard principal da central administrativa"""
+    """Dashboard principal da central administrativa - SEMPRE ACESSÍVEL"""
     try:
         # Estatísticas básicas do sistema
         stats = {
@@ -872,6 +871,53 @@ def reset_module_defaults():
         db.session.rollback()
         current_app.logger.error(f"Erro ao resetar configurações: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/emergency/enable-admin', methods=['POST', 'GET'])
+def emergency_enable_admin():
+    """Rota de emergência para reabilitar o módulo admin - SEMPRE ACESSÍVEL"""
+    try:
+        from ..models import ModuleConfiguration
+        
+        # Força habilitação do módulo admin
+        admin_config = ModuleConfiguration.query.filter_by(module_key='admin').first()
+        if admin_config:
+            admin_config.is_enabled = True
+            admin_config.maintenance_mode = False
+            admin_config.updated_at = datetime.now(br_timezone)
+            admin_config.updated_by = 'emergency'
+            
+            db.session.commit()
+            
+            current_app.logger.warning("Módulo admin reabilitado via rota de emergência")
+            
+            if request.method == 'GET':
+                flash('Módulo admin reabilitado com sucesso via rota de emergência!', 'success')
+                return redirect(url_for('admin.dashboard'))
+            else:
+                return jsonify({
+                    'success': True,
+                    'message': 'Módulo admin reabilitado com sucesso!'
+                })
+        else:
+            error_msg = 'Configuração do módulo admin não encontrada!'
+            current_app.logger.error(error_msg)
+            
+            if request.method == 'GET':
+                flash(error_msg, 'error')
+                return redirect(url_for('index'))
+            else:
+                return jsonify({'success': False, 'error': error_msg}), 404
+                
+    except Exception as e:
+        db.session.rollback()
+        error_msg = f'Erro na rota de emergência: {str(e)}'
+        current_app.logger.error(error_msg, exc_info=True)
+        
+        if request.method == 'GET':
+            flash(error_msg, 'error')
+            return redirect(url_for('index'))
+        else:
+            return jsonify({'success': False, 'error': error_msg}), 500
 
 @admin_bp.route('/api/module-configuration', methods=['POST'])
 def bulk_update_module_configuration():
