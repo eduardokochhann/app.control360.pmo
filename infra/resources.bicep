@@ -167,7 +167,7 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.17.0' = {
       }
     ]
     scaleSettings: {
-      minReplicas: 1
+      minReplicas: 0
       maxReplicas: 1
     }
     containers: [
