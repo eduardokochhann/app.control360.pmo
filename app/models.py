@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from . import db  # Importa a instância db de app/__init__.py
 from datetime import datetime
 import enum
@@ -571,5 +572,136 @@ class SpecialistConfiguration(db.Model):
             db.session.commit()
         return config
 # --- FIM CONFIGURAÇÕES DE ESPECIALISTAS ---
+
+# --- SISTEMA DE CONFIGURAÇÃO DE MÓDULOS ---
+class ModuleType(enum.Enum):
+    MODULE = 'module'        # Módulo completo
+    FEATURE = 'feature'      # Funcionalidade específica
+    DASHBOARD = 'dashboard'  # Dashboard/relatório
+
+class ModuleConfiguration(db.Model):
+    """Configurações de módulos e funcionalidades do sistema."""
+    __tablename__ = 'module_configuration'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    module_key = db.Column(db.String(100), nullable=False, unique=True, index=True)  # Ex: 'gerencial', 'macro.status_report'
+    display_name = db.Column(db.String(150), nullable=False)  # Nome para exibição
+    description = db.Column(db.Text)  # Descrição do módulo/funcionalidade
+    module_type = db.Column(db.Enum(ModuleType), nullable=False, default=ModuleType.MODULE)
+    
+    # Configurações de habilitação
+    is_enabled = db.Column(db.Boolean, nullable=False, default=True, server_default='1')
+    requires_authentication = db.Column(db.Boolean, nullable=False, default=True, server_default='1')
+    
+    # Hierarquia e dependências
+    parent_module = db.Column(db.String(100), nullable=True)  # Módulo pai (se for sub-funcionalidade)
+    dependencies = db.Column(db.Text, nullable=True)  # JSON com dependências de outros módulos
+    
+    # Informações de exibição
+    icon = db.Column(db.String(100), nullable=True)  # Ícone do FontAwesome
+    color = db.Column(db.String(20), nullable=True)  # Cor do card/botão
+    display_order = db.Column(db.Integer, nullable=False, default=0)  # Ordem de exibição
+    
+    # Configurações de acesso
+    allowed_roles = db.Column(db.Text, nullable=True)  # JSON com roles permitidos
+    maintenance_mode = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
+    maintenance_message = db.Column(db.Text, nullable=True)
+    
+    # Campos de controle
+    created_at = db.Column(db.DateTime, default=get_brasilia_now)
+    updated_at = db.Column(db.DateTime, default=get_brasilia_now, onupdate=get_brasilia_now)
+    created_by = db.Column(db.String(150), nullable=True)
+    updated_by = db.Column(db.String(150), nullable=True)
+    
+    def __repr__(self):
+        return f'<ModuleConfiguration {self.module_key}: {self.display_name}>'
+    
+    def get_dependencies(self):
+        """Retorna lista de dependências."""
+        import json
+        try:
+            return json.loads(self.dependencies) if self.dependencies else []
+        except:
+            return []
+    
+    def set_dependencies(self, deps_list):
+        """Define dependências a partir de lista."""
+        import json
+        self.dependencies = json.dumps(deps_list)
+    
+    def get_allowed_roles(self):
+        """Retorna lista de roles permitidos."""
+        import json
+        try:
+            return json.loads(self.allowed_roles) if self.allowed_roles else ['admin', 'user']
+        except:
+            return ['admin', 'user']
+    
+    def set_allowed_roles(self, roles_list):
+        """Define roles permitidos a partir de lista."""
+        import json
+        self.allowed_roles = json.dumps(roles_list)
+    
+    @property
+    def is_available(self):
+        """Verifica se o módulo está disponível (habilitado e não em manutenção)."""
+        if not self.is_enabled:
+            return False
+        
+        # Se tem dependências, verifica se todas estão habilitadas
+        dependencies = self.get_dependencies()
+        if dependencies:
+            for dep in dependencies:
+                dep_config = ModuleConfiguration.query.filter_by(module_key=dep).first()
+                if not dep_config or not dep_config.is_enabled:
+                    return False
+        
+        return True
+    
+    def to_dict(self):
+        """Serializa configuração para dict."""
+        return {
+            'id': self.id,
+            'module_key': self.module_key,
+            'display_name': self.display_name,
+            'description': self.description,
+            'module_type': self.module_type.value,
+            'is_enabled': self.is_enabled,
+            'requires_authentication': self.requires_authentication,
+            'parent_module': self.parent_module,
+            'dependencies': self.get_dependencies(),
+            'icon': self.icon,
+            'color': self.color,
+            'display_order': self.display_order,
+            'allowed_roles': self.get_allowed_roles(),
+            'maintenance_mode': self.maintenance_mode,
+            'maintenance_message': self.maintenance_message,
+            'is_available': self.is_available,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'created_by': self.created_by,
+            'updated_by': self.updated_by
+        }
+    
+    @staticmethod
+    def get_enabled_modules():
+        """Retorna apenas módulos habilitados ordenados por display_order."""
+        return ModuleConfiguration.query.filter_by(
+            is_enabled=True, 
+            module_type=ModuleType.MODULE
+        ).order_by(ModuleConfiguration.display_order).all()
+    
+    @staticmethod
+    def is_module_enabled(module_key):
+        """Verifica se um módulo específico está habilitado."""
+        config = ModuleConfiguration.query.filter_by(module_key=module_key).first()
+        return config.is_available if config else False
+    
+    @staticmethod
+    def get_module_config(module_key):
+        """Obtém configuração de um módulo específico."""
+        return ModuleConfiguration.query.filter_by(module_key=module_key).first()
+
+# --- FIM SISTEMA DE CONFIGURAÇÃO DE MÓDULOS ---
 
 # <<< FIM: MODELO COMPLETO >>> 

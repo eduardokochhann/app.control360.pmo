@@ -3,6 +3,7 @@ from . import backlog_bp # Importa o blueprint
 from .. import db # Importa a instância do banco de dados
 from ..models import Backlog, Task, Column, Sprint, TaskStatus, ProjectMilestone, ProjectRisk, MilestoneStatus, MilestoneCriticality, RiskImpact, RiskProbability, RiskStatus, TaskSegment, Note, Tag # Importa os modelos
 from ..macro.services import MacroService # Importa o serviço Macro
+from ..utils.decorators import module_required, feature_required # Importa o decorador de proteção
 import pandas as pd
 from datetime import datetime, timedelta, date
 import pytz # <<< ADICIONADO
@@ -142,12 +143,14 @@ def serialize_task(task):
 
 # Rota principal - AGORA REDIRECIONA PARA A SELEÇÃO
 @backlog_bp.route('/')
+@module_required('backlog')
 def index():
     # Redireciona para a nova página de seleção de projetos
     return redirect(url_for('.project_selection'))
 
 # NOVA ROTA - Página de Seleção de Projetos
 @backlog_bp.route('/projetos')
+@module_required('backlog')
 def project_selection():
     try:
         macro_service = MacroService()
@@ -238,6 +241,7 @@ def project_selection():
 
 # NOVA ROTA - Quadro Kanban para um Projeto Específico
 @backlog_bp.route('/board/<string:project_id>')
+@module_required('backlog')
 def board_by_project(project_id):
     try:
         # Log detalhado para depuração
@@ -2106,6 +2110,7 @@ def import_tasks_from_excel(backlog_id):
 # --- INÍCIO: APIs para Sprint Semanal do Especialista ---
 
 @backlog_bp.route('/api/specialists/<path:specialist_name>/weekly-segments', methods=['GET'])
+@feature_required('macro.sprint_especialista')
 def get_specialist_weekly_segments(specialist_name):
     """
     Retorna os segmentos de tarefas de um especialista para uma semana específica.
@@ -4035,6 +4040,7 @@ def debug_specialist_kanban_data(specialist_name):
 # --- INÍCIO: API KANBAN SEMANAL BASEADO EM DATAS DE TAREFAS ---
 
 @backlog_bp.route('/api/specialists/<path:specialist_name>/kanban-weekly-tasks', methods=['GET'])
+@feature_required('macro.sprint_especialista')
 def get_specialist_kanban_weekly_tasks(specialist_name):
     """
     API específica para o Kanban Semanal que usa as datas das tarefas (start_date/due_date)

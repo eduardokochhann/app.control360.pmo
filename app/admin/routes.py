@@ -7,11 +7,13 @@ from .services import AdminService
 from pathlib import Path
 import json
 import pytz
+from ..utils.decorators import admin_required
 
 # Define o fuso horário brasileiro
 br_timezone = pytz.timezone('America/Sao_Paulo')
 
 @admin_bp.route('/')
+@admin_required()
 def dashboard():
     """Dashboard principal da central administrativa"""
     try:
@@ -672,4 +674,240 @@ def get_available_specialists():
         current_app.logger.error(f"Erro ao obter especialistas: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# --- FIM ROTAS ESPECIALISTAS --- 
+# --- FIM ROTAS ESPECIALISTAS ---
+
+# =====================================================
+# ROTAS PARA CONFIGURAÇÃO DE MÓDULOS
+# =====================================================
+
+@admin_bp.route('/module-configuration')
+def module_configuration():
+    """Página de gerenciamento de configurações de módulos"""
+    try:
+        from ..models import ModuleConfiguration
+        
+        # Busca módulos principais (sem parent_module)
+        modules = ModuleConfiguration.query.filter(
+            ModuleConfiguration.module_type == 'MODULE',
+            ModuleConfiguration.parent_module.is_(None)
+        ).order_by(ModuleConfiguration.display_order).all()
+        
+        # Busca funcionalidades (com parent_module)
+        features = ModuleConfiguration.query.filter(
+            ModuleConfiguration.module_type == 'FEATURE',
+            ModuleConfiguration.parent_module.isnot(None)
+        ).order_by(ModuleConfiguration.parent_module, ModuleConfiguration.display_order).all()
+        
+        # Estatísticas
+        stats = {
+            'total_modules': len(modules),
+            'enabled_modules': len([m for m in modules if m.is_enabled]),
+            'total_features': len(features),
+            'enabled_features': len([f for f in features if f.is_enabled]),
+            'maintenance_count': len([f for f in modules + features if f.maintenance_mode])
+        }
+        
+        current_app.logger.info(f"Carregados {len(modules)} módulos e {len(features)} funcionalidades")
+        
+        return render_template('admin/module_configuration.html', 
+                             modules=modules,
+                             features=features,
+                             stats=stats)
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao carregar configurações de módulos: {str(e)}", exc_info=True)
+        return render_template('admin/erro.html', erro="Erro ao carregar configurações de módulos"), 500
+
+@admin_bp.route('/api/module-configuration', methods=['GET'])
+def get_module_configurations():
+    """API para obter todas as configurações de módulos"""
+    try:
+        from ..models import ModuleConfiguration
+        
+        configs = ModuleConfiguration.query.order_by(
+            ModuleConfiguration.display_order,
+            ModuleConfiguration.display_name
+        ).all()
+        
+        return jsonify({
+            'success': True,
+            'configurations': [config.to_dict() for config in configs]
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao obter configurações: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/api/module-configuration/<int:config_id>', methods=['PUT'])
+def update_module_configuration(config_id):
+    """API para atualizar configuração de módulo"""
+    try:
+        from ..models import ModuleConfiguration
+        
+        config = ModuleConfiguration.query.get_or_404(config_id)
+        data = request.get_json()
+        
+        # Atualiza campos permitidos
+        if 'is_enabled' in data:
+            config.is_enabled = bool(data['is_enabled'])
+            current_app.logger.info(f"Módulo '{config.module_key}' {'habilitado' if config.is_enabled else 'desabilitado'}")
+        
+        if 'display_name' in data:
+            config.display_name = data['display_name']
+        
+        if 'description' in data:
+            config.description = data['description']
+        
+        if 'maintenance_mode' in data:
+            config.maintenance_mode = bool(data['maintenance_mode'])
+            current_app.logger.info(f"Modo manutenção do módulo '{config.module_key}': {'ativado' if config.maintenance_mode else 'desativado'}")
+        
+        if 'maintenance_message' in data:
+            config.maintenance_message = data['maintenance_message']
+        
+        if 'display_order' in data:
+            config.display_order = int(data['display_order'])
+        
+        if 'icon' in data:
+            config.icon = data['icon']
+        
+        if 'color' in data:
+            config.color = data['color']
+        
+        config.updated_at = datetime.now(br_timezone)
+        config.updated_by = 'admin'  # TODO: pegar usuário real quando implementar autenticação
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Configuração atualizada com sucesso',
+            'configuration': config.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao atualizar configuração: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/api/module-configuration/bulk-update', methods=['POST'])
+def bulk_update_modules():
+    """API para atualização em lote de módulos"""
+    try:
+        from ..models import ModuleConfiguration
+        
+        data = request.get_json()
+        updates = data.get('updates', [])
+        
+        updated_count = 0
+        
+        for update in updates:
+            config_id = update.get('id')
+            if not config_id:
+                continue
+                
+            config = ModuleConfiguration.query.get(config_id)
+            if not config:
+                continue
+            
+            # Atualiza apenas is_enabled para operações em lote
+            if 'is_enabled' in update:
+                config.is_enabled = bool(update['is_enabled'])
+                config.updated_at = datetime.now(br_timezone)
+                config.updated_by = 'admin'
+                updated_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'{updated_count} configurações atualizadas com sucesso'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro na atualização em lote: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/api/module-configuration/reset-defaults', methods=['POST'])
+def reset_module_defaults():
+    """API para resetar configurações para os padrões"""
+    try:
+        from ..models import ModuleConfiguration
+        
+        # Habilita todos os módulos principais
+        main_modules = ['gerencial', 'macro', 'backlog', 'sprints', 'admin']
+        
+        for module_key in main_modules:
+            config = ModuleConfiguration.query.filter_by(module_key=module_key).first()
+            if config:
+                config.is_enabled = True
+                config.maintenance_mode = False
+                config.updated_at = datetime.now(br_timezone)
+                config.updated_by = 'admin'
+        
+        # Habilita todas as features também
+        features = ModuleConfiguration.query.filter_by(module_type='feature').all()
+        for feature in features:
+            feature.is_enabled = True
+            feature.maintenance_mode = False
+            feature.updated_at = datetime.now(br_timezone)
+            feature.updated_by = 'admin'
+        
+        # Micro permanece desabilitado (padrão)
+        micro_config = ModuleConfiguration.query.filter_by(module_key='micro').first()
+        if micro_config:
+            micro_config.is_enabled = False
+        
+        db.session.commit()
+        
+        current_app.logger.info("Configurações de módulos resetadas para padrões")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Configurações resetadas para os padrões do sistema'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao resetar configurações: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/api/module-configuration', methods=['POST'])
+def bulk_update_module_configuration():
+    """API para atualização completa de configurações de módulos"""
+    try:
+        from ..models import ModuleConfiguration
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Dados não fornecidos'}), 400
+        
+        updated_count = 0
+        
+        # Atualiza cada módulo baseado nas chaves enviadas
+        for module_key, is_enabled in data.items():
+            config = ModuleConfiguration.query.filter_by(module_key=module_key).first()
+            if config:
+                old_status = config.is_enabled
+                config.is_enabled = bool(is_enabled)
+                config.updated_at = datetime.now(br_timezone)
+                config.updated_by = 'admin'
+                
+                if old_status != config.is_enabled:
+                    current_app.logger.info(f"Módulo '{module_key}' {'habilitado' if config.is_enabled else 'desabilitado'}")
+                    updated_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'{updated_count} configurações atualizadas com sucesso'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao atualizar configurações: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# --- FIM ROTAS CONFIGURAÇÃO DE MÓDULOS --- 

@@ -5,6 +5,7 @@ import pandas as pd
 from flask import render_template, request, jsonify
 from . import gerencial_bp
 from .services import GerencialService
+from ..utils.decorators import module_required
 
 # Instancia o serviço
 gerencial_service = GerencialService()
@@ -12,6 +13,7 @@ gerencial_service = GerencialService()
 logger = logging.getLogger(__name__)
 
 @gerencial_bp.route('/')
+@module_required('gerencial')
 def dashboard():
     """Rota principal do dashboard gerencial"""
     try:

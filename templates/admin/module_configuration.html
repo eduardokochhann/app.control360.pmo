@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Configuração de Módulos - Admin{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/module_config.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <!-- Cabeçalho -->
+    <div class="module-config-header text-center">
+        <h1 class="h2">Configuração de Módulos</h1>
+        <p class="lead">Gerencie quais módulos e funcionalidades estão disponíveis no sistema.</p>
+    </div>
+
+    <!-- Alerta de Sucesso -->
+    <div id="success-alert" class="alert alert-success alert-dismissible fade show" role="alert">
+        <strong>Sucesso!</strong> As configurações foram salvas.
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+
+    <form id="module-config-form">
+        <!-- Módulos Principais -->
+        <h2 class="h4 mb-3">Módulos Principais</h2>
+        <div class="row g-4">
+            {% for module in modules %}
+            <div class="col-xl-4 col-md-6">
+                <div class="module-card">
+                    <div class="module-card-header">
+                        <div class="module-title">
+                            <i class="bi {{ module.icon or 'bi-box-seam' }}"></i>
+                            <span>{{ module.display_name }}</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" name="{{ module.module_key }}" {% if module.is_enabled %}checked{% endif %}>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <p>{{ module.description or 'Descrição do módulo não disponível.' }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <hr class="my-5">
+
+        <!-- Funcionalidades Específicas por Módulo -->
+        <h2 class="h4 mb-3">Funcionalidades Específicas</h2>
+        
+        {% set grouped_features = {} %}
+        {% for feature in features %}
+            {% set parent = feature.parent_module or 'outros' %}
+            {% if parent not in grouped_features %}
+                {% set _ = grouped_features.update({parent: []}) %}
+            {% endif %}
+            {% set _ = grouped_features[parent].append(feature) %}
+        {% endfor %}
+
+        {% for parent_module, parent_features in grouped_features.items() %}
+        <div class="mb-5">
+            <h3 class="h5 mb-3 text-muted">
+                <i class="bi bi-folder"></i> 
+                {{ parent_module.replace('_', ' ').title() }}
+            </h3>
+            <div class="row g-4">
+                {% for feature in parent_features %}
+                <div class="col-xl-4 col-md-6">
+                    <div class="module-card">
+                        <div class="module-card-header">
+                            <div class="module-title">
+                                <i class="bi {{ feature.icon or 'bi-gear' }}"></i>
+                                <span>{{ feature.display_name }}</span>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" name="{{ feature.module_key }}" {% if feature.is_enabled %}checked{% endif %}>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <p>{{ feature.description or 'Descrição da funcionalidade não disponível.' }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </form>
+
+    <!-- Botão Salvar Flutuante -->
+    <div class="save-button-container">
+        <button id="save-changes-btn" class="btn btn-primary btn-lg" disabled>
+            <i class="bi bi-check-circle me-2"></i>Salvar Alterações
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('module-config-form');
+    const saveBtn = document.getElementById('save-changes-btn');
+    const successAlert = document.getElementById('success-alert');
+
+    // Habilita o botão de salvar ao detectar qualquer mudança nos toggles
+    form.addEventListener('change', function() {
+        saveBtn.disabled = false;
+    });
+
+    // Ação de clique do botão Salvar
+    saveBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salvando...';
+
+        const formData = new FormData(form);
+        const data = {};
+        // O FormData não captura checkboxes desmarcados, então precisamos de outra abordagem
+        const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(cb => {
+            data[cb.name] = cb.checked;
+        });
+
+        fetch('{{ url_for("admin.bulk_update_module_configuration") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                // Mostra o alerta de sucesso
+                successAlert.style.display = 'block';
+                new bootstrap.Alert(successAlert); // Inicializa para permitir o fechamento
+
+                // Esconde o alerta após 5 segundos
+                setTimeout(() => {
+                    bootstrap.Alert.getOrCreateInstance(successAlert).close();
+                }, 5000);
+            } else {
+                alert('Erro ao salvar as configurações: ' + (result.error || 'Erro desconhecido'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Ocorreu um erro de comunicação. Tente novamente.');
+        })
+        .finally(() => {
+            // Restaura o botão
+            saveBtn.disabled = true; // Desabilitado até a próxima mudança
+            saveBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Salvar Alterações';
+        });
+    });
+});
+</script>
+{% endblock %} 

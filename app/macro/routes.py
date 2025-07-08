@@ -7,6 +7,7 @@ import pandas as pd
 from io import BytesIO
 import os # Removido para debug - PATH OK
 import json
+from ..utils.decorators import module_required, feature_required
 
 # Inicializa logger
 logger = logging.getLogger(__name__)
@@ -97,6 +98,7 @@ def get_conclusao_color(conclusao):
         return 'secondary'    # cinza (erro)
 
 @macro_bp.route('/')
+@module_required('macro')
 def dashboard():
     """Rota principal do dashboard macro"""
     try:
@@ -1279,6 +1281,7 @@ def api_debug():
         }), 500
 
 @macro_bp.route('/apresentacao')
+@feature_required('macro.status_report', parent_module='macro')
 def apresentacao():
     """Rota para página de apresentação para diretoria"""
     try:
@@ -1955,6 +1958,7 @@ def api_projetos_squad_status_mes():
 
 # <<< INÍCIO: Nova Rota para Status Report >>>
 @macro_bp.route('/status-report/<project_id>')
+@feature_required('backlog.status_individual', parent_module='backlog')
 def status_report(project_id):
     """Rota para exibir o Status Report de um projeto específico."""
     try:
@@ -2005,6 +2009,7 @@ def status_report(project_id):
 
 # <<< INÍCIO: Nova Rota para Download do PDF >>>
 @macro_bp.route('/status-report/<project_id>/download')
+@feature_required('backlog.status_individual', parent_module='backlog')
 def download_status_report(project_id):
     """Gera e faz o download do Status Report em PDF usando WeasyPrint."""
     # Variáveis de verificação de instalação (para referência, mas não usadas diretamente na lógica abaixo)
@@ -2173,6 +2178,7 @@ def api_projetos_por_status(status):
         return jsonify({'erro': 'Erro interno do servidor'}), 500
 
 @macro_bp.route('/api/especialistas/resumo')
+@feature_required('macro.resumo_cards')
 def api_resumo_especialistas():
     """
     Retorna resumo detalhado dos especialistas com métricas agregadas.

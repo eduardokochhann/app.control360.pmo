@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # app/__init__.py
 
 from flask import Flask, redirect, url_for, render_template
@@ -8,6 +9,15 @@ from pathlib import Path
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from datetime import datetime
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+
+# Adiciona um listener para forçar a codificação em conexões SQLite
+@event.listens_for(Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA encoding='UTF-8'")
+    cursor.close()
 
 # Importe o JSON Provider customizado
 # Ajuste o caminho se sua pasta 'utils' estiver em outro lugar relativo a este __init__.py
@@ -147,21 +157,116 @@ def create_app():
     @app.context_processor
     def inject_now():
         return {'now': datetime.utcnow}
+    
+    # Context processor para configurações de módulos
+    @app.context_processor
+    def inject_module_config():
+        """Disponibiliza configurações de módulos para todos os templates."""
+        try:
+            from .models import ModuleConfiguration
+            
+            # Busca módulos habilitados
+            enabled_modules = ModuleConfiguration.get_enabled_modules()
+            
+            # Cria um dicionário para acesso rápido
+            module_config = {}
+            for module in enabled_modules:
+                module_config[module.module_key] = module.to_dict()
+            
+            # Função helper para verificar se módulo está habilitado
+            def is_module_enabled(module_key):
+                return ModuleConfiguration.is_module_enabled(module_key)
+            
+            return {
+                'enabled_modules': enabled_modules,
+                'module_config': module_config,
+                'is_module_enabled': is_module_enabled
+            }
+        except Exception as e:
+            app.logger.error(f"Erro no context processor de módulos: {e}")
+            # Em caso de erro (ex: tabela não criada ainda), retorna fallback seguro
+            return {
+                'enabled_modules': [],
+                'module_config': {},
+                'is_module_enabled': lambda x: True  # Fallback: todos habilitados para não quebrar o sistema
+            }
 
     # Modifica a rota raiz para renderizar a nova página inicial
     @app.route('/')
     def index():
-        # URLs para os cards da página inicial
-        # CORREÇÃO: Usar os endpoints corretos para cada módulo principal
-        # Status Report (apresentacao) é separado da Visão Macro (dashboard)
-        cards = [
-            {'url': url_for('gerencial.dashboard'), 'title': 'Visão Gerencial', 'icon': 'bi-kanban', 'desc': 'Visão gerencial e métricas de performance.', 'css_class': 'card-gerencial'},
-            {'url': url_for('macro.dashboard'), 'title': 'Visão Macro', 'icon': 'bi-speedometer2', 'desc': 'Dashboard com indicadores de alto nível.', 'css_class': 'card-macro'},
-            {'url': url_for('macro.apresentacao'), 'title': 'Status Report', 'icon': 'bi-file-earmark-slides', 'desc': 'Gere e visualize o Status Report dos projetos.', 'css_class': 'card-status-report'},
-            {'url': url_for('backlog.project_selection'), 'title': 'Backlog de Projetos', 'icon': 'bi-view-list', 'desc': 'Gerencie tarefas no quadro Kanban.', 'css_class': 'card-backlog'},
-            {'url': url_for('sprints.sprint_management_page'), 'title': 'Sprints Semanais', 'icon': 'bi-calendar3-week', 'desc': 'Planeje e execute as Sprints da equipe.', 'css_class': 'card-sprints'},
-            {'url': url_for('admin.dashboard'), 'title': 'Configurações', 'icon': 'bi-gear', 'desc': 'Administração do sistema e usuários.', 'css_class': 'card-admin'}
-        ]
+        try:
+            from .models import ModuleConfiguration
+            
+            # Busca todos os módulos e funcionalidades habilitados
+            enabled_configs = ModuleConfiguration.query.filter_by(is_enabled=True, maintenance_mode=False).order_by(ModuleConfiguration.display_order).all()
+            
+            # Mapeamento dos módulos reorganizados
+            module_mapping = {
+                'gerencial': {
+                    'url': url_for('gerencial.dashboard'),
+                    'icon': 'bi-kanban',
+                    'desc': 'Dashboard executivo com KPIs e métricas estratégicas do PMO.',
+                    'css_class': 'card-gerencial'
+                },
+                'macro': {
+                    'url': url_for('macro.dashboard'),
+                    'icon': 'bi-speedometer2',
+                    'desc': 'Gestão de projetos e relatórios macro organizacionais.',
+                    'css_class': 'card-macro'
+                },
+                'status_report': {
+                    'url': url_for('macro.apresentacao'),
+                    'icon': 'bi-file-earmark-slides',
+                    'desc': 'Relatório de status executivo para apresentações.',
+                    'css_class': 'card-status-report'
+                },
+                'backlog': {
+                    'url': url_for('backlog.project_selection'),
+                    'icon': 'bi-view-list',
+                    'desc': 'Gestão de backlog e board de tarefas por projeto.',
+                    'css_class': 'card-backlog'
+                },
+                'sprint': {
+                    'url': url_for('sprints.sprint_management_page'),
+                    'icon': 'bi-calendar3-week',
+                    'desc': 'Planejamento e gestão de sprints semanais.',
+                    'css_class': 'card-sprints'
+                },
+                'admin': {
+                    'url': url_for('admin.dashboard'),
+                    'icon': 'bi-gear',
+                    'desc': 'Central administrativa e configurações do sistema.',
+                    'css_class': 'card-admin'
+                }
+            }
+            
+            # Constrói lista de cards para módulos principais e funcionalidades importantes
+            cards = []
+            for config in enabled_configs:
+                if config.module_key in module_mapping:
+                    card_info = module_mapping[config.module_key].copy()
+                    card_info['title'] = config.display_name
+                    
+                    # Usa descrição do banco se disponível, senão usa padrão do mapeamento
+                    if config.description:
+                        card_info['desc'] = config.description
+                    
+                    cards.append(card_info)
+            
+            app.logger.info(f"Página inicial carregada com {len(cards)} módulos habilitados")
+            
+        except Exception as e:
+            app.logger.error(f"Erro ao carregar configurações de módulos: {e}")
+            # Fallback para configuração fixa em caso de erro
+            cards = [
+                {'url': url_for('gerencial.dashboard'), 'title': 'Visão Gerencial', 'icon': 'bi-kanban', 'desc': 'Dashboard executivo com KPIs e métricas estratégicas do PMO.', 'css_class': 'card-gerencial'},
+                {'url': url_for('macro.dashboard'), 'title': 'Visão Macro', 'icon': 'bi-speedometer2', 'desc': 'Gestão de projetos e relatórios macro organizacionais.', 'css_class': 'card-macro'},
+                {'url': url_for('macro.apresentacao'), 'title': 'Status Report', 'icon': 'bi-file-earmark-slides', 'desc': 'Relatório de status executivo para apresentações.', 'css_class': 'card-status-report'},
+                {'url': url_for('backlog.project_selection'), 'title': 'Backlog de Projetos', 'icon': 'bi-view-list', 'desc': 'Gestão de backlog e board de tarefas por projeto.', 'css_class': 'card-backlog'},
+                {'url': url_for('sprints.sprint_management_page'), 'title': 'Sprints Semanais', 'icon': 'bi-calendar3-week', 'desc': 'Planejamento e gestão de sprints semanais.', 'css_class': 'card-sprints'},
+                {'url': url_for('admin.dashboard'), 'title': 'Configurações', 'icon': 'bi-gear', 'desc': 'Central administrativa e configurações do sistema.', 'css_class': 'card-admin'}
+            ]
+        
         return render_template('index.html', cards=cards)
 
     # Verifica a existência de templates essenciais

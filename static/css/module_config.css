@@ -1,0 +1,211 @@
+/* Variables CSS - SOU.cloud Theme */
+:root {
+    --sou-pink: #FF2D5F;
+    --sou-blue: #07304F;
+    --sou-light-blue: #4A90B8;
+    --sou-gray: #f8f9fa;
+    --sou-dark-gray: #6c757d;
+}
+
+/* Module Configuration Layout */
+.module-config-header {
+    background: linear-gradient(135deg, var(--sou-blue), var(--sou-light-blue));
+    color: white;
+    padding: 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.module-config-header h1 {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.module-config-header .lead {
+    opacity: 0.9;
+    margin: 0;
+}
+
+/* Module Cards */
+.module-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+    height: 100%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.module-card:hover {
+    border-color: var(--sou-pink);
+    box-shadow: 0 4px 12px rgba(255, 45, 95, 0.15);
+    transform: translateY(-2px);
+}
+
+.module-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.module-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: var(--sou-blue);
+}
+
+.module-title i {
+    font-size: 1.2rem;
+    color: var(--sou-pink);
+}
+
+.module-card p {
+    color: var(--sou-dark-gray);
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin: 0;
+}
+
+/* Toggle Switch */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 24px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--sou-pink);
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 1px var(--sou-pink);
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+
+/* Floating Save Button */
+.save-button-container {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 1050;
+}
+
+.save-button-container .btn {
+    border-radius: 50px;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    background: linear-gradient(135deg, var(--sou-pink), #ff4971);
+    border: none;
+}
+
+.save-button-container .btn:hover {
+    background: linear-gradient(135deg, #e6285a, var(--sou-pink));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+}
+
+.save-button-container .btn:disabled {
+    background: var(--sou-dark-gray);
+    transform: none;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* Group Headers */
+h3.h5.text-muted {
+    color: var(--sou-blue) !important;
+    font-weight: 600;
+    border-bottom: 2px solid var(--sou-gray);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem !important;
+}
+
+h3.h5.text-muted i {
+    color: var(--sou-pink);
+    margin-right: 0.5rem;
+}
+
+/* Alert Styling */
+.alert-success {
+    background-color: #d1f2eb;
+    border-color: #a3e4d7;
+    color: #0e6655;
+}
+
+/* Statistics Cards (if needed for future features) */
+.stats-card {
+    background: linear-gradient(135deg, var(--sou-pink), #ff4971);
+    color: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.stats-card h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.stats-card p {
+    opacity: 0.9;
+    margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .module-config-header {
+        padding: 1.5rem;
+        text-align: left;
+    }
+    
+    .save-button-container {
+        bottom: 1rem;
+        right: 1rem;
+    }
+    
+    .save-button-container .btn {
+        padding: 0.6rem 1.5rem;
+        font-size: 0.9rem;
+    }
+} 

@@ -595,9 +595,11 @@
                         <!-- Conteúdo será preenchido dinamicamente pelo JavaScript -->
                     </div>
                     <div class="modal-footer">
+                        {% if is_module_enabled('macro.sprint_especialista') %}
                         <button type="button" class="btn btn-info" onclick="abrirSprintSemanal()" id="btnSprintSemanal">
                             <i class="bi bi-calendar-week"></i> Sprint Semanal
                         </button>
+                        {% endif %}
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
                     </div>
                 </div>
@@ -917,9 +919,11 @@
                     <!-- Header com botão para modal de resumo -->
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div></div> <!-- Espaço vazio para alinhamento -->
+                        {% if is_module_enabled('macro.resumo_cards') %}
                         <button type="button" class="btn btn-outline-info btn-sm" onclick="carregarEExibirResumoEspecialistas()" title="Visualizar resumo dos especialistas em cards">
                             <i class="bi bi-collection"></i> Resumo em Cards
                         </button>
+                        {% endif %}
                     </div>
                     <!-- Removido o card que envolvia o conteúdo -->
                     {% include 'macro/partials/tabela_especialistas.html' %}
@@ -1731,8 +1735,8 @@
                                             <th class="text-end">Conclusão</th>
                                             <th class="text-end">Horas Rest.</th>
                                             <th>Encerramento Previsto</th>
-                                            <th>Ações</th>
-                                            <th>Backlog</th> <!-- Nova Coluna -->
+                                            {% if is_module_enabled('backlog.status_individual') %}<th>Ações</th>{% endif %}
+                                            {% if is_module_enabled('backlog') %}<th>Backlog</th>{% endif %}
                                         </tr>
                                     </thead>
                                     <tbody id="tabelaProjetosAtivos">
@@ -2419,6 +2423,12 @@
     </div>
 
     <script>
+        // Variáveis para controlar exibição dos módulos
+        const statusReportIndividualEnabled = {{ 'true' if is_module_enabled('backlog.status_individual') else 'false' }};
+        const backlogModuleEnabled = {{ 'true' if is_module_enabled('backlog') else 'false' }};
+        console.log('Status Report Individual habilitado:', statusReportIndividualEnabled);
+        console.log('Módulo Backlog habilitado:', backlogModuleEnabled);
+        
         document.addEventListener('DOMContentLoaded', function() {
             console.log("DOM carregado, iniciando configuração...");
 
@@ -2484,8 +2494,8 @@
                                                         <th>Conclusão</th>
                                                         <th>Horas Rest.</th>
                                                         <th>Previsão</th>
-                                                        <th>Ações</th> <!-- Nova coluna -->
-                                                        <th>Backlog</th> <!-- Nova Coluna -->
+                                                        {% if is_module_enabled('backlog.status_individual') %}<th>Ações</th>{% endif %}
+                                                        {% if is_module_enabled('backlog') %}<th>Backlog</th>{% endif %}
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -2550,7 +2560,7 @@
                                                         <th>Conclusão</th>
                                                         <th>Horas Rest.</th>
                                                         <th>Previsão</th>
-                                                        <th>Ações</th> <!-- Nova coluna -->
+                                                        {% if is_module_enabled('backlog.status_individual') %}<th>Ações</th>{% endif %}
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -2576,7 +2586,8 @@
                 try {
                     if (!p) {
                         console.error('Projeto indefinido ou nulo no Macro');
-                        return '<tr><td colspan="9" class="text-center">Dados inválidos</td></tr>'; // Colspan atualizado para 9
+                        const colspan = 7 + (statusReportIndividualEnabled ? 1 : 0) + (backlogModuleEnabled ? 1 : 0);
+                        return `<tr><td colspan="${colspan}" class="text-center">Dados inválidos</td></tr>`;
                     }
 
                     const numero = p.numero || '';
@@ -2679,24 +2690,29 @@
                             <td class="text-end">${conclusaoHTML}</td>
                             <td class="text-end">${horasHTML}</td>
                             <td>${vencimento}</td>
-                            <td>
-                                <a href="/macro/status-report/${numero}" target="_blank" class="btn btn-sm btn-outline-primary" title="Status Report">
-                                    <i class="bi bi-file-earmark-text"></i>
-                                </a>
-                            </td>
-                            <td>
-                                ${backlog_exists && numero ? 
-                                    `<a href="/backlog/board/${numero}" target="_blank" class="btn btn-sm btn-info" title="Abrir Quadro de Backlog">
-                                        <i class="bi bi-kanban"></i>
-                                    </a>` : 
-                                    '<span class="text-muted small"><i class="bi bi-ban"></i></span>'
-                                }
-                            </td>
+                            ${statusReportIndividualEnabled ? 
+                                `<td>
+                                    <a href="/macro/status-report/${numero}" target="_blank" class="btn btn-sm btn-outline-primary" title="Status Report">
+                                        <i class="bi bi-file-earmark-text"></i>
+                                    </a>
+                                </td>` : ''
+                            }
+                            ${backlogModuleEnabled ? 
+                                `<td>
+                                    ${backlog_exists && numero ? 
+                                        `<a href="/backlog/board/${numero}" target="_blank" class="btn btn-sm btn-info" title="Abrir Quadro de Backlog">
+                                            <i class="bi bi-kanban"></i>
+                                        </a>` : 
+                                        '<span class="text-muted small" title="Sem backlog disponível"><i class="bi bi-ban"></i></span>'
+                                    }
+                                </td>` : ''
+                            }
                         </tr>
                     `;
                 } catch (error) {
                     console.error('Erro ao formatar linha no Macro:', error, p);
-                    return '<tr><td colspan="8" class="text-center text-danger">Erro ao processar dados</td></tr>'; // Colspan atualizado para 8
+                    const colspan = 7 + (statusReportIndividualEnabled ? 1 : 0) + (backlogModuleEnabled ? 1 : 0);
+                    return `<tr><td colspan="${colspan}" class="text-center text-danger">Erro ao processar dados</td></tr>`;
                 }
             }
 
@@ -2706,7 +2722,8 @@
                 try {
                     if (!p) {
                         console.error('Projeto indefinido ou nulo no Account Modal');
-                        return '<tr><td colspan="9" class="text-center">Dados inválidos</td></tr>';
+                        const colspan = 8 + (statusReportIndividualEnabled ? 1 : 0);
+                        return `<tr><td colspan="${colspan}" class="text-center">Dados inválidos</td></tr>`;
                     }
 
                     const numero = p.numero || '';
@@ -2769,9 +2786,12 @@
                             <td class="text-end">${horasHTML}</td>
                             <td>${vencimento}</td>
                             <td>
-                                <a href="/macro/status-report/${numero}" target="_blank" class="btn btn-sm btn-outline-primary" title="Status Report">
-                                    <i class="bi bi-file-earmark-text"></i>
-                                </a>
+                                ${statusReportIndividualEnabled ? 
+                                    `<a href="/macro/status-report/${numero}" target="_blank" class="btn btn-sm btn-outline-primary" title="Status Report">
+                                        <i class="bi bi-file-earmark-text"></i>
+                                    </a>` : 
+                                    '<span class="text-muted small" title="Funcionalidade desabilitada"><i class="bi bi-ban"></i></span>'
+                                }
                             </td>
                         </tr>
                     `;
@@ -2793,13 +2813,15 @@
                         if (projetos && projetos.length > 0) {
                             tbody.innerHTML = projetos.map(p => formatarLinhaMacro(p)).join('');
                         } else {
-                            tbody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum projeto ativo encontrado</td></tr>';
+                            const colspan = 7 + (statusReportIndividualEnabled ? 1 : 0) + (backlogModuleEnabled ? 1 : 0);
+                            tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center">Nenhum projeto ativo encontrado</td></tr>`;
                         }
                     })
                     .catch(error => {
                         console.error("Erro ao carregar projetos ativos:", error);
+                        const colspan = 7 + (statusReportIndividualEnabled ? 1 : 0) + (backlogModuleEnabled ? 1 : 0);
                         document.getElementById('tabelaProjetosAtivos').innerHTML = 
-                            '<tr><td colspan="7" class="text-center text-danger">Erro ao carregar dados</td></tr>';
+                            `<tr><td colspan="${colspan}" class="text-center text-danger">Erro ao carregar dados</td></tr>`;
                     });
 
                 // Projetos Críticos
@@ -2810,13 +2832,15 @@
                         if (projetos && projetos.length > 0) {
                             tbody.innerHTML = projetos.map(p => formatarLinhaMacro(p)).join('');
                         } else {
-                            tbody.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum projeto crítico encontrado</td></tr>';
+                            const colspan = 7 + (statusReportIndividualEnabled ? 1 : 0) + (backlogModuleEnabled ? 1 : 0);
+                            tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center">Nenhum projeto crítico encontrado</td></tr>`;
                         }
                     })
                     .catch(error => {
                         console.error("Erro ao carregar projetos críticos:", error);
+                        const colspan = 7 + (statusReportIndividualEnabled ? 1 : 0) + (backlogModuleEnabled ? 1 : 0);
                         document.getElementById('tabelaProjetosCriticos').innerHTML = 
-                            '<tr><td colspan="7" class="text-center text-danger">Erro ao carregar dados</td></tr>';
+                            `<tr><td colspan="${colspan}" class="text-center text-danger">Erro ao carregar dados</td></tr>`;
                     });
 
                 // Projetos Concluídos
@@ -3339,7 +3363,8 @@
                 try {
                     if (!p) {
                         console.error('Projeto indefinido ou nulo no modal fechado');
-                        return '<tr><td colspan="8" class="text-center">Dados inválidos</td></tr>';
+                        const colspan = 6 + (statusReportIndividualEnabled ? 1 : 0) + (backlogModuleEnabled ? 1 : 0);
+                        return `<tr><td colspan="${colspan}" class="text-center">Dados inválidos</td></tr>`;
                     }
 
                     const numero = p.numero || '';
@@ -3366,24 +3391,29 @@
                             <td class="squad-col" title="${squad}">${squad}</td>
                             <td class="text-end">${horasHTML}</td>
                             <td>${vencimento}</td>
-                            <td>
-                                <a href="/macro/status-report/${numero}" target="_blank" class="btn btn-sm btn-outline-primary" title="Status Report">
-                                    <i class="bi bi-file-earmark-text"></i>
-                                </a>
-                            </td>
-                            <td>
-                                ${backlog_exists && numero ? 
-                                    `<a href="/backlog/board/${numero}" target="_blank" class="btn btn-sm btn-info" title="Abrir Quadro de Backlog">
-                                        <i class="bi bi-kanban"></i>
-                                    </a>` : 
-                                    '<span class="text-muted small"><i class="bi bi-ban"></i></span>'
-                                }
-                            </td>
+                            ${statusReportIndividualEnabled ? 
+                                `<td>
+                                    <a href="/macro/status-report/${numero}" target="_blank" class="btn btn-sm btn-outline-primary" title="Status Report">
+                                        <i class="bi bi-file-earmark-text"></i>
+                                    </a>
+                                </td>` : ''
+                            }
+                            ${backlogModuleEnabled ? 
+                                `<td>
+                                    ${backlog_exists && numero ? 
+                                        `<a href="/backlog/board/${numero}" target="_blank" class="btn btn-sm btn-info" title="Abrir Quadro de Backlog">
+                                            <i class="bi bi-kanban"></i>
+                                        </a>` : 
+                                        '<span class="text-muted small" title="Sem backlog disponível"><i class="bi bi-ban"></i></span>'
+                                    }
+                                </td>` : ''
+                            }
                         </tr>
                     `;
                 } catch (error) {
                     console.error('Erro ao formatar linha de projeto fechado:', error, p);
-                    return '<tr><td colspan="8" class="text-center text-danger">Erro ao processar dados</td></tr>';
+                    const colspan = 6 + (statusReportIndividualEnabled ? 1 : 0) + (backlogModuleEnabled ? 1 : 0);
+                    return `<tr><td colspan="${colspan}" class="text-center text-danger">Erro ao processar dados</td></tr>`;
                 }
             }
         });
