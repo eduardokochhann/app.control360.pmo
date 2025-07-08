@@ -920,6 +920,9 @@ class GerencialService(BaseService):
 
             # --- FIM CÁLCULO DO BURN RATE ---
 
+            # --- Calcula métricas avançadas (incluindo Performance de Entregas) ---
+            metricas_avancadas = self.calcular_metricas_avancadas(dados_limpos)
+            
             # --- Métricas de projetos para faturar (CORRIGIDO INDENTAÇÃO) ---
             hoje_fatura = pd.Timestamp.now()
             mes_atual = hoje_fatura.month
@@ -1196,7 +1199,51 @@ class GerencialService(BaseService):
         except Exception as e:
             logger.error(f"Erro ao calcular métricas avançadas: {str(e)}")
             return {}
-            
+    def _calcular_quarter_fiscal_atual(self):
+        """
+        Calcula o quarter fiscal atual baseado no modelo Microsoft.
+        
+        Quarters fiscais Microsoft:
+        - Q1: 01/07 a 30/09
+        - Q2: 01/10 a 31/12  
+        - Q3: 01/01 a 31/03
+        - Q4: 01/04 a 30/06
+        
+        Returns:
+            dict: Informações do quarter atual
+        """
+        hoje = datetime.now()
+        
+        # Determina o quarter baseado no mês atual
+        if 7 <= hoje.month <= 9:  # Julho a Setembro
+            quarter = "Q1"
+            inicio_periodo = datetime(hoje.year, 7, 1)
+            fim_periodo = datetime(hoje.year, 9, 30)
+            ano_fiscal = hoje.year + 1  # FY começa em julho
+        elif 10 <= hoje.month <= 12:  # Outubro a Dezembro
+            quarter = "Q2"
+            inicio_periodo = datetime(hoje.year, 10, 1)
+            fim_periodo = datetime(hoje.year, 12, 31)
+            ano_fiscal = hoje.year + 1
+        elif 1 <= hoje.month <= 3:  # Janeiro a Março
+            quarter = "Q3"
+            inicio_periodo = datetime(hoje.year, 1, 1)
+            fim_periodo = datetime(hoje.year, 3, 31)
+            ano_fiscal = hoje.year
+        else:  # 4 <= hoje.month <= 6 (Abril a Junho)
+            quarter = "Q4"
+            inicio_periodo = datetime(hoje.year, 4, 1)
+            fim_periodo = datetime(hoje.year, 6, 30)
+            ano_fiscal = hoje.year
+        
+        return {
+            'quarter': quarter,
+            'ano_fiscal': ano_fiscal,
+            'inicio_periodo': inicio_periodo,
+            'fim_periodo': fim_periodo,
+            'quarter_display': f"{quarter} - FY{str(ano_fiscal)[-2:]}"
+        }
+
     def _calcular_metricas_performance(self, dados, metricas):
         """Calcula métricas de Performance de Entregas (Taxa de Sucesso e Tempo Médio)"""
         try:
@@ -1226,11 +1273,13 @@ class GerencialService(BaseService):
                     # Log após conversão
                     logger.info(f"=== {coluna} após conversão - Primeiros 5 valores: {dados[coluna].head().tolist()}")
             
-            # Período de análise fixo: Q4 FY25 (1/4/2025 a 30/6/2025)
-            inicio_periodo = datetime(2025, 4, 1)
-            fim_periodo = datetime(2025, 6, 30)
+            # ✅ AUTOMÁTICO: Calcula quarter fiscal atual baseado na data de hoje
+            quarter_info = self._calcular_quarter_fiscal_atual()
+            inicio_periodo = quarter_info['inicio_periodo']
+            fim_periodo = quarter_info['fim_periodo']
             
-            logger.info("=== PERÍODO DE ANÁLISE ===")
+            logger.info("=== PERÍODO DE ANÁLISE (AUTOMÁTICO) ===")
+            logger.info(f"Quarter: {quarter_info['quarter_display']}")
             logger.info(f"Início: {inicio_periodo}")
             logger.info(f"Fim: {fim_periodo}")
             
@@ -1335,25 +1384,25 @@ class GerencialService(BaseService):
             metricas['taxa_sucesso'] = taxa_sucesso
             metricas['tempo_medio_geral'] = tempo_medio
             
-            # Adiciona informações do trimestre (ajustado para usar a nova métrica)
+            # Adiciona informações do trimestre (automático)
             metricas['quarter_info'] = {
-                'quarter': 'Q4 - Ano Fiscal Microsoft',
+                'quarter': quarter_info['quarter_display'],
                 'inicio': inicio_periodo.strftime('%d/%m/%Y'),
                 'fim': fim_periodo.strftime('%d/%m/%Y'),
                 'total_projetos_previstos': total_previstos,
                 'projetos_concluidos': total_concluidos,
-                'projetos_entregues_mes_previsto': total_entregues_mes_previsto, # Adicionado/Renomeado
-                'projetos_em_andamento': total_previstos - total_concluidos # Lógica mantida
+                'projetos_entregues_mes_previsto': total_entregues_mes_previsto,
+                'projetos_em_andamento': total_previstos - total_concluidos
             }
             
             logger.info("\n=== MÉTRICAS FINAIS ===")
-            logger.info(f"Taxa de Sucesso (Concluídos no Mês Previsto / Previstos): {taxa_sucesso}%") # Log atualizado
-            logger.info(f"Tempo Médio (baseado nos entregues no prazo original): {tempo_medio} dias") # Log atualizado
+            logger.info(f"Quarter: {quarter_info['quarter_display']}")
+            logger.info(f"Taxa de Sucesso (Concluídos no Mês Previsto / Previstos): {taxa_sucesso}%")
+            logger.info(f"Tempo Médio (baseado nos entregues no prazo): {tempo_medio} dias")
             logger.info(f"Total Previstos (no período): {total_previstos}")
             logger.info(f"Total Concluídos (no período): {total_concluidos}")
-            # logger.info(f"Total Entregues no Prazo (no período): {total_no_prazo}") # Log antigo removido
-            logger.info(f"Total Entregues no Mês Previsto (no período): {total_entregues_mes_previsto}") # Log novo
-            logger.info(f"Conteúdo final de quarter_info: {metricas['quarter_info']}") # Log final
+            logger.info(f"Total Entregues no Mês Previsto (no período): {total_entregues_mes_previsto}")
+            logger.info(f"Conteúdo final de quarter_info: {metricas['quarter_info']}")
                 
         except Exception as e:
             logger.error(f"Erro ao calcular métricas de performance: {str(e)}", exc_info=True)
@@ -2148,169 +2197,6 @@ class GerencialService(BaseService):
         except Exception as e:
             logger.error(f"Erro ao calcular métricas avançadas: {str(e)}")
             return {}
-            
-    def _calcular_metricas_performance(self, dados, metricas):
-        """Calcula métricas de Performance de Entregas (Taxa de Sucesso e Tempo Médio)"""
-        try:
-            # Verifica se os dados são válidos
-            if dados.empty:
-                logger.warning("DataFrame vazio ao calcular métricas de performance")
-                metricas['taxa_sucesso'] = 0
-                metricas['tempo_medio_geral'] = 0.0
-                return
-                
-            # Log inicial dos dados
-            logger.info("=== DIAGNÓSTICO DE DADOS ===")
-            logger.info(f"Total de projetos no DataFrame: {len(dados)}")
-            logger.info(f"Colunas disponíveis: {dados.columns.tolist()}")
-            logger.info(f"Status únicos encontrados: {dados['Status'].unique().tolist()}")
-            
-            # Log das datas antes da conversão
-            logger.info("=== AMOSTRA DE DATAS ANTES DA CONVERSÃO ===")
-            for coluna in ['DataInicio', 'DataTermino', 'VencimentoEm']:
-                if coluna in dados.columns:
-                    logger.info(f"{coluna} - Primeiros 5 valores: {dados[coluna].head().tolist()}")
-            
-            # Converte colunas de data para datetime
-            for coluna in ['DataInicio', 'DataTermino', 'VencimentoEm']:
-                if coluna in dados.columns:
-                    dados[coluna] = pd.to_datetime(dados[coluna], errors='coerce')
-                    # Log após conversão
-                    logger.info(f"=== {coluna} após conversão - Primeiros 5 valores: {dados[coluna].head().tolist()}")
-            
-            # Período de análise fixo: Q4 FY25 (1/4/2025 a 30/6/2025)
-            inicio_periodo = datetime(2025, 4, 1)
-            fim_periodo = datetime(2025, 6, 30)
-            
-            logger.info("=== PERÍODO DE ANÁLISE ===")
-            logger.info(f"Início: {inicio_periodo}")
-            logger.info(f"Fim: {fim_periodo}")
-            
-            # Log de projetos com status de conclusão
-            projetos_fechados = dados[dados['Status'].isin(['Fechado', 'Resolvido'])]
-            logger.info(f"\nTotal de projetos fechados/resolvidos (geral): {len(projetos_fechados)}")
-            if not projetos_fechados.empty:
-                logger.info("Amostra de projetos fechados:")
-                for _, proj in projetos_fechados.head().iterrows():
-                    logger.info(f"Projeto: {proj['Projeto']}")
-                    logger.info(f"Status: {proj['Status']}")
-                    logger.info(f"Data Término: {proj['DataTermino']}")
-                    logger.info(f"Data Vencimento: {proj['VencimentoEm']}")
-                    logger.info("---")
-            
-            # 1. Filtra todos os projetos concluídos no período
-            projetos_concluidos = dados[
-                (dados['Status'].isin(['Fechado', 'Resolvido'])) &
-                (pd.notna(dados['DataTermino'])) &
-                (dados['DataTermino'] >= inicio_periodo) &
-                (dados['DataTermino'] <= fim_periodo)
-            ]
-            
-            logger.info("\n=== PROJETOS CONCLUÍDOS NO PERÍODO ===")
-            logger.info(f"Total: {len(projetos_concluidos)}")
-            if not projetos_concluidos.empty:
-                logger.info("Detalhes dos projetos concluídos:")
-                for _, proj in projetos_concluidos.iterrows():
-                    logger.info(f"Projeto: {proj['Projeto']}")
-                    logger.info(f"Status: {proj['Status']}")
-                    logger.info(f"Data Término: {proj['DataTermino']}")
-                    logger.info(f"Data Vencimento: {proj['VencimentoEm']}")
-                    logger.info("---")
-            
-            # 2. Filtra projetos com vencimento no período
-            projetos_previstos = dados[
-                (pd.notna(dados['VencimentoEm'])) &
-                (dados['VencimentoEm'] >= inicio_periodo) &
-                (dados['VencimentoEm'] <= fim_periodo)
-            ]
-            
-            logger.info("\n=== PROJETOS PREVISTOS PARA O PERÍODO ===")
-            logger.info(f"Total: {len(projetos_previstos)}")
-            if not projetos_previstos.empty:
-                logger.info("Detalhes dos projetos previstos:")
-                for _, proj in projetos_previstos.iterrows():
-                    logger.info(f"Projeto: {proj['Projeto']}")
-                    logger.info(f"Status: {proj['Status']}")
-                    logger.info(f"Data Vencimento: {proj['VencimentoEm']}")
-                    logger.info("---")
-            
-            # 3. Identifica projetos entregues NO MÊS PREVISTO (e dentro do período Q4)
-            # Filtra projetos concluídos onde o mês/ano de término == mês/ano de vencimento
-            entregues_mes_previsto = projetos_concluidos[
-                (projetos_concluidos['DataTermino'].dt.year == projetos_concluidos['VencimentoEm'].dt.year) &
-                (projetos_concluidos['DataTermino'].dt.month == projetos_concluidos['VencimentoEm'].dt.month)
-            ]
-            
-            logger.info("\n=== PROJETOS ENTREGUES NO MÊS PREVISTO ===") # Log Atualizado
-            logger.info(f"Total: {len(entregues_mes_previsto)}")
-            if not entregues_mes_previsto.empty:
-                logger.info("Detalhes dos projetos entregues no mês previsto:")
-                for _, proj in entregues_mes_previsto.iterrows():
-                    logger.info(f"Projeto: {proj['Projeto']}")
-                    logger.info(f"Data Término: {proj['DataTermino']}")
-                    logger.info(f"Data Vencimento: {proj['VencimentoEm']}")
-                    logger.info("---")
-            
-            # 4. Calcula métricas
-            total_previstos = len(projetos_previstos)
-            total_concluidos = len(projetos_concluidos)
-            total_entregues_mes_previsto = len(entregues_mes_previsto) # Usa a nova contagem
-            
-            if total_previstos > 0:
-                # Usa a nova contagem no numerador
-                taxa_sucesso = round((total_entregues_mes_previsto / total_previstos) * 100)
-            else:
-                taxa_sucesso = 0
-            
-            # Calcula tempo médio de entrega (agora usa entregues_mes_previsto como base? Ou mantém concluidos? Manter concluidos parece mais geral)
-            # *** Decisão: Manter o cálculo do tempo médio baseado nos projetos concluídos no prazo original ***
-            # *** Isso evita penalizar o tempo médio por entregas no mês certo, mas no último dia vs primeiro.***
-            entregues_no_prazo_para_tempo_medio = projetos_concluidos[
-                projetos_concluidos['DataTermino'] <= projetos_concluidos['VencimentoEm']
-            ]
-            if not entregues_no_prazo_para_tempo_medio.empty:
-                entregues_no_prazo_para_tempo_medio['duracao_dias'] = (
-                    entregues_no_prazo_para_tempo_medio['DataTermino'] - entregues_no_prazo_para_tempo_medio['DataInicio']
-                ).dt.days
-                
-                # Remove outliers
-                entregues_validos = entregues_no_prazo_para_tempo_medio[
-                    (entregues_no_prazo_para_tempo_medio['duracao_dias'] >= 0) &
-                    (entregues_no_prazo_para_tempo_medio['duracao_dias'] <= 365)
-                ]
-                
-                tempo_medio = round(entregues_validos['duracao_dias'].mean(), 1) if not entregues_validos.empty else 0.0
-            else:
-                tempo_medio = 0.0
-            
-            # Adiciona as métricas
-            metricas['taxa_sucesso'] = taxa_sucesso
-            metricas['tempo_medio_geral'] = tempo_medio
-            
-            # Adiciona informações do trimestre (ajustado para usar a nova métrica)
-            metricas['quarter_info'] = {
-                'quarter': 'Q4 - Ano Fiscal Microsoft',
-                'inicio': inicio_periodo.strftime('%d/%m/%Y'),
-                'fim': fim_periodo.strftime('%d/%m/%Y'),
-                'total_projetos_previstos': total_previstos,
-                'projetos_concluidos': total_concluidos,
-                'projetos_entregues_mes_previsto': total_entregues_mes_previsto, # Adicionado/Renomeado
-                'projetos_em_andamento': total_previstos - total_concluidos # Lógica mantida
-            }
-            
-            logger.info("\n=== MÉTRICAS FINAIS ===")
-            logger.info(f"Taxa de Sucesso (Concluídos no Mês Previsto / Previstos): {taxa_sucesso}%") # Log atualizado
-            logger.info(f"Tempo Médio (baseado nos entregues no prazo original): {tempo_medio} dias") # Log atualizado
-            logger.info(f"Total Previstos (no período): {total_previstos}")
-            logger.info(f"Total Concluídos (no período): {total_concluidos}")
-            # logger.info(f"Total Entregues no Prazo (no período): {total_no_prazo}") # Log antigo removido
-            logger.info(f"Total Entregues no Mês Previsto (no período): {total_entregues_mes_previsto}") # Log novo
-            logger.info(f"Conteúdo final de quarter_info: {metricas['quarter_info']}") # Log final
-                
-        except Exception as e:
-            logger.error(f"Erro ao calcular métricas de performance: {str(e)}", exc_info=True)
-            metricas['taxa_sucesso'] = 0
-            metricas['tempo_medio_geral'] = 0.0
 
     def validar_dados(self, dados):
         """Valida a estrutura básica dos dados"""
@@ -2813,4 +2699,166 @@ class GerencialService(BaseService):
             logger.error(f"Erro ao carregar dados históricos para {ano}-{mes_str}: {str(e)}")
             return pd.DataFrame()
     
+
+        """Calcula métricas de Performance de Entregas (Taxa de Sucesso e Tempo Médio)"""
+        try:
+            # Verifica se os dados são válidos
+            if dados.empty:
+                logger.warning("DataFrame vazio ao calcular métricas de performance")
+                metricas['taxa_sucesso'] = 0
+                metricas['tempo_medio_geral'] = 0.0
+                return
+                
+            # Log inicial dos dados
+            logger.info("=== DIAGNÓSTICO DE DADOS ===")
+            logger.info(f"Total de projetos no DataFrame: {len(dados)}")
+            logger.info(f"Colunas disponíveis: {dados.columns.tolist()}")
+            logger.info(f"Status únicos encontrados: {dados['Status'].unique().tolist()}")
+            
+            # Log das datas antes da conversão
+            logger.info("=== AMOSTRA DE DATAS ANTES DA CONVERSÃO ===")
+            for coluna in ['DataInicio', 'DataTermino', 'VencimentoEm']:
+                if coluna in dados.columns:
+                    logger.info(f"{coluna} - Primeiros 5 valores: {dados[coluna].head().tolist()}")
+            
+            # Converte colunas de data para datetime
+            for coluna in ['DataInicio', 'DataTermino', 'VencimentoEm']:
+                if coluna in dados.columns:
+                    dados[coluna] = pd.to_datetime(dados[coluna], errors='coerce')
+                    # Log após conversão
+                    logger.info(f"=== {coluna} após conversão - Primeiros 5 valores: {dados[coluna].head().tolist()}")
+            
+            # ✅ AUTOMÁTICO: Calcula quarter fiscal atual baseado na data de hoje
+            quarter_info = self._calcular_quarter_fiscal_atual()
+            inicio_periodo = quarter_info['inicio_periodo']
+            fim_periodo = quarter_info['fim_periodo']
+            
+            logger.info("=== PERÍODO DE ANÁLISE (AUTOMÁTICO) ===")
+            logger.info(f"Quarter: {quarter_info['quarter_display']}")
+            logger.info(f"Início: {inicio_periodo}")
+            logger.info(f"Fim: {fim_periodo}")
+            
+            # Log de projetos com status de conclusão
+            projetos_fechados = dados[dados['Status'].isin(['Fechado', 'Resolvido'])]
+            logger.info(f"\nTotal de projetos fechados/resolvidos (geral): {len(projetos_fechados)}")
+            if not projetos_fechados.empty:
+                logger.info("Amostra de projetos fechados:")
+                for _, proj in projetos_fechados.head().iterrows():
+                    logger.info(f"Projeto: {proj['Projeto']}")
+                    logger.info(f"Status: {proj['Status']}")
+                    logger.info(f"Data Término: {proj['DataTermino']}")
+                    logger.info(f"Data Vencimento: {proj['VencimentoEm']}")
+                    logger.info("---")
+            
+            # 1. Filtra todos os projetos concluídos no período
+            projetos_concluidos = dados[
+                (dados['Status'].isin(['Fechado', 'Resolvido'])) &
+                (pd.notna(dados['DataTermino'])) &
+                (dados['DataTermino'] >= inicio_periodo) &
+                (dados['DataTermino'] <= fim_periodo)
+            ]
+            
+            logger.info("\n=== PROJETOS CONCLUÍDOS NO PERÍODO ===")
+            logger.info(f"Total: {len(projetos_concluidos)}")
+            if not projetos_concluidos.empty:
+                logger.info("Detalhes dos projetos concluídos:")
+                for _, proj in projetos_concluidos.iterrows():
+                    logger.info(f"Projeto: {proj['Projeto']}")
+                    logger.info(f"Status: {proj['Status']}")
+                    logger.info(f"Data Término: {proj['DataTermino']}")
+                    logger.info(f"Data Vencimento: {proj['VencimentoEm']}")
+                    logger.info("---")
+            
+            # 2. Filtra projetos com vencimento no período
+            projetos_previstos = dados[
+                (pd.notna(dados['VencimentoEm'])) &
+                (dados['VencimentoEm'] >= inicio_periodo) &
+                (dados['VencimentoEm'] <= fim_periodo)
+            ]
+            
+            logger.info("\n=== PROJETOS PREVISTOS PARA O PERÍODO ===")
+            logger.info(f"Total: {len(projetos_previstos)}")
+            if not projetos_previstos.empty:
+                logger.info("Detalhes dos projetos previstos:")
+                for _, proj in projetos_previstos.iterrows():
+                    logger.info(f"Projeto: {proj['Projeto']}")
+                    logger.info(f"Status: {proj['Status']}")
+                    logger.info(f"Data Vencimento: {proj['VencimentoEm']}")
+                    logger.info("---")
+            
+            # 3. Identifica projetos entregues NO MÊS PREVISTO (e dentro do período)
+            # Filtra projetos concluídos onde o mês/ano de término == mês/ano de vencimento
+            entregues_mes_previsto = projetos_concluidos[
+                (projetos_concluidos['DataTermino'].dt.year == projetos_concluidos['VencimentoEm'].dt.year) &
+                (projetos_concluidos['DataTermino'].dt.month == projetos_concluidos['VencimentoEm'].dt.month)
+            ]
+            
+            logger.info("\n=== PROJETOS ENTREGUES NO MÊS PREVISTO ===")
+            logger.info(f"Total: {len(entregues_mes_previsto)}")
+            if not entregues_mes_previsto.empty:
+                logger.info("Detalhes dos projetos entregues no mês previsto:")
+                for _, proj in entregues_mes_previsto.iterrows():
+                    logger.info(f"Projeto: {proj['Projeto']}")
+                    logger.info(f"Data Término: {proj['DataTermino']}")
+                    logger.info(f"Data Vencimento: {proj['VencimentoEm']}")
+                    logger.info("---")
+            
+            # 4. Calcula métricas
+            total_previstos = len(projetos_previstos)
+            total_concluidos = len(projetos_concluidos)
+            total_entregues_mes_previsto = len(entregues_mes_previsto)
+            
+            if total_previstos > 0:
+                taxa_sucesso = round((total_entregues_mes_previsto / total_previstos) * 100)
+            else:
+                taxa_sucesso = 0
+            
+            # Calcula tempo médio de entrega baseado nos projetos concluídos no prazo
+            entregues_no_prazo_para_tempo_medio = projetos_concluidos[
+                projetos_concluidos['DataTermino'] <= projetos_concluidos['VencimentoEm']
+            ]
+            if not entregues_no_prazo_para_tempo_medio.empty:
+                entregues_no_prazo_para_tempo_medio['duracao_dias'] = (
+                    entregues_no_prazo_para_tempo_medio['DataTermino'] - entregues_no_prazo_para_tempo_medio['DataInicio']
+                ).dt.days
+                
+                # Remove outliers
+                entregues_validos = entregues_no_prazo_para_tempo_medio[
+                    (entregues_no_prazo_para_tempo_medio['duracao_dias'] >= 0) &
+                    (entregues_no_prazo_para_tempo_medio['duracao_dias'] <= 365)
+                ]
+                
+                tempo_medio = round(entregues_validos['duracao_dias'].mean(), 1) if not entregues_validos.empty else 0.0
+            else:
+                tempo_medio = 0.0
+            
+            # Adiciona as métricas
+            metricas['taxa_sucesso'] = taxa_sucesso
+            metricas['tempo_medio_geral'] = tempo_medio
+            
+            # Adiciona informações do trimestre (automático)
+            metricas['quarter_info'] = {
+                'quarter': quarter_info['quarter_display'],
+                'inicio': inicio_periodo.strftime('%d/%m/%Y'),
+                'fim': fim_periodo.strftime('%d/%m/%Y'),
+                'total_projetos_previstos': total_previstos,
+                'projetos_concluidos': total_concluidos,
+                'projetos_entregues_mes_previsto': total_entregues_mes_previsto,
+                'projetos_em_andamento': total_previstos - total_concluidos
+            }
+            
+            logger.info("\n=== MÉTRICAS FINAIS ===")
+            logger.info(f"Quarter: {quarter_info['quarter_display']}")
+            logger.info(f"Taxa de Sucesso (Concluídos no Mês Previsto / Previstos): {taxa_sucesso}%")
+            logger.info(f"Tempo Médio (baseado nos entregues no prazo): {tempo_medio} dias")
+            logger.info(f"Total Previstos (no período): {total_previstos}")
+            logger.info(f"Total Concluídos (no período): {total_concluidos}")
+            logger.info(f"Total Entregues no Mês Previsto (no período): {total_entregues_mes_previsto}")
+            logger.info(f"Conteúdo final de quarter_info: {metricas['quarter_info']}")
+                
+        except Exception as e:
+            logger.error(f"Erro ao calcular métricas de performance: {str(e)}", exc_info=True)
+            metricas['taxa_sucesso'] = 0
+            metricas['tempo_medio_geral'] = 0.0
+
     
