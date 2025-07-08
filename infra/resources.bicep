@@ -18,8 +18,9 @@ param identityProxyClientId string = 'c5b9b4ab-76e8-4f42-abca-bebf57ea1102'
 @secure()
 param identityProxyClientSecret string = ''
 
+// Solution from https://www.reddit.com/r/AZURE/comments/159mhzd/how_to_get_the_first_day_of_the_month_for_every/
 @description('The first day of the current month, required for Azure Budget startDate (e.g. 2025-07-01)')
-param budgetStartDate string = utcNow('yyyy-MM-dd')
+param budgetStartDate string = '${utcNow('yyyy-MM')}-01'
 
 var abbrs = loadJsonContent('./abbreviations.json')
 var resourceToken = uniqueString(subscription().id, resourceGroup().id, location)
