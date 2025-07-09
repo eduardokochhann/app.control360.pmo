@@ -21,6 +21,9 @@ param identityProxyClientId string = 'c5b9b4ab-76e8-4f42-abca-bebf57ea1102'
 @secure()
 param identityProxyClientSecret string = ''
 
+@description('Name of the resource group to create for the environment')
+param resourceGroupName string = 'rg-${environmentName}'
+
 // Tags that should be applied to all resources.
 // 
 // Note that 'azd-service-name' tags should be applied separately to service host resources.
@@ -36,7 +39,7 @@ var tags = {
 
 // Organize resources in a resource group
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
-  name: 'rg-${environmentName}'
+  name: resourceGroupName
   location: location
   tags: tags
 }
