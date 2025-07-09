@@ -6,10 +6,11 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  AZURE_SUBSCRIPTION_ID: '6f97d0ea-fd4f-4149-9480-729e8f6a966f'
-  AZURE_ENV_NAME: 'app-control360-sou-dev'
+  AZURE_SUBSCRIPTION_ID: '0f5c73b2-4ee9-4ef8-9f89-1eba02be7606'
+  AZURE_ENV_NAME: 'app-control360-sou-prd'
   AZURE_LOCATION: 'eastus2'
   IDENTITY_PROXY_CLIENT_ID: 'c5b9b4ab-76e8-4f42-abca-bebf57ea1102'
+  RESOURCE_GROUP_NAME: 'SOU-RGPRD-APP360-01'
 
 steps:
   - task: Bash@3
@@ -38,6 +39,7 @@ steps:
       AZURE_ENV_NAME: $(AZURE_ENV_NAME)
       AZURE_LOCATION: $(AZURE_LOCATION)
       IDENTITY_PROXY_CLIENT_ID: $(IDENTITY_PROXY_CLIENT_ID)
+      RESOURCE_GROUP_NAME: $(RESOURCE_GROUP_NAME)
 
   - task: AzureCLI@2
     displayName: Deploy Application
@@ -53,3 +55,4 @@ steps:
       AZURE_ENV_NAME: $(AZURE_ENV_NAME)
       AZURE_LOCATION: $(AZURE_LOCATION)
       IDENTITY_PROXY_CLIENT_ID: $(IDENTITY_PROXY_CLIENT_ID)
+      RESOURCE_GROUP_NAME: $(RESOURCE_GROUP_NAME)
