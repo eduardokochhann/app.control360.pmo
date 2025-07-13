@@ -832,10 +832,10 @@
                 </li>
                 {% endif %}
                 <!-- Nova Aba para Relatórios -->
-                {% if is_module_enabled('macro.suite_relatorios') %}
+                {% if is_module_enabled('macro.relatorios') %}
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="relatorios-tab" data-bs-toggle="tab" data-bs-target="#relatorios" type="button">
-                        <i class="bi bi-file-earmark-spreadsheet me-1"></i> Relatórios
+                        <i class="bi bi-bar-chart-fill me-1"></i> Relatórios
                     </button>
                 </li>
                 {% endif %}
@@ -1404,13 +1404,13 @@
                 {% endif %}
 
                 <!-- Aba Relatórios -->
-                {% if is_module_enabled('macro.suite_relatorios') %}
+                {% if is_module_enabled('macro.relatorios') %}
                 <div class="tab-pane fade" id="relatorios" role="tabpanel">
                     <div class="card">
                         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                             <div class="d-flex align-items-center">
-                                <div class="bg-primary bg-opacity-10 rounded-circle p-2 me-3">
-                                    <i class="bi bi-file-earmark-spreadsheet fs-4 text-primary"></i>
+                                <div class="bg-primary bg-opacity-90 rounded-circle p-2 me-3">
+                                    <i class="bi bi-bar-chart-fill fs-4 text-white"></i>
                                 </div>
                                 <div>
                                     <h5 class="mb-1 fw-bold text-dark">Relatórios Macro</h5>
@@ -1424,13 +1424,13 @@
                                 <div class="col-xl-3 col-lg-6 col-md-6">
                                     <div class="card shadow border-0 h-100 hover-card">
                                         <div class="card-body text-center p-4">
-                                            <div class="bg-primary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
-                                                <i class="bi bi-graph-up-arrow fs-3 text-primary"></i>
+                                            <div class="bg-primary bg-opacity-90 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                                                <i class="bi bi-file-bar-graph-fill fs-3 text-white"></i>
                                             </div>
                                             <h5 class="card-title fw-bold">Relatório Geral</h5>
                                             <p class="card-text text-muted small mb-3">Relatório completo com seleção de períodos e todas as métricas de projetos</p>
                                             <a href="{{ url_for('macro.relatorio_geral') }}" class="btn btn-primary btn-sm w-100">
-                                                <i class="bi bi-calendar-range me-1"></i> Gerar Relatório
+                                                <i class="bi bi-file-earmark-bar-graph me-1"></i> Gerar Relatório
                                             </a>
                                         </div>
                                     </div>
@@ -1440,13 +1440,13 @@
                                 <div class="col-xl-3 col-lg-6 col-md-6">
                                     <div class="card shadow border-0 h-100 hover-card">
                                         <div class="card-body text-center p-4">
-                                            <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
-                                                <i class="bi bi-play-circle fs-3 text-success"></i>
+                                            <div class="bg-success bg-opacity-90 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                                                <i class="bi bi-graph-up fs-3 text-white"></i>
                                             </div>
                                             <h5 class="card-title fw-bold">Projetos Ativos</h5>
                                             <p class="card-text text-muted small mb-3">Visualização dos projetos em andamento com tipo de faturamento e serviço</p>
                                             <a href="{{ url_for('macro.relatorio_projetos_ativos') }}" class="btn btn-success btn-sm w-100">
-                                                <i class="bi bi-eye me-1"></i> Visualizar
+                                                <i class="bi bi-table me-1"></i> Visualizar
                                             </a>
                                         </div>
                                     </div>
@@ -1456,13 +1456,13 @@
                                 <div class="col-xl-3 col-lg-6 col-md-6">
                                     <div class="card shadow border-0 h-100 hover-card">
                                         <div class="card-body text-center p-4">
-                                            <div class="bg-warning bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
-                                                <i class="bi bi-exclamation-triangle fs-3 text-warning"></i>
+                                            <div class="bg-warning bg-opacity-90 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                                                <i class="bi bi-exclamation-triangle-fill fs-3 text-white"></i>
                                             </div>
                                             <h5 class="card-title fw-bold">Projetos Críticos</h5>
                                             <p class="card-text text-muted small mb-3">Projetos que requerem atenção especial e monitoramento</p>
                                             <a href="{{ url_for('macro.relatorio_projetos_criticos') }}" class="btn btn-warning btn-sm w-100">
-                                                <i class="bi bi-exclamation-triangle me-1"></i> Visualizar
+                                                <i class="bi bi-search me-1"></i> Visualizar
                                             </a>
                                         </div>
                                     </div>
@@ -1472,13 +1472,13 @@
                                 <div class="col-xl-3 col-lg-6 col-md-6">
                                     <div class="card shadow border-0 h-100 hover-card">
                                         <div class="card-body text-center p-4">
-                                            <div class="bg-info bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
-                                                <i class="bi bi-check-circle fs-3 text-info"></i>
+                                            <div class="bg-info bg-opacity-90 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                                                <i class="bi bi-check-circle-fill fs-3 text-white"></i>
                                             </div>
                                             <h5 class="card-title fw-bold">Projetos Entregues</h5>
                                             <p class="card-text text-muted small mb-3">Relatório de projetos concluídos e entregues aos clientes</p>
                                             <a href="{{ url_for('macro.relatorio_projetos_entregues') }}" class="btn btn-info btn-sm w-100">
-                                                <i class="bi bi-check-square me-1"></i> Visualizar
+                                                <i class="bi bi-check-circle-fill me-1"></i> Visualizar
                                             </a>
                                         </div>
                                     </div>

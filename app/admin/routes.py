@@ -1,7 +1,7 @@
 from flask import render_template, jsonify, request, current_app, redirect, url_for, flash
 from . import admin_bp
 from .. import db
-from ..models import ComplexityCriteria, ComplexityCriteriaOption, ComplexityThreshold, ComplexityCategory, SpecialistConfiguration
+from ..models import ComplexityCriteria, ComplexityCriteriaOption, ComplexityThreshold, ComplexityCategory, SpecialistConfiguration, ProjectPhaseConfiguration, ProjectType
 from datetime import datetime
 from .services import AdminService
 from pathlib import Path
@@ -956,4 +956,324 @@ def bulk_update_module_configuration():
         current_app.logger.error(f"Erro ao atualizar configurações: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# --- FIM ROTAS CONFIGURAÇÃO DE MÓDULOS --- 
+# --- FIM ROTAS CONFIGURAÇÃO DE MÓDULOS ---
+
+# --- INÍCIO: ROTAS PARA GESTÃO DE FASES DE PROJETOS ---
+
+@admin_bp.route('/project-phases')
+def project_phases_management():
+    """Página de gerenciamento de configurações de fases de projetos"""
+    try:
+        return render_template('admin/project_phases_management.html')
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao carregar gerenciamento de fases: {str(e)}", exc_info=True)
+        return render_template('admin/erro.html', erro="Erro ao carregar configurações de fases"), 500
+
+@admin_bp.route('/api/project-phases/configurations', methods=['GET'])
+def get_phase_configurations():
+    """Retorna todas as configurações de fases organizadas por tipo"""
+    try:
+        project_type = request.args.get('project_type')
+        
+        if project_type:
+            if project_type.lower() == 'waterfall':
+                phases = ProjectPhaseConfiguration.get_phases_for_type(ProjectType.WATERFALL)
+            elif project_type.lower() == 'agile':
+                phases = ProjectPhaseConfiguration.get_phases_for_type(ProjectType.AGILE)
+            else:
+                return jsonify({'error': 'project_type deve ser "waterfall" ou "agile"'}), 400
+            
+            return jsonify({'phases': [phase.to_dict() for phase in phases]})
+        else:
+            # Retorna todas as configurações organizadas por tipo
+            waterfall_phases = ProjectPhaseConfiguration.get_phases_for_type(ProjectType.WATERFALL)
+            agile_phases = ProjectPhaseConfiguration.get_phases_for_type(ProjectType.AGILE)
+            
+            return jsonify({
+                'waterfall': [phase.to_dict() for phase in waterfall_phases],
+                'agile': [phase.to_dict() for phase in agile_phases]
+            })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao obter configurações de fases: {str(e)}")
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+@admin_bp.route('/api/project-phases/configurations', methods=['POST'])
+def create_phase_configuration():
+    """Cria nova configuração de fase"""
+    try:
+        data = request.get_json()
+        
+        # Validações obrigatórias
+        required_fields = ['project_type', 'phase_number', 'phase_name']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'error': f'Campo {field} é obrigatório'}), 400
+        
+        # Valida project_type
+        project_type_str = data['project_type'].lower()
+        if project_type_str not in ['waterfall', 'agile']:
+            return jsonify({'error': 'project_type deve ser "waterfall" ou "agile"'}), 400
+        
+        project_type = ProjectType.WATERFALL if project_type_str == 'waterfall' else ProjectType.AGILE
+        
+        # Valida phase_number
+        try:
+            phase_number = int(data['phase_number'])
+            if phase_number < 1:
+                return jsonify({'error': 'Número da fase deve ser maior que 0'}), 400
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Número da fase deve ser um número inteiro'}), 400
+        
+        # Verifica se já existe configuração para essa fase
+        existing = ProjectPhaseConfiguration.query.filter_by(
+            project_type=project_type,
+            phase_number=phase_number
+        ).first()
+        
+        if existing:
+            return jsonify({'error': f'Já existe configuração para fase {phase_number} do tipo {project_type_str}'}), 409
+        
+        # Processa lista de marcos
+        milestone_names = []
+        if 'milestone_names' in data and data['milestone_names']:
+            if isinstance(data['milestone_names'], list):
+                milestone_names = [name.strip() for name in data['milestone_names'] if name.strip()]
+            elif isinstance(data['milestone_names'], str):
+                milestone_names = [name.strip() for name in data['milestone_names'].split(',') if name.strip()]
+        
+        # Cria nova configuração
+        phase_config = ProjectPhaseConfiguration(
+            project_type=project_type,
+            phase_number=phase_number,
+            phase_name=data['phase_name'].strip(),
+            phase_description=data.get('phase_description', '').strip() or None,
+            phase_color=data.get('phase_color', '#E8F5E8').strip()
+        )
+        
+        # Define marcos se fornecidos
+        if milestone_names:
+            phase_config.set_milestone_names(milestone_names)
+        
+        db.session.add(phase_config)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Configuração de fase criada com sucesso',
+            'phase_config': phase_config.to_dict()
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao criar configuração de fase: {str(e)}")
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+@admin_bp.route('/api/project-phases/configurations/<int:config_id>', methods=['PUT'])
+def update_phase_configuration(config_id):
+    """Atualiza configuração de fase"""
+    try:
+        phase_config = ProjectPhaseConfiguration.query.get_or_404(config_id)
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Dados não fornecidos'}), 400
+        
+        # Atualiza campos permitidos
+        if 'phase_name' in data and data['phase_name']:
+            phase_config.phase_name = data['phase_name'].strip()
+        
+        if 'phase_description' in data:
+            phase_config.phase_description = data['phase_description'].strip() or None
+        
+        if 'phase_color' in data and data['phase_color']:
+            phase_config.phase_color = data['phase_color'].strip()
+        
+        if 'milestone_names' in data:
+            milestone_names = []
+            if data['milestone_names']:
+                if isinstance(data['milestone_names'], list):
+                    milestone_names = [name.strip() for name in data['milestone_names'] if name.strip()]
+                elif isinstance(data['milestone_names'], str):
+                    milestone_names = [name.strip() for name in data['milestone_names'].split(',') if name.strip()]
+            
+            phase_config.set_milestone_names(milestone_names if milestone_names else None)
+        
+        if 'is_active' in data:
+            phase_config.is_active = bool(data['is_active'])
+        
+        phase_config.updated_at = datetime.now(br_timezone)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Configuração de fase atualizada com sucesso',
+            'phase_config': phase_config.to_dict()
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao atualizar configuração de fase {config_id}: {str(e)}")
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+@admin_bp.route('/api/project-phases/configurations/<int:config_id>', methods=['DELETE'])
+def delete_phase_configuration(config_id):
+    """Remove configuração de fase"""
+    try:
+        phase_config = ProjectPhaseConfiguration.query.get_or_404(config_id)
+        
+        # Desativa ao invés de deletar para preservar histórico
+        phase_config.is_active = False
+        phase_config.updated_at = datetime.now(br_timezone)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Configuração de fase desativada com sucesso'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao remover configuração de fase {config_id}: {str(e)}")
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+@admin_bp.route('/api/project-phases/configurations/reorder', methods=['POST'])
+def reorder_phase_configurations():
+    """Reordena configurações de fases"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'phases' not in data:
+            return jsonify({'error': 'Lista de fases não fornecida'}), 400
+        
+        phases_data = data['phases']
+        if not isinstance(phases_data, list):
+            return jsonify({'error': 'Lista de fases deve ser um array'}), 400
+        
+        # Atualiza a ordem das fases
+        for phase_data in phases_data:
+            if 'id' not in phase_data or 'phase_number' not in phase_data:
+                return jsonify({'error': 'Dados incompletos na lista de fases'}), 400
+            
+            phase_config = ProjectPhaseConfiguration.query.get(phase_data['id'])
+            if phase_config:
+                phase_config.phase_number = phase_data['phase_number']
+                phase_config.updated_at = datetime.now(br_timezone)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Ordem das fases atualizada com sucesso'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao reordenar fases: {str(e)}")
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+@admin_bp.route('/api/project-phases/reset-defaults', methods=['POST'])
+def reset_phase_defaults():
+    """Restaura configurações padrão de fases"""
+    try:
+        data = request.get_json()
+        project_type_str = data.get('project_type', 'all').lower()
+        
+        if project_type_str not in ['waterfall', 'agile', 'all']:
+            return jsonify({'error': 'project_type deve ser "waterfall", "agile" ou "all"'}), 400
+        
+        # Desativa configurações existentes
+        if project_type_str == 'all':
+            ProjectPhaseConfiguration.query.update({'is_active': False})
+        else:
+            project_type = ProjectType.WATERFALL if project_type_str == 'waterfall' else ProjectType.AGILE
+            ProjectPhaseConfiguration.query.filter_by(project_type=project_type).update({'is_active': False})
+        
+        # Reinicializa configurações padrão
+        ProjectPhaseConfiguration.initialize_default_phases()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Configurações padrão restauradas para {project_type_str}'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao restaurar configurações padrão: {str(e)}")
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+@admin_bp.route('/api/project-phases/milestones/templates', methods=['GET'])
+def get_milestone_templates():
+    """Retorna templates de marcos disponíveis"""
+    try:
+        templates = {
+            'waterfall': [
+                'Milestone Start',
+                'Milestone Setup', 
+                'Milestone CutOver',
+                'Milestone Finish Project'
+            ],
+            'agile': [
+                'Milestone Start',
+                'Milestone Setup',
+                'Milestone Developer',
+                'Milestone CutOver', 
+                'Milestone Finish Project'
+            ],
+            'custom': [
+                'Milestone Planning Complete',
+                'Milestone Requirements Approved',
+                'Milestone Design Complete',
+                'Milestone Development Complete',
+                'Milestone Testing Complete',
+                'Milestone Deployment Ready',
+                'Milestone Go Live',
+                'Milestone Project Closure'
+            ]
+        }
+        
+        return jsonify(templates)
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao obter templates de marcos: {str(e)}")
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+@admin_bp.route('/api/project-phases/statistics', methods=['GET'])
+def get_phase_statistics():
+    """Retorna estatísticas de uso das fases"""
+    try:
+        from ..models import Backlog
+        
+        # Estatísticas básicas
+        stats = {
+            'total_waterfall_phases': ProjectPhaseConfiguration.query.filter_by(
+                project_type=ProjectType.WATERFALL, 
+                is_active=True
+            ).count(),
+            'total_agile_phases': ProjectPhaseConfiguration.query.filter_by(
+                project_type=ProjectType.AGILE, 
+                is_active=True
+            ).count(),
+            'projects_with_type': Backlog.query.filter(Backlog.project_type.isnot(None)).count(),
+            'waterfall_projects': Backlog.query.filter_by(project_type=ProjectType.WATERFALL).count(),
+            'agile_projects': Backlog.query.filter_by(project_type=ProjectType.AGILE).count(),
+            'projects_without_type': Backlog.query.filter(Backlog.project_type.is_(None)).count()
+        }
+        
+        # Distribuição por fase atual
+        phase_distribution = {}
+        for phase_num in range(1, 6):  # Até 5 fases
+            count = Backlog.query.filter_by(current_phase=phase_num).count()
+            if count > 0:
+                phase_distribution[f'phase_{phase_num}'] = count
+        
+        stats['phase_distribution'] = phase_distribution
+        
+        return jsonify(stats)
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao obter estatísticas de fases: {str(e)}")
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+# --- FIM: ROTAS PARA GESTÃO DE FASES DE PROJETOS --- 

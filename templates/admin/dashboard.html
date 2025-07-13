@@ -238,6 +238,36 @@
                 </div>
             </div>
             
+            <!-- Gestão de Fases de Projetos -->
+            <div class="col-lg-6 mb-4">
+                <div class="card module-card h-100">
+                    <div class="card-header bg-purple text-white" style="background: linear-gradient(135deg, #FF2D5F 0%, #07304F 100%) !important;">
+                        <h5 class="mb-0">
+                            <i class="bi bi-diagram-3 me-2"></i>Gestão de Fases de Projetos
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">Configure fases personalizadas para projetos Waterfall e Ágil. Defina marcos automáticos e gatilhos de transição.</p>
+                        
+                        <div class="mb-3">
+                            <small class="text-muted d-block">Funcionalidades:</small>
+                            <ul class="small">
+                                <li>Configurar fases Waterfall e Ágil</li>
+                                <li>Definir marcos por fase</li>
+                                <li>Personalizar cores e descrições</li>
+                                <li>Estatísticas de uso das fases</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('admin.project_phases_management') }}" class="btn text-white" style="background: linear-gradient(135deg, #FF2D5F 0%, #07304F 100%);">
+                                <i class="bi bi-diagram-3 me-2"></i>Configurar Fases
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Configuração de Módulos -->
             <div class="col-lg-6 mb-4">
                 <div class="card module-card h-100">

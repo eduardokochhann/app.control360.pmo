@@ -161,7 +161,8 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-2 d-flex justify-content-end">
+
+        <div class="col-md-1 d-flex justify-content-end">
             <button id="clearFiltersBtn" class="btn btn-outline-secondary btn-sm">Limpar</button>
         </div>
     </div>
@@ -247,8 +248,9 @@
                                         {% elif project.status == 'BLOQUEADO' %} bg-danger
                                         {% else %} bg-secondary
                                         {% endif %}
-                                    ">{{ project.status }}</span>
+                                    ">{{ project.status }}</span><br>
                                 {% endif %}
+
                             </p>
                             {# Mostra contagem de tarefas #}
                             <div class="mt-2 text-muted small">
@@ -321,6 +323,7 @@
             const squadValue = squadFilter.value;
             const specialistValue = specialistFilter.value;
             const statusValue = statusFilter.value;
+
             let visibleCount = 0;
 
             // Função para remover highlights anteriores
@@ -399,6 +402,7 @@
                 const specialist = card.dataset.specialist || '';
                 const status = card.dataset.status || '';
 
+
                 // Remove highlights antigos ANTES de aplicar filtros
                 removeHighlights(card);
 
@@ -417,6 +421,8 @@
 
                 // Verifica filtro de status (ignora se '' selecionado)
                 const statusMatch = (statusValue === '' || status === statusValue);
+
+
 
                 // Mostra o card APENAS se passar em TODOS os filtros ativos
                 if (textMatch && squadMatch && specialistMatch && statusMatch) {
@@ -464,6 +470,8 @@
             }
         }
 
+
+
         // Aplica filtros ao digitar no search, ou mudar dropdowns
         if (searchInput) searchInput.addEventListener('input', applyFilters);
         if (squadFilter) squadFilter.addEventListener('change', applyFilters);
@@ -477,6 +485,7 @@
                 if (squadFilter) squadFilter.value = '';
                 if (specialistFilter) specialistFilter.value = '';
                 if (statusFilter) statusFilter.value = '';
+
                 applyFilters(); // Reaplica para mostrar todos
             });
         }
@@ -583,6 +592,9 @@
                 }
             });
         }
+
+
+
     });
 </script>
 {% endblock %}

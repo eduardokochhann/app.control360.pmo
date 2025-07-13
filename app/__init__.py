@@ -153,6 +153,16 @@ def create_app():
     # Registra os blueprints
     register_blueprints(app)
 
+    # Inicializa configurações padrão de fases de projetos
+    def initialize_phase_configurations():
+        """Inicializa configurações padrão de fases de projetos na primeira execução."""
+        try:
+            from .utils.project_phase_service import ProjectPhaseService
+            ProjectPhaseService.initialize_phase_configurations()
+            app.logger.info("✅ Configurações de fases de projetos inicializadas")
+        except Exception as e:
+            app.logger.warning(f"⚠️ Erro ao inicializar configurações de fases: {e}")
+
     # Adiciona contexto ao template para obter a data atual (útil para o copyright)
     @app.context_processor
     def inject_now():
@@ -271,6 +281,9 @@ def create_app():
 
     # Verifica a existência de templates essenciais
     check_templates(app)
+
+    # Inicializa configurações de fases de projetos
+    initialize_phase_configurations()
 
     return app
 

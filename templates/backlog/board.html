@@ -392,6 +392,61 @@
             padding: 8px 12px;
         }
     }
+    
+    /* Cor purple para o badge de fases */
+    .bg-purple {
+        background-color: #6f42c1 !important;
+    }
+    
+    /* Estilos para a aba de gestão de fases */
+    #phasesContainer .phase-card {
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    #phasesContainer .phase-card.current {
+        border-color: #007bff;
+        background-color: #f8f9ff;
+    }
+    
+    #phasesContainer .phase-card.completed {
+        border-color: #28a745;
+        background-color: #f8fff8;
+    }
+    
+    #phasesContainer .phase-card.pending {
+        border-color: #e9ecef;
+        background-color: #f8f9fa;
+    }
+    
+    .phase-number {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+    
+    .phase-number.current {
+        background-color: #007bff;
+        color: white;
+    }
+    
+    .phase-number.completed {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .phase-number.pending {
+        background-color: #6c757d;
+        color: white;
+    }
 </style>
 {% endblock %}
 
@@ -741,6 +796,17 @@
                     </button>
                 </li>
                 {% endif %}
+                {% if is_module_enabled('backlog.gestao_fases') %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="pills-phases-tab" data-bs-toggle="pill" data-bs-target="#pills-phases" type="button" role="tab" aria-controls="pills-phases" aria-selected="false">
+                        <div class="tab-content-wrapper">
+                            <i class="bi bi-layers-fill fs-5"></i>
+                            <span class="tab-label">Gestão de Fases</span>
+                            <span class="badge bg-purple ms-1" id="phases-badge" style="display: none;">1</span>
+                        </div>
+                    </button>
+                </li>
+                {% endif %}
             </ul>
 
             <!-- Tab content -->
@@ -1067,6 +1133,111 @@
                                                 A WBS incluirá todas as tarefas do quadro com:<br>
                                                 • ID da Tarefa • Descrição • Datas • Intervalos • Especialista • Marcos
                                             </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if is_module_enabled('backlog.gestao_fases') %}
+                <!-- Painel de Gestão de Fases -->
+                <div class="tab-pane fade" id="pills-phases" role="tabpanel" aria-labelledby="pills-phases-tab">
+                    <div class="row mb-4">
+                        <div class="col-12 d-flex gap-2 flex-wrap">
+                            <button class="btn pmo-action-btn" onclick="refreshPhaseInfo()">
+                                <i class="bi bi-arrow-clockwise"></i> Atualizar Informações
+                            </button>
+                            <button class="btn pmo-action-btn" onclick="advancePhase()">
+                                <i class="bi bi-arrow-right-circle"></i> Avançar Fase
+                            </button>
+                            <button class="btn pmo-action-btn" onclick="openPhaseHistoryModal()">
+                                <i class="bi bi-clock-history"></i> Histórico
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Configuração do Tipo de Projeto -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0 fw-bold">
+                                        <i class="bi bi-gear-fill me-2"></i>
+                                        Configuração do Projeto
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Tipo de Projeto:</label>
+                                        <div class="btn-group w-100" role="group">
+                                            <input type="radio" class="btn-check" name="projectType" id="projectTypeWaterfall" value="waterfall">
+                                            <label class="btn btn-outline-primary" for="projectTypeWaterfall">
+                                                <i class="bi bi-diagram-3"></i> Waterfall
+                                            </label>
+                                            <input type="radio" class="btn-check" name="projectType" id="projectTypeAgile" value="agile">
+                                            <label class="btn btn-outline-success" for="projectTypeAgile">
+                                                <i class="bi bi-arrow-repeat"></i> Ágil
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="d-grid">
+                                        <button class="btn btn-primary" onclick="saveProjectType()">
+                                            <i class="bi bi-check-lg"></i> Salvar Configuração
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0 fw-bold">
+                                        <i class="bi bi-info-circle-fill me-2"></i>
+                                        Status Atual
+                                    </h6>
+                                </div>
+                                <div class="card-body" id="statusContainer">
+                                    <div class="row">
+                                        <div class="col-sm-6">
+                                            <div class="text-sm text-muted">Fase Atual:</div>
+                                            <div class="h5 mb-2">
+                                                <span class="badge bg-secondary">Não configurado</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <div class="text-sm text-muted">Iniciado em:</div>
+                                            <div class="small text-muted">-</div>
+                                        </div>
+                                    </div>
+                                    <div class="progress mt-3" style="height: 20px;">
+                                        <div class="progress-bar" role="progressbar" style="width: 0%">
+                                            <span class="fw-bold">0%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fases do Projeto -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0 fw-bold">
+                                        <i class="bi bi-layers-fill me-2"></i>
+                                        Fases do Projeto
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="phasesContainer">
+                                        <div class="text-center text-muted py-4">
+                                            <i class="bi bi-layers fs-1"></i>
+                                            <h5 class="mt-3">Gestão de Fases</h5>
+                                            <p class="mb-3">Configure o tipo de projeto para visualizar as fases</p>
                                         </div>
                                     </div>
                                 </div>
@@ -1525,6 +1696,7 @@
 <script src="{{ url_for('static', filename='js/board.js') }}"></script>
 <script src="{{ url_for('static', filename='js/backlog_features.js') }}"></script>
 <script src="{{ url_for('static', filename='js/board_dnd.js') }}"></script>
+<script src="{{ url_for('static', filename='js/phase_management.js') }}"></script>
 
 <script>
     // Função para gerenciar visibilidade no módulo Sprints
@@ -2346,6 +2518,9 @@
 <!-- 🎨 Rich Text Editor Dependencies -->
 <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 <script src="{{ url_for('static', filename='js/rich_text_editor.js') }}"></script>
+
+<!-- 📋 Phase Management -->
+<script src="{{ url_for('static', filename='js/phase_management.js') }}"></script>
 
 <script>
     // 🚀 Inicialização do Rich Text Editor

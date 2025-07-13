@@ -4,6 +4,7 @@ from .. import db # Importa a instância do banco de dados
 from ..models import Backlog, Task, Column, Sprint, TaskStatus, ProjectMilestone, ProjectRisk, MilestoneStatus, MilestoneCriticality, RiskImpact, RiskProbability, RiskStatus, TaskSegment, Note, Tag # Importa os modelos
 from ..macro.services import MacroService # Importa o serviço Macro
 from ..utils.decorators import module_required, feature_required # Importa o decorador de proteção
+from ..utils.project_phase_service import ProjectPhaseService # Importa serviço de gestão de fases
 import pandas as pd
 from datetime import datetime, timedelta, date
 import pytz # <<< ADICIONADO
@@ -286,19 +287,19 @@ def board_by_project(project_id):
         
         # Serializa os dados do projeto para evitar problemas de JSON
         project_data = {
-            'id': str(project_details.get('Numero', project_id)),
-            'name': project_details.get('Projeto', 'Projeto Desconhecido'),
-            'squad': project_details.get('Squad', ''),
-            'status': project_details.get('Status', ''),
-            'specialist': project_details.get('Especialista', ''),
-            'hours': project_details.get('Horas', 0),
-            'worked_hours': project_details.get('HorasTrabalhadas', 0),
-            'completion': project_details.get('Conclusao', 0),
-            'account_manager': project_details.get('Account Manager', ''),
-            'start_date': project_details.get('DataInicio').isoformat() if project_details.get('DataInicio') and not pd.isna(project_details.get('DataInicio')) else None,
-            'due_date': project_details.get('VencimentoEm').isoformat() if project_details.get('VencimentoEm') and not pd.isna(project_details.get('VencimentoEm')) else None,
-            'billing': project_details.get('Faturamento', ''),
-            'remaining_hours': project_details.get('HorasRestantes', 0)
+            'id': str(project_details.get('numero', project_id)),
+            'name': project_details.get('projeto', 'Projeto Desconhecido'),
+            'squad': project_details.get('squad', ''),
+            'status': project_details.get('status', ''),
+            'specialist': project_details.get('especialista', ''),
+            'hours': project_details.get('horas', 0),
+            'worked_hours': project_details.get('horastrabalhadas', 0),
+            'completion': project_details.get('conclusao', 0),
+            'account_manager': project_details.get('account_manager', ''),
+            'start_date': project_details.get('datainicio').isoformat() if project_details.get('datainicio') and not pd.isna(project_details.get('datainicio')) else None,
+            'due_date': project_details.get('vencimentoem').isoformat() if project_details.get('vencimentoem') and not pd.isna(project_details.get('vencimentoem')) else None,
+            'billing': project_details.get('faturamento', ''),
+            'remaining_hours': project_details.get('horasrestantes', 0)
         }
         
         # Serializa o backlog
@@ -306,11 +307,16 @@ def board_by_project(project_id):
             'id': current_backlog.id,
             'name': current_backlog.name,
             'project_id': current_backlog.project_id
-        }
+        } if current_backlog else None
         
         # 5. Renderiza o template do quadro passando os dados específicos
         current_app.logger.info(f"[DEBUG] Renderizando template board.html")
-        return render_template(
+        current_app.logger.info(f"[DEBUG] Dados do projeto: {project_data}")
+        current_app.logger.info(f"[DEBUG] Backlog ID: {backlog_id}")
+        current_app.logger.info(f"[DEBUG] Número de tarefas: {len(tasks_list)}")
+        current_app.logger.info(f"[DEBUG] Número de colunas: {len(columns_list)}")
+        
+        template_result = render_template(
             'backlog/board.html', 
             columns=columns_list,  # Passa lista serializada ao invés de objetos
             tasks_json=jsonify(tasks_list).get_data(as_text=True), 
@@ -319,6 +325,9 @@ def board_by_project(project_id):
             current_backlog_name=backlog_name,
             backlog=backlog_data  # Passa dados serializados
         )
+        
+        current_app.logger.info(f"[DEBUG] Template renderizado com sucesso")
+        return template_result
 
     except Exception as e:
         current_app.logger.error(f"[DEBUG] Erro ao carregar quadro para projeto {project_id}: {str(e)}", exc_info=True)
@@ -1427,9 +1436,29 @@ def update_milestone(milestone_id):
         milestone.updated_at = datetime.now(br_timezone)
         
         db.session.commit()
+
+        # ✅ GATILHO DE FASE MELHORADO:
+        # Sempre recalcula a fase do projeto após qualquer atualização em um marco.
+        # Isso garante que a fase seja detectada corretamente (ex: "Em andamento")
+        # e não apenas quando um marco é concluído.
+        phase_recalculated = False
+        recalculation_message = ''
+        try:
+            from ..utils.project_phase_service import ProjectPhaseService
+            phase_service = ProjectPhaseService()
+            phase_recalculated, recalculation_message = phase_service.recalculate_project_phase(milestone.backlog.project_id)
+            if phase_recalculated:
+                current_app.logger.info(f"Marco '{milestone.name}' atualizado, fase do projeto recalculada: {recalculation_message}")
+        except Exception as e:
+            current_app.logger.warning(f"Erro ao recalcular fase após atualização do marco {milestone_id}: {e}")
+        
+        # Inclui informação sobre transição de fase na resposta
+        response_data = milestone.to_dict()
+        if phase_recalculated:
+            response_data['phase_recalculation_status'] = recalculation_message
         
         # Retorna o marco atualizado usando to_dict
-        return jsonify(milestone.to_dict())
+        return jsonify(response_data)
         
     except ValueError as ve:
         db.session.rollback()
@@ -4330,3 +4359,198 @@ def check_backlog_updates():
         }), 500
 
 # --- FIM: API PARA SINCRONIZAÇÃO EM TEMPO REAL ---
+
+# --- INÍCIO: API PARA GESTÃO DE FASES DE PROJETOS ---
+
+@backlog_bp.route('/api/projects/<string:project_id>/project-type', methods=['GET'])
+@feature_required('backlog.gestao_fases')
+def get_project_type(project_id):
+    """Retorna o tipo do projeto (Waterfall/Ágil)"""
+    try:
+        phase_service = ProjectPhaseService()
+        project_type = phase_service.get_project_type(project_id)
+        
+        if project_type:
+            return jsonify({
+                'project_id': project_id,
+                'project_type': project_type.value,
+                'configured': True
+            })
+        else:
+            return jsonify({
+                'project_id': project_id,
+                'project_type': None,
+                'configured': False,
+                'message': 'Tipo de projeto não definido'
+            })
+    
+    except Exception as e:
+        current_app.logger.error(f"Erro ao obter tipo do projeto {project_id}: {e}")
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+@backlog_bp.route('/api/projects/<string:project_id>/project-type', methods=['POST'])
+@feature_required('backlog.gestao_fases')
+def set_project_type(project_id):
+    """Define o tipo do projeto e inicializa as fases"""
+    try:
+        data = request.get_json()
+        if not data or 'project_type' not in data:
+            return jsonify({'error': 'Campo project_type é obrigatório'}), 400
+        
+        project_type_str = data['project_type'].lower()
+        if project_type_str not in ['waterfall', 'agile']:
+            return jsonify({'error': 'project_type deve ser "waterfall" ou "agile"'}), 400
+        
+        # Converte para enum
+        from ..models import ProjectType
+        project_type = ProjectType.WATERFALL if project_type_str == 'waterfall' else ProjectType.AGILE
+        
+        phase_service = ProjectPhaseService()
+        success = phase_service.set_project_type(project_id, project_type)
+        
+        if success:
+            # Retorna informações da fase inicial
+            phase_info = phase_service.get_current_phase_info(project_id)
+            return jsonify({
+                'success': True,
+                'message': f'Projeto configurado como {project_type.value}',
+                'project_id': project_id,
+                'project_type': project_type.value,
+                'phase_info': phase_info
+            })
+        else:
+            return jsonify({'error': 'Falha ao configurar tipo do projeto'}), 500
+    
+    except Exception as e:
+        current_app.logger.error(f"Erro ao definir tipo do projeto {project_id}: {e}")
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+@backlog_bp.route('/api/projects/<string:project_id>/current-phase', methods=['GET'])
+@feature_required('backlog.gestao_fases')
+def get_current_phase(project_id):
+    """Retorna informações da fase atual do projeto"""
+    try:
+        phase_service = ProjectPhaseService()
+        phase_info = phase_service.get_current_phase_info(project_id)
+        
+        if 'error' in phase_info:
+            return jsonify(phase_info), 404
+        
+        return jsonify(phase_info)
+    
+    except Exception as e:
+        current_app.logger.error(f"Erro ao obter fase atual do projeto {project_id}: {e}")
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+@backlog_bp.route('/api/projects/<string:project_id>/advance-phase', methods=['POST'])
+@feature_required('backlog.gestao_fases')
+def advance_project_phase(project_id):
+    """Avança o projeto para a próxima fase"""
+    try:
+        phase_service = ProjectPhaseService()
+        success, message = phase_service.advance_to_next_phase(project_id)
+        
+        if success:
+            # Retorna informações da nova fase
+            phase_info = phase_service.get_current_phase_info(project_id)
+            return jsonify({
+                'success': True,
+                'message': message,
+                'phase_info': phase_info
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': message
+            }), 400
+    
+    except Exception as e:
+        current_app.logger.error(f"Erro ao avançar fase do projeto {project_id}: {e}")
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+@backlog_bp.route('/api/projects/<string:project_id>/phases-overview', methods=['GET'])
+@feature_required('backlog.gestao_fases')
+def get_project_phases_overview(project_id):
+    """Retorna visão geral de todas as fases do projeto"""
+    try:
+        phase_service = ProjectPhaseService()
+        overview = phase_service.get_project_phases_overview(project_id)
+        
+        if 'error' in overview:
+            return jsonify(overview), 404
+        
+        return jsonify(overview)
+    
+    except Exception as e:
+        current_app.logger.error(f"Erro ao obter visão geral das fases do projeto {project_id}: {e}")
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+@backlog_bp.route('/api/projects/<string:project_id>/check-phase-advance', methods=['GET'])
+@feature_required('backlog.gestao_fases')
+def check_phase_advance(project_id):
+    """Verifica se o projeto pode avançar para a próxima fase"""
+    try:
+        phase_service = ProjectPhaseService()
+        can_advance, message = phase_service.can_advance_to_next_phase(project_id)
+        
+        return jsonify({
+            'project_id': project_id,
+            'can_advance': can_advance,
+            'message': message
+        })
+    
+    except Exception as e:
+        current_app.logger.error(f"Erro ao verificar avanço de fase do projeto {project_id}: {e}")
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+@backlog_bp.route('/api/milestones/<int:milestone_id>/trigger-phase', methods=['POST'])
+@feature_required('backlog.gestao_fases')
+def trigger_phase_from_milestone(milestone_id):
+    """Dispara verificação de transição de fase a partir de um marco"""
+    try:
+        phase_service = ProjectPhaseService()
+        triggered = phase_service.check_milestone_triggers(milestone_id)
+        
+        if triggered:
+            return jsonify({
+                'success': True,
+                'message': 'Transição de fase disparada automaticamente',
+                'milestone_id': milestone_id
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Marco não disparou transição de fase',
+                'milestone_id': milestone_id
+            })
+    
+    except Exception as e:
+        current_app.logger.error(f"Erro ao verificar gatilho do marco {milestone_id}: {e}")
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+@backlog_bp.route('/api/projects/<string:project_id>/recalculate-phase', methods=['POST'])
+@feature_required('backlog.gestao_fases')
+def recalculate_project_phase_api(project_id):
+    """Recalcula a fase do projeto baseada no status dos marcos"""
+    try:
+        phase_service = ProjectPhaseService()
+        success, message = phase_service.recalculate_project_phase(project_id)
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': message,
+                'project_id': project_id
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': message,
+                'project_id': project_id
+            }), 400
+    
+    except Exception as e:
+        current_app.logger.error(f"Erro ao recalcular fase do projeto {project_id}: {e}")
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
+# --- FIM: API PARA GESTÃO DE FASES DE PROJETOS ---

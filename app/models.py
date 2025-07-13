@@ -33,6 +33,18 @@ class MilestoneCriticality(enum.Enum):
     CRITICAL = 'Crítica'
 # --- FIM NOVOS ENUMS ---
 
+# --- NOVOS ENUMS PARA FASES DE PROJETOS ---
+class ProjectType(enum.Enum):
+    WATERFALL = 'waterfall'
+    AGILE = 'agile'
+
+class PhaseStatus(enum.Enum):
+    NOT_STARTED = 'Não Iniciada'
+    IN_PROGRESS = 'Em Andamento'
+    COMPLETED = 'Concluída'
+    SKIPPED = 'Pulada'
+# --- FIM NOVOS ENUMS FASES ---
+
 # Tabela de Associação para Many-to-Many entre Tarefas e Sprints (se necessário)
 # Se uma tarefa puder pertencer a múltiplas sprints (menos comum), usaríamos isso.
 # Por simplicidade inicial, vamos assumir que uma tarefa pertence a uma sprint (ForeignKey em Task)
@@ -106,6 +118,13 @@ class Backlog(db.Model):
     created_at = db.Column(db.DateTime, default=get_brasilia_now)
     available_for_sprint = db.Column(db.Boolean, nullable=False, server_default='1') # Adicionado
     tasks = db.relationship('Task', backref='backlog', lazy=True, order_by='Task.position') # Tarefas neste backlog
+
+    # --- NOVOS CAMPOS PARA GESTÃO DE FASES ---
+    project_type = db.Column(db.Enum(ProjectType), nullable=True, default=None) # waterfall ou agile
+    current_phase = db.Column(db.Integer, nullable=False, default=1, server_default='1') # Fase atual (1-N)
+    phases_config = db.Column(db.Text, nullable=True) # JSON com configuração das fases
+    phase_started_at = db.Column(db.DateTime, nullable=True) # Quando a fase atual começou
+    # --- FIM NOVOS CAMPOS FASES ---
 
     # --- NOVO RELACIONAMENTO PARA MARCOS E RISCOS ---
     milestones = db.relationship('ProjectMilestone', backref='backlog', lazy=True, cascade="all, delete-orphan")
@@ -187,6 +206,12 @@ class ProjectMilestone(db.Model):
     created_at = db.Column(db.DateTime, default=get_brasilia_now)
     updated_at = db.Column(db.DateTime, default=get_brasilia_now, onupdate=get_brasilia_now)
 
+    # --- NOVOS CAMPOS PARA GATILHOS DE FASE ---
+    triggers_next_phase = db.Column(db.Boolean, default=False, nullable=False, server_default='0') # Se marco dispara próxima fase
+    phase_order = db.Column(db.Integer, nullable=True) # Ordem do marco na sequência de fases
+    auto_created = db.Column(db.Boolean, default=False, nullable=False, server_default='0') # Se foi criado automaticamente
+    # --- FIM NOVOS CAMPOS GATILHOS ---
+
     # Chave Estrangeira para Backlog
     backlog_id = db.Column(db.Integer, db.ForeignKey('backlog.id'), nullable=False)
 
@@ -216,6 +241,128 @@ class ProjectMilestone(db.Model):
     def __repr__(self):
         return f'<ProjectMilestone {self.id}: {self.name}>'
 # --- FIM NOVO MODELO MARCOS ---
+
+# --- NOVO MODELO PARA CONFIGURAÇÃO DE FASES ---
+class ProjectPhaseConfiguration(db.Model):
+    """Modelo para configurar fases de projetos (Waterfall/Ágil)"""
+    __tablename__ = 'project_phase_configuration'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    project_type = db.Column(db.Enum(ProjectType), nullable=False) # waterfall ou agile
+    phase_number = db.Column(db.Integer, nullable=False) # Número da fase (1, 2, 3, ...)
+    phase_name = db.Column(db.String(100), nullable=False) # Nome da fase (ex: "Planejamento")
+    phase_description = db.Column(db.Text, nullable=True) # Descrição da fase
+    phase_color = db.Column(db.String(20), nullable=True, default='#E8F5E8') # Cor para exibição
+    milestone_names = db.Column(db.Text, nullable=True) # JSON com nomes dos marcos desta fase
+    is_active = db.Column(db.Boolean, nullable=False, default=True, server_default='1')
+    created_at = db.Column(db.DateTime, default=get_brasilia_now)
+    updated_at = db.Column(db.DateTime, default=get_brasilia_now, onupdate=get_brasilia_now)
+    
+    # Índice único para evitar fases duplicadas
+    __table_args__ = (
+        db.UniqueConstraint('project_type', 'phase_number', name='uq_project_type_phase'),
+    )
+
+    def get_milestone_names(self):
+        """Retorna lista de nomes dos marcos desta fase"""
+        if not self.milestone_names:
+            return []
+        try:
+            import json
+            return json.loads(self.milestone_names)
+        except:
+            return []
+
+    def set_milestone_names(self, names_list):
+        """Define lista de nomes dos marcos desta fase"""
+        import json
+        self.milestone_names = json.dumps(names_list) if names_list else None
+
+    def to_dict(self):
+        """Serializa configuração de fase para dicionário"""
+        return {
+            'id': self.id,
+            'project_type': self.project_type.value if self.project_type else None,
+            'phase_number': self.phase_number,
+            'phase_name': self.phase_name,
+            'phase_description': self.phase_description,
+            'phase_color': self.phase_color,
+            'milestone_names': self.get_milestone_names(),
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+    def __repr__(self):
+        return f'<ProjectPhaseConfiguration {self.project_type.value if self.project_type else "None"} - Fase {self.phase_number}: {self.phase_name}>'
+
+    @staticmethod
+    def get_phases_for_type(project_type):
+        """Retorna todas as fases configuradas para um tipo de projeto"""
+        return ProjectPhaseConfiguration.query.filter_by(
+            project_type=project_type, 
+            is_active=True
+        ).order_by(ProjectPhaseConfiguration.phase_number).all()
+
+    @staticmethod
+    def initialize_default_phases():
+        """Inicializa configurações padrão de fases se não existirem"""
+        from flask import current_app
+        from .. import db
+        
+        # Configurações padrão Waterfall
+        waterfall_phases = [
+            {'phase_number': 1, 'phase_name': 'Planejamento', 'phase_color': '#E8F5E8', 'milestone_names': ['Milestone Start']},
+            {'phase_number': 2, 'phase_name': 'Execução', 'phase_color': '#E8F0FF', 'milestone_names': ['Milestone Setup']},
+            {'phase_number': 3, 'phase_name': 'CutOver', 'phase_color': '#FFF8E1', 'milestone_names': ['Milestone CutOver']},
+            {'phase_number': 4, 'phase_name': 'GoLive', 'phase_color': '#E8FFE8', 'milestone_names': ['Milestone Finish Project']}
+        ]
+        
+        # Configurações padrão Ágil
+        agile_phases = [
+            {'phase_number': 1, 'phase_name': 'Planejamento', 'phase_color': '#E8F5E8', 'milestone_names': ['Milestone Start']},
+            {'phase_number': 2, 'phase_name': 'Sprint Planning', 'phase_color': '#F0F8FF', 'milestone_names': ['Milestone Setup']},
+            {'phase_number': 3, 'phase_name': 'Desenvolvimento', 'phase_color': '#E8F0FF', 'milestone_names': ['Milestone Developer']},
+            {'phase_number': 4, 'phase_name': 'CutOver', 'phase_color': '#FFF8E1', 'milestone_names': ['Milestone CutOver']},
+            {'phase_number': 5, 'phase_name': 'GoLive', 'phase_color': '#E8FFE8', 'milestone_names': ['Milestone Finish Project']}
+        ]
+        
+        try:
+            # Verifica se já existem configurações
+            if ProjectPhaseConfiguration.query.count() == 0:
+                import json
+                
+                # Criar fases Waterfall
+                for phase_config in waterfall_phases:
+                    phase = ProjectPhaseConfiguration(
+                        project_type=ProjectType.WATERFALL,
+                        phase_number=phase_config['phase_number'],
+                        phase_name=phase_config['phase_name'],
+                        phase_color=phase_config['phase_color'],
+                        milestone_names=json.dumps(phase_config['milestone_names'])
+                    )
+                    db.session.add(phase)
+                
+                # Criar fases Ágil
+                for phase_config in agile_phases:
+                    phase = ProjectPhaseConfiguration(
+                        project_type=ProjectType.AGILE,
+                        phase_number=phase_config['phase_number'],
+                        phase_name=phase_config['phase_name'],
+                        phase_color=phase_config['phase_color'],
+                        milestone_names=json.dumps(phase_config['milestone_names'])
+                    )
+                    db.session.add(phase)
+                
+                db.session.commit()
+                if current_app:
+                    current_app.logger.info("Configurações padrão de fases de projeto inicializadas com sucesso")
+                    
+        except Exception as e:
+            db.session.rollback()
+            if current_app:
+                current_app.logger.error(f"Erro ao inicializar configurações padrão de fases: {e}")
+# --- FIM NOVO MODELO CONFIGURAÇÃO FASES ---
 
 # --- NOVO MODELO PARA RISCOS DO PROJETO (Estrutura básica) ---
 # Enums para Riscos (se ainda não existirem)
