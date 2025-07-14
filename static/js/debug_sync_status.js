@@ -60,8 +60,8 @@ function testSyncStatusUpdate() {
     
     // Simula uma atualização de status
     const mockTaskData = {
-        id: 543,
-        name: 'Levantamento de requisitos',
+        id: 999,
+        name: 'Tarefa de teste',
         status: 15, // ID da coluna "Concluído"
         column_identifier: 'concluido'
     };
@@ -77,7 +77,7 @@ function testSyncStatusUpdate() {
     }, 'debug_test');
     
     // Emite evento de teste
-    window.SyncManager.emitTaskUpdated(543, mockTaskData, 'debug_test');
+    window.SyncManager.emitTaskUpdated(999, mockTaskData, 'debug_test');
     
     // Remove listener após teste
     setTimeout(() => {

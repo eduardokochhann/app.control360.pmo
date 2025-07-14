@@ -11,8 +11,18 @@
 
     <!-- Cabeçalho -->
     <div class="module-config-header text-center">
-        <h1 class="h2">Configuração de Módulos</h1>
-        <p class="lead">Gerencie quais módulos e funcionalidades estão disponíveis no sistema.</p>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div></div>
+            <div>
+                <h1 class="h2 mb-0">Configuração de Módulos</h1>
+                <p class="lead mb-0">Gerencie quais módulos e funcionalidades estão disponíveis no sistema.</p>
+            </div>
+            <div>
+                <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-arrow-left me-1"></i>Voltar ao Dashboard
+                </a>
+            </div>
+        </div>
     </div>
 
     <!-- Alerta de Sucesso -->

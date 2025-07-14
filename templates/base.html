@@ -106,16 +106,15 @@
     <!-- Script de Atualização Visual Forçada -->
     <script src="{{ url_for('static', filename='js/force_visual_update.js') }}"></script>
     
-    <!-- Sistema de Tempo Real Inteligente -->
-    <script src="{{ url_for('static', filename='js/smart_realtime.js') }}"></script>
+    <!-- Sistema de Tempo Real Inteligente (Desabilitado temporariamente para reduzir erros) -->
+    <!-- <script src="{{ url_for('static', filename='js/smart_realtime.js') }}"></script> -->
     
     <!-- Sistema de Atualização em Tempo Real para Sprints -->
     <script src="{{ url_for('static', filename='js/sprint_realtime_update.js') }}"></script>
     
-    <!-- Script de Teste de Status do Modal (apenas em desenvolvimento) -->
-    {% if config.DEBUG %}
+    <!-- Scripts de Debug (carregados apenas quando necessário) -->
+    {% if config.DEBUG and request.args.get('debug') == 'true' %}
     <script src="{{ url_for('static', filename='js/test_status_modal.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/test_task_543.js') }}"></script>
     <script src="{{ url_for('static', filename='js/test_sprint_realtime.js') }}"></script>
     <script src="{{ url_for('static', filename='js/test_inicio_real.js') }}"></script>
     <script src="{{ url_for('static', filename='js/test_notas_ordenacao.js') }}"></script>

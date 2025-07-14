@@ -209,4 +209,4 @@ document.addEventListener('DOMContentLoaded', function() {
 
 console.log('🔧 Script de atualização visual carregado');
 console.log('📝 Use forceVisualUpdate() para atualizar todos os cards');
-console.log('📝 Use forceUpdateTask(543) para atualizar tarefa específica'); 
+console.log('📝 Use forceUpdateTask(ID) para atualizar tarefa específica'); 

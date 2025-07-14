@@ -1190,6 +1190,30 @@ def update_backlog_sprint_availability(backlog_id):
         current_app.logger.error(f"Erro ao atualizar disponibilidade do backlog {backlog_id}: {e}", exc_info=True)
         return jsonify({'error': f'Erro interno: {str(e)}'}), 500 
 
+# API para obter informações do backlog
+@backlog_bp.route('/api/backlogs/<int:backlog_id>/details', methods=['GET'])
+def get_backlog_details(backlog_id):
+    """
+    Obtém informações detalhadas do backlog incluindo available_for_sprint
+    """
+    try:
+        backlog = Backlog.query.get_or_404(backlog_id)
+        
+        return jsonify({
+            'id': backlog.id,
+            'project_id': backlog.project_id,
+            'name': backlog.name,
+            'description': backlog.description,
+            'available_for_sprint': backlog.available_for_sprint,
+            'created_at': backlog.created_at.isoformat() if backlog.created_at else None,
+            'project_type': backlog.project_type.value if backlog.project_type else None,
+            'current_phase': backlog.current_phase
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Erro ao obter detalhes do backlog {backlog_id}: {e}", exc_info=True)
+        return jsonify({'error': f'Erro interno: {str(e)}'}), 500
+
 # API para associar/desassociar uma tarefa a uma Sprint
 @backlog_bp.route('/api/tasks/<int:task_id>/assign', methods=['PUT'])
 def assign_task_to_sprint(task_id):

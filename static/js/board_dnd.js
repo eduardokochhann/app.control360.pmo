@@ -28,6 +28,7 @@ function initializeSortable() {
         initializeSortableJS();
         loadSpecialists();
         loadProjectHeader();
+        loadSprintVisibility();
     }
 
     function setupEventListeners() {
@@ -80,41 +81,72 @@ function initializeSortable() {
         }
 
         try {
-            const response = await fetch(`/backlog/api/projects/${projectId}/header-details`);
-            if (!response.ok) throw new Error('Falha ao buscar dados do cabeçalho.');
+            const [detailsRes, phaseRes, projectTypeRes] = await Promise.all([
+                fetch(`/backlog/api/projects/${projectId}/details`),
+                fetch(`/backlog/api/projects/${projectId}/current-phase`),
+                fetch(`/backlog/api/projects/${projectId}/project-type`)
+            ]);
             
-            const data = await response.json();
+            const data = detailsRes.ok ? await detailsRes.json() : {};
+            const phase = phaseRes.ok ? await phaseRes.json() : {};
+            const projectType = projectTypeRes.ok ? await projectTypeRes.json() : {};
             
-            // Preenche os dados no HTML
-            document.getElementById('headerProjectName').textContent = data.project_name || 'Nome não encontrado';
-            document.getElementById('headerSpecialist').textContent = `Especialista: ${data.specialist || 'N/A'}`;
-            document.getElementById('headerProjectStatus').textContent = data.status || '-';
-            document.getElementById('headerTotalHours').textContent = data.estimated_hours || '-';
-            document.getElementById('headerRemainingHours').textContent = data.remaining_hours || '-';
-            document.getElementById('headerAccountManager').textContent = data.account_manager || 'N/A';
-
-            // Atualiza informação de complexidade
-            const complexityElement = document.getElementById('headerComplexity');
-            if (data.complexity) {
-                const categoryColors = {
-                    'BAIXA': 'text-success',
-                    'MÉDIA': 'text-warning', 
-                    'ALTA': 'text-danger',
-                    // Compatibilidade com valores antigos
-                    'LOW': 'text-success',
-                    'MEDIUM': 'text-warning', 
-                    'HIGH': 'text-danger'
-                };
-                const colorClass = categoryColors[data.complexity.category] || 'text-secondary';
-                complexityElement.innerHTML = `<span class="${colorClass}">${data.complexity.category_label}</span><br><small class="text-muted">${data.complexity.score}pts</small>`;
-            } else {
-                complexityElement.textContent = '-';
+            // Preenche os dados básicos do projeto
+            document.getElementById('headerProjectName').textContent = data.projeto || 'Projeto não encontrado';
+            document.getElementById('headerSpecialist').textContent = `Especialista: ${data.especialista || 'N/A'}`;
+            
+            // Verifica se existe campo AM nos dados e cria se necessário
+            let amElement = document.getElementById('headerAM');
+            if (!amElement) {
+                const specialistElement = document.getElementById('headerSpecialist');
+                amElement = document.createElement('p');
+                amElement.className = 'small text-muted mb-1';
+                amElement.id = 'headerAM';
+                specialistElement.parentNode.insertBefore(amElement, specialistElement.nextSibling);
             }
+            amElement.textContent = `AM: ${data.account_manager || '-'}`;
+            
+            // Atualiza informações da fase com tipo do projeto
+            const phaseContainer = document.getElementById('headerPhase');
+            if (phaseContainer) {
+                if (phase && phase.current_phase) {
+                    const currentPhase = phase.current_phase;
+                    const typeLabel = getProjectTypeLabel(projectType);
+                    phaseContainer.textContent = `${currentPhase.number}. ${currentPhase.name} (${typeLabel})`;
+                    phaseContainer.style.backgroundColor = currentPhase.color || '#6c757d';
+                    phaseContainer.className = 'badge';
+                } else {
+                    const typeLabel = getProjectTypeLabel(projectType);
+                    phaseContainer.textContent = `Fase não configurada (${typeLabel})`;
+                    phaseContainer.className = 'badge bg-secondary';
+                }
+            }
+            
+            // Preenche métricas básicas
+            const metrics = {
+                'STATUS': data.status || 'N/A',
+                'HORAS REST.': `${Math.round(data.horasrestantes || 0)}h`,
+                'HORAS PREV.': `${Math.round(data.horas || 0)}h`,
+                'CONCLUSÃO': `${Math.round(data.conclusao || 0)}%`,
+                'TÉRMINO PREVISTO': data.vencimentoem ? new Date(data.vencimentoem).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'
+            };
 
-            // Mostra o cabeçalho e as métricas
+            let metricsHtml = '';
+            for (const [label, value] of Object.entries(metrics)) {
+                metricsHtml += `
+                    <div class="col-auto">
+                        <div class="metric-item">
+                            <div class="metric-label">${label}</div>
+                            <div class="metric-value">${value}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('headerMetrics').innerHTML = metricsHtml;
+
+            // Mostra o cabeçalho
             headerDiv.style.display = 'block';
-            document.getElementById('headerMetrics').style.display = 'flex';
-            document.getElementById('headerMetricsSeparator').style.display = 'block';
 
         } catch (error) {
             console.error("Erro ao carregar cabeçalho do projeto:", error);
@@ -503,6 +535,22 @@ function initializeSortable() {
     }
     
     // --- Utilitários ---
+    function getProjectTypeLabel(projectType) {
+        if (!projectType || !projectType.project_type) {
+            return 'Tipo não definido';
+        }
+        
+        const type = projectType.project_type.toLowerCase();
+        switch (type) {
+            case 'waterfall':
+                return 'Waterfall';
+            case 'agile':
+                return 'Ágil';
+            default:
+                return 'Tipo não definido';
+        }
+    }
+
     function showToast(message, type = 'info') {
         // Evita recursão infinita - usa função global diferente se disponível
         if (typeof window.globalShowToast === 'function') {
@@ -515,12 +563,89 @@ function initializeSortable() {
         }
     }
     
+    // --- Funções de Sprint Visibility ---
+    async function loadSprintVisibility() {
+        const backlogId = window.boardData.backlogId;
+        if (!backlogId) {
+            console.log('⚠️ BacklogId não encontrado, não é possível carregar visibilidade do sprint');
+            return;
+        }
+        
+        console.log(`🔄 Carregando visibilidade do sprint para backlog ${backlogId}`);
+        
+        try {
+            const response = await fetch(`/backlog/api/backlogs/${backlogId}/details`);
+            if (response.ok) {
+                const data = await response.json();
+                const sprintSwitch = document.getElementById('sprintVisibilitySwitch');
+                
+                console.log('📡 Dados do backlog recebidos:', data);
+                console.log(`🎯 available_for_sprint: ${data.available_for_sprint}`);
+                
+                if (sprintSwitch) {
+                    sprintSwitch.checked = data.available_for_sprint === true;
+                    console.log(`✅ Switch definido para: ${sprintSwitch.checked}`);
+                } else {
+                    console.warn('⚠️ Switch sprintVisibilitySwitch não encontrado no DOM');
+                }
+            } else {
+                console.error(`❌ Erro na resposta da API: ${response.status} ${response.statusText}`);
+            }
+        } catch (error) {
+            console.error('❌ Erro ao carregar visibilidade do sprint:', error);
+        }
+    }
+    
+    async function toggleSprintVisibility() {
+        const backlogId = window.boardData.backlogId;
+        const sprintSwitch = document.getElementById('sprintVisibilitySwitch');
+        
+        if (!backlogId || !sprintSwitch) {
+            console.warn('⚠️ BacklogId ou switch não encontrado');
+            return;
+        }
+        
+        const isEnabled = sprintSwitch.checked;
+        console.log(`🔄 Alterando visibilidade do sprint para: ${isEnabled}`);
+        
+        try {
+            const response = await fetch(`/backlog/api/backlogs/${backlogId}/sprint-availability`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    available_for_sprint: isEnabled
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                const action = isEnabled ? 'habilitado' : 'desabilitado';
+                showToast(`Projeto ${action} para exibição no Sprint`, 'success');
+                console.log(`✅ Sprint visibility ${action}:`, data);
+            } else {
+                const errorData = await response.json();
+                console.error(`❌ Erro na API: ${response.status}`, errorData);
+                throw new Error(errorData.error || 'Erro ao atualizar visibilidade');
+            }
+        } catch (error) {
+            console.error('❌ Erro ao atualizar visibilidade do sprint:', error);
+            showToast('Erro ao atualizar configuração do Sprint', 'error');
+            // Reverte o switch em caso de erro
+            sprintSwitch.checked = !isEnabled;
+            console.log(`🔄 Switch revertido para: ${sprintSwitch.checked}`);
+        }
+    }
+    
     // --- Exposição de Funções e Inicialização ---
     window.openTaskModal = openTaskModal;
     window.saveTask = saveTask;
     window.deleteTask = deleteTask;
     window.importTasks = () => importFileInput.click();
     window.exportTasks = exportTasks;
+    window.toggleSprintVisibility = toggleSprintVisibility;
+    window.loadSprintVisibility = loadSprintVisibility;
 
     // 🔄 SINCRONIZAÇÃO: Registra listeners para eventos de outros módulos
     function registerSyncListeners() {

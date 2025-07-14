@@ -115,8 +115,12 @@
 {% block content %}
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="mb-0">Selecione um Projeto</h4>
-        {# Você pode adicionar um botão aqui se necessário #}
+        <div class="d-flex align-items-center gap-3">
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Voltar
+            </a>
+            <h4 class="mb-0">Selecione um Projeto</h4>
+        </div>
         {# --- Controles de Agrupamento --- #}
         <div class="btn-group btn-group-sm" role="group" aria-label="Agrupar por">
             <input type="radio" class="btn-check" name="groupingOptions" id="groupSquad" autocomplete="off" {% if current_grouping == 'squad' %}checked{% endif %} onchange="window.location.href='{{ url_for('.project_selection', group_by='squad') }}'">

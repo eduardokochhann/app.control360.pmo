@@ -26,7 +26,8 @@ function initializeProjectTools() {
         risks: document.querySelector('#pills-risks-tab'),
         milestones: document.querySelector('#pills-milestones-tab'),
         timeline: document.querySelector('#pills-timeline-tab'),
-        notes: document.querySelector('#pills-notes-tab')
+        notes: document.querySelector('#pills-notes-tab'),
+        complexity: document.querySelector('#pills-complexity-tab')
     };
 
     // --- Funções de Inicialização ---
@@ -48,6 +49,17 @@ function initializeProjectTools() {
             console.log(`Backlog ID definido: ${currentBacklogId}. Carregando todos os dados.`);
             loadAllData();
         }
+    }
+
+    // ✅ NOVA FUNÇÃO: Inicialização apenas do cabeçalho (independente das ferramentas)
+    function initProjectHeader() {
+        if (!projectId) {
+            console.error("ID do Projeto não encontrado para carregar cabeçalho.");
+            return;
+        }
+        
+        console.log("Carregando cabeçalho do projeto independentemente das ferramentas...");
+        loadProjectHeader();
     }
 
     // Busca detalhes do projeto para obter o backlog_id
@@ -90,6 +102,7 @@ function initializeProjectTools() {
                     case 'pills-milestones': loadMilestones(); break;
                     case 'pills-timeline': loadTimeline(); break;
                     case 'pills-notes': loadNotes(); break;
+                    case 'pills-complexity': loadComplexityInfo(); break;
                 }
             });
         });
@@ -103,133 +116,144 @@ function initializeProjectTools() {
             return;
         }
         console.log("Carregando todos os dados para o backlog:", currentBacklogId);
+        loadProjectHeader(); // Carrega o novo cabeçalho unificado
         loadRisks();
         loadMilestones();
         loadTimeline();
         loadNotes();
-        loadComplexityInfo();
-        loadHeaderPhaseInfo(); // Carrega informações da fase para o cabeçalho
+        // A complexidade agora é carregada dentro do loadProjectHeader
     }
 
-    // --- Funções de Informações da Fase no Cabeçalho ---
-    
-    async function loadHeaderPhaseInfo() {
-        if (!projectId) {
-            console.warn("Project ID não disponível para carregar informações da fase");
-            return;
-        }
+    // --- Funções do Cabeçalho Unificado ---
+
+    async function loadProjectHeader() {
+        if (!projectId) return;
 
         try {
-            // Carrega informações da fase atual
-            const currentPhaseResponse = await fetch(`/backlog/api/projects/${projectId}/current-phase`);
-            const phasesOverviewResponse = await fetch(`/backlog/api/projects/${projectId}/phases-overview`);
+            console.log(`[DEBUG] Carregando cabeçalho do projeto: ${projectId}`);
             
-            let currentPhaseData = null;
-            let phasesOverviewData = null;
-            
-            if (currentPhaseResponse.ok) {
-                currentPhaseData = await currentPhaseResponse.json();
-            }
-            
-            if (phasesOverviewResponse.ok) {
-                phasesOverviewData = await phasesOverviewResponse.json();
-            }
-            
-            updateHeaderPhaseInfo(currentPhaseData, phasesOverviewData);
-            
+            const [detailsRes, complexityRes, phaseRes, projectTypeRes] = await Promise.all([
+                fetch(`/backlog/api/projects/${projectId}/details`),
+                fetch(`/backlog/api/projects/${projectId}/complexity/assessment`),
+                fetch(`/backlog/api/projects/${projectId}/current-phase`),
+                fetch(`/backlog/api/projects/${projectId}/project-type`)
+            ]);
+
+            console.log(`[DEBUG] Status das respostas - Details: ${detailsRes.status}, Complexity: ${complexityRes.status}, Phase: ${phaseRes.status}, ProjectType: ${projectTypeRes.status}`);
+
+            const details = detailsRes.ok ? await detailsRes.json() : {};
+            const complexityData = complexityRes.ok ? await complexityRes.json() : {};
+            const phase = phaseRes.ok ? await phaseRes.json() : {};
+            const projectType = projectTypeRes.ok ? await projectTypeRes.json() : {};
+
+            console.log('[DEBUG] Dados recebidos:');
+            console.log('- Details:', details);
+            console.log('- Complexity:', complexityData);
+            console.log('- Phase:', phase);
+            console.log('- ProjectType:', projectType);
+
+            // Extrai a complexidade corretamente
+            const complexity = complexityData.assessment || {};
+            console.log('[DEBUG] Complexidade extraída:', complexity);
+
+            renderProjectHeader(details, complexity, phase, projectType);
+
         } catch (error) {
-            console.error('Erro ao carregar informações da fase para o cabeçalho:', error);
+            console.error("Erro ao carregar dados do cabeçalho do projeto:", error);
+            // Renderiza um estado de erro/padrão
+            renderProjectHeader({}, {}, {}, {});
         }
     }
 
-    function updateHeaderPhaseInfo(currentPhaseData, phasesOverviewData) {
-        const headerProjectInfo = document.getElementById('headerProjectInfo');
-        if (!headerProjectInfo) return;
-
-        // Elementos do cabeçalho
-        const phaseBadge = document.getElementById('headerPhaseBadge');
-        const phaseName = document.getElementById('headerPhaseName');
-        const phaseProgressBar = document.getElementById('headerPhaseProgressBar');
-        const phaseProgressText = document.getElementById('headerPhaseProgressText');
-        const projectEndDate = document.getElementById('headerProjectEndDate');
-        const projectCompletion = document.getElementById('headerProjectCompletion');
-
-        if (currentPhaseData && currentPhaseData.current_phase) {
-            const phase = currentPhaseData.current_phase;
-            const totalPhases = currentPhaseData.total_phases || 1;
-            
-            // Progresso das fases: (fase_atual / total_fases) × 100
-            const phaseProgress = Math.round((phase.number / totalPhases) * 100);
-            const statusColor = phase.status === 'completed' ? 'success' : 
-                               phase.status === 'in_progress' ? 'primary' : 'secondary';
-
-            // Atualiza fase atual
-            phaseBadge.textContent = phase.number;
-            phaseBadge.className = `badge me-2`;
-            phaseBadge.style.backgroundColor = phase.color || '#6c757d';
-            phaseName.textContent = phase.name;
-
-            // Atualiza progresso das fases
-            phaseProgressBar.style.width = `${phaseProgress}%`;
-            phaseProgressBar.className = `progress-bar bg-${statusColor}`;
-            phaseProgressBar.setAttribute('aria-valuenow', phaseProgress);
-            phaseProgressText.textContent = `${phaseProgress}%`;
-
+    function renderProjectHeader(details, complexity, phase, projectType) {
+        // --- Coluna Esquerda: Informações Gerais ---
+        document.getElementById('headerProjectName').textContent = details.projeto || 'Projeto sem nome';
+        document.getElementById('headerSpecialist').textContent = `Especialista: ${details.especialista || '-'}`;
+        
+        // Verificar se existe campo AM nos dados
+        const amElement = document.getElementById('headerAM');
+        if (amElement) {
+            amElement.textContent = `AM: ${details.account_manager || '-'}`;
         } else {
-            // Estado padrão quando não há informações de fase
-            phaseBadge.textContent = '-';
-            phaseBadge.className = 'badge bg-secondary me-2';
-            phaseName.textContent = 'Não configurado';
-            phaseProgressBar.style.width = '0%';
-            phaseProgressBar.className = 'progress-bar bg-secondary';
-            phaseProgressText.textContent = '0%';
+            // Se não existe, criar o elemento
+            const specialistElement = document.getElementById('headerSpecialist');
+            const amElement = document.createElement('p');
+            amElement.className = 'small text-muted mb-1';
+            amElement.id = 'headerAM';
+            amElement.textContent = `AM: ${details.account_manager || '-'}`;
+            specialistElement.parentNode.insertBefore(amElement, specialistElement.nextSibling);
+        }
+        
+        const phaseContainer = document.getElementById('headerPhase');
+        if (phase && phase.current_phase) {
+            const currentPhase = phase.current_phase;
+            const typeLabel = getProjectTypeLabel(projectType);
+            phaseContainer.textContent = `${currentPhase.number}. ${currentPhase.name} (${typeLabel})`;
+            phaseContainer.style.backgroundColor = currentPhase.color || '#6c757d';
+            phaseContainer.className = 'badge';
+        } else {
+            const typeLabel = getProjectTypeLabel(projectType);
+            phaseContainer.textContent = `Fase não configurada (${typeLabel})`;
+            phaseContainer.className = 'badge bg-secondary';
         }
 
-        // Busca informações do projeto (data de encerramento e percentual de conclusão)
-        updateProjectInfo(projectEndDate, projectCompletion);
-    }
+        // --- Coluna Central: Métricas ---
+        const metrics = {
+            'STATUS': details.status || 'N/A',
+            'HORAS REST.': `${Math.round(details.horasrestantes || 0)}h`,
+            'HORAS PREV.': `${Math.round(details.horas || 0)}h`,
+            'CONCLUSÃO': `${Math.round(details.conclusao || 0)}%`,
+            'COMPLEXIDADE': complexity.category_label || complexity.category || 'N/A',
+            'TÉRMINO PREVISTO': details.vencimentoem ? new Date(details.vencimentoem).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'
+        };
 
-    // Função para buscar informações do projeto dos dados originais
-    async function updateProjectInfo(projectEndDateElement, projectCompletionElement) {
-        try {
-            // Busca dados do projeto da fonte original
-            const response = await fetch(`/backlog/api/projects/${projectId}/details`);
-            if (response.ok) {
-                const projectData = await response.json();
-                
-                // Data de encerramento do projeto
-                if (projectData.due_date) {
-                    const endDate = new Date(projectData.due_date).toLocaleDateString('pt-BR');
-                    projectEndDateElement.textContent = endDate;
-                } else {
-                    projectEndDateElement.textContent = '-';
+        let metricsHtml = '';
+        for (const [label, value] of Object.entries(metrics)) {
+            let valueClass = 'metric-value';
+            if (label === 'COMPLEXIDADE' && value !== 'N/A') {
+                console.log(`[DEBUG] Aplicando cor para complexidade: "${value}"`);
+                const catLower = value.toLowerCase();
+                if (catLower.includes('baixa')) {
+                    valueClass += ' complexity-baixa';
+                } else if (catLower.includes('média') || catLower.includes('media')) {
+                    valueClass += ' complexity-media';
+                } else if (catLower.includes('alta')) {
+                    valueClass += ' complexity-alta';
                 }
-                
-                // Percentual de conclusão do projeto (dos dados originais)
-                if (projectData.completion !== undefined && projectData.completion !== null) {
-                    // Garante que seja um número e formata como percentual
-                    const completionPercent = Math.round(parseFloat(projectData.completion) || 0);
-                    projectCompletionElement.textContent = `${completionPercent}%`;
-                } else {
-                    projectCompletionElement.textContent = '0%';
-                }
-                
-            } else {
-                // Valores padrão se não conseguir buscar
-                projectEndDateElement.textContent = '-';
-                projectCompletionElement.textContent = '0%';
             }
-        } catch (error) {
-            console.error('Erro ao buscar informações do projeto:', error);
-            projectEndDateElement.textContent = '-';
-            projectCompletionElement.textContent = '0%';
+            
+            metricsHtml += `
+                <div class="col-auto">
+                    <div class="metric-item">
+                        <div class="metric-label">${label}</div>
+                        <div class="${valueClass}">${value}</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        document.getElementById('headerMetrics').innerHTML = metricsHtml;
+    }
+
+    // Função auxiliar para converter tipo do projeto em rótulo
+    function getProjectTypeLabel(projectType) {
+        if (!projectType || !projectType.project_type) {
+            return 'Tipo não definido';
+        }
+        
+        const type = projectType.project_type.toLowerCase();
+        switch (type) {
+            case 'waterfall':
+                return 'Waterfall';
+            case 'agile':
+                return 'Ágil';
+            default:
+                return 'Tipo não definido';
         }
     }
 
-    // Função para atualizar informações da fase (pode ser chamada externamente)
-    window.updateHeaderPhaseInfo = function() {
-        loadHeaderPhaseInfo();
-    };
+    // Expor a função para atualizações externas
+    window.refreshProjectHeader = loadProjectHeader;
 
     // --- Funções de Riscos ---
 
