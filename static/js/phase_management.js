@@ -119,7 +119,7 @@ function updateProjectTypeUI(projectType) {
 }
 
 /**
- * Atualiza a UI com informações da fase atual
+ * Atualiza a UI da fase atual
  */
 function updateCurrentPhaseUI(phaseData) {
     const container = document.getElementById('statusContainer');
@@ -128,43 +128,73 @@ function updateCurrentPhaseUI(phaseData) {
     if (phaseData && phaseData.current_phase) {
         const phase = phaseData.current_phase;
         const totalPhases = phaseData.total_phases || 1;
-        const startedAt = phaseData.started_at 
-            ? new Date(phaseData.started_at).toLocaleDateString('pt-BR') 
+        const startedAt = phase.started_at 
+            ? new Date(phase.started_at).toLocaleDateString('pt-BR') 
             : '-';
         
         const progress = Math.round((phase.number / totalPhases) * 100);
+        const statusColor = phase.status === 'completed' ? 'success' : 
+                           phase.status === 'in_progress' ? 'primary' : 'secondary';
 
         container.innerHTML = `
             <div class="row align-items-center">
-                <div class="col-md-5">
-                    <div class="fw-bold">Fase Atual:</div>
-                    <div class="badge fs-6" style="background-color: ${phase.color || '#0d6efd'};">
-                        <i class="bi bi-arrow-right-circle-fill"></i> ${phase.number}. ${phase.name}
-                    </div>
-                </div>
                 <div class="col-md-4">
-                    <div class="fw-bold">Progresso Total:</div>
-                    <div class="progress" style="height: 20px;">
-                        <div class="progress-bar" role="progressbar" style="width: ${progress}%;" 
-                             aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100">${progress}%</div>
+                    <div class="text-muted small mb-1">FASE ATUAL</div>
+                    <div class="d-flex align-items-center">
+                        <div class="badge fs-5 px-3 py-2 me-2" style="background-color: ${phase.color || '#0d6efd'};">
+                            ${phase.number}
+                        </div>
+                        <div>
+                            <div class="fw-bold h6 mb-0">${phase.name}</div>
+                            <div class="text-muted small">${phase.description || 'Sem descrição'}</div>
+                        </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="fw-bold">Iniciado em:</div>
-                    <div>${startedAt}</div>
+                    <div class="text-muted small mb-1">PROGRESSO TOTAL</div>
+                    <div class="progress mb-2" style="height: 25px;">
+                        <div class="progress-bar bg-${statusColor}" role="progressbar" style="width: ${progress}%;" 
+                             aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100">
+                            <span class="fw-bold">${progress}%</span>
+                        </div>
+                    </div>
+                    <div class="small text-muted">${phase.number} de ${totalPhases} fases</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-muted small mb-1">INICIADO EM</div>
+                    <div class="h5 mb-0">${startedAt}</div>
+                    ${phase.is_delayed ? '<div class="text-danger small"><i class="bi bi-exclamation-triangle"></i> Atrasado</div>' : ''}
+                </div>
+                <div class="col-md-2">
+                    <div class="text-muted small mb-1">STATUS</div>
+                    <span class="badge bg-${statusColor} fs-6 px-3 py-2">
+                        ${phase.status === 'completed' ? 'Concluído' : 
+                          phase.status === 'in_progress' ? 'Em Andamento' : 'Pendente'}
+                    </span>
                 </div>
             </div>
         `;
     } else {
         // Estado inicial ou de erro
         container.innerHTML = `
-            <div class="row">
-                <div class="col">
-                    <span class="fw-bold">Fase Atual:</span>
-                    <span class="badge bg-secondary">Não configurado</span>
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="text-muted small mb-1">FASE ATUAL</div>
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-secondary fs-6 px-3 py-2">Não configurado</span>
+                    </div>
                 </div>
-                <div class="col">
-                    <span class="fw-bold">Iniciado em:</span> -
+                <div class="col-md-3">
+                    <div class="text-muted small mb-1">PROGRESSO TOTAL</div>
+                    <div class="progress" style="height: 25px;">
+                        <div class="progress-bar bg-secondary" role="progressbar" style="width: 0%;">
+                            <span class="fw-bold">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-muted small mb-1">INICIADO EM</div>
+                    <div class="h5 mb-0 text-muted">-</div>
                 </div>
             </div>
         `;
@@ -386,6 +416,65 @@ async function refreshPhaseInfo() {
  */
 function openPhaseHistoryModal() {
     showToast('Funcionalidade de histórico será implementada em breve', 'info');
+}
+
+/**
+ * Abre o modal de configuração do projeto
+ */
+function openProjectConfigModal() {
+    // Carrega o tipo atual do projeto
+    loadProjectType();
+    
+    // Abre o modal
+    const modal = new bootstrap.Modal(document.getElementById('projectConfigModal'));
+    modal.show();
+}
+
+/**
+ * Salva o tipo de projeto a partir do modal
+ */
+async function saveProjectTypeFromModal() {
+    const selectedType = document.querySelector('input[name="projectType"]:checked');
+    
+    if (!selectedType) {
+        showToast('Por favor, selecione um tipo de projeto', 'warning');
+        return;
+    }
+
+    const projectId = getCurrentProjectId();
+    if (!projectId) {
+        showToast('ID do projeto não encontrado', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/backlog/api/projects/${projectId}/project-type`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                project_type: selectedType.value
+            })
+        });
+
+        if (response.ok) {
+            showToast('Tipo de projeto salvo com sucesso!', 'success');
+            
+            // Fecha o modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('projectConfigModal'));
+            modal.hide();
+            
+            // Recarrega as informações
+            await refreshPhaseInfo();
+        } else {
+            const error = await response.json();
+            showToast(`Erro ao salvar: ${error.message}`, 'error');
+        }
+    } catch (error) {
+        console.error('Erro ao salvar tipo de projeto:', error);
+        showToast('Erro ao salvar tipo de projeto', 'error');
+    }
 }
 
 /**

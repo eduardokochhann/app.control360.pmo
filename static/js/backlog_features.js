@@ -108,7 +108,128 @@ function initializeProjectTools() {
         loadTimeline();
         loadNotes();
         loadComplexityInfo();
+        loadHeaderPhaseInfo(); // Carrega informações da fase para o cabeçalho
     }
+
+    // --- Funções de Informações da Fase no Cabeçalho ---
+    
+    async function loadHeaderPhaseInfo() {
+        if (!projectId) {
+            console.warn("Project ID não disponível para carregar informações da fase");
+            return;
+        }
+
+        try {
+            // Carrega informações da fase atual
+            const currentPhaseResponse = await fetch(`/backlog/api/projects/${projectId}/current-phase`);
+            const phasesOverviewResponse = await fetch(`/backlog/api/projects/${projectId}/phases-overview`);
+            
+            let currentPhaseData = null;
+            let phasesOverviewData = null;
+            
+            if (currentPhaseResponse.ok) {
+                currentPhaseData = await currentPhaseResponse.json();
+            }
+            
+            if (phasesOverviewResponse.ok) {
+                phasesOverviewData = await phasesOverviewResponse.json();
+            }
+            
+            updateHeaderPhaseInfo(currentPhaseData, phasesOverviewData);
+            
+        } catch (error) {
+            console.error('Erro ao carregar informações da fase para o cabeçalho:', error);
+        }
+    }
+
+    function updateHeaderPhaseInfo(currentPhaseData, phasesOverviewData) {
+        const headerProjectInfo = document.getElementById('headerProjectInfo');
+        if (!headerProjectInfo) return;
+
+        // Elementos do cabeçalho
+        const phaseBadge = document.getElementById('headerPhaseBadge');
+        const phaseName = document.getElementById('headerPhaseName');
+        const phaseProgressBar = document.getElementById('headerPhaseProgressBar');
+        const phaseProgressText = document.getElementById('headerPhaseProgressText');
+        const projectEndDate = document.getElementById('headerProjectEndDate');
+        const projectCompletion = document.getElementById('headerProjectCompletion');
+
+        if (currentPhaseData && currentPhaseData.current_phase) {
+            const phase = currentPhaseData.current_phase;
+            const totalPhases = currentPhaseData.total_phases || 1;
+            
+            // Progresso das fases: (fase_atual / total_fases) × 100
+            const phaseProgress = Math.round((phase.number / totalPhases) * 100);
+            const statusColor = phase.status === 'completed' ? 'success' : 
+                               phase.status === 'in_progress' ? 'primary' : 'secondary';
+
+            // Atualiza fase atual
+            phaseBadge.textContent = phase.number;
+            phaseBadge.className = `badge me-2`;
+            phaseBadge.style.backgroundColor = phase.color || '#6c757d';
+            phaseName.textContent = phase.name;
+
+            // Atualiza progresso das fases
+            phaseProgressBar.style.width = `${phaseProgress}%`;
+            phaseProgressBar.className = `progress-bar bg-${statusColor}`;
+            phaseProgressBar.setAttribute('aria-valuenow', phaseProgress);
+            phaseProgressText.textContent = `${phaseProgress}%`;
+
+        } else {
+            // Estado padrão quando não há informações de fase
+            phaseBadge.textContent = '-';
+            phaseBadge.className = 'badge bg-secondary me-2';
+            phaseName.textContent = 'Não configurado';
+            phaseProgressBar.style.width = '0%';
+            phaseProgressBar.className = 'progress-bar bg-secondary';
+            phaseProgressText.textContent = '0%';
+        }
+
+        // Busca informações do projeto (data de encerramento e percentual de conclusão)
+        updateProjectInfo(projectEndDate, projectCompletion);
+    }
+
+    // Função para buscar informações do projeto dos dados originais
+    async function updateProjectInfo(projectEndDateElement, projectCompletionElement) {
+        try {
+            // Busca dados do projeto da fonte original
+            const response = await fetch(`/backlog/api/projects/${projectId}/details`);
+            if (response.ok) {
+                const projectData = await response.json();
+                
+                // Data de encerramento do projeto
+                if (projectData.due_date) {
+                    const endDate = new Date(projectData.due_date).toLocaleDateString('pt-BR');
+                    projectEndDateElement.textContent = endDate;
+                } else {
+                    projectEndDateElement.textContent = '-';
+                }
+                
+                // Percentual de conclusão do projeto (dos dados originais)
+                if (projectData.completion !== undefined && projectData.completion !== null) {
+                    // Garante que seja um número e formata como percentual
+                    const completionPercent = Math.round(parseFloat(projectData.completion) || 0);
+                    projectCompletionElement.textContent = `${completionPercent}%`;
+                } else {
+                    projectCompletionElement.textContent = '0%';
+                }
+                
+            } else {
+                // Valores padrão se não conseguir buscar
+                projectEndDateElement.textContent = '-';
+                projectCompletionElement.textContent = '0%';
+            }
+        } catch (error) {
+            console.error('Erro ao buscar informações do projeto:', error);
+            projectEndDateElement.textContent = '-';
+            projectCompletionElement.textContent = '0%';
+        }
+    }
+
+    // Função para atualizar informações da fase (pode ser chamada externamente)
+    window.updateHeaderPhaseInfo = function() {
+        loadHeaderPhaseInfo();
+    };
 
     // --- Funções de Riscos ---
 
