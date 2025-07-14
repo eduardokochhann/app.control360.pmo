@@ -485,6 +485,7 @@ function initializeProjectTools() {
             document.getElementById('milestoneId').value = milestone.id;
             document.getElementById('milestoneName').value = milestone.name || '';
             document.getElementById('milestonePlannedDate').value = milestone.planned_date || '';
+            document.getElementById('milestoneStartedAt').value = milestone.started_at ? milestone.started_at.slice(0, 16) : '';
             document.getElementById('milestoneActualDate').value = milestone.actual_date || '';
             document.getElementById('milestoneStatus').value = milestone.status.key || 'PENDING';
             document.getElementById('milestoneCriticality').value = milestone.criticality.key || 'MEDIUM';
@@ -496,6 +497,7 @@ function initializeProjectTools() {
             document.getElementById('milestoneId').value = '';
             document.getElementById('milestoneName').value = '';
             document.getElementById('milestonePlannedDate').value = '';
+            document.getElementById('milestoneStartedAt').value = '';
             document.getElementById('milestoneActualDate').value = '';
             document.getElementById('milestoneStatus').value = 'PENDING';
             document.getElementById('milestoneCriticality').value = 'MEDIUM';
@@ -521,6 +523,7 @@ function initializeProjectTools() {
             name: document.getElementById('milestoneName').value,
             description: document.getElementById('milestoneDescription').value,
             planned_date: document.getElementById('milestonePlannedDate').value,
+            started_at: document.getElementById('milestoneStartedAt').value || null,
             actual_date: document.getElementById('milestoneActualDate').value || null,
             status: document.getElementById('milestoneStatus').value,
             criticality: document.getElementById('milestoneCriticality').value,

@@ -205,6 +205,10 @@ class ProjectMilestone(db.Model):
     is_checkpoint = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=get_brasilia_now)
     updated_at = db.Column(db.DateTime, default=get_brasilia_now, onupdate=get_brasilia_now)
+    
+    # --- NOVO CAMPO PARA DATA DE INÍCIO ---
+    started_at = db.Column(db.DateTime, nullable=True) # Quando o marco foi colocado em andamento
+    # --- FIM NOVO CAMPO ---
 
     # --- NOVOS CAMPOS PARA GATILHOS DE FASE ---
     triggers_next_phase = db.Column(db.Boolean, default=False, nullable=False, server_default='0') # Se marco dispara próxima fase
@@ -231,11 +235,15 @@ class ProjectMilestone(db.Model):
             'description': self.description,
             'planned_date': self.planned_date.strftime('%Y-%m-%d') if self.planned_date else None,
             'actual_date': self.actual_date.strftime('%Y-%m-%d') if self.actual_date else None,
+            'started_at': self.started_at.strftime('%Y-%m-%d %H:%M:%S') if self.started_at else None,
             'status': {'key': self.status.name, 'value': self.status.value},
             'criticality': {'key': self.criticality.name, 'value': self.criticality.value},
             'is_checkpoint': self.is_checkpoint,
             'is_delayed': self.is_delayed,
-            'backlog_id': self.backlog_id
+            'backlog_id': self.backlog_id,
+            'triggers_next_phase': self.triggers_next_phase,
+            'phase_order': self.phase_order,
+            'auto_created': self.auto_created
         }
 
     def __repr__(self):

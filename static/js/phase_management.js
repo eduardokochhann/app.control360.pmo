@@ -172,7 +172,7 @@ function updateCurrentPhaseUI(phaseData) {
 }
 
 /**
- * Atualiza a UI com o overview das fases
+ * Atualiza a UI das fases
  */
 function updatePhasesOverviewUI(phases) {
     const phasesContainer = document.getElementById('phasesContainer');
@@ -197,24 +197,30 @@ function updatePhasesOverviewUI(phases) {
         const phaseNumberClass = phase.is_current ? 'current' : 
                                 phase.is_completed ? 'completed' : 'pending';
         
+        // Formatação das datas
+        const formatDate = (dateString) => {
+            if (!dateString) return '-';
+            try {
+                return new Date(dateString).toLocaleDateString('pt-BR');
+            } catch (e) {
+                return '-';
+            }
+        };
+        
+        const startedAt = formatDate(phase.started_at);
+        const plannedEnd = formatDate(phase.planned_completion);
+        const completedAt = formatDate(phase.completed_at);
+        
         html += `
             <div class="col-md-6 mb-3">
                 <div class="phase-card ${phaseClass}">
-                    <div class="d-flex align-items-center">
+                    <div class="d-flex align-items-center mb-3">
                         <div class="phase-number ${phaseNumberClass} me-3">
                             ${phase.is_completed ? '<i class="bi bi-check-lg"></i>' : phase.phase_number}
                         </div>
                         <div class="flex-grow-1">
                             <h6 class="mb-1 fw-bold">${phase.phase_name}</h6>
-                            <p class="mb-1 text-muted small">${phase.phase_description || 'Sem descrição'}</p>
-                            <div class="d-flex align-items-center text-sm">
-                                <i class="bi bi-clock me-1"></i>
-                                <span class="text-muted">
-                                    ${phase.started_at ? 
-                                        `Iniciado em ${new Date(phase.started_at).toLocaleDateString('pt-BR')}` : 
-                                        'Não iniciado'}
-                                </span>
-                            </div>
+                            <p class="mb-0 text-muted small">${phase.phase_description || 'Sem descrição'}</p>
                         </div>
                         <div class="text-end">
                             ${phase.is_current ? 
@@ -222,6 +228,22 @@ function updatePhasesOverviewUI(phases) {
                                 phase.is_completed ? 
                                 '<span class="badge bg-success">Concluído</span>' : 
                                 '<span class="badge bg-secondary">Pendente</span>'}
+                        </div>
+                    </div>
+                    
+                    <!-- Informações de Datas -->
+                    <div class="row text-sm">
+                        <div class="col-4">
+                            <div class="text-muted small">Iniciado Em:</div>
+                            <div class="fw-medium">${startedAt}</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-muted small">Término Planejado:</div>
+                            <div class="fw-medium">${plannedEnd}</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-muted small">Concluído Em:</div>
+                            <div class="fw-medium">${completedAt}</div>
                         </div>
                     </div>
                 </div>

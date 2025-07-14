@@ -156,6 +156,9 @@ class ProjectPhaseService:
                 is_active=True
             ).first()
 
+            # ✅ CALCULA DATAS DE INÍCIO E CONCLUSÃO DA FASE ATUAL
+            phase_dates = self.calculate_phase_dates(project_id, backlog.current_phase)
+
             return {
                 'project_id': project_id,
                 'project_type': backlog.project_type.value,
@@ -164,8 +167,12 @@ class ProjectPhaseService:
                     'name': phase_config.phase_name,
                     'description': phase_config.phase_description,
                     'color': phase_config.phase_color,
-                    'started_at': backlog.phase_started_at.isoformat() if backlog.phase_started_at else None,
-                    'milestone_names': phase_config.get_milestone_names()
+                    'started_at': phase_dates.get('started_at'),
+                    'completed_at': phase_dates.get('completed_at'),
+                    'planned_completion': phase_dates.get('planned_completion'),
+                    'is_delayed': phase_dates.get('is_delayed', False),
+                    'milestone_names': phase_config.get_milestone_names(),
+                    'status': phase_dates.get('status', 'pending')
                 },
                 'next_phase': {
                     'number': next_phase_config.phase_number,
@@ -178,6 +185,80 @@ class ProjectPhaseService:
         except Exception as e:
             self.logger.error(f"Erro ao obter informações da fase do projeto {project_id}: {e}")
             return {'error': f'Erro interno: {str(e)}'}
+
+    def calculate_phase_dates(self, project_id: str, phase_number: int) -> Dict:
+        """Calcula as datas de início e conclusão de uma fase baseado nos marcos"""
+        try:
+            backlog = Backlog.query.filter_by(project_id=project_id).first()
+            if not backlog:
+                return {}
+
+            # Busca configuração da fase
+            phase_config = ProjectPhaseConfiguration.query.filter_by(
+                project_type=backlog.project_type,
+                phase_number=phase_number,
+                is_active=True
+            ).first()
+
+            if not phase_config:
+                return {}
+
+            # Busca marcos desta fase
+            milestone_names = phase_config.get_milestone_names()
+            if not milestone_names:
+                return {'status': 'not_started'}
+
+            milestones = ProjectMilestone.query.filter(
+                ProjectMilestone.backlog_id == backlog.id,
+                ProjectMilestone.name.in_(milestone_names)
+            ).all()
+
+            if not milestones:
+                return {'status': 'not_started'}
+
+            # Calcula datas baseado nos marcos
+            started_dates = [m.started_at for m in milestones if m.started_at]
+            completed_dates = [m.actual_date for m in milestones if m.actual_date]
+            planned_dates = [m.planned_date for m in milestones if m.planned_date]
+
+            # Data de início da fase: menor data de início dos marcos
+            started_at = min(started_dates) if started_dates else None
+            
+            # Data de conclusão da fase: maior data de conclusão dos marcos (se todos concluídos)
+            completed_at = None
+            all_completed = all(m.status == MilestoneStatus.COMPLETED for m in milestones)
+            if all_completed and completed_dates:
+                completed_at = max(completed_dates)
+
+            # Data planejada de conclusão: maior data planejada dos marcos
+            planned_completion = max(planned_dates) if planned_dates else None
+
+            # Determina status da fase
+            if completed_at:
+                status = 'completed'
+            elif started_at:
+                status = 'in_progress'
+            else:
+                status = 'not_started'
+
+            # Verifica se está atrasada
+            is_delayed = False
+            if planned_completion and not completed_at:
+                is_delayed = planned_completion < get_brasilia_now().date()
+
+            return {
+                'started_at': started_at.isoformat() if started_at else None,
+                'completed_at': completed_at.isoformat() if completed_at else None,
+                'planned_completion': planned_completion.isoformat() if planned_completion else None,
+                'is_delayed': is_delayed,
+                'status': status,
+                'milestones_count': len(milestones),
+                'completed_milestones': len([m for m in milestones if m.status == MilestoneStatus.COMPLETED])
+            }
+
+        except Exception as e:
+            self.logger.error(f"Erro ao calcular datas da fase {phase_number} do projeto {project_id}: {e}")
+            return {}
 
     def get_total_phases(self, project_type: ProjectType) -> int:
         """Retorna o número total de fases para um tipo de projeto"""
@@ -417,14 +498,12 @@ class ProjectPhaseService:
             phases_info = []
 
             for phase in phases:
-                # Determina status da fase
-                if phase.phase_number < backlog.current_phase:
-                    phase_status = PhaseStatus.COMPLETED
-                elif phase.phase_number == backlog.current_phase:
-                    phase_status = PhaseStatus.IN_PROGRESS
-                else:
-                    phase_status = PhaseStatus.NOT_STARTED
-
+                # ✅ CALCULA DATAS REAIS DA FASE BASEADO NOS MARCOS
+                phase_dates = self.calculate_phase_dates(project_id, phase.phase_number)
+                
+                # Determina status da fase baseado nos marcos
+                phase_status_str = phase_dates.get('status', 'not_started')
+                
                 # Busca marcos da fase
                 milestone_names = phase.get_milestone_names()
                 milestones_info = []
@@ -441,8 +520,10 @@ class ProjectPhaseService:
                             'name': m.name,
                             'status': m.status.value,
                             'planned_date': m.planned_date.isoformat() if m.planned_date else None,
+                            'started_at': m.started_at.isoformat() if m.started_at else None,
                             'actual_date': m.actual_date.isoformat() if m.actual_date else None,
-                            'triggers_next_phase': m.triggers_next_phase
+                            'triggers_next_phase': m.triggers_next_phase,
+                            'is_delayed': m.is_delayed
                         }
                         for m in milestones
                     ]
@@ -452,9 +533,18 @@ class ProjectPhaseService:
                     'phase_name': phase.phase_name,
                     'phase_description': phase.phase_description,
                     'phase_color': phase.phase_color,
-                    'status': phase_status.value,
+                    'status': phase_status_str,
                     'is_current': phase.phase_number == backlog.current_phase,
-                    'milestones': milestones_info
+                    'is_completed': phase_status_str == 'completed',
+                    'started_at': phase_dates.get('started_at'),
+                    'completed_at': phase_dates.get('completed_at'),
+                    'planned_completion': phase_dates.get('planned_completion'),
+                    'is_delayed': phase_dates.get('is_delayed', False),
+                    'milestones': milestones_info,
+                    'progress': {
+                        'total': phase_dates.get('milestones_count', 0),
+                        'completed': phase_dates.get('completed_milestones', 0)
+                    }
                 })
 
             return {

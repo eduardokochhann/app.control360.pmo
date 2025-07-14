@@ -1401,6 +1401,10 @@ def update_milestone(milestone_id):
         if 'planned_date' in data:
             milestone.planned_date = datetime.strptime(data['planned_date'], '%Y-%m-%d').date()
             
+        if 'started_at' in data:
+            started_at_str = data['started_at']
+            milestone.started_at = datetime.strptime(started_at_str, '%Y-%m-%dT%H:%M') if started_at_str else None
+            
         if 'actual_date' in data:
             actual_date_str = data['actual_date']
             milestone.actual_date = datetime.strptime(actual_date_str, '%Y-%m-%d').date() if actual_date_str else None
@@ -1411,9 +1415,19 @@ def update_milestone(milestone_id):
                 status_key = 'PENDING'
             
             try:
+                old_status = milestone.status
                 milestone.status = MilestoneStatus[status_key]
+                
+                # ✅ CAPTURA AUTOMÁTICA DA DATA DE INÍCIO
+                if milestone.status == MilestoneStatus.IN_PROGRESS and not milestone.started_at:
+                    milestone.started_at = datetime.now(br_timezone)
+                    current_app.logger.info(f"Marco '{milestone.name}' iniciado automaticamente em {milestone.started_at}")
+                
+                # ✅ CAPTURA AUTOMÁTICA DA DATA DE CONCLUSÃO
                 if milestone.status == MilestoneStatus.COMPLETED and not milestone.actual_date:
                     milestone.actual_date = datetime.now(br_timezone).date()
+                    current_app.logger.info(f"Marco '{milestone.name}' concluído automaticamente em {milestone.actual_date}")
+                    
             except KeyError:
                 valid_statuses = [s.name for s in MilestoneStatus]
                 abort(400, description=f"Chave de Status inválida '{status_key}'. Válidas: {valid_statuses}")
@@ -3302,6 +3316,10 @@ def create_milestone():
         criticality = MilestoneCriticality[criticality_key]
         # --- FIM CORREÇÃO ---
 
+        started_at = None
+        if data.get('started_at'):
+            started_at = datetime.strptime(data['started_at'], '%Y-%m-%dT%H:%M')
+            
         actual_date = None
         if data.get('actual_date'):
             actual_date = datetime.strptime(data['actual_date'], '%Y-%m-%d').date()
@@ -3310,6 +3328,7 @@ def create_milestone():
             name=name,
             description=data.get('description'),
             planned_date=planned_date,
+            started_at=started_at,
             actual_date=actual_date,
             status=status,
             criticality=criticality,

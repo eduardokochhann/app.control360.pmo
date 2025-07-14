@@ -447,6 +447,38 @@
         background-color: #6c757d;
         color: white;
     }
+    
+    .phase-number.pending {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    /* Estilos para as informações de datas nos cards das fases */
+    .phase-card .text-sm {
+        font-size: 0.85rem;
+    }
+    
+    .phase-card .text-muted.small {
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .phase-card .fw-medium {
+        font-weight: 500;
+        color: #495057;
+    }
+    
+    .phase-card .col-4 {
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .phase-card .row.text-sm {
+        margin-top: 0.75rem;
+        border-top: 1px solid #e9ecef;
+        padding-top: 0.75rem;
+    }
 </style>
 {% endblock %}
 
@@ -1370,11 +1402,16 @@
                     </div>
                     
                     <div class="row mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label for="milestonePlannedDate" class="form-label">Data Planejada*</label>
                             <input type="date" class="form-control" id="milestonePlannedDate" required>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
+                            <label for="milestoneStartedAt" class="form-label">Data de Início</label>
+                            <input type="datetime-local" class="form-control" id="milestoneStartedAt">
+                            <small class="text-muted">Preenchida automaticamente quando colocado "Em Andamento"</small>
+                        </div>
+                        <div class="col-md-4">
                             <label for="milestoneActualDate" class="form-label">Data Real</label>
                             <input type="date" class="form-control" id="milestoneActualDate">
                         </div>
