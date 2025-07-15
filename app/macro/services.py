@@ -4097,6 +4097,14 @@ class MacroService(BaseService):
                 logger.error(f"Erro ao buscar marcos recentes: {str(e)}")
                 marcos_recentes = []
 
+            # 🆕 NOVO: Buscar fases do projeto
+            try:
+                fases_projeto = self.obter_fases_projeto(project_id, backlog_id)
+                logger.info(f"Fases do projeto encontradas: {len(fases_projeto) if fases_projeto else 0}")
+            except Exception as e:
+                logger.error(f"Erro ao buscar fases do projeto: {str(e)}")
+                fases_projeto = []
+
             # Buscar riscos e impedimentos do backlog
             riscos_impedimentos = []
             notas_observacoes = []
@@ -4204,6 +4212,7 @@ class MacroService(BaseService):
                 'tarefas_pendentes': tarefas_pendentes,
                 'tarefas_concluidas': tarefas_concluidas,
                 'marcos_recentes': marcos_recentes or [],
+                'fases_projeto': fases_projeto or [],  # 🆕 NOVO: Fases do projeto
                 'backlog_id': backlog_id,
                 'riscos_impedimentos': riscos_impedimentos,
                 'notas': notas_observacoes,
@@ -4260,6 +4269,7 @@ class MacroService(BaseService):
             'tarefas_pendentes': [],
             'tarefas_concluidas': [],
             'marcos_recentes': [],
+            'fases_projeto': [],  # 🆕 NOVO: Fases do projeto
             'backlog_id': None,
             'riscos_impedimentos': [],
             'notas': [],
@@ -4287,16 +4297,21 @@ class MacroService(BaseService):
             # Converter para formato esperado pelo template (marcos_recentes)
             marcos_recentes = []
             for milestone in milestones:
+                # 🔄 USAR O STATUS REAL CALCULADO
+                status_real = milestone.get('status_real', 'Pendente')
+                
                 marco_data = {
                     'id': milestone.get('id'),
-                    'nome': milestone.get('titulo', 'N/A'),  # titulo vem do get_milestones_from_backlog
+                    'nome': milestone.get('titulo', 'N/A'),
                     'title': milestone.get('titulo', 'N/A'),  # fallback para compatibilidade
-                    'data_planejada': milestone.get('data_vencimento', 'N/A'),  # data_vencimento vem do get_milestones_from_backlog
+                    'data_planejada': milestone.get('data_vencimento', 'N/A'),
                     'due_date': milestone.get('data_vencimento', 'N/A'),  # fallback para compatibilidade
-                    'status': 'Concluído' if milestone.get('concluido', False) else 'Pendente',
-                    'atrasado': False,  # TODO: Implementar lógica de atraso se necessário
+                    'status': status_real,  # 🆕 USAR STATUS REAL EM VEZ DE LÓGICA SIMPLES
+                    'atrasado': milestone.get('atrasado', False),
                     'descricao': milestone.get('descricao', ''),
-                    'data_criacao': milestone.get('data_criacao', 'N/A')
+                    'data_criacao': milestone.get('data_criacao', 'N/A'),
+                    'data_inicio_real': milestone.get('data_inicio_real'),
+                    'criticidade': milestone.get('criticidade', 'Média')
                 }
                 marcos_recentes.append(marco_data)
             
@@ -4331,21 +4346,29 @@ class MacroService(BaseService):
     def get_milestones_from_backlog(self, backlog_id):
         """
         Obtém os milestones de um backlog específico.
+        MELHORADO: Agora considera o status real das tarefas para determinar o status do marco.
         """
         try:
-            from app.models import ProjectMilestone  # Import local
+            from app.models import ProjectMilestone, Task, Column  # Import local
             
             milestones = ProjectMilestone.query.filter_by(backlog_id=backlog_id).all()
             
             milestones_data = []
             for milestone in milestones:
+                # 🔄 NOVA LÓGICA: Determinar status baseado no estado real das tarefas
+                status_real = self._determinar_status_real_marco(milestone, backlog_id)
+                
                 milestone_data = {
                     'id': milestone.id,
-                    'titulo': milestone.name or 'N/A',  # Usar name em vez de title
+                    'titulo': milestone.name or 'N/A',
                     'descricao': milestone.description or '',
-                    'data_vencimento': milestone.planned_date.strftime('%d/%m/%Y') if milestone.planned_date else 'N/A',  # Usar planned_date em vez de due_date
-                    'concluido': milestone.status.value == 'Concluído' if milestone.status else False,  # Usar status enum
-                    'data_criacao': milestone.created_at.strftime('%d/%m/%Y') if milestone.created_at else 'N/A'
+                    'data_vencimento': milestone.planned_date.strftime('%d/%m/%Y') if milestone.planned_date else 'N/A',
+                    'concluido': status_real == 'Concluído',
+                    'status_real': status_real,  # 🆕 NOVO: Status calculado baseado nas tarefas
+                    'data_criacao': milestone.created_at.strftime('%d/%m/%Y') if milestone.created_at else 'N/A',
+                    'data_inicio_real': milestone.started_at.strftime('%d/%m/%Y') if milestone.started_at else None,
+                    'atrasado': milestone.is_delayed,
+                    'criticidade': milestone.criticality.value if milestone.criticality else 'Média'
                 }
                 milestones_data.append(milestone_data)
             
@@ -4355,6 +4378,206 @@ class MacroService(BaseService):
         except Exception as e:
             logger.error(f"Erro ao buscar milestones do backlog {backlog_id}: {str(e)}")
             return []
+
+    def _determinar_status_real_marco(self, milestone, backlog_id):
+        """
+        Determina o status real do marco baseado no estado das tarefas relacionadas.
+        """
+        try:
+            from app.models import Task, Column
+            from datetime import datetime
+            
+            # Se o marco tem data de início real, então pelo menos começou
+            if milestone.started_at:
+                logger.info(f"Marco '{milestone.name}' tem data de início: {milestone.started_at}")
+                
+                # Se está marcado como concluído no banco, mantém concluído
+                if milestone.status.value == 'Concluído':
+                    return 'Concluído'
+                else:
+                    # Se começou mas não foi concluído, está em andamento
+                    return 'Em Andamento'
+            
+            # Verificar se há tarefas relacionadas ao marco no backlog
+            # Vamos considerar que marcos estão relacionados por nome ou proximidade temporal
+            marco_nome = milestone.name.lower()
+            
+            # Buscar tarefas que podem estar relacionadas ao marco
+            all_tasks = Task.query.filter_by(backlog_id=backlog_id).all()
+            
+            tarefas_relacionadas = []
+            for task in all_tasks:
+                if task.title and any(palavra in task.title.lower() for palavra in marco_nome.split()):
+                    tarefas_relacionadas.append(task)
+            
+            logger.info(f"Marco '{milestone.name}': {len(tarefas_relacionadas)} tarefas relacionadas encontradas")
+            
+            if not tarefas_relacionadas:
+                # Se não há tarefas relacionadas, usar o status do banco
+                return milestone.status.value
+            
+            # Analisar status das tarefas relacionadas
+            status_tarefas = []
+            for task in tarefas_relacionadas:
+                if task.column_id:
+                    column = Column.query.get(task.column_id)
+                    if column:
+                        status_tarefas.append(column.name.lower())
+            
+            if not status_tarefas:
+                return milestone.status.value
+            
+            # Lógica para determinar status do marco baseado nas tarefas
+            concluidas = sum(1 for status in status_tarefas if any(palavra in status for palavra in ['concluí', 'done', 'finalizado']))
+            em_andamento = sum(1 for status in status_tarefas if any(palavra in status for palavra in ['andamento', 'progress', 'execu']))
+            
+            logger.info(f"Marco '{milestone.name}': {concluidas} tarefas concluídas, {em_andamento} em andamento de {len(status_tarefas)} total")
+            
+            if concluidas == len(status_tarefas):
+                return 'Concluído'
+            elif em_andamento > 0 or concluidas > 0:
+                return 'Em Andamento'
+            else:
+                return 'Pendente'
+                
+        except Exception as e:
+            logger.error(f"Erro ao determinar status real do marco: {str(e)}")
+            return milestone.status.value if milestone.status else 'Pendente'
+
+    def obter_fases_projeto(self, project_id, backlog_id=None):
+        """
+        Obtém as fases do projeto com informações sobre progresso e status.
+        """
+        try:
+            from app.models import Backlog, ProjectPhaseConfiguration, ProjectMilestone
+            
+            if not backlog_id:
+                backlog_id = self.get_backlog_id_for_project(project_id)
+            
+            if not backlog_id:
+                logger.warning(f"Nenhum backlog encontrado para projeto {project_id}")
+                return []
+            
+            # Buscar configuração do backlog
+            backlog = Backlog.query.get(backlog_id)
+            if not backlog:
+                logger.warning(f"Backlog {backlog_id} não encontrado")
+                return []
+            
+            # 🔄 CORREÇÃO: Determinar tipo de projeto usando ProjectPhaseService
+            from app.utils.project_phase_service import ProjectPhaseService
+            phase_service = ProjectPhaseService()
+            
+            # Obtém o tipo de projeto do serviço
+            project_type_enum = phase_service.get_project_type(project_id)
+            
+            # Se não há tipo definido, assume waterfall como padrão
+            if not project_type_enum:
+                logger.warning(f"Tipo de projeto não definido para projeto {project_id}, usando Waterfall como padrão")
+                from app.models import ProjectType
+                project_type_enum = ProjectType.WATERFALL
+            
+            # Determina o tipo como string para logs
+            project_type_str = project_type_enum.value.lower()
+            current_phase = backlog.current_phase or 1
+            
+            logger.info(f"Projeto {project_id}: Tipo={project_type_str}, Fase atual={current_phase}")
+            
+            # Buscar configuração das fases para o tipo de projeto
+            fases_config = ProjectPhaseConfiguration.get_phases_for_type(project_type_enum)
+            
+            # Se não há configuração, criar fases padrão
+            if not fases_config:
+                fases_config = self._criar_fases_padrao(project_type_str)
+            
+            # Buscar marcos do projeto
+            milestones = self.get_milestones_from_backlog(backlog_id)
+            
+            # Mapear marcos para fases
+            fases_timeline = []
+            for fase_config in fases_config:
+                fase_number = fase_config.phase_number if hasattr(fase_config, 'phase_number') else fase_config.get('phase_number', 1)
+                fase_name = fase_config.phase_name if hasattr(fase_config, 'phase_name') else fase_config.get('phase_name', 'Fase')
+                fase_color = fase_config.phase_color if hasattr(fase_config, 'phase_color') else fase_config.get('phase_color', '#E8F5E8')
+                
+                # Determinar status da fase
+                if fase_number < current_phase:
+                    status = 'completed'
+                elif fase_number == current_phase:
+                    status = 'current'
+                else:
+                    status = 'pending'
+                
+                # Buscar marcos relacionados à fase
+                marcos_da_fase = []
+                milestone_names = []
+                if hasattr(fase_config, 'get_milestone_names'):
+                    milestone_names = fase_config.get_milestone_names()
+                elif isinstance(fase_config, dict) and 'milestone_names' in fase_config:
+                    milestone_names = fase_config['milestone_names']
+                
+                # Encontrar marcos que correspondem aos nomes esperados
+                for milestone_name in milestone_names:
+                    for milestone in milestones:
+                        if milestone_name.lower() in milestone.get('titulo', '').lower():
+                            marcos_da_fase.append({
+                                'nome': milestone.get('titulo'),
+                                'status': milestone.get('status_real', 'Pendente'),
+                                'data_planejada': milestone.get('data_vencimento'),
+                                'atrasado': milestone.get('atrasado', False)
+                            })
+                            break
+                
+                # Calcular progresso da fase baseado nos marcos
+                total_marcos = len(marcos_da_fase)
+                marcos_concluidos = sum(1 for marco in marcos_da_fase if marco['status'] == 'Concluído')
+                marcos_em_andamento = sum(1 for marco in marcos_da_fase if marco['status'] == 'Em Andamento')
+                
+                if total_marcos > 0:
+                    progresso = int((marcos_concluidos / total_marcos) * 100)
+                    if marcos_em_andamento > 0 and progresso == 0:
+                        progresso = 25  # Mostrar algum progresso se há marcos em andamento
+                else:
+                    progresso = 100 if status == 'completed' else (50 if status == 'current' else 0)
+                
+                fase_data = {
+                    'numero': fase_number,
+                    'nome': fase_name,
+                    'status': status,
+                    'cor': fase_color,
+                    'progresso': progresso,
+                    'marcos': marcos_da_fase,
+                    'descricao': fase_config.phase_description if hasattr(fase_config, 'phase_description') else fase_config.get('phase_description', '')
+                }
+                
+                fases_timeline.append(fase_data)
+                
+            logger.info(f"Fases do projeto {project_id}: {len(fases_timeline)} fases carregadas")
+            return fases_timeline
+            
+        except Exception as e:
+            logger.error(f"Erro ao obter fases do projeto {project_id}: {str(e)}")
+            return []
+
+    def _criar_fases_padrao(self, project_type):
+        """
+        Cria fases padrão se não houver configuração no banco.
+        """
+        if project_type == 'waterfall':
+            return [
+                {'phase_number': 1, 'phase_name': 'Planejamento', 'phase_color': '#E8F5E8', 'milestone_names': ['Milestone Start']},
+                {'phase_number': 2, 'phase_name': 'Execução', 'phase_color': '#E8F0FF', 'milestone_names': ['Milestone Setup']},
+                {'phase_number': 3, 'phase_name': 'CutOver', 'phase_color': '#FFF8E1', 'milestone_names': ['Milestone CutOver']},
+                {'phase_number': 4, 'phase_name': 'GoLive', 'phase_color': '#E8FFE8', 'milestone_names': ['Milestone Finish Project']}
+            ]
+        else:  # agile
+            return [
+                {'phase_number': 1, 'phase_name': 'Planejamento', 'phase_color': '#E8F5E8', 'milestone_names': ['Milestone Start']},
+                {'phase_number': 2, 'phase_name': 'Sprint Planning', 'phase_color': '#F0F8FF', 'milestone_names': ['Milestone Setup']},
+                {'phase_number': 3, 'phase_name': 'Desenvolvimento', 'phase_color': '#E8F0FF', 'milestone_names': ['Milestone Developer']},
+                {'phase_number': 4, 'phase_name': 'CutOver', 'phase_color': '#FFF8E1', 'milestone_names': ['Milestone CutOver']},
+                {'phase_number': 5, 'phase_name': 'GoLive', 'phase_color': '#E8FFE8', 'milestone_names': ['Milestone Finish Project']}
+            ]
 
     def gerar_status_report(self, project_id):
         """

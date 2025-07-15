@@ -681,6 +681,187 @@
         box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.05);
         border: 1px solid rgba(7, 48, 79, 0.1);
     }
+
+    /* === LINHA DO TEMPO DAS FASES === */
+    .phase-timeline-container {
+        margin-top: 1.5rem;
+        overflow-x: auto;
+        padding: 1rem 0;
+    }
+
+    .phase-timeline {
+        display: flex;
+        align-items: flex-start;
+        gap: 2rem;
+        min-width: 100%;
+        position: relative;
+    }
+
+    .phase-item {
+        flex: 1;
+        min-width: 200px;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .phase-circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        margin-bottom: 1rem;
+        border: 3px solid;
+        background: white;
+        z-index: 2;
+    }
+
+    .phase-completed .phase-circle {
+        border-color: #28a745;
+        background: #d4edda;
+    }
+
+    .phase-current .phase-circle {
+        border-color: var(--sou-azul);
+        background: #e3f2fd;
+        animation: pulse 2s infinite;
+    }
+
+    .phase-pending .phase-circle {
+        border-color: #6c757d;
+        background: #f8f9fa;
+    }
+
+    .phase-number {
+        font-size: 1.2rem;
+        font-weight: bold;
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: white;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        border: 2px solid;
+    }
+
+    .phase-completed .phase-number {
+        border-color: #28a745;
+        color: #28a745;
+    }
+
+    .phase-current .phase-number {
+        border-color: var(--sou-azul);
+        color: var(--sou-azul);
+    }
+
+    .phase-pending .phase-number {
+        border-color: #6c757d;
+        color: #6c757d;
+    }
+
+    .phase-icon {
+        font-size: 2rem;
+    }
+
+    .phase-completed .phase-icon {
+        color: #28a745;
+    }
+
+    .phase-current .phase-icon {
+        color: var(--sou-azul);
+    }
+
+    .phase-pending .phase-icon {
+        color: #6c757d;
+    }
+
+    .phase-content {
+        width: 100%;
+        max-width: 200px;
+    }
+
+    .phase-name {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--sou-azul);
+    }
+
+    .phase-progress {
+        margin-bottom: 1rem;
+    }
+
+    .phase-progress .progress {
+        height: 8px;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+    }
+
+    .phase-milestones {
+        margin-top: 0.5rem;
+    }
+
+    .milestone-item {
+        margin-bottom: 0.25rem;
+    }
+
+    .milestone-item .badge {
+        font-size: 0.75rem;
+        margin-right: 0.25rem;
+    }
+
+    .phase-connector {
+        position: absolute;
+        top: 40px;
+        left: 50%;
+        right: -50%;
+        height: 3px;
+        background: linear-gradient(to right, #ddd 0%, #ddd 100%);
+        z-index: 1;
+        transform: translateX(50%);
+    }
+
+    .phase-completed + .phase-item .phase-connector {
+        background: linear-gradient(to right, #28a745 0%, #ddd 100%);
+    }
+
+    .phase-current .phase-connector {
+        background: linear-gradient(to right, var(--sou-azul) 0%, #ddd 100%);
+    }
+
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(7, 48, 79, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(7, 48, 79, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(7, 48, 79, 0); }
+    }
+
+    /* Responsividade para a linha do tempo - apenas tela */
+    @media screen and (max-width: 768px) {
+        .phase-timeline {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .phase-item {
+            min-width: auto;
+            width: 100%;
+        }
+        
+        .phase-connector {
+            display: none;
+        }
+    }
+    /* === FIM LINHA DO TEMPO DAS FASES === */
     
     .section-header-modern {
         display: flex;
@@ -798,6 +979,231 @@
             -webkit-print-color-adjust: exact;
             color-adjust: exact;
         }
+        
+        /* === LINHA DO TEMPO DAS FASES - IMPRESSÃO === */
+        .phase-timeline-container {
+            overflow-x: visible;
+            padding: 1rem 0;
+        }
+
+        .phase-timeline {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: flex-start;
+            gap: 1rem; /* Reduzido para caber na impressão */
+            min-width: 100%;
+            position: relative;
+        }
+
+        .phase-item {
+            flex: 1;
+            min-width: 140px; /* Reduzido para caber na impressão */
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .phase-circle {
+            width: 60px; /* Reduzido para caber na impressão */
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin-bottom: 0.75rem;
+            border: 2px solid;
+            background: white;
+            z-index: 2;
+        }
+
+        .phase-completed .phase-circle {
+            border-color: #28a745 !important;
+            background: #d4edda !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+
+        .phase-current .phase-circle {
+            border-color: var(--sou-azul) !important;
+            background: #e3f2fd !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+
+        .phase-pending .phase-circle {
+            border-color: #6c757d !important;
+            background: #f8f9fa !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+
+        .phase-number {
+            font-size: 1rem;
+            font-weight: bold;
+            position: absolute;
+            top: 3px;
+            right: 3px;
+            background: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            border: 2px solid;
+        }
+
+        .phase-completed .phase-number {
+            border-color: #28a745 !important;
+            color: #28a745 !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+
+        .phase-current .phase-number {
+            border-color: var(--sou-azul) !important;
+            color: var(--sou-azul) !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+
+        .phase-pending .phase-number {
+            border-color: #6c757d !important;
+            color: #6c757d !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+
+        .phase-icon {
+            font-size: 1.5rem; /* Reduzido para caber na impressão */
+        }
+
+        .phase-completed .phase-icon {
+            color: #28a745 !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+
+        .phase-current .phase-icon {
+            color: var(--sou-azul) !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+
+        .phase-pending .phase-icon {
+            color: #6c757d !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+
+        .phase-content {
+            width: 100%;
+            max-width: 140px; /* Reduzido para caber na impressão */
+        }
+
+        .phase-name {
+            font-size: 0.9rem; /* Reduzido para caber na impressão */
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--sou-azul) !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+
+        .phase-progress {
+            margin-bottom: 0.75rem;
+        }
+
+        .phase-progress .progress {
+            height: 6px;
+            border-radius: 3px;
+            background-color: #f8f9fa !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+
+        .phase-milestones {
+            margin-top: 0.5rem;
+        }
+
+        .milestone-item {
+            margin-bottom: 0.25rem;
+        }
+
+        .milestone-item .badge {
+            font-size: 0.65rem; /* Reduzido para caber na impressão */
+            margin-right: 0.25rem;
+        }
+
+        .phase-connector {
+            position: absolute;
+            top: 30px; /* Ajustado para o círculo menor */
+            left: 50%;
+            right: -50%;
+            height: 2px;
+            background: linear-gradient(to right, #ddd 0%, #ddd 100%);
+            z-index: 1;
+            transform: translateX(50%);
+        }
+
+        .phase-completed + .phase-item .phase-connector {
+            background: linear-gradient(to right, #28a745 0%, #ddd 100%) !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+
+        .phase-current .phase-connector {
+            background: linear-gradient(to right, var(--sou-azul) 0%, #ddd 100%) !important;
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+
+        /* Desabilitar animação na impressão */
+        .phase-current .phase-circle {
+            animation: none !important;
+        }
+        
+        /* Forçar quebra de página após a linha do tempo se necessário */
+        .phase-timeline-container {
+            page-break-inside: avoid;
+        }
+        
+        /* Sobrescrever regras de responsividade na impressão */
+        .phase-timeline {
+            flex-direction: row !important;
+            justify-content: space-between !important;
+        }
+        
+        .phase-item {
+            min-width: 140px !important;
+            width: auto !important;
+            flex-direction: column !important;
+        }
+        
+        .phase-connector {
+            display: block !important;
+        }
+        
+        /* Regra específica para garantir layout horizontal */
+        .phase-timeline-container .phase-timeline {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            justify-content: space-between !important;
+        }
+        
+        .phase-timeline-container .phase-timeline .phase-item {
+            flex: 1 !important;
+            min-width: 140px !important;
+            max-width: 160px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+        }
     }
 
     /* === RESPONSIVIDADE === */
@@ -902,6 +1308,10 @@
                     <div class="project-info-item">
                         <span class="project-info-label">Especialista</span>
                         <span class="project-info-value">{{ report_data.info_geral.especialista | default('N/A') }}</span>
+                    </div>
+                    <div class="project-info-item">
+                        <span class="project-info-label">Account Manager</span>
+                        <span class="project-info-value">{{ report_data.info_geral.account_manager | default('N/A') }}</span>
                     </div>
                     <div class="project-info-item">
                         <span class="project-info-label">Prazo</span>
@@ -1078,6 +1488,80 @@
                 </div>
             </div>
             
+            <!-- 🆕 NOVO: Linha do Tempo das Fases -->
+            {% if report_data and report_data.fases_projeto and report_data.fases_projeto|length > 0 %}
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="content-section">
+                        <div class="section-header-modern">
+                            <div class="section-icon">
+                                <i class="bi bi-diagram-3"></i>
+                            </div>
+                            <h6 class="section-title-modern">Linha do Tempo das Fases</h6>
+                        </div>
+                        
+                        <div class="phase-timeline-container">
+                            <div class="phase-timeline">
+                                {% for fase in report_data.fases_projeto %}
+                                <div class="phase-item phase-{{ fase.status }}">
+                                    <div class="phase-circle">
+                                        <div class="phase-number">{{ fase.numero }}</div>
+                                        {% if fase.status == 'completed' %}
+                                            <i class="bi bi-check-circle-fill phase-icon"></i>
+                                        {% elif fase.status == 'current' %}
+                                            <i class="bi bi-play-circle-fill phase-icon"></i>
+                                        {% else %}
+                                            <i class="bi bi-circle phase-icon"></i>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="phase-content">
+                                        <h6 class="phase-name">{{ fase.nome }}</h6>
+                                        <div class="phase-progress">
+                                            <div class="progress">
+                                                <div class="progress-bar 
+                                                    {% if fase.status == 'completed' %}bg-success
+                                                    {% elif fase.status == 'current' %}bg-primary
+                                                    {% else %}bg-secondary{% endif %}" 
+                                                    role="progressbar" 
+                                                    style="width: {{ fase.progresso }}%">
+                                                    {{ fase.progresso }}%
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        {% if fase.marcos and fase.marcos|length > 0 %}
+                                        <div class="phase-milestones">
+                                            <small class="text-muted">Marcos:</small>
+                                            {% for marco in fase.marcos %}
+                                            <div class="milestone-item">
+                                                <span class="badge 
+                                                    {% if marco.status == 'Concluído' %}bg-success
+                                                    {% elif marco.status == 'Em Andamento' %}bg-primary
+                                                    {% else %}bg-secondary{% endif %}">
+                                                    {{ marco.nome }}
+                                                </span>
+                                                {% if marco.atrasado %}
+                                                    <span class="badge bg-danger ms-1">Atrasado</span>
+                                                {% endif %}
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    {% if not loop.last %}
+                                    <div class="phase-connector"></div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Linha do Tempo (Linha inteira) -->
             <div class="row mb-4">
                 <div class="col-md-12">
