@@ -245,7 +245,11 @@ def get_generic_tasks_for_sprint_view():
         tasks = Task.query.filter(
             Task.is_generic == True, 
             Task.sprint_id == None
-        ).order_by(Task.position).all()
+        ).order_by(
+            Task.start_date.asc().nulls_last(),  # Data de início primeiro
+            Task.created_at.asc(),               # Data de criação segundo
+            Task.position.asc()                  # Posição manual como fallback
+        ).all()
         
         result = []
         for task in tasks:
@@ -463,8 +467,12 @@ def generate_consolidated_report():
         sprint_total_hours = 0
         processed_tasks = []
 
-        # Busca todas as tarefas da sprint ordenadas por posição
-        tasks = Task.query.filter_by(sprint_id=sprint.id).order_by(Task.position).all()
+        # Busca todas as tarefas da sprint ordenadas por data primeiro, depois posição
+        tasks = Task.query.filter_by(sprint_id=sprint.id).order_by(
+            Task.start_date.asc().nulls_last(),  # Data de início primeiro
+            Task.created_at.asc(),               # Data de criação segundo
+            Task.position.asc()                  # Posição manual como fallback
+        ).all()
         
         for task in tasks:
             # Determina o status da tarefa baseado no nome da coluna
@@ -609,8 +617,12 @@ def export_consolidated_report():
     # Dados das tarefas
     current_row = 2
     for sprint in sprints:
-        # Buscar tarefas da sprint ordenadas por posição
-        sprint_tasks = Task.query.filter_by(sprint_id=sprint.id).order_by(Task.position).all()
+        # Buscar tarefas da sprint ordenadas por data primeiro, depois posição
+        sprint_tasks = Task.query.filter_by(sprint_id=sprint.id).order_by(
+            Task.start_date.asc().nulls_last(),  # Data de início primeiro
+            Task.created_at.asc(),               # Data de criação segundo
+            Task.position.asc()                  # Posição manual como fallback
+        ).all()
         
         for task in sprint_tasks:
             status = "Em Andamento"
@@ -762,8 +774,12 @@ def calculate_sprint_dates(sprint_id):
                 'error': 'Sprint precisa ter data de início configurada'
             }), 400
         
-        # Busca tarefas da sprint ordenadas por posição
-        tasks = Task.query.filter_by(sprint_id=sprint_id).order_by(Task.position).all()
+        # Busca tarefas da sprint ordenadas por data primeiro, depois posição
+        tasks = Task.query.filter_by(sprint_id=sprint_id).order_by(
+            Task.start_date.asc().nulls_last(),  # Data de início primeiro
+            Task.created_at.asc(),               # Data de criação segundo
+            Task.position.asc()                  # Posição manual como fallback
+        ).all()
         
         if not tasks:
             return jsonify({

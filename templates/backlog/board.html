@@ -1294,9 +1294,9 @@
                         <div class="col-md-4">
                             <label class="form-label fw-bold">Ordenação:</label>
                             <select class="form-select" id="wbs-sort-order">
-                                <option value="position" selected>Por Posição Salva</option>
+                                <option value="date" selected>Por Data</option>
+                                <option value="position">Por Posição Salva</option>
                                 <option value="priority">Por Prioridade</option>
-                                <option value="date">Por Data</option>
                                 <option value="specialist">Por Especialista</option>
                                 <option value="column">Por Coluna</option>
                             </select>
@@ -1858,6 +1858,7 @@
 <script src="{{ url_for('static', filename='js/backlog_features.js') }}"></script>
 <script src="{{ url_for('static', filename='js/board_dnd.js') }}"></script>
 <script src="{{ url_for('static', filename='js/phase_management.js') }}"></script>
+<script src="{{ url_for('static', filename='js/test_status_sync.js') }}"></script>
 
 <script>
     // Função para gerenciar visibilidade no módulo Sprints

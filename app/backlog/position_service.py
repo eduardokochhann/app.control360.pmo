@@ -197,7 +197,11 @@ class PositionService:
                     Task.column_id == column_id,
                     Task.backlog_id == backlog_id
                 )
-            ).order_by(Task.position.asc(), Task.created_at.asc()).all()
+            ).order_by(
+                Task.start_date.asc().nulls_last(),  # Data de início primeiro
+                Task.created_at.asc(),               # Data de criação segundo
+                Task.position.asc()                  # Posição manual como fallback
+            ).all()
             
         except Exception as e:
             current_app.logger.error(f"[PositionService] Erro ao buscar tarefas ordenadas: {e}")

@@ -1813,11 +1813,22 @@ function initializeProjectTools() {
     function sortWBSItems(items, sortOrder) {
         switch (sortOrder) {
             case 'date':
-                return items.sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+                return items.sort((a, b) => {
+                    // Prioriza start_date, usa end_date como fallback, depois created_at
+                    const getDateForSort = (item) => {
+                        if (item.start_date) return new Date(item.start_date);
+                        if (item.end_date) return new Date(item.end_date);
+                        if (item.created_at) return new Date(item.created_at);
+                        return new Date('1900-01-01'); // Data muito antiga para itens sem data
+                    };
+                    return getDateForSort(a) - getDateForSort(b);
+                });
             case 'specialist':
                 return items.sort((a, b) => a.specialist.localeCompare(b.specialist));
             case 'column':
                 return items.sort((a, b) => a.column.localeCompare(b.column));
+            case 'position':
+                return items.sort((a, b) => (a.position || 0) - (b.position || 0));
             case 'priority':
             default:
                 const priorityOrder = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1, 'ALTA': 3, 'MÉDIA': 2, 'BAIXA': 1 };

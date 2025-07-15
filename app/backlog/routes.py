@@ -36,22 +36,30 @@ def serialize_task(task):
             logged = task.logged_time or 0
             remaining_hours = task.estimated_effort - logged
 
-        # Encontra o nome da coluna e gera um prefixo/identificador
+        # 🔄 MAPEAMENTO CONSISTENTE: Usa ColumnStatusService para gerar identificador
+        from .column_status_service import ColumnStatusService
+        
         column_identifier = 'default' # Identificador padrão
         column_full_name = 'Coluna Desconhecida'
+        status_from_column = None
+        
         if task.column:
             column_full_name = task.column.name
-            # Gera um identificador simplificado baseado no nome da coluna para usar na classe CSS
-            name_lower = column_full_name.lower()
-            if 'a fazer' in name_lower:
-                column_identifier = 'afazer'
-            elif 'andamento' in name_lower:
-                column_identifier = 'andamento'
-            elif 'revis' in name_lower: # Pega "Revisão"
-                column_identifier = 'revisao'
-            elif 'concluído' in name_lower or 'concluido' in name_lower:
-                column_identifier = 'concluido'
-            # Adicionar mais elifs se houver outras colunas padrão
+            # Usa ColumnStatusService para mapear coluna para status e gerar identificador consistente
+            status_from_column = ColumnStatusService.get_status_from_column_name(task.column.name)
+            if status_from_column:
+                column_identifier = ColumnStatusService.get_column_identifier_from_status(status_from_column)
+            else:
+                # Fallback para mapeamento manual se ColumnStatusService não conseguir mapear
+                name_lower = column_full_name.lower()
+                if 'a fazer' in name_lower:
+                    column_identifier = 'afazer'
+                elif 'andamento' in name_lower:
+                    column_identifier = 'andamento'
+                elif 'revis' in name_lower: # Pega "Revisão"
+                    column_identifier = 'revisao'
+                elif 'concluído' in name_lower or 'concluido' in name_lower:
+                    column_identifier = 'concluido'
 
         # Protege contra erros se o relacionamento backlog ou sprint não existir
         backlog = task.backlog if hasattr(task, 'backlog') and task.backlog is not None else None
@@ -63,6 +71,13 @@ def serialize_task(task):
         start_date = task.start_date.isoformat() if hasattr(task, 'start_date') and task.start_date else None
         due_date = task.due_date.isoformat() if hasattr(task, 'due_date') and task.due_date else None
         completed_at = task.completed_at.isoformat() if hasattr(task, 'completed_at') and task.completed_at else None
+        actually_started_at_iso = task.actually_started_at.isoformat() if hasattr(task, 'actually_started_at') and task.actually_started_at else None
+
+        # 🔄 VERIFICAÇÃO DE CONSISTÊNCIA: Alerta se status enum não corresponde à coluna
+        status_consistent = True
+        if task.status and status_from_column and task.status != status_from_column:
+            current_app.logger.warning(f"[Status Inconsistency] Tarefa {task.id}: Status enum '{task.status.value}' não corresponde à coluna '{column_full_name}' (esperado '{status_from_column.value}')")
+            status_consistent = False
 
         # Coleta dos dados principais da tarefa
         task_data = {
@@ -72,6 +87,7 @@ def serialize_task(task):
             'description': task.description if hasattr(task, 'description') else "",
             'status': task.status.value if hasattr(task, 'status') and task.status else None,
             'priority': task.priority if hasattr(task, 'priority') else "Média",
+            'estimated_hours': task.estimated_effort if hasattr(task, 'estimated_effort') else None,
             'estimated_effort': task.estimated_effort if hasattr(task, 'estimated_effort') else None,
             'logged_time': task.logged_time if hasattr(task, 'logged_time') else 0,
             'remaining_hours': remaining_hours,
@@ -81,6 +97,7 @@ def serialize_task(task):
             'start_date': start_date,
             'due_date': due_date,
             'completed_at': completed_at,
+            'actually_started_at': actually_started_at_iso, # Adicionado
             'backlog_id': task.backlog_id if hasattr(task, 'backlog_id') else None,
             'column_id': task.column_id if hasattr(task, 'column_id') else None,
             'column_name': column_full_name,
@@ -90,7 +107,8 @@ def serialize_task(task):
             'sprint_name': sprint.name if sprint else None,
             'specialist_name': task.specialist_name if hasattr(task, 'specialist_name') else None,
             'is_generic': task.is_generic if hasattr(task, 'is_generic') else False, # Adicionado para is_generic
-            'is_unplanned': task.is_unplanned if hasattr(task, 'is_unplanned') else False # NOVO CAMPO
+            'is_unplanned': task.is_unplanned if hasattr(task, 'is_unplanned') else False, # NOVO CAMPO
+            'status_consistent': status_consistent # 🔄 NOVO: Indica se status está consistente
         }
 
         # NOVO: Busca o nome do projeto se não for tarefa genérica e tiver project_id
@@ -270,9 +288,14 @@ def board_by_project(project_id):
         tasks_list = []
         if backlog_id:
             current_app.logger.info(f"[DEBUG] Buscando tarefas para o backlog {backlog_id}")
-            tasks = Task.query.filter_by(backlog_id=backlog_id).order_by(Task.position).all()
+            # NOVA ORDENAÇÃO: Prioriza data de início, depois data de criação, depois posição
+            tasks = Task.query.filter_by(backlog_id=backlog_id).order_by(
+                Task.start_date.asc().nulls_last(),  # Data de início primeiro
+                Task.created_at.asc(),               # Data de criação segundo
+                Task.position.asc()                  # Posição manual como fallback
+            ).all()
             tasks_list = [serialize_task(t) for t in tasks]
-            current_app.logger.info(f"[DEBUG] Encontradas {len(tasks_list)} tarefas para o backlog {backlog_id}.")
+            current_app.logger.info(f"[DEBUG] Encontradas {len(tasks_list)} tarefas para o backlog {backlog_id} ordenadas por data.")
         else:
             current_app.logger.info(f"[DEBUG] Nenhum backlog encontrado para o projeto {project_id}.")
             # O template board.html precisa lidar com backlog_id=None (ex: mostrar botão criar)
@@ -477,7 +500,12 @@ def get_tasks():
     if backlog_id_filter:
         query = query.filter_by(backlog_id=backlog_id_filter)
     
-    tasks = query.order_by(Task.position).all()
+    # NOVA ORDENAÇÃO: Prioriza data de início, depois data de criação, depois posição
+    tasks = query.order_by(
+        Task.start_date.asc().nulls_last(),  # Data de início primeiro
+        Task.created_at.asc(),               # Data de criação segundo
+        Task.position.asc()                  # Posição manual como fallback
+    ).all()
     tasks_list = [serialize_task(t) for t in tasks]
     return jsonify(tasks_list)
 
@@ -582,46 +610,47 @@ def update_task_details(task_id):
         try:
             status_id = int(data['status'])
             if status_id in status_map:
-                # 🎯 NOVA LÓGICA: Verifica mudança de status para preencher actually_started_at automaticamente
+                # 🔄 IMPORTAÇÃO do ColumnStatusService para sincronização consistente
+                from .column_status_service import ColumnStatusService
+                
                 old_column_name = task.column.name.upper() if task.column else ''
                 new_column_name = status_map[status_id].upper()
+                old_status = task.status
                 
                 current_app.logger.info(f"[Status Change] Tarefa {task_id}: '{old_column_name}' -> '{new_column_name}'")
                 
-                # Verifica se está movendo para "Em Andamento" e ainda não tem data de início real
-                is_moving_to_progress = new_column_name == 'EM ANDAMENTO'
+                # Verifica se está saindo de "A Fazer" para qualquer status que não seja "Concluído"
                 is_leaving_todo = old_column_name == 'A FAZER'
-                is_moving_to_review = new_column_name == 'REVISÃO'
                 is_moving_to_done = new_column_name == 'CONCLUÍDO'
                 
-                # Preenche actually_started_at quando:
-                # 1. Move para "Em Andamento" OU
-                # 2. Move diretamente de "A Fazer" para "Revisão" OU  
-                # 3. Move diretamente de "A Fazer" para "Concluído"
-                # 4. Ainda não tem data de início real
-                should_set_start_time = (
-                    is_moving_to_progress or 
-                    (is_leaving_todo and is_moving_to_review) or
-                    (is_leaving_todo and is_moving_to_done)
-                )
-                
-                if not task.actually_started_at and should_set_start_time:
+                # Se saiu de TODO para outra coluna, define data de início real automaticamente
+                if is_leaving_todo and not task.actually_started_at:
                     task.actually_started_at = datetime.now(br_timezone)
-                    if is_moving_to_progress:
-                        action_desc = "Em Andamento"
-                    elif is_moving_to_review:
-                        action_desc = "Revisão (início direto)"
-                    else:
-                        action_desc = "Concluído (início direto)"
-                    current_app.logger.info(f"[Status Change] Tarefa {task_id} movida para {action_desc}, INÍCIO REAL definido para {task.actually_started_at} (fuso BR)")
+                    current_app.logger.info(f"[Status Change] Tarefa {task_id} saiu de 'A Fazer', INÍCIO REAL definido para {task.actually_started_at} (fuso BR)")
                 
                 # Preenche completed_at quando move para "Concluído"
                 if is_moving_to_done and not task.completed_at:
                     task.completed_at = datetime.now(br_timezone)
                     current_app.logger.info(f"[Status Change] Tarefa {task_id} movida para Concluído, DATA DE CONCLUSÃO definida para {task.completed_at} (fuso BR)")
                 
-                # Atualiza a coluna
+                # 🔄 ATUALIZA COLUNA E STATUS ENUM: Sincroniza ambos usando ColumnStatusService
                 task.column_id = status_id
+                new_status = ColumnStatusService.get_status_from_column_name(new_column_name)
+                if new_status:
+                    task.status = new_status
+                    current_app.logger.info(f"[Status Sync] Tarefa {task_id}: Status enum atualizado de '{old_status.value if old_status else 'None'}' para '{new_status.value}'")
+                else:
+                    current_app.logger.warning(f"[Status Sync] Tarefa {task_id}: Não foi possível mapear coluna '{new_column_name}' para status enum")
+                
+                # 🔄 LOGS DE AUDITORIA: Registra mudança de status para auditoria
+                if old_status != task.status:
+                    ColumnStatusService.log_status_change(
+                        task_id, 
+                        old_status or TaskStatus.TODO, 
+                        task.status, 
+                        new_column_name, 
+                        "modal_edit"
+                    )
             else:
                 current_app.logger.error(f"Status ID '{status_id}' inválido recebido.")
                 return jsonify({'error': f"Status inválido: {data['status']}"}), 400
@@ -780,6 +809,12 @@ def move_task(task_id):
 
     old_column_id = task.column_id
     old_position = task.position
+    old_status = task.status
+    
+    # 🔄 IMPORTAÇÃO do ColumnStatusService para mapeamento consistente
+    from .column_status_service import ColumnStatusService
+    
+    # Verifica se está movendo para Em Andamento
     is_moving_to_done = target_column.name.upper() == 'CONCLUÍDO' # Verifica se está movendo para Concluído
     was_in_done = task.column.name.upper() == 'CONCLUÍDO' if task.column else False
     
@@ -827,26 +862,10 @@ def move_task(task_id):
     is_leaving_todo = task.column.name.upper() == 'A FAZER' if task.column else False
     is_moving_to_review = target_column.name.upper() == 'REVISÃO'
     
-    # Preenche actually_started_at quando:
-    # 1. Move para "Em Andamento" OU
-    # 2. Move diretamente de "A Fazer" para "Revisão" OU  
-    # 3. Move diretamente de "A Fazer" para "Concluído"
-    # 4. Ainda não tem data de início real
-    should_set_start_time = (
-        is_moving_to_progress or 
-        (is_leaving_todo and is_moving_to_review) or
-        (is_leaving_todo and is_moving_to_done)
-    )
-    
-    if not task.actually_started_at and should_set_start_time:
+    # Se saiu de TODO para outra coluna, define data de início real automaticamente
+    if is_leaving_todo and not task.actually_started_at:
         task.actually_started_at = datetime.now(br_timezone)
-        if is_moving_to_progress:
-            action_desc = "Em Andamento"
-        elif is_moving_to_review:
-            action_desc = "Revisão (início direto)"
-        else:
-            action_desc = "Concluído (início direto)"
-        current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para {action_desc}, data de INÍCIO REAL definida para {task.actually_started_at} (usando br_timezone)")
+        current_app.logger.info(f"[Task Moved] Tarefa {task.id} saiu de 'A Fazer', INÍCIO REAL definido para {task.actually_started_at} (fuso BR)")
 
     # Atualiza data de início planejada (LEGADO - manter por enquanto se houver dependências)
     # if is_moving_to_progress and not was_in_progress:
@@ -854,36 +873,31 @@ def move_task(task_id):
     #         task.start_date = datetime.utcnow()
     #         current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para Em Andamento, data de início definida")
 
-    # Atualiza status e data de conclusão
-    if is_moving_to_done:
-        task.status = TaskStatus.DONE
+    # 🔄 NOVA SINCRONIZAÇÃO: Atualiza status enum baseado na nova coluna usando ColumnStatusService
+    new_status = ColumnStatusService.get_status_from_column_name(target_column.name)
+    if new_status:
+        task.status = new_status
+        current_app.logger.info(f"[Status Sync] Tarefa {task.id}: Status atualizado de '{old_status.value if old_status else 'None'}' para '{new_status.value}' baseado na coluna '{target_column.name}'")
+    else:
+        current_app.logger.warning(f"[Status Sync] Tarefa {task.id}: Não foi possível mapear coluna '{target_column.name}' para status. Status mantido como '{task.status.value if task.status else 'None'}'")
+
+    # Atualiza status e data de conclusão baseado no novo status
+    if task.status == TaskStatus.DONE:
         if not task.completed_at: # Define apenas se NÃO houver data de conclusão prévia
             task.completed_at = datetime.now(br_timezone)
-            current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para Concluído, data de conclusão definida.")
+            current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para Concluído, data de conclusão definida para {task.completed_at}")
         else:
             current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para Concluído, data de conclusão existente mantida: {task.completed_at}")
-    else:
-        # Se saiu de DONE, NÃO limpa mais a data de conclusão automaticamente.
-        # A data de conclusão (se existir) é mantida para fins de histórico.
-        # O status da tarefa é atualizado com base na nova coluna.
-        
-        # Tenta mapear nome da coluna para status comparando com os valores do Enum
-        found_status = False
-        for status_member in TaskStatus:
-            # Compara o valor do enum (ex: 'A Fazer') com o nome da coluna do BD
-            if status_member.value.upper() == target_column.name.upper():
-                task.status = status_member
-                found_status = True
-                current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para coluna '{target_column.name}', status definido para '{task.status.value}'.")
-                break 
-        
-        if not found_status: 
-            # Fallback se o nome da coluna não corresponder diretamente a um TaskStatus.value
-            if task.status == TaskStatus.DONE: # Só muda se ESTAVA em DONE e não encontrou novo status válido
-                 task.status = TaskStatus.TODO # Ou TaskStatus.IN_PROGRESS, dependendo da regra de negócio
-                 current_app.logger.info(f"[Task Moved] Tarefa {task.id} saiu de 'Concluído' para coluna '{target_column.name}', status revertido para '{task.status.value}' (fallback)." )
-            # else: # Se não estava em DONE e não achou match, o status atual é mantido (pode ser TODO, IN_PROGRESS etc)
-            #    current_app.logger.info(f"[Task Moved] Tarefa {task.id} movida para coluna '{target_column.name}', status MANTIDO como '{task.status.value}' pois não estava em 'Concluído' e não houve match de coluna para novo status.")
+
+    # 🔄 LOGS DE AUDITORIA: Registra mudança de status para auditoria
+    if old_status != task.status:
+        ColumnStatusService.log_status_change(
+            task.id, 
+            old_status or TaskStatus.TODO, 
+            task.status, 
+            target_column.name, 
+            "kanban_move"
+        )
 
     db.session.commit()
     
@@ -1052,7 +1066,12 @@ def get_unassigned_tasks():
                                       )\
                                       .join(Backlog)\
                                       .filter(Backlog.available_for_sprint == True)\
-                                      .order_by(Task.backlog_id, Task.position).all()
+                                      .order_by(
+                                          Task.backlog_id, 
+                                          Task.start_date.asc().nulls_last(),  # Data de início primeiro
+                                          Task.created_at.asc(),               # Data de criação segundo
+                                          Task.position.asc()                  # Posição manual como fallback
+                                      ).all()
 
         # 2. Agrupa as tarefas por backlog_id
         tasks_by_backlog = {}
@@ -3622,8 +3641,12 @@ def get_project_tasks_for_wbs(project_id):
         if not backlog:
             return jsonify({'error': 'Projeto não encontrado'}), 404
 
-        # Busca todas as tarefas do projeto
-        tasks = Task.query.filter_by(backlog_id=backlog.id).all()
+        # Busca todas as tarefas do projeto ordenadas por data
+        tasks = Task.query.filter_by(backlog_id=backlog.id).order_by(
+            Task.start_date.asc().nulls_last(),  # Data de início primeiro
+            Task.created_at.asc(),               # Data de criação segundo
+            Task.position.asc()                  # Posição manual como fallback
+        ).all()
         
         tasks_data = []
         for task in tasks:
