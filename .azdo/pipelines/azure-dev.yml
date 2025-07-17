@@ -41,7 +41,7 @@ steps:
       IDENTITY_PROXY_CLIENT_ID: $(IDENTITY_PROXY_CLIENT_ID)
       RESOURCE_GROUP_NAME: $(RESOURCE_GROUP_NAME)
 
-  - task: ManualValidation@1
+  - task: ManualValidation@0
     inputs:
       notifyUsers: ''
       onTimeout: 'resume'
