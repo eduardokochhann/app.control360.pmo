@@ -1,7 +1,5 @@
 targetScope = 'resourceGroup'
 
-extension 'br:mcr.microsoft.com/bicep/extensions/microsoftgraph/v1.0:0.1.8-preview'
-
 @minLength(1)
 @maxLength(64)
 @description('Name of the environment that can be used as part of naming resource convention')
@@ -10,9 +8,6 @@ param environmentName string
 @minLength(1)
 @description('The location used for all deployed resources')
 param location string = resourceGroup().location
-
-@description('Id of the user or app to assign application roles')
-param principalId string
 
 param appControl360SouExists bool = false
 
