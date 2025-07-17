@@ -28,7 +28,7 @@ param identityProxyClientSecret string = ''
 param budgetStartDate string = '${utcNow('yyyy-MM')}-01'
 
 var abbrs = loadJsonContent('./abbreviations.json')
-var resourceToken = uniqueString(subscription().id, resourceGroup().id, location)
+var resourceToken = uniqueString(resourceGroup().id, location)
 
 var tags = {
   'azd-env-name': environmentName

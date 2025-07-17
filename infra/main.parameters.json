@@ -16,9 +16,6 @@
     },
     "identityProxyClientId": {
       "value": "${IDENTITY_PROXY_CLIENT_ID}"
-    },
-    "resourceGroupName": {
-      "value": "${AZURE_RESOURCE_GROUP_NAME}"
     }
   }
 }
