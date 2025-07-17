@@ -54,6 +54,7 @@ jobs:
         timeoutInMinutes: 5
 
   - job: deploy
+    dependsOn: approveInfrastructure
     steps:
     - task: AzureCLI@2
       displayName: Provision Infrastructure
