@@ -65,3 +65,6 @@ projetos.csv
 
 # Ignorar arquivos de revisão
 _ARQUIVOS_DUPLICADOS_PARA_REVISAO/
+
+# Ignorar pasta LIXO (arquivos de teste e temporários)
+LIXO/

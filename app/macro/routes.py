@@ -952,9 +952,25 @@ def api_filter():
             logger.warning("Campo 'projetos_risco' não encontrado nas agregações")
             agregacoes['projetos_risco'] = []
         
+        # 🔧 CORREÇÃO: Garante que todos os valores são JSON-serializáveis
+        def sanitize_for_json(obj):
+            """Remove valores NaN e outros problemas de serialização JSON"""
+            import numpy as np
+            if isinstance(obj, dict):
+                return {k: sanitize_for_json(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [sanitize_for_json(item) for item in obj]
+            elif pd.isna(obj) or (isinstance(obj, float) and np.isnan(obj)):
+                return None
+            elif obj == float('inf') or obj == float('-inf'):
+                return None
+            return obj
+        
+        agregacoes_sanitized = sanitize_for_json(agregacoes)
+        
         # Retorna o objeto com dados filtrados
         logger.info(f"api_filter: Finalizando com sucesso. Status incluídos: {list(por_status_filtrado.keys())}")
-        return jsonify(agregacoes)
+        return jsonify(agregacoes_sanitized)
     
     except Exception as e:
         logger.exception(f"Erro ao processar api_filter: {str(e)}")

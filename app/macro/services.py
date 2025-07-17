@@ -1801,10 +1801,17 @@ class MacroService(BaseService):
                     logger.info(f"Ignorando status '{status}' conforme solicitado")
                     continue
                 
-                # Extrai valores garantindo que sejam válidos
-                # quantidade = int(row['Projeto']) if pd.notna(row['Projeto']) else 0 <-- REMOVIDO
-                horas_totais = float(soma_horas.get(status, 0.0)) # Usa .get com default
-                conclusao_media = round(float(media_conclusao.get(status, 0.0)), 1) # Usa .get com default
+                # Extrai valores garantindo que sejam válidos e JSON-serializáveis
+                horas_totais = float(soma_horas.get(status, 0.0))
+                conclusao_media_raw = media_conclusao.get(status, 0.0)
+                
+                # 🔧 CORREÇÃO: Trata valores NaN antes da serialização JSON
+                if pd.isna(horas_totais):
+                    horas_totais = 0.0
+                if pd.isna(conclusao_media_raw):
+                    conclusao_media_raw = 0.0
+                
+                conclusao_media = round(float(conclusao_media_raw), 1)
                 
                 # Define a cor baseada no status
                 if status == 'NOVO':
@@ -1819,7 +1826,7 @@ class MacroService(BaseService):
                     cor = 'secondary'  # cinza
                 
                 por_status[status] = {
-                    'quantidade': quantidade,
+                    'quantidade': int(quantidade),  # Garante que é int
                     'horas_totais': round(horas_totais, 1),
                     'conclusao_media': conclusao_media,
                     'cor': cor,
@@ -1855,10 +1862,16 @@ class MacroService(BaseService):
                     horas_concluidos = projetos_concluidos_mes['Horas'].sum()
                     conclusao_concluidos = projetos_concluidos_mes['Conclusao'].mean()
                     
+                    # 🔧 CORREÇÃO: Trata valores NaN para projetos concluídos
+                    if pd.isna(horas_concluidos):
+                        horas_concluidos = 0.0
+                    if pd.isna(conclusao_concluidos):
+                        conclusao_concluidos = 0.0
+                    
                     por_status['FECHADO'] = {
                         'quantidade': quantidade_concluidos,
-                        'horas_totais': round(horas_concluidos, 1),
-                        'conclusao_media': round(conclusao_concluidos, 1),
+                        'horas_totais': round(float(horas_concluidos), 1),
+                        'conclusao_media': round(float(conclusao_concluidos), 1),
                         'cor': 'success',
                         'tipo': 'outros'
                     }
@@ -1895,8 +1908,11 @@ class MacroService(BaseService):
             # 3. Projetos em Risco
             # --------------------
             projetos_risco_df = self.calcular_projetos_risco(dados_ativos)
-            # Converter DataFrame para lista de dicts antes de adicionar ao resultado
-            resultado['projetos_risco'] = projetos_risco_df.to_dict('records') if not projetos_risco_df.empty else []
+            # 🔧 CORREÇÃO: Substitui valores NaN por None antes da conversão para dict
+            if not projetos_risco_df.empty:
+                resultado['projetos_risco'] = projetos_risco_df.replace({np.nan: None}).to_dict('records')
+            else:
+                resultado['projetos_risco'] = []
             
             logger.info("Agregações calculadas com sucesso")
             return resultado
@@ -2040,7 +2056,12 @@ class MacroService(BaseService):
                 taxa_uso = 0.0
                 # Evita divisão por zero se não houver projetos ativos no total
                 if total_projetos_ativos_geral > 0:
-                    taxa_uso = round((projetos_ativos_esp / total_projetos_ativos_geral) * 100, 1)
+                    taxa_uso = (projetos_ativos_esp / total_projetos_ativos_geral) * 100
+                    # 🔧 CORREÇÃO: Trata valores NaN e garante arredondamento seguro
+                    if pd.isna(taxa_uso):
+                        taxa_uso = 0.0
+                    else:
+                        taxa_uso = round(float(taxa_uso), 1)
                 # ---------------------------------------------------------
 
                 # --- NÍVEL DE RISCO (AJUSTADO para taxa baseada em PROJETOS) ---
@@ -2055,14 +2076,19 @@ class MacroService(BaseService):
                         nivel_risco = 'success'
                 # ----------------------------------------------------------
 
+                # 🔧 CORREÇÃO: Trata valores NaN para horas
+                total_horas_safe = 0.0 if pd.isna(total_horas_esp) else float(total_horas_esp)
+                horas_trabalhadas_safe = 0.0 if pd.isna(horas_trabalhadas_esp) else float(horas_trabalhadas_esp)
+                horas_restantes_safe = 0.0 if pd.isna(horas_restantes_esp) else float(horas_restantes_esp)
+                
                 resultado_final[especialista] = {
                     # A chave 'total_projetos' agora reflete os projetos ativos do especialista
-                    'total_projetos': projetos_ativos_esp,
+                    'total_projetos': int(projetos_ativos_esp),
                     # Mantém as colunas de horas como antes
-                    'horas_contratadas': round(total_horas_esp, 1),
-                    'horas_trabalhadas': round(horas_trabalhadas_esp, 1),
-                    'horas_restantes': round(horas_restantes_esp, 1),
-                    'projetos_bloqueados': projetos_bloqueados,
+                    'horas_contratadas': round(total_horas_safe, 1),
+                    'horas_trabalhadas': round(horas_trabalhadas_safe, 1),
+                    'horas_restantes': round(horas_restantes_safe, 1),
+                    'projetos_bloqueados': int(projetos_bloqueados),
                     'taxa_uso': taxa_uso, # Nova taxa (baseada em projetos)
                     'nivel_risco': nivel_risco # Novo risco (baseado na taxa de projetos)
                 }
@@ -2139,9 +2165,9 @@ class MacroService(BaseService):
                             'projetos_bloqueados': 'sum'
                         }).reset_index()
 
-                    # Arredonda valores numéricos
+                    # 🔧 CORREÇÃO: Arredonda valores numéricos e trata NaN
                     for col in ['horas_totais', 'horas_restantes', 'conclusao_media']:
-                        accounts_agg[col] = accounts_agg[col].round(1)
+                        accounts_agg[col] = accounts_agg[col].fillna(0.0).round(1)
 
                     dados_accounts = accounts_agg.to_dict('records')
                     logger.debug(f"Dados para aba Account Managers preparados: {len(dados_accounts)} itens")
