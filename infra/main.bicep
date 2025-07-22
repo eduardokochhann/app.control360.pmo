@@ -78,7 +78,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.13.0' = {
         roleDefinitionIdOrName: 'Key Vault Secrets User'
       }
       {
-        principalId: 'bernardo@sou.cloud'
+        principalId: '073f3350-acec-480b-a99e-a5718e4df45d' //bernardo@sou.cloud
         principalType: 'User'
         roleDefinitionIdOrName: 'Key Vault Secrets User'
       }
