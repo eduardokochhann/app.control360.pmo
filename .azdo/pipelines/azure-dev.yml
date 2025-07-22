@@ -1,4 +1,4 @@
-# This pipeline was generated using azd pipeline config
+# This pipeline was generated using "azd pipeline config"
 trigger:
   - main
 

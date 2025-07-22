@@ -77,6 +77,11 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.13.0' = {
         principalType: 'ServicePrincipal'
         roleDefinitionIdOrName: 'Key Vault Secrets User'
       }
+      {
+        principalId: 'bernardo@sou.cloud'
+        principalType: 'User'
+        roleDefinitionIdOrName: 'Key Vault Secrets User'
+      }
     ]
     secrets: [
       empty(identityProxyClientSecret) ? {
