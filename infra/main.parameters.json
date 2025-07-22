@@ -11,14 +11,8 @@
     "appControl360SouExists": {
       "value": false
     },
-    "principalId": {
-      "value": "${AZURE_PRINCIPAL_ID}"
-    },
     "identityProxyClientId": {
       "value": "${IDENTITY_PROXY_CLIENT_ID}"
-    },
-    "resourceGroupName": {
-      "value": "${AZURE_RESOURCE_GROUP_NAME}"
     }
   }
 }
