@@ -19,48 +19,7 @@ variables:
   - group: secrets-app-control360-sou-prd # contains IDENTITY_PROXY_CLIENT_SECRET
 
 jobs:
-  - job: previewInfrastructure
-    steps:
-    - task: Bash@3
-      displayName: Install azd
-      inputs:
-        targetType: 'inline'
-        script: |
-          curl -fsSL https://aka.ms/install-azd.sh | bash
-
-    - pwsh: |
-        azd config set auth.useAzCliAuth "true"
-      displayName: Configure AZD to Use AZ CLI Authentication.
-
-    - task: AzureCLI@2
-      displayName: Preview Infrastructure
-      inputs:
-        azureSubscription: arm-mpn-subscription-bernardo-mesko
-        scriptType: bash
-        scriptLocation: inlineScript
-        keepAzSessionActive: true
-        inlineScript: |
-          azd provision --no-prompt --preview
-      env:
-        AZURE_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
-        AZURE_ENV_NAME: $(AZURE_ENV_NAME)
-        AZURE_LOCATION: $(AZURE_LOCATION)
-        IDENTITY_PROXY_CLIENT_ID: $(IDENTITY_PROXY_CLIENT_ID)
-        IDENTITY_PROXY_CLIENT_SECRET: $(IDENTITY_PROXY_CLIENT_SECRET)
-        AZURE_RESOURCE_GROUP: $(AZURE_RESOURCE_GROUP)
-
-  - job: approveInfrastructure
-    pool: server
-    dependsOn: previewInfrastructure
-    steps:
-    - task: ManualValidation@0
-      inputs:
-        notifyUsers: ''
-        onTimeout: 'resume'
-        timeoutInMinutes: 5
-
   - job: deploy
-    dependsOn: approveInfrastructure
     steps:
     - task: Bash@3
       displayName: Install azd
