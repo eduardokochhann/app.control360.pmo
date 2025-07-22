@@ -20,6 +20,169 @@ br_timezone = pytz.timezone('America/Sao_Paulo') # <<< ADICIONADO
 from ..utils.serializers import serialize_task_for_sprints
 
 # Função auxiliar para serializar uma tarefa
+def serialize_tasks_batch(tasks, project_details=None):
+    """
+    Serializa múltiplas tarefas de forma otimizada, evitando consultas repetidas.
+    Especialmente útil para projetos como 12568 (CDB Data Solutions) com muitas tarefas.
+    """
+    if not tasks:
+        return []
+    
+    # OTIMIZAÇÃO: Pré-carrega dados comuns uma única vez
+    from .column_status_service import ColumnStatusService
+    
+    # Pre-carrega todas as colunas e backlogs necessários
+    column_cache = {}
+    backlog_cache = {}
+    
+    # Carrega colunas únicas
+    unique_column_ids = set(task.column_id for task in tasks if task.column_id)
+    if unique_column_ids:
+        from ..models import Column
+        columns = Column.query.filter(Column.id.in_(unique_column_ids)).all()
+        column_cache = {col.id: col for col in columns}
+    
+    # Carrega backlogs únicos
+    unique_backlog_ids = set(task.backlog_id for task in tasks if task.backlog_id)
+    if unique_backlog_ids:
+        from ..models import Backlog
+        backlogs = Backlog.query.filter(Backlog.id.in_(unique_backlog_ids)).all()
+        backlog_cache = {bl.id: bl for bl in backlogs}
+    
+    # Pre-carrega sprints únicos
+    sprint_cache = {}
+    unique_sprint_ids = set(task.sprint_id for task in tasks if task.sprint_id)
+    if unique_sprint_ids:
+        from ..models import Sprint
+        sprints = Sprint.query.filter(Sprint.id.in_(unique_sprint_ids)).all()
+        sprint_cache = {spr.id: spr for spr in sprints}
+    
+    # OTIMIZAÇÃO: Usa project_details fornecido para evitar consultas ao MacroService
+    project_name = None
+    if project_details:
+        project_name = project_details.get('projeto', project_details.get('Projeto', 'Projeto Desconhecido'))
+    
+    current_app.logger.info(f"[serialize_batch] Serializando {len(tasks)} tarefas em lote com cache otimizado")
+    
+    # Serializa todas as tarefas usando o cache
+    tasks_list = []
+    for task in tasks:
+        task_data = serialize_task_cached(task, column_cache, backlog_cache, sprint_cache, project_name)
+        if task_data:
+            tasks_list.append(task_data)
+    
+    return tasks_list
+
+
+def serialize_task_cached(task, column_cache, backlog_cache, sprint_cache, project_name=None):
+    """Versão otimizada do serialize_task que usa cache para evitar consultas repetidas."""
+    if not task:
+        return None
+    
+    try:
+        # Usa cache de colunas
+        column = column_cache.get(task.column_id) if task.column_id else None
+        backlog = backlog_cache.get(task.backlog_id) if task.backlog_id else None
+        sprint = sprint_cache.get(task.sprint_id) if task.sprint_id else None
+        
+        # Calcula horas restantes
+        remaining_hours = None
+        if task.estimated_effort is not None:
+            logged = task.logged_time or 0
+            remaining_hours = task.estimated_effort - logged
+
+        # Mapeia coluna para status
+        from .column_status_service import ColumnStatusService
+        column_identifier = 'default'
+        column_full_name = 'Coluna Desconhecida'
+        status_from_column = None
+        
+        if column:
+            column_full_name = column.name
+            status_from_column = ColumnStatusService.get_status_from_column_name(column.name)
+            if status_from_column:
+                column_identifier = ColumnStatusService.get_column_identifier_from_status(status_from_column)
+            else:
+                name_lower = column_full_name.lower()
+                if 'a fazer' in name_lower:
+                    column_identifier = 'afazer'
+                elif 'andamento' in name_lower:
+                    column_identifier = 'andamento'
+                elif 'revis' in name_lower:
+                    column_identifier = 'revisao'
+                elif 'concluído' in name_lower or 'concluido' in name_lower:
+                    column_identifier = 'concluido'
+
+        # Verifica consistência de status
+        status_consistent = True
+        if task.status and status_from_column and task.status != status_from_column:
+            current_app.logger.warning(f"[Status Inconsistency] Tarefa {task.id}: Status enum '{task.status.value}' não corresponde à coluna '{column_full_name}' (esperado '{status_from_column.value}')")
+            status_consistent = False
+
+        # Timestamps
+        created_at = task.created_at.isoformat() if hasattr(task, 'created_at') and task.created_at else None
+        updated_at = task.updated_at.isoformat() if hasattr(task, 'updated_at') and task.updated_at else None
+        start_date = task.start_date.isoformat() if hasattr(task, 'start_date') and task.start_date else None
+        due_date = task.due_date.isoformat() if hasattr(task, 'due_date') and task.due_date else None
+        completed_at = task.completed_at.isoformat() if hasattr(task, 'completed_at') and task.completed_at else None
+        actually_started_at_iso = task.actually_started_at.isoformat() if hasattr(task, 'actually_started_at') and task.actually_started_at else None
+
+        # Monta dados da tarefa
+        task_data = {
+            'id': task.id,
+            'name': task.title,
+            'title': task.title if hasattr(task, 'title') else "Sem título",
+            'description': task.description if hasattr(task, 'description') else "",
+            'status': task.status.value if hasattr(task, 'status') and task.status else None,
+            'priority': task.priority if hasattr(task, 'priority') else "Média",
+            'estimated_hours': task.estimated_effort if hasattr(task, 'estimated_effort') else None,
+            'estimated_effort': task.estimated_effort if hasattr(task, 'estimated_effort') else None,
+            'logged_time': task.logged_time if hasattr(task, 'logged_time') else 0,
+            'remaining_hours': remaining_hours,
+            'position': task.position if hasattr(task, 'position') else 0,
+            'created_at': created_at,
+            'updated_at': updated_at,
+            'start_date': start_date,
+            'due_date': due_date,
+            'completed_at': completed_at,
+            'actually_started_at': actually_started_at_iso,
+            'backlog_id': task.backlog_id if hasattr(task, 'backlog_id') else None,
+            'column_id': task.column_id if hasattr(task, 'column_id') else None,
+            'column_name': column_full_name,
+            'column_identifier': column_identifier,
+            'sprint_id': task.sprint_id if hasattr(task, 'sprint_id') else None,
+            'project_id': backlog.project_id if backlog else None,
+            'sprint_name': sprint.name if sprint else None,
+            'specialist_name': task.specialist_name if hasattr(task, 'specialist_name') else None,
+            'is_generic': task.is_generic if hasattr(task, 'is_generic') else False,
+            'is_unplanned': task.is_unplanned if hasattr(task, 'is_unplanned') else False,
+            'status_consistent': status_consistent,
+            'project_name': project_name  # Usa o nome pré-carregado
+        }
+
+        # Adiciona resumo dos segmentos (mantém lógica original)
+        task_segments_summary = []
+        try:
+            from ..models import TaskSegment
+            segments = TaskSegment.query.filter_by(task_id=task.id).all()
+            for segment in segments:
+                seg_data = {
+                    'id': segment.id,
+                    'segment_start_datetime': segment.segment_start_datetime.isoformat() if segment.segment_start_datetime else None,
+                    'effort_hours': segment.effort_hours or 0
+                }
+                task_segments_summary.append(seg_data)
+        except Exception as seg_ex:
+            current_app.logger.warning(f"Erro ao buscar segmentos da tarefa {task.id}: {seg_ex}")
+
+        task_data['segments_summary'] = task_segments_summary
+        return task_data
+
+    except Exception as e:
+        current_app.logger.error(f"Erro ao serializar tarefa {task.id if task else 'None'}: {e}", exc_info=True)
+        return None
+
+
 def serialize_task(task):
     """Converte um objeto Task em um dicionário serializável."""
     if not task:
@@ -111,12 +274,20 @@ def serialize_task(task):
             'status_consistent': status_consistent # 🔄 NOVO: Indica se status está consistente
         }
 
-        # NOVO: Busca o nome do projeto se não for tarefa genérica e tiver project_id
+        # OTIMIZAÇÃO: Cache o nome do projeto para evitar múltiplas instanciações do MacroService
+        # Usa cache global para melhorar performance
         if not (task.is_generic if hasattr(task, 'is_generic') else False) and backlog and backlog.project_id:
             try:
-                from ..macro.services import MacroService
-                macro_service = MacroService()
-                project_details = macro_service.obter_detalhes_projeto(backlog.project_id)
+                # OTIMIZAÇÃO: Usa cache compartilhado em vez de criar nova instância
+                from ..macro.services import _get_cached_project_details
+                project_details = _get_cached_project_details(backlog.project_id)
+                
+                if project_details is None:
+                    # Cache miss - carrega dados apenas se necessário
+                    from ..macro.services import MacroService
+                    macro_service = MacroService()
+                    project_details = macro_service.obter_detalhes_projeto(backlog.project_id)
+                
                 if project_details:
                     # As chaves são normalizadas (minúsculas), então usa 'projeto' em vez de 'Projeto'
                     task_data['project_name'] = project_details.get('projeto', project_details.get('Projeto', 'Projeto Desconhecido'))
@@ -276,6 +447,11 @@ def board_by_project(project_id):
             current_app.logger.warning(f"[DEBUG] Detalhes não encontrados para projeto {project_id}. Redirecionando para seleção.")
             # TODO: Adicionar flash message informando erro?
             return redirect(url_for('.project_selection'))
+        
+        # OTIMIZAÇÃO: Pré-carrega o projeto no cache para evitar múltiplas consultas durante serialização
+        from ..macro.services import _set_cached_project_details
+        _set_cached_project_details(project_id, project_details)
+        current_app.logger.info(f"[DEBUG] Projeto {project_id} pré-carregado no cache para otimização")
             
         # 2. Busca o backlog associado
         current_app.logger.info(f"[DEBUG] Buscando backlog para o projeto {project_id}")
@@ -294,7 +470,15 @@ def board_by_project(project_id):
                 Task.created_at.asc(),               # Data de criação segundo
                 Task.position.asc()                  # Posição manual como fallback
             ).all()
-            tasks_list = [serialize_task(t) for t in tasks]
+            
+            # OTIMIZAÇÃO: Para projetos com muitas tarefas (como CDB Data Solutions), 
+            # usa serialização otimizada em lote
+            if len(tasks) > 5:  # Limite para usar otimização
+                current_app.logger.info(f"[DEBUG] Usando serialização otimizada para {len(tasks)} tarefas do projeto {project_id}")
+                tasks_list = serialize_tasks_batch(tasks, project_details)
+            else:
+                tasks_list = [serialize_task(t) for t in tasks]
+            
             current_app.logger.info(f"[DEBUG] Encontradas {len(tasks_list)} tarefas para o backlog {backlog_id} ordenadas por data.")
         else:
             current_app.logger.info(f"[DEBUG] Nenhum backlog encontrado para o projeto {project_id}.")

@@ -1850,7 +1850,9 @@
         backlogId: {{ current_backlog_id if current_backlog_id else 'null' }},
         tasks: {{ tasks_json|safe if tasks_json else '[]' }},
         columns: {{ columns|tojson if columns else '[]' }},
-        specialists: [] // Será preenchido via API se necessário
+        specialists: [], // Será preenchido via API se necessário
+        // CORREÇÃO: Passa todos os dados do projeto para o JavaScript
+        projectData: {{ current_project|tojson if current_project else '{}' }}
     };
 </script>
 

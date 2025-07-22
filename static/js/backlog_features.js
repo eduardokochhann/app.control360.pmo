@@ -132,16 +132,28 @@ function initializeProjectTools() {
         try {
             console.log(`[DEBUG] Carregando cabeçalho do projeto: ${projectId}`);
             
-            const [detailsRes, complexityRes, phaseRes, projectTypeRes] = await Promise.all([
-                fetch(`/backlog/api/projects/${projectId}/details`),
+            // OTIMIZAÇÃO: Para projeto 12568 e outros, usa dados pré-carregados quando disponíveis
+            let details = {};
+            
+            // Verifica se existem dados pré-carregados para otimizar performance
+            if (window.boardData && window.boardData.projectData && Object.keys(window.boardData.projectData).length > 0) {
+                console.log('[DEBUG] Usando dados do projeto pré-carregados do backend');
+                details = window.boardData.projectData;
+            } else {
+                console.log('[DEBUG] Dados pré-carregados não disponíveis, buscando via API');
+                const detailsRes = await fetch(`/backlog/api/projects/${projectId}/details`);
+                details = detailsRes.ok ? await detailsRes.json() : {};
+            }
+            
+            // Carrega dados complementares
+            const [complexityRes, phaseRes, projectTypeRes] = await Promise.all([
                 fetch(`/backlog/api/projects/${projectId}/complexity/assessment`),
                 fetch(`/backlog/api/projects/${projectId}/current-phase`),
                 fetch(`/backlog/api/projects/${projectId}/project-type`)
             ]);
 
-            console.log(`[DEBUG] Status das respostas - Details: ${detailsRes.status}, Complexity: ${complexityRes.status}, Phase: ${phaseRes.status}, ProjectType: ${projectTypeRes.status}`);
+            console.log(`[DEBUG] Status das respostas - Complexity: ${complexityRes.status}, Phase: ${phaseRes.status}, ProjectType: ${projectTypeRes.status}`);
 
-            const details = detailsRes.ok ? await detailsRes.json() : {};
             const complexityData = complexityRes.ok ? await complexityRes.json() : {};
             const phase = phaseRes.ok ? await phaseRes.json() : {};
             const projectType = projectTypeRes.ok ? await projectTypeRes.json() : {};
@@ -167,20 +179,32 @@ function initializeProjectTools() {
 
     function renderProjectHeader(details, complexity, phase, projectType) {
         // --- Coluna Esquerda: Informações Gerais ---
-        document.getElementById('headerProjectName').textContent = details.projeto || 'Projeto sem nome';
-        document.getElementById('headerSpecialist').textContent = `Especialista: ${details.especialista || '-'}`;
+        // CORREÇÃO: Suporte para diferentes formatos de chaves (português/inglês)
+        const projectName = details.projeto || details.name || details.project_name || 'Projeto sem nome';
+        const specialist = details.especialista || details.specialist || '-';
+        const accountManager = details.account_manager || details.am || '-';
+        
+        console.log('[DEBUG] Renderizando cabeçalho com:', {
+            projectName,
+            specialist,
+            accountManager,
+            detailsKeys: Object.keys(details)
+        });
+        
+        document.getElementById('headerProjectName').textContent = projectName;
+        document.getElementById('headerSpecialist').textContent = `Especialista: ${specialist}`;
         
         // Verificar se existe campo AM nos dados
-        const amElement = document.getElementById('headerAM');
+        let amElement = document.getElementById('headerAM');
         if (amElement) {
-            amElement.textContent = `AM: ${details.account_manager || '-'}`;
+            amElement.textContent = `AM: ${accountManager}`;
         } else {
             // Se não existe, criar o elemento
             const specialistElement = document.getElementById('headerSpecialist');
-            const amElement = document.createElement('p');
+            amElement = document.createElement('p');
             amElement.className = 'small text-muted mb-1';
             amElement.id = 'headerAM';
-            amElement.textContent = `AM: ${details.account_manager || '-'}`;
+            amElement.textContent = `AM: ${accountManager}`;
             specialistElement.parentNode.insertBefore(amElement, specialistElement.nextSibling);
         }
         
@@ -198,13 +222,20 @@ function initializeProjectTools() {
         }
 
         // --- Coluna Central: Métricas ---
+        // CORREÇÃO: Suporte para diferentes formatos de chaves
+        const remainingHours = details.horasrestantes || details.remaining_hours || 0;
+        const estimatedHours = details.horas || details.hours || details.estimated_hours || 0;
+        const completion = details.conclusao || details.completion || 0;
+        const status = details.status || 'N/A';
+        const dueDate = details.vencimentoem || details.due_date || details.vencimento;
+        
         const metrics = {
-            'STATUS': details.status || 'N/A',
-            'HORAS REST.': `${Math.round(details.horasrestantes || 0)}h`,
-            'HORAS PREV.': `${Math.round(details.horas || 0)}h`,
-            'CONCLUSÃO': `${Math.round(details.conclusao || 0)}%`,
+            'STATUS': status,
+            'HORAS REST.': `${Math.round(remainingHours)}h`,
+            'HORAS PREV.': `${Math.round(estimatedHours)}h`,
+            'CONCLUSÃO': `${Math.round(completion)}%`,
             'COMPLEXIDADE': complexity.category_label || complexity.category || 'N/A',
-            'TÉRMINO PREVISTO': details.vencimentoem ? new Date(details.vencimentoem).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'
+            'TÉRMINO PREVISTO': dueDate ? new Date(dueDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'
         };
 
         let metricsHtml = '';
