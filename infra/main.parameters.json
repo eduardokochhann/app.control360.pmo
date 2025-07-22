@@ -13,6 +13,9 @@
     },
     "identityProxyClientId": {
       "value": "${IDENTITY_PROXY_CLIENT_ID}"
+    },
+    "identityProxyClientSecret": {
+      "value": "${IDENTITY_PROXY_CLIENT_SECRET}"
     }
   }
 }
