@@ -1086,10 +1086,10 @@
                             <div class="card-header py-2 bg-info text-white">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
-                                        <h6 class="mb-0">
-                                            <i class="bi bi-calendar-check me-2"></i>Previstos para {{ projetos_previstos.mes_previsto | default('Próximo Mês') }}
-                                        </h6>
-                                        <small class="text-white-50">Salto temporal - {{ projetos_previstos.periodo_analise | default('Período de análise') }}</small>
+                                                                <h6 class="mb-0" id="headerPrevistosTitle">
+                            <i class="bi bi-calendar-check me-2"></i>Previstos para <span id="mesPrevisto">Próximo Mês</span>
+                        </h6>
+                        <small class="text-white-50" id="headerPrevistosSubtitle">Carregando informações...</small>
                                     </div>
                                     <button type="button" class="btn btn-sm btn-outline-light" 
                                             onclick="copiarCardParaPowerPoint('cardProjetosPrevistos')"
@@ -1962,10 +1962,14 @@
         function carregarProjetosPrevistosDinamico() {
             console.log('🚀 Carregando projetos previstos via API...');
             
-            // Obtém parâmetros da URL atual
+            // 🔧 CORRIGIDO: Obtém parâmetros da URL atual com fallback para data atual
             const urlParams = new URLSearchParams(window.location.search);
-            const mes = urlParams.get('mes') || '6';
-            const ano = urlParams.get('ano') || '2025';
+            const dataAtual = new Date();
+            const mes = urlParams.get('mes') || dataAtual.getMonth() + 1; // +1 porque getMonth() retorna 0-11
+            const ano = urlParams.get('ano') || dataAtual.getFullYear();
+            
+            console.log(`🔍 DEBUG: URL mes=${urlParams.get('mes')}, ano=${urlParams.get('ano')}`);
+            console.log(`🔍 DEBUG: Usando mes=${mes}, ano=${ano} (atual: ${dataAtual.getMonth() + 1}/${dataAtual.getFullYear()})`);
             
             fetch(`/macro/debug/projetos-previstos?mes=${mes}&ano=${ano}`)
                 .then(response => response.json())
@@ -1973,6 +1977,18 @@
                     console.log('✅ Dados recebidos:', data);
                     
                     if (data.success && data.total_encontrados > 0) {
+                        // 🎯 NOVO: Atualiza cabeçalho com informações corretas
+                        const mesPrevisto = document.getElementById('mesPrevisto');
+                        const subtitulo = document.getElementById('headerPrevistosSubtitle');
+                        
+                        mesPrevisto.textContent = data.mes_previsto;
+                        
+                        if (data.eh_visao_atual) {
+                            subtitulo.textContent = `Dados atuais - Arquivo: ${data.arquivo_usado}`;
+                        } else {
+                            subtitulo.textContent = `Salto temporal - Arquivo: ${data.arquivo_usado}`;
+                        }
+                        
                         // Atualiza total e contagem por squad
                         const totalElement = document.getElementById('totalPrevistos');
                         
@@ -2031,6 +2047,22 @@
                         document.getElementById('listaProjetosPrevistos').innerHTML = html;
                         console.log('✅ Projetos previstos carregados com sucesso!');
                     } else {
+                        // 🎯 NOVO: Atualiza cabeçalho mesmo quando não há projetos
+                        const mesPrevisto = document.getElementById('mesPrevisto');
+                        const subtitulo = document.getElementById('headerPrevistosSubtitle');
+                        
+                        if (data.mes_previsto) {
+                            mesPrevisto.textContent = data.mes_previsto;
+                        }
+                        
+                        if (data.eh_visao_atual !== undefined) {
+                            if (data.eh_visao_atual) {
+                                subtitulo.textContent = `Dados atuais - Arquivo: ${data.arquivo_usado || 'dadosr.csv'}`;
+                            } else {
+                                subtitulo.textContent = `Salto temporal - Arquivo: ${data.arquivo_usado || 'histórico'}`;
+                            }
+                        }
+                        
                         document.getElementById('totalPrevistos').textContent = '0';
                         document.getElementById('listaProjetosPrevistos').innerHTML = `
                             <div class="text-center text-muted py-4">
@@ -2042,6 +2074,11 @@
                 })
                 .catch(error => {
                     console.error('❌ Erro ao carregar projetos previstos:', error);
+                    
+                    // 🎯 NOVO: Atualiza cabeçalho mesmo em caso de erro
+                    const subtitulo = document.getElementById('headerPrevistosSubtitle');
+                    subtitulo.textContent = 'Erro ao carregar dados';
+                    
                     document.getElementById('totalPrevistos').textContent = 'Erro';
                     document.getElementById('listaProjetosPrevistos').innerHTML = `
                         <div class="text-center text-muted py-4">

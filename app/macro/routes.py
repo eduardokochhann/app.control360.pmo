@@ -3219,45 +3219,63 @@ def debug_projetos_previstos():
         
         logger = logging.getLogger(__name__)
         
-        # Obtém mês de referência da URL ou usa junho como padrão
-        mes_url = request.args.get('mes', '6')
-        ano_url = request.args.get('ano', '2025')
+        # Obtém mês de referência da URL ou usa mês atual como padrão
+        mes_url = request.args.get('mes', str(datetime.now().month))
+        ano_url = request.args.get('ano', str(datetime.now().year))
         mes_referencia = datetime(int(ano_url), int(mes_url), 1)
         
-        # USA ARQUIVO HISTÓRICO do mês que estamos visualizando
-        # Se visualizando junho, usa dadosr_apt_jun.csv para buscar projetos previstos para julho
+        # 🔍 DEBUG ADICIONAL: Log dos parâmetros recebidos
+        logger.info(f"🔍 PARAMS: mes_url='{request.args.get('mes')}' (usando: {mes_url}), ano_url='{request.args.get('ano')}' (usando: {ano_url})")
+        
+        # 🎯 LÓGICA CORRIGIDA: Determina se é visão atual ou histórica
+        mes_atual = datetime.now().month
+        ano_atual = datetime.now().year
+        eh_visao_atual = (int(mes_url) == mes_atual and int(ano_url) == ano_atual)
+        
+        logger.info(f"🎯 DETECÇÃO: mes_atual={mes_atual}, ano_atual={ano_atual}, eh_visao_atual={eh_visao_atual}")
+        
         meses_abrev = {
             1: 'jan', 2: 'fev', 3: 'mar', 4: 'abr', 5: 'mai', 6: 'jun',
             7: 'jul', 8: 'ago', 9: 'set', 10: 'out', 11: 'nov', 12: 'dez'
         }
         
-        mes_abrev = meses_abrev.get(int(mes_url), 'jun')
-        arquivo_historico = f'data/dadosr_apt_{mes_abrev}.csv'
-        
-        try:
-            dados_ref = pd.read_csv(arquivo_historico, encoding='latin1', sep=';')
-            logger.info(f"✅ Usando arquivo histórico: {arquivo_historico}")
-        except FileNotFoundError:
-            # Fallback para dadosr.csv se não encontrar o histórico
-            dados_ref = pd.read_csv('data/dadosr.csv', encoding='latin1', sep=';')
-            logger.warning(f"⚠️ Arquivo {arquivo_historico} não encontrado, usando dadosr.csv")
-        
-        # Cria serviço
-        from app.macro.services import MacroService
-        macro_service = MacroService()
-        
-        # Calcula projetos previstos
-        result = macro_service.calcular_projetos_previstos_encerramento(dados_ref, mes_referencia)
+        # 🔄 NOVA LÓGICA: Arquivo e mês de busca baseados no tipo de visão
+        if eh_visao_atual:
+            # VISÃO ATUAL: Usa dadosr.csv e busca próximo mês real
+            arquivo_dados = 'data/dadosr.csv'
+            dados_ref = pd.read_csv(arquivo_dados, encoding='latin1', sep=';')
+            logger.info(f"✅ VISÃO ATUAL: Usando {arquivo_dados}")
+            
+            # Busca projetos previstos para o PRÓXIMO MÊS real
+            mes_seguinte = mes_atual + 1 if mes_atual < 12 else 1
+            ano_seguinte = ano_atual if mes_atual < 12 else ano_atual + 1
+            logger.info(f"🎯 VISÃO ATUAL: Buscando projetos previstos para {mes_seguinte:02d}/{ano_seguinte}")
+            
+        else:
+            # VISÃO HISTÓRICA: Tenta arquivo histórico, busca mês seguinte ao histórico
+            mes_abrev = meses_abrev.get(int(mes_url), 'jun')
+            arquivo_historico = f'data/dadosr_apt_{mes_abrev}.csv'
+            
+            try:
+                dados_ref = pd.read_csv(arquivo_historico, encoding='latin1', sep=';')
+                arquivo_dados = arquivo_historico
+                logger.info(f"✅ VISÃO HISTÓRICA: Usando {arquivo_historico}")
+            except FileNotFoundError:
+                # Fallback para dadosr.csv se não encontrar o histórico
+                dados_ref = pd.read_csv('data/dadosr.csv', encoding='latin1', sep=';')
+                arquivo_dados = 'data/dadosr.csv'
+                logger.warning(f"⚠️ Arquivo {arquivo_historico} não encontrado, usando dadosr.csv")
+            
+            # Busca projetos previstos para o mês seguinte ao histórico
+            mes_seguinte = mes_referencia.month + 1 if mes_referencia.month < 12 else 1
+            ano_seguinte = mes_referencia.year if mes_referencia.month < 12 else mes_referencia.year + 1
+            logger.info(f"🎯 VISÃO HISTÓRICA: Buscando projetos previstos para {mes_seguinte:02d}/{ano_seguinte}")
         
         # Processa projetos direto do CSV com Cliente + Assunto
         # Remove linhas com data de vencimento vazia
         dados_filtrados = dados_ref[dados_ref['Vencimento em'].notna() & (dados_ref['Vencimento em'].str.strip() != '')]
         
         dados_filtrados['Vencimento_dt'] = pd.to_datetime(dados_filtrados['Vencimento em'], format='%d/%m/%Y %H:%M', errors='coerce')
-        
-        # Calcula mês seguinte ao que estamos visualizando
-        mes_seguinte = mes_referencia.month + 1 if mes_referencia.month < 12 else 1
-        ano_seguinte = mes_referencia.year if mes_referencia.month < 12 else mes_referencia.year + 1
         
         projetos_mes_seguinte = dados_filtrados[
             (dados_filtrados['Vencimento_dt'].dt.month == mes_seguinte) &
@@ -3313,7 +3331,8 @@ def debug_projetos_previstos():
             'mes_referencia': mes_referencia.strftime('%Y-%m'),
             'total_encontrados': len(projetos_processados),
             'mes_previsto': mes_previsto_texto,
-            'arquivo_usado': arquivo_historico,
+            'arquivo_usado': arquivo_dados,
+            'eh_visao_atual': eh_visao_atual,
             'projetos': projetos_processados,
             'contagem_squads': contagem_squads,
             'squads_ordenados': squads_ordenados
