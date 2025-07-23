@@ -4800,6 +4800,642 @@ class MacroService(BaseService):
                 'status': 'erro'
             }
 
+    def calcular_projetos_principais_mes(self, dados, mes_referencia=None):
+        """
+        Calcula os 5 principais projetos do mês baseado em:
+        1. Seleção manual (quando disponível) 
+        2. Volume de horas trabalhadas ESPECIFICAMENTE no mês (fallback automático)
+        
+        Args:
+            dados (pd.DataFrame): DataFrame com os dados dos projetos do mês atual
+            mes_referencia (datetime): Mês de referência para o cálculo
+            
+        Returns:
+            dict: Lista com os 5 principais projetos e suas informações
+        """
+        try:
+            logger.info(f"🚀 CALCULAR: Iniciando calcular_projetos_principais_mes")
+            logger.info(f"🚀 CALCULAR: dados.shape = {dados.shape if not dados.empty else 'VAZIO'}")
+            logger.info(f"🚀 CALCULAR: mes_referencia = {mes_referencia}")
+            
+            if dados.empty:
+                logger.warning("⚠️ CALCULAR: DataFrame vazio para calcular projetos principais do mês")
+                return {'projetos': [], 'total_encontrados': 0}
+            
+            logger.info(f"📊 CALCULAR: Calculando projetos principais do mês: {mes_referencia.strftime('%B/%Y') if mes_referencia else 'atual'}")
+            
+            logger.info(f"📊 CALCULAR: Preparando dados base...")
+            dados_base = self.preparar_dados_base(dados)
+            logger.info(f"📊 CALCULAR: Dados base preparados: {dados_base.shape}")
+            
+            # === CALCULAR HORAS TRABALHADAS NO MÊS ESPECÍFICO ===
+            logger.info(f"⏰ CALCULAR: Calculando horas trabalhadas no mês...")
+            dados_com_horas_mes = self._calcular_horas_trabalhadas_no_mes(dados_base, mes_referencia)
+            logger.info(f"⏰ CALCULAR: Horas calculadas para {dados_com_horas_mes.shape[0]} projetos")
+            
+            # Filtros para projetos principais:
+            # 1. Tem horas trabalhadas no mês específico
+            # 2. Não são projetos cancelados
+            
+            logger.info(f"🔍 CALCULAR: Aplicando filtros...")
+            projetos_filtrados = dados_com_horas_mes[
+                (dados_com_horas_mes['horas_trabalhadas_mes'].fillna(0) > 0) &  # Tem horas trabalhadas no mês
+                (~dados_com_horas_mes['Status'].isin(['CANCELADO']))  # Exclui cancelados
+            ].copy()
+            
+            logger.info(f"🔍 CALCULAR: Projetos filtrados (com horas trabalhadas no mês): {len(projetos_filtrados)}")
+            
+            if projetos_filtrados.empty:
+                logger.warning("⚠️ CALCULAR: Nenhum projeto encontrado com atividade no mês")
+                return {'projetos': [], 'total_encontrados': 0}
+                
+            logger.info(f"✅ CALCULAR: {len(projetos_filtrados)} projetos passaram nos filtros, prosseguindo...")
+            
+            # === VERIFICAR SE HÁ SELEÇÃO MANUAL ===
+            logger.info(f"🔍 CALCULAR: CHEGOU ATÉ A VERIFICAÇÃO DE SELEÇÃO MANUAL!")
+            logger.info(f"🔍 CALCULAR: Chamando carregar_projetos_principais_selecionados...")
+            projetos_selecionados_manual = self.carregar_projetos_principais_selecionados(mes_referencia)
+            
+            logger.info(f"🔍 CARD: Verificando seleção manual para {mes_referencia.strftime('%Y-%m') if mes_referencia else 'None'}")
+            logger.info(f"🔍 CARD: Projetos selecionados manual: {projetos_selecionados_manual}")
+            logger.info(f"🔍 CARD: Total projetos filtrados disponíveis: {len(projetos_filtrados)}")
+            
+            if projetos_selecionados_manual:
+                logger.info(f"✅ CARD: Usando seleção manual: {len(projetos_selecionados_manual)} projetos configurados")
+                logger.info(f"🔍 CARD: Números únicos nos dados: {list(projetos_filtrados['Numero'].unique())[:10]}...")
+                
+                # Debug: verificar tipos de dados
+                tipos_manual = [type(x) for x in projetos_selecionados_manual[:3]]
+                tipos_dados = [type(x) for x in projetos_filtrados['Numero'].head(3)]
+                logger.info(f"🔍 CARD: Tipos manual: {tipos_manual}, Tipos dados: {tipos_dados}")
+                
+                # Converter ambos para string para comparação consistente
+                projetos_selecionados_manual_str = [str(x) for x in projetos_selecionados_manual]
+                projetos_filtrados_str = projetos_filtrados.copy()
+                projetos_filtrados_str['Numero'] = projetos_filtrados_str['Numero'].astype(str)
+                
+                # Filtrar apenas os projetos selecionados manualmente que existem nos dados
+                top_projetos = projetos_filtrados_str[
+                    projetos_filtrados_str['Numero'].isin(projetos_selecionados_manual_str)
+                ].copy()
+                
+                logger.info(f"🔍 CARD: Projetos encontrados na seleção: {len(top_projetos)}")
+                logger.info(f"🔍 CARD: Números encontrados: {list(top_projetos['Numero'].values)}")
+                
+                if not top_projetos.empty:
+                    # Manter a ordem da seleção manual
+                    top_projetos = top_projetos.set_index('Numero').loc[
+                        [num for num in projetos_selecionados_manual_str if num in top_projetos.index]
+                    ].reset_index()
+                    
+                    # Converter de volta para tipo original
+                    top_projetos['Numero'] = top_projetos['Numero'].astype(projetos_filtrados['Numero'].dtype)
+                    
+                    criterio_usado = f"Seleção manual ({len(top_projetos)} projetos configurados)"
+                    logger.info(f"✅ CARD: Projetos manuais selecionados com sucesso: {len(top_projetos)}")
+                else:
+                    logger.warning(f"⚠️  CARD: Nenhum projeto manual encontrado nos dados disponíveis!")
+                    logger.info(f"🔍 CARD: Fallback para seleção automática")
+                    top_projetos = projetos_filtrados.nlargest(5, 'horas_trabalhadas_mes')
+                    criterio_usado = "Volume de horas trabalhadas no mês (fallback - projetos manuais não encontrados)"
+                
+            else:
+                logger.info("🔄 CARD: Nenhuma seleção manual encontrada, usando ranking automático por horas")
+                
+                # Ordena apenas por horas trabalhadas no mês específico (critério principal)
+                # Ordena por horas trabalhadas no mês e pega top 5
+                top_projetos = projetos_filtrados.nlargest(5, 'horas_trabalhadas_mes')
+                criterio_usado = "Volume de horas trabalhadas no mês"
+                logger.info(f"🔄 CARD: Seleção automática: {len(top_projetos)} projetos por ranking")
+            
+            # === BUSCAR INFORMAÇÕES COMPLEMENTARES (DE-PARA) ===
+            top_projetos_enriquecido = self._enriquecer_projetos_com_historico(top_projetos, mes_referencia)
+            
+            # Formata dados para o template
+            projetos_principais = []
+            for _, projeto in top_projetos_enriquecido.iterrows():
+                # Usa andamento da coluna Conclusao
+                andamento = projeto.get('Conclusao', 0)
+                if pd.isna(andamento):
+                    andamento = 0
+                andamento = round(float(andamento), 1)
+                
+                # Formata data brasileira sem horário
+                data_prevista = self._formatar_data_brasileira(projeto.get('VencimentoEm'))
+                
+                # Nome do cliente com múltiplas tentativas de extração
+                nome_cliente = projeto.get('nome_cliente_enriquecido', projeto.get('Cliente', 'N/A'))
+                nome_projeto = projeto.get('Projeto', 'N/A')
+                
+                # Se não conseguiu obter do histórico ou coluna Cliente, tenta extrair do nome do projeto
+                if nome_cliente == 'N/A' and nome_projeto and nome_projeto != 'N/A':
+                    # TENTATIVA ESPECIAL: Projetos internos da SOU.cloud
+                    # Mais específico para evitar falsos positivos como PBSF que contém "SOU PLUS"
+                    projeto_upper = nome_projeto.upper()
+                    is_sou_internal = (
+                        'COPILOT' in projeto_upper or
+                        'SHAREPOINT' in projeto_upper or 
+                        'REESTRUTURA' in projeto_upper or
+                        'INTERNO' in projeto_upper or
+                        'INTERNAL' in projeto_upper or
+                        (projeto_upper.startswith('SOU ') or projeto_upper.endswith(' SOU') or projeto_upper == 'SOU') or
+                        ('PMO' in projeto_upper and 'SOU' in projeto_upper) or
+                        ('CONTROL' in projeto_upper and 'SOU' in projeto_upper)
+                    )
+                    
+                    if is_sou_internal:
+                        nome_cliente = 'SOU.cloud'
+                        logger.debug(f"Projeto interno detectado: {nome_projeto} -> Cliente: SOU.cloud")
+                    # Tentativa 1: separador " - "
+                    elif ' - ' in nome_projeto:
+                        partes = nome_projeto.split(' - ', 1)
+                        if len(partes) >= 2:
+                            nome_cliente = partes[0].strip()
+                            nome_projeto = partes[1].strip()
+                    # Tentativa 2: separador " | "
+                    elif ' | ' in nome_projeto:
+                        partes = nome_projeto.split(' | ', 1)
+                        if len(partes) >= 2:
+                            nome_cliente = partes[0].strip()
+                            nome_projeto = partes[1].strip()
+                    # Tentativa 3: separador ": "
+                    elif ': ' in nome_projeto:
+                        partes = nome_projeto.split(': ', 1)
+                        if len(partes) >= 2:
+                            nome_cliente = partes[0].strip()
+                            nome_projeto = partes[1].strip()
+                    # Se chegou até aqui, tenta extrair as duas primeiras palavras se houver espaços
+                    elif ' ' in nome_projeto:
+                        palavras = nome_projeto.split()
+                        if len(palavras) >= 2:
+                            nome_cliente = ' '.join(palavras[:2])
+                            logger.debug(f"Cliente extraído das primeiras palavras: {nome_cliente}")
+                
+                # Aplica truncamento para nomes muito longos (exceto SOU.cloud)
+                if nome_cliente != 'N/A' and nome_cliente != 'SOU.cloud':
+                    nome_cliente = self._truncar_nome_cliente(nome_cliente)
+                
+                projeto_info = {
+                    'numero': projeto.get('Numero', ''),
+                    'nome_cliente': nome_cliente,
+                    'nome_projeto': nome_projeto,
+                    'data_prevista': data_prevista,
+                    'squad': projeto.get('Squad', 'N/A'),
+                    'andamento': andamento,
+                    'horas_estimadas': round(projeto.get('Horas', 0), 1),
+                    'horas_trabalhadas_mes': round(projeto.get('horas_trabalhadas_mes', 0), 1),
+                    'posicao': len(projetos_principais) + 1,  # Posição no ranking
+                    'status': projeto.get('Status', 'N/A')
+                }
+                projetos_principais.append(projeto_info)
+            
+            logger.info(f"✅ CARD: Top {len(projetos_principais)} projetos principais calculados: {[p['nome_projeto'] for p in projetos_principais]}")
+            logger.info(f"📊 CARD: Critério usado: {criterio_usado}")
+            logger.info(f"📊 CARD: Total projetos retornados: {len(projetos_principais)}")
+            
+            resultado = {
+                'projetos': projetos_principais,
+                'total_encontrados': len(projetos_filtrados),
+                'criterios': criterio_usado
+            }
+            
+            logger.info(f"🎯 CARD: Retornando resultado final com {len(resultado['projetos'])} projetos")
+            return resultado
+            
+        except Exception as e:
+            logger.error(f"Erro ao calcular projetos principais do mês: {str(e)}", exc_info=True)
+            return {'projetos': [], 'total_encontrados': 0}
+
+    def _calcular_horas_trabalhadas_no_mes(self, dados, mes_referencia):
+        """
+        Calcula as horas trabalhadas especificamente no mês analisado.
+        Fórmula: Horas_Atual - Horas_Ultimo_Mes_Encontrado
+        
+        Busca o projeto nos últimos 6 meses para encontrar a base de comparação mais recente.
+        """
+        try:
+            if mes_referencia is None:
+                logger.warning("Mês de referência não fornecido para cálculo de horas do mês")
+                dados['horas_trabalhadas_mes'] = dados.get('HorasTrabalhadas', 0)
+                return dados
+            
+            logger.info(f"Calculando horas trabalhadas especificamente no mês: {mes_referencia.strftime('%B/%Y')}")
+            
+            # Prepara resultado
+            dados_resultado = dados.copy()
+            dados_resultado['horas_trabalhadas_mes'] = 0.0
+            
+            # Para cada projeto, busca nos últimos 6 meses para encontrar a base de comparação
+            for index, projeto_atual in dados.iterrows():
+                numero_projeto = projeto_atual.get('Numero')
+                horas_atuais = float(projeto_atual.get('HorasTrabalhadas', 0) or 0)
+                
+                if pd.isna(numero_projeto):
+                    # Sem número do projeto, não consegue comparar
+                    dados_resultado.at[index, 'horas_trabalhadas_mes'] = horas_atuais
+                    continue
+                
+                # Busca o projeto nos últimos 6 meses
+                horas_base_encontrada = None
+                mes_base_encontrado = None
+                
+                for i in range(1, 7):  # Busca nos últimos 6 meses
+                    try:
+                        # Calcula mês a verificar
+                        if mes_referencia.month - i <= 0:
+                            mes_busca = mes_referencia.replace(
+                                year=mes_referencia.year - 1, 
+                                month=12 + (mes_referencia.month - i)
+                            )
+                        else:
+                            mes_busca = mes_referencia.replace(month=mes_referencia.month - i)
+                        
+                        # Tenta carregar dados desse mês
+                        fonte_busca = self._obter_fonte_historica(mes_busca.year, mes_busca.month)
+                        if not fonte_busca:
+                            continue
+                            
+                        dados_busca = self.carregar_dados(fonte=fonte_busca)
+                        if dados_busca.empty:
+                            continue
+                            
+                        # Procura o projeto neste mês
+                        projeto_encontrado = dados_busca[dados_busca['Numero'] == numero_projeto]
+                        if not projeto_encontrado.empty:
+                            horas_base_encontrada = float(projeto_encontrado.iloc[0].get('HorasTrabalhadas', 0) or 0)
+                            mes_base_encontrado = mes_busca.strftime('%B/%Y')
+                            logger.debug(f"Projeto {numero_projeto}: encontrado base em {mes_base_encontrado} com {horas_base_encontrada}h")
+                            break
+                            
+                    except Exception as e:
+                        logger.debug(f"Erro ao buscar projeto {numero_projeto} em mês anterior: {str(e)}")
+                        continue
+                
+                # Calcula horas trabalhadas no mês específico
+                if horas_base_encontrada is not None:
+                    horas_do_mes = max(0, horas_atuais - horas_base_encontrada)
+                    dados_resultado.at[index, 'horas_trabalhadas_mes'] = horas_do_mes
+                    logger.debug(f"Projeto {numero_projeto}: {horas_atuais}h atual - {horas_base_encontrada}h base ({mes_base_encontrado}) = {horas_do_mes}h no mês")
+                else:
+                    # Projeto não encontrado em nenhum mês anterior - pode ser novo
+                    # Para ser conservador, considera apenas 10% das horas como do mês atual
+                    horas_conservadoras = horas_atuais * 0.1
+                    dados_resultado.at[index, 'horas_trabalhadas_mes'] = horas_conservadoras
+                    logger.debug(f"Projeto {numero_projeto}: Não encontrado em meses anteriores, usando {horas_conservadoras}h conservadoras (10% de {horas_atuais}h)")
+            
+            total_horas_mes = dados_resultado['horas_trabalhadas_mes'].sum()
+            logger.info(f"Total de horas trabalhadas especificamente no mês: {total_horas_mes:.1f}h")
+            
+            return dados_resultado
+            
+        except Exception as e:
+            logger.error(f"Erro ao calcular horas trabalhadas no mês: {str(e)}", exc_info=True)
+            dados['horas_trabalhadas_mes'] = dados.get('HorasTrabalhadas', 0)
+            return dados
+
+    def _enriquecer_projetos_com_historico(self, projetos, mes_referencia):
+        """
+        Tenta enriquecer os projetos com informações de arquivos históricos
+        para capturar nome do cliente e outras informações complementares.
+        """
+        try:
+            # Lista de meses para buscar informações históricas (últimos 6 meses)
+            meses_busca = []
+            mes_atual = mes_referencia
+            
+            for i in range(6):  # Busca nos últimos 6 meses
+                if mes_atual.month == 1:
+                    mes_anterior = mes_atual.replace(year=mes_atual.year - 1, month=12)
+                else:
+                    mes_anterior = mes_atual.replace(month=mes_atual.month - 1)
+                
+                fonte = self._obter_fonte_historica(mes_anterior.year, mes_anterior.month)
+                if fonte:
+                    meses_busca.append((mes_anterior, fonte))
+                mes_atual = mes_anterior
+            
+            projetos_enriquecido = projetos.copy()
+            projetos_enriquecido['nome_cliente_enriquecido'] = 'N/A'
+            
+            # Para cada projeto, busca informações históricas
+            for index, projeto in projetos.iterrows():
+                numero_projeto = projeto.get('Numero')
+                
+                for mes_hist, fonte_hist in meses_busca:
+                    try:
+                        dados_hist = self.carregar_dados(fonte=fonte_hist)
+                        
+                        if not dados_hist.empty and numero_projeto in dados_hist['Numero'].values:
+                            projeto_hist = dados_hist[dados_hist['Numero'] == numero_projeto].iloc[0]
+                            
+                            # Tenta extrair nome do cliente do histórico
+                            nome_projeto_hist = projeto_hist.get('Projeto', '')
+                            nome_cliente_encontrado = None
+                            
+                            # Primeira tentativa: projetos internos SOU.cloud
+                            # Mais específico para evitar falsos positivos
+                            if nome_projeto_hist:
+                                projeto_hist_upper = nome_projeto_hist.upper()
+                                is_sou_internal_hist = (
+                                    'COPILOT' in projeto_hist_upper or
+                                    'SHAREPOINT' in projeto_hist_upper or 
+                                    'REESTRUTURA' in projeto_hist_upper or
+                                    'INTERNO' in projeto_hist_upper or
+                                    'INTERNAL' in projeto_hist_upper or
+                                    (projeto_hist_upper.startswith('SOU ') or projeto_hist_upper.endswith(' SOU') or projeto_hist_upper == 'SOU') or
+                                    ('PMO' in projeto_hist_upper and 'SOU' in projeto_hist_upper) or
+                                    ('CONTROL' in projeto_hist_upper and 'SOU' in projeto_hist_upper)
+                                )
+                                
+                                if is_sou_internal_hist:
+                                    nome_cliente_encontrado = 'SOU.cloud'
+                                    logger.debug(f"Projeto interno SOU.cloud encontrado no histórico: {nome_projeto_hist}")
+                            # Segunda tentativa: separador " - "
+                            elif nome_projeto_hist and ' - ' in nome_projeto_hist:
+                                partes = nome_projeto_hist.split(' - ', 1)
+                                if len(partes) >= 2:
+                                    nome_cliente_encontrado = partes[0].strip()
+                            # Terceira tentativa: coluna Cliente diretamente
+                            elif projeto_hist.get('Cliente'):
+                                nome_cliente_encontrado = projeto_hist.get('Cliente').strip()
+                            
+                            if nome_cliente_encontrado:
+                                projetos_enriquecido.at[index, 'nome_cliente_enriquecido'] = nome_cliente_encontrado
+                                logger.debug(f"Cliente encontrado para projeto {numero_projeto}: {nome_cliente_encontrado}")
+                                break  # Para de buscar se encontrou
+                                    
+                    except Exception as e:
+                        logger.debug(f"Erro ao buscar dados históricos em {fonte_hist}: {str(e)}")
+                        continue
+            
+            return projetos_enriquecido
+            
+        except Exception as e:
+            logger.error(f"Erro ao enriquecer projetos com histórico: {str(e)}", exc_info=True)
+            projetos['nome_cliente_enriquecido'] = 'N/A'
+            return projetos
+
+    def _truncar_nome_cliente(self, nome_cliente):
+        """
+        Trunca nomes de clientes muito longos para as duas primeiras palavras
+        """
+        try:
+            if not nome_cliente or nome_cliente == 'N/A':
+                return nome_cliente
+            
+            palavras = nome_cliente.strip().split()
+            if len(palavras) <= 2:
+                return nome_cliente
+            
+            # Retorna apenas as duas primeiras palavras
+            nome_truncado = ' '.join(palavras[:2])
+            logger.debug(f"Nome do cliente truncado: '{nome_cliente}' -> '{nome_truncado}'")
+            return nome_truncado
+            
+        except Exception as e:
+            logger.debug(f"Erro ao truncar nome do cliente: {str(e)}")
+            return nome_cliente
+
+    def carregar_projetos_principais_selecionados(self, mes_referencia):
+        """
+        Carrega a lista de projetos principais selecionados manualmente para um mês
+        """
+        try:
+            import json
+            import os
+            
+            # Arquivo de configuração baseado no mês
+            config_dir = os.path.join('instance', 'config')
+            os.makedirs(config_dir, exist_ok=True)
+            
+            mes_str = mes_referencia.strftime('%Y-%m')
+            config_file = os.path.join(config_dir, f'projetos_principais_{mes_str}.json')
+            
+            logger.info(f"🔍 CARREGAR: Procurando configuração em: {config_file}")
+            logger.info(f"🔍 CARREGAR: Caminho absoluto: {os.path.abspath(config_file)}")
+            logger.info(f"🔍 CARREGAR: Arquivo existe: {os.path.exists(config_file)}")
+            
+            if os.path.exists(config_file):
+                try:
+                    logger.info(f"📖 CARREGAR: Abrindo arquivo para leitura...")
+                    with open(config_file, 'r', encoding='utf-8') as f:
+                        config_content = f.read()
+                        logger.info(f"📖 CARREGAR: Conteúdo bruto lido: {config_content[:200]}...")
+                        
+                        config = json.loads(config_content)
+                        logger.info(f"📖 CARREGAR: JSON parseado: {config}")
+                        
+                        projetos_selecionados = config.get('projetos_selecionados', [])
+                        logger.info(f"✅ CARREGAR: {len(projetos_selecionados)} projetos extraídos para {mes_str}: {projetos_selecionados}")
+                        return projetos_selecionados
+                        
+                except json.JSONDecodeError as e:
+                    logger.error(f"❌ CARREGAR: Erro JSON decode: {str(e)}")
+                    return []
+                except Exception as e:
+                    logger.error(f"❌ CARREGAR: Erro ao ler arquivo: {str(e)}")
+                    return []
+            else:
+                logger.info(f"📁 Nenhuma configuração de projetos principais encontrada para {mes_str} em {config_file}")
+                
+                # Listar arquivos disponíveis para debug
+                try:
+                    arquivos_disponiveis = os.listdir(config_dir)
+                    logger.info(f"📋 Arquivos de configuração disponíveis: {arquivos_disponiveis}")
+                except Exception as list_error:
+                    logger.warning(f"Erro ao listar arquivos de configuração: {str(list_error)}")
+                
+                return []
+                
+        except Exception as e:
+            logger.error(f"❌ Erro ao carregar projetos principais selecionados: {str(e)}", exc_info=True)
+            return []
+
+    def salvar_projetos_principais_selecionados(self, projetos_selecionados, mes_referencia):
+        """
+        Salva a lista de projetos principais selecionados manualmente para um mês
+        """
+        try:
+            import json
+            import os
+            from datetime import datetime
+            
+            # Arquivo de configuração baseado no mês
+            config_dir = os.path.join('instance', 'config')
+            os.makedirs(config_dir, exist_ok=True)
+            
+            mes_str = mes_referencia.strftime('%Y-%m')
+            config_file = os.path.join(config_dir, f'projetos_principais_{mes_str}.json')
+            
+            logger.info(f"💾 Salvando {len(projetos_selecionados)} projetos para {mes_str}: {projetos_selecionados}")
+            logger.info(f"📁 Arquivo de destino: {config_file}")
+            
+            config_data = {
+                'mes_referencia': mes_str,
+                'projetos_selecionados': projetos_selecionados,
+                'data_configuracao': datetime.now().isoformat(),
+                'total_selecionados': len(projetos_selecionados)
+            }
+            
+            # Verificar se diretório existe
+            if not os.path.exists(config_dir):
+                logger.info(f"📁 Criando diretório: {config_dir}")
+                os.makedirs(config_dir, exist_ok=True)
+            
+            # Salvar arquivo
+            with open(config_file, 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, ensure_ascii=False, indent=2)
+            
+            # Verificar se arquivo foi criado
+            if os.path.exists(config_file):
+                file_size = os.path.getsize(config_file)
+                logger.info(f"✅ Arquivo salvo com sucesso: {config_file} ({file_size} bytes)")
+                
+                # Verificar conteúdo
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    saved_data = json.load(f)
+                    logger.info(f"🔍 Conteúdo salvo: {saved_data}")
+                
+                return True
+            else:
+                logger.error(f"❌ Arquivo não foi criado: {config_file}")
+                return False
+            
+        except PermissionError as e:
+            logger.error(f"❌ PERMISSÃO: Erro de permissão ao salvar arquivo: {str(e)}")
+            logger.error(f"❌ PERMISSÃO: Verifique se o processo tem permissão para escrever em: {config_dir}")
+            return False
+        except IOError as e:
+            logger.error(f"❌ IO: Erro de I/O ao salvar arquivo: {str(e)}")
+            return False
+        except Exception as e:
+            logger.error(f"❌ GERAL: Erro ao salvar projetos principais selecionados: {str(e)}", exc_info=True)
+            return False
+
+    def _formatar_data_brasileira(self, data):
+        """
+        Formata data para o padrão brasileiro DD/MM/YYYY
+        """
+        try:
+            if pd.isna(data) or not data:
+                return 'N/A'
+            
+            # Se já é string, tenta converter
+            if isinstance(data, str):
+                # Remove horário se presente
+                data_clean = data.split(' ')[0]
+                
+                # Tenta diferentes formatos
+                formatos = ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%Y/%m/%d']
+                
+                for formato in formatos:
+                    try:
+                        data_obj = datetime.strptime(data_clean, formato)
+                        return data_obj.strftime('%d/%m/%Y')
+                    except ValueError:
+                        continue
+                        
+                return data_clean  # Retorna original se não conseguir converter
+                
+            # Se é datetime
+            elif hasattr(data, 'strftime'):
+                return data.strftime('%d/%m/%Y')
+                
+            return str(data)
+            
+        except Exception as e:
+            logger.debug(f"Erro ao formatar data {data}: {str(e)}")
+            return 'N/A'
+
+    def calcular_projetos_previstos_encerramento(self, dados, mes_referencia=None):
+        """
+        Projetos com vencimento no próximo mês - VERSÃO CORRIGIDA
+        """
+        logger.info(f"✅ Calculando projetos previstos para encerramento")
+        
+        try:
+            # Define mês seguinte
+            if mes_referencia is None:
+                mes_referencia = datetime.now().replace(day=1)
+            
+            mes_seguinte = mes_referencia.replace(month=mes_referencia.month + 1) if mes_referencia.month < 12 else mes_referencia.replace(year=mes_referencia.year + 1, month=1)
+            
+            # Mapear mês para português
+            meses_pt = {
+                1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 5: 'Maio', 6: 'Junho',
+                7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
+            }
+            
+            mes_nome = meses_pt.get(mes_seguinte.month, str(mes_seguinte.month))
+            mes_previsto = f"{mes_nome}/{mes_seguinte.year}"
+            
+            logger.info(f"✅ Buscando projetos para: {mes_previsto}")
+            
+            # Prepara dados
+            dados_work = dados.copy()
+            
+            # Converte datas
+            dados_work['VencimentoEm_dt'] = pd.to_datetime(dados_work['Vencimento em'], format='%d/%m/%Y %H:%M', errors='coerce')
+            
+            # Filtra projetos do mês seguinte
+            inicio = datetime(mes_seguinte.year, mes_seguinte.month, 1)
+            if mes_seguinte.month == 12:
+                fim = datetime(mes_seguinte.year + 1, 1, 1) - pd.Timedelta(days=1)
+            else:
+                fim = datetime(mes_seguinte.year, mes_seguinte.month + 1, 1) - pd.Timedelta(days=1)
+            
+            projetos_mes = dados_work[
+                (dados_work['VencimentoEm_dt'] >= inicio) &
+                (dados_work['VencimentoEm_dt'] <= fim) &
+                (dados_work['Status'] != 'CANCELADO')  # Exclui apenas cancelados
+            ].copy()
+            
+            logger.info(f"✅ Encontrados {len(projetos_mes)} projetos para {mes_previsto}")
+            
+            # Processa projetos
+            projetos_lista = []
+            for idx, projeto in projetos_mes.iterrows():
+                nome_completo = projeto.get('Cliente (Completo)', 'N/A')
+                squad = projeto.get('Serviço (2º Nível)', 'N/A')
+                
+                # Extrai nome do cliente (mais inteligente)
+                if ' - ' in nome_completo:
+                    cliente = nome_completo.split(' - ')[0].strip()
+                elif len(nome_completo) > 25:
+                    cliente = nome_completo[:22] + '...'
+                else:
+                    cliente = nome_completo
+                
+                projetos_lista.append({
+                    'cliente': cliente,
+                    'projeto': nome_completo,
+                    'squad': squad
+                })
+            
+            # Ordena por cliente
+            projetos_lista.sort(key=lambda x: x['cliente'])
+            
+            resultado = {
+                'projetos': projetos_lista,
+                'mes_previsto': mes_previsto,
+                'total_encontrados': len(projetos_lista),
+                'periodo_analise': f"01/{mes_seguinte.month:02d} a {fim.day:02d}/{mes_seguinte.month:02d}/{mes_seguinte.year}"
+            }
+            
+            logger.info(f"✅ Retornando {len(projetos_lista)} projetos para {mes_previsto}")
+            return resultado
+            
+        except Exception as e:
+            logger.error(f"❌ Erro ao calcular projetos previstos: {str(e)}")
+            import traceback
+            logger.error(f"❌ Traceback: {traceback.format_exc()}")
+            return {
+                'projetos': [],
+                'mes_previsto': 'Julho/2025',
+                'total_encontrados': 0,
+                'periodo_analise': '01/07 a 31/07/2025'
+            }
+
     def analisar_mapeamento_tipos_servico(self, dados):
         """
         Analisa o mapeamento entre tipos de serviço nos projetos vs CSV.

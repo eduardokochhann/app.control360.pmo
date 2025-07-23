@@ -1307,22 +1307,29 @@ def api_debug():
 def apresentacao():
     """Rota para página de apresentação para diretoria"""
     try:
-        logger.info("Acessando página de apresentação para diretoria")
+        logger.info("🚀 ROTA: Iniciando rota /apresentacao")
+        logger.info("🚀 ROTA: Acessando página de apresentação para diretoria")
         
         # --- INÍCIO: Detectar fontes disponíveis automaticamente ---
         fontes_disponiveis = macro_service.obter_fontes_disponiveis()
         logger.info(f"Fontes detectadas automaticamente: {[f['nome_exibicao'] for f in fontes_disponiveis]}")
         # --- FIM: Detectar fontes disponíveis automaticamente ---
         
+        logger.info("🚀 ROTA: Fontes detectadas com sucesso")
+        
         # Obter parâmetros de consulta para mês e ano
         mes_param = request.args.get('mes', None)
         ano_param = request.args.get('ano', None)
         
+        logger.info(f"🚀 ROTA: Parâmetros recebidos - mes: {mes_param}, ano: {ano_param}")
+        
         # Determina se é a Visão Atual ou uma Visão Histórica
         is_visao_atual = not mes_param or not ano_param
         
+        logger.info(f"🚀 ROTA: is_visao_atual = {is_visao_atual}")
+        
         if is_visao_atual:
-            logger.info("Processando como Visão Atual (sem parâmetros de data específicos).")
+            logger.info("🚀 ROTA: Processando como Visão Atual (sem parâmetros de data específicos).")
             # --- LÓGICA PARA VISÃO ATUAL ---
             dados_atuais, mes_referencia = macro_service.obter_dados_e_referencia_atual()
             
@@ -1357,11 +1364,11 @@ def apresentacao():
             # ... etc
 
         else:
-            logger.info(f"Processando como Visão Histórica para {mes_param}/{ano_param}.")
+            logger.info(f"🚀 ROTA: Processando como Visão Histórica para {mes_param}/{ano_param}.")
             # --- LÓGICA PARA VISÃO HISTÓRICA (como estava antes) ---
             try:
                 mes_referencia = datetime(int(ano_param), int(mes_param), 1)
-                logger.info(f"Usando mês de referência dos parâmetros: {mes_referencia.strftime('%m/%Y')}")
+                logger.info(f"🚀 ROTA: Usando mês de referência dos parâmetros: {mes_referencia.strftime('%m/%Y')}")
             except ValueError:
                 logger.warning(f"Parâmetros de data inválidos: mes={mes_param}, ano={ano_param}. Redirecionando para visão atual.")
                 # Redireciona para a URL sem parâmetros se a data for inválida
@@ -1855,6 +1862,25 @@ def apresentacao():
         logger.info(f"Agregação geral por status calculada: {por_status_geral}")
         # --- FIM: Calcular Agregação Geral por Status --- 
 
+        # --- INÍCIO: Calcular Novos Cards do Status Report ---
+        logger.info("🚀 ROTA: CHEGOU ATÉ O CÁLCULO DOS CARDS!")
+        logger.info("🚀 ROTA: Calculando dados para os novos cards do Status Report...")
+        
+        # Card 1: Projetos Principais do Mês
+        logger.info(f"🎯 ROTA: Chamando calcular_projetos_principais_mes para {mes_referencia.strftime('%Y-%m')}")
+        logger.info(f"🎯 ROTA: Dados ref shape: {dados_ref.shape if not dados_ref.empty else 'VAZIO'}")
+        projetos_principais = macro_service.calcular_projetos_principais_mes(dados_ref, mes_referencia)
+        logger.info(f"🎯 ROTA: Projetos principais retornados: {len(projetos_principais.get('projetos', []))} projetos")
+        logger.info(f"🎯 ROTA: Critério usado: {projetos_principais.get('criterios', 'N/A')}")
+        logger.info(f"🎯 ROTA: Total encontrados: {projetos_principais['total_encontrados']}")
+        
+        # Card 2: Projetos Previstos para Encerramento (salto temporal)
+        logger.info(f"🚀 NOVA VERSÃO: Calculando projetos previstos para encerramento...")
+        projetos_previstos = macro_service.calcular_projetos_previstos_encerramento(dados_ref, mes_referencia)
+        logger.info(f"🚀 RESULTADO: {projetos_previstos['mes_previsto']} - {projetos_previstos['total_encontrados']} projetos encontrados")
+        logger.info(f"🚀 PROJETOS: {[p['cliente'] for p in projetos_previstos['projetos'][:3]]}")
+        # --- FIM: Calcular Novos Cards do Status Report ---
+
         # --- Preparação do Contexto para o Template ---
         # Define as listas de squads e status esperados para o contexto
         squads_para_contar = ['AZURE', 'M365', 'DATA E POWER', 'CDB']
@@ -1884,7 +1910,10 @@ def apresentacao():
             'faturamento_comparativo': faturamento_comparativo,
             'is_visao_atual': is_visao_atual,
             'fontes_disponiveis': fontes_disponiveis,  # <-- NOVA: Lista de fontes detectadas automaticamente
-            'error': None # Assume sem erro inicialmente
+            'error': None, # Assume sem erro inicialmente
+            # === NOVOS CARDS DO STATUS REPORT ===
+            'projetos_principais': projetos_principais,  # Card Projetos Principais do Mês
+            'projetos_previstos': projetos_previstos  # Card Projetos Previstos para Encerramento
         }
         
         # Calcula totais de squad para os gráficos
@@ -2952,3 +2981,348 @@ def exportar_status_periodo():
         current_app.logger.exception(f"❌ Erro ao exportar Status Report: {e}")
         flash(f"Erro ao exportar dados: {str(e)}", "danger")
         return redirect(url_for('macro.apresentacao_periodo'))
+
+
+# === ROTAS PARA CONFIGURAÇÃO DE PROJETOS PRINCIPAIS ===
+
+@macro_bp.route('/api/projetos-disponiveis')
+@module_required('macro')
+def api_projetos_disponiveis():
+    """
+    API para listar todos os projetos disponíveis para seleção como principais
+    """
+    try:
+        logger.info("Carregando projetos disponíveis para seleção")
+        
+        # Obter mês de referência usando a mesma lógica da rota /apresentacao
+        mes_ano = request.args.get('mes_ano')
+        if mes_ano:
+            try:
+                # Visão histórica - usar parâmetro específico
+                mes_referencia = datetime.strptime(mes_ano, '%Y-%m')
+                fonte_especifica = f'dadosr_apt_{["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"][mes_referencia.month-1]}.csv'
+                dados = macro_service.carregar_dados(fonte=fonte_especifica)
+                logger.info(f"API: Usando visão histórica para {mes_referencia.strftime('%B/%Y')} - fonte: {fonte_especifica}")
+            except ValueError:
+                return jsonify({'erro': 'Formato de data inválido. Use YYYY-MM'}), 400
+        else:
+            # Visão atual - usar a mesma lógica da rota principal
+            logger.info("API: Detectando mês de referência da visão atual")
+            dados_atuais, mes_referencia_detectado = macro_service.carregar_dados_atuais()
+            
+            if mes_referencia_detectado and not dados_atuais.empty:
+                mes_referencia = mes_referencia_detectado
+                dados = dados_atuais
+                logger.info(f"API: Mês de referência detectado da visão atual: {mes_referencia.strftime('%B/%Y')}")
+            else:
+                # Fallback para mês anterior
+                hoje = datetime.now()
+                primeiro_dia_mes_atual = hoje.replace(day=1)
+                ultimo_dia_mes_anterior = primeiro_dia_mes_atual - timedelta(days=1)
+                mes_referencia = ultimo_dia_mes_anterior.replace(day=1)
+                dados = macro_service.carregar_dados()
+                logger.info(f"API: Usando fallback para mês anterior: {mes_referencia.strftime('%B/%Y')}")
+        
+        # Verificar se dados foram carregados
+        if dados.empty:
+            return jsonify({
+                'projetos': [],
+                'selecionados': [],
+                'total': 0
+            })
+        
+        # Preparar dados dos projetos
+        dados_processados = macro_service.preparar_dados_base(dados)
+        
+        # Calcular horas trabalhadas no mês para cada projeto
+        dados_com_horas = macro_service._calcular_horas_trabalhadas_no_mes(dados_processados, mes_referencia)
+        
+        # Filtrar apenas projetos com atividade no mês - OTIMIZADO
+        projetos_ativos = dados_com_horas[
+            (dados_com_horas['horas_trabalhadas_mes'].fillna(0) > 0) &
+            (~dados_com_horas['Status'].isin(['CANCELADO']))
+        ].copy()
+        
+        # Limitar resultados para performance (top 50 por horas trabalhadas)
+        if len(projetos_ativos) > 50:
+            projetos_ativos = projetos_ativos.nlargest(50, 'horas_trabalhadas_mes')
+            logger.info(f"API: Limitando resultados a top 50 projetos para otimizar performance")
+        
+        # Enriquecer apenas os projetos filtrados (performance otimizada)
+        projetos_enriquecidos = macro_service._enriquecer_projetos_com_historico(projetos_ativos, mes_referencia)
+        
+        # Formatar dados para o frontend - OTIMIZADO
+        projetos_lista = []
+        
+        # Cache para clientes já processados (otimização)
+        cache_clientes = {}
+        
+        for _, projeto in projetos_enriquecidos.iterrows():
+            nome_projeto = projeto.get('Projeto', 'N/A')
+            
+            # Usar cache para clientes já processados
+            if nome_projeto in cache_clientes:
+                nome_cliente = cache_clientes[nome_projeto]
+            else:
+                # Extrair nome do cliente
+                nome_cliente = projeto.get('nome_cliente_enriquecido', projeto.get('Cliente', 'N/A'))
+                
+                # Aplicar lógica de extração de cliente apenas se necessário
+                if nome_cliente == 'N/A' and nome_projeto and nome_projeto != 'N/A':
+                    projeto_upper = nome_projeto.upper()
+                    is_sou_internal = (
+                        'COPILOT' in projeto_upper or
+                        'SHAREPOINT' in projeto_upper or 
+                        'REESTRUTURA' in projeto_upper or
+                        'INTERNO' in projeto_upper or
+                        'INTERNAL' in projeto_upper or
+                        (projeto_upper.startswith('SOU ') or projeto_upper.endswith(' SOU') or projeto_upper == 'SOU') or
+                        ('PMO' in projeto_upper and 'SOU' in projeto_upper) or
+                        ('CONTROL' in projeto_upper and 'SOU' in projeto_upper)
+                    )
+                    
+                    if is_sou_internal:
+                        nome_cliente = 'SOU.cloud'
+                    elif ' - ' in nome_projeto:
+                        nome_cliente = nome_projeto.split(' - ', 1)[0].strip()
+                    elif ' | ' in nome_projeto:
+                        nome_cliente = nome_projeto.split(' | ', 1)[0].strip()
+                    elif ': ' in nome_projeto:
+                        nome_cliente = nome_projeto.split(': ', 1)[0].strip()
+                    elif ' ' in nome_projeto:
+                        palavras = nome_projeto.split()
+                        if len(palavras) >= 2:
+                            nome_cliente = ' '.join(palavras[:2])
+                
+                # Aplicar truncamento
+                if nome_cliente != 'N/A' and nome_cliente != 'SOU.cloud':
+                    nome_cliente = macro_service._truncar_nome_cliente(nome_cliente)
+                
+                # Armazenar no cache
+                cache_clientes[nome_projeto] = nome_cliente
+            
+            projeto_info = {
+                'numero': projeto.get('Numero', ''),
+                'nome': nome_projeto,
+                'cliente': nome_cliente,
+                'squad': projeto.get('Squad', 'N/A'),
+                'status': projeto.get('Status', 'N/A'),
+                'horas_mes': round(projeto.get('horas_trabalhadas_mes', 0), 1),
+                'horas_total': round(projeto.get('Horas', 0), 1)
+            }
+            projetos_lista.append(projeto_info)
+        
+        # Ordenar por horas trabalhadas no mês (decrescente)
+        projetos_lista.sort(key=lambda x: x['horas_mes'], reverse=True)
+        
+        # Carregar projetos já selecionados
+        projetos_selecionados = macro_service.carregar_projetos_principais_selecionados(mes_referencia)
+        
+        logger.info(f"API: Retornando {len(projetos_lista)} projetos disponíveis")
+        logger.info(f"API: Projetos já selecionados: {projetos_selecionados}")
+        logger.info(f"API: Mês de referência: {mes_referencia.strftime('%Y-%m')}")
+        
+        response_data = {
+            'projetos': projetos_lista,
+            'selecionados': projetos_selecionados,
+            'total': len(projetos_lista),
+            'mes_referencia': mes_referencia.strftime('%Y-%m')
+        }
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.error(f"Erro ao carregar projetos disponíveis: {str(e)}", exc_info=True)
+        return jsonify({'erro': str(e)}), 500
+
+
+@macro_bp.route('/api/salvar-projetos-principais', methods=['POST'])
+@module_required('macro')
+def api_salvar_projetos_principais():
+    """
+    API para salvar a seleção manual de projetos principais
+    """
+    try:
+        logger.info("🚀 API SALVAR: Iniciando salvamento de projetos principais...")
+        
+        data = request.get_json()
+        logger.info(f"📦 API SALVAR: Dados JSON recebidos: {data}")
+        
+        projetos_selecionados = data.get('projetos_selecionados', [])
+        logger.info(f"📝 API SALVAR: Projetos extraídos: {projetos_selecionados} (tipo: {type(projetos_selecionados)})")
+        
+        logger.info(f"💾 API SALVAR: Salvando {len(projetos_selecionados)} projetos principais selecionados")
+        
+        # Validações
+        if not isinstance(projetos_selecionados, list):
+            return jsonify({'erro': 'projetos_selecionados deve ser uma lista'}), 400
+        
+        if len(projetos_selecionados) > 5:
+            return jsonify({'erro': 'Máximo de 5 projetos podem ser selecionados'}), 400
+        
+        # Obter mês de referência usando a mesma lógica da rota /apresentacao
+        mes_ano = request.args.get('mes_ano')
+        if mes_ano:
+            try:
+                # Visão histórica - usar parâmetro específico
+                mes_referencia = datetime.strptime(mes_ano, '%Y-%m')
+                logger.info(f"API Salvar: Usando visão histórica para {mes_referencia.strftime('%B/%Y')}")
+            except ValueError:
+                return jsonify({'erro': 'Formato de data inválido. Use YYYY-MM'}), 400
+        else:
+            # Visão atual - detectar mês de referência
+            logger.info("API Salvar: Detectando mês de referência da visão atual")
+            dados_atuais, mes_referencia_detectado = macro_service.carregar_dados_atuais()
+            
+            if mes_referencia_detectado:
+                mes_referencia = mes_referencia_detectado
+                logger.info(f"API Salvar: Mês de referência detectado: {mes_referencia.strftime('%B/%Y')}")
+            else:
+                # Fallback para mês anterior
+                hoje = datetime.now()
+                primeiro_dia_mes_atual = hoje.replace(day=1)
+                ultimo_dia_mes_anterior = primeiro_dia_mes_atual - timedelta(days=1)
+                mes_referencia = ultimo_dia_mes_anterior.replace(day=1)
+                logger.info(f"API Salvar: Usando fallback para mês anterior: {mes_referencia.strftime('%B/%Y')}")
+        
+        # Salvar seleção
+        logger.info(f"💾 API SALVAR: Chamando service.salvar_projetos_principais_selecionados...")
+        logger.info(f"💾 API SALVAR: Parâmetros - projetos: {projetos_selecionados}, mes_referencia: {mes_referencia.strftime('%Y-%m')}")
+        
+        resultado = macro_service.salvar_projetos_principais_selecionados(projetos_selecionados, mes_referencia)
+        
+        logger.info(f"💾 API SALVAR: Resultado do salvamento: {resultado}")
+        
+        if resultado:
+            logger.info("✅ API SALVAR: Projetos principais salvos com sucesso!")
+            return jsonify({
+                'sucesso': True,
+                'mensagem': f'{len(projetos_selecionados)} projetos principais configurados com sucesso',
+                'projetos_selecionados': projetos_selecionados,
+                'mes_referencia': mes_referencia.strftime('%Y-%m')
+            })
+        else:
+            logger.error("❌ API SALVAR: Falha ao salvar projetos principais")
+            return jsonify({'erro': 'Erro ao salvar configuração'}), 500
+        
+    except Exception as e:
+        logger.error(f"❌ API SALVAR: Erro crítico ao salvar projetos principais: {str(e)}", exc_info=True)
+        return jsonify({'erro': f'Erro interno: {str(e)}'}), 500
+
+@macro_bp.route('/debug/projetos-previstos')
+def debug_projetos_previstos():
+    """Endpoint de debug para testar projetos previstos"""
+    try:
+        from datetime import datetime
+        import pandas as pd
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        # Obtém mês de referência da URL ou usa junho como padrão
+        mes_url = request.args.get('mes', '6')
+        ano_url = request.args.get('ano', '2025')
+        mes_referencia = datetime(int(ano_url), int(mes_url), 1)
+        
+        # USA ARQUIVO HISTÓRICO do mês que estamos visualizando
+        # Se visualizando junho, usa dadosr_apt_jun.csv para buscar projetos previstos para julho
+        meses_abrev = {
+            1: 'jan', 2: 'fev', 3: 'mar', 4: 'abr', 5: 'mai', 6: 'jun',
+            7: 'jul', 8: 'ago', 9: 'set', 10: 'out', 11: 'nov', 12: 'dez'
+        }
+        
+        mes_abrev = meses_abrev.get(int(mes_url), 'jun')
+        arquivo_historico = f'data/dadosr_apt_{mes_abrev}.csv'
+        
+        try:
+            dados_ref = pd.read_csv(arquivo_historico, encoding='latin1', sep=';')
+            logger.info(f"✅ Usando arquivo histórico: {arquivo_historico}")
+        except FileNotFoundError:
+            # Fallback para dadosr.csv se não encontrar o histórico
+            dados_ref = pd.read_csv('data/dadosr.csv', encoding='latin1', sep=';')
+            logger.warning(f"⚠️ Arquivo {arquivo_historico} não encontrado, usando dadosr.csv")
+        
+        # Cria serviço
+        from app.macro.services import MacroService
+        macro_service = MacroService()
+        
+        # Calcula projetos previstos
+        result = macro_service.calcular_projetos_previstos_encerramento(dados_ref, mes_referencia)
+        
+        # Processa projetos direto do CSV com Cliente + Assunto
+        # Remove linhas com data de vencimento vazia
+        dados_filtrados = dados_ref[dados_ref['Vencimento em'].notna() & (dados_ref['Vencimento em'].str.strip() != '')]
+        
+        dados_filtrados['Vencimento_dt'] = pd.to_datetime(dados_filtrados['Vencimento em'], format='%d/%m/%Y %H:%M', errors='coerce')
+        
+        # Calcula mês seguinte ao que estamos visualizando
+        mes_seguinte = mes_referencia.month + 1 if mes_referencia.month < 12 else 1
+        ano_seguinte = mes_referencia.year if mes_referencia.month < 12 else mes_referencia.year + 1
+        
+        projetos_mes_seguinte = dados_filtrados[
+            (dados_filtrados['Vencimento_dt'].dt.month == mes_seguinte) &
+            (dados_filtrados['Vencimento_dt'].dt.year == ano_seguinte) &
+            (dados_filtrados['Vencimento_dt'].notna())  # Ignora datas inválidas
+        ]
+        
+        logger.info(f"📊 Encontrados {len(projetos_mes_seguinte)} projetos previstos para {mes_seguinte:02d}/{ano_seguinte}")
+        
+        projetos_processados = []
+        for _, row in projetos_mes_seguinte.iterrows():
+            cliente_completo = row.get('Cliente (Completo)', '')
+            assunto = row.get('Assunto', '')
+            squad = row.get('Serviço (2º Nível)', 'N/A')
+            
+            # Extrai nome do cliente
+            if ' - ' in cliente_completo:
+                cliente = cliente_completo.split(' - ')[0].strip()
+            elif len(cliente_completo) > 25:
+                cliente = cliente_completo[:22] + '...'
+            else:
+                cliente = cliente_completo
+            
+            # Use Assunto como nome do projeto, se não tiver use cliente
+            nome_projeto = assunto if assunto and assunto != cliente_completo else "Projeto " + cliente
+            
+            projetos_processados.append({
+                'cliente': cliente,
+                'projeto': nome_projeto,
+                'squad': squad
+            })
+        
+        # Calcula contagem por squad
+        contagem_squads = {}
+        for projeto in projetos_processados:
+            squad = projeto['squad']
+            contagem_squads[squad] = contagem_squads.get(squad, 0) + 1
+        
+        # Ordena squads por quantidade (maior para menor)
+        squads_ordenados = sorted(contagem_squads.items(), key=lambda x: x[1], reverse=True)
+        
+        # Define nome do mês seguinte em português
+        meses_pt = {
+            1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 5: 'Maio', 6: 'Junho',
+            7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
+        }
+        
+        nome_mes_seguinte = meses_pt.get(mes_seguinte, str(mes_seguinte))
+        mes_previsto_texto = f"{nome_mes_seguinte}/{ano_seguinte}"
+        
+        return jsonify({
+            'success': True,
+            'mes_referencia': mes_referencia.strftime('%Y-%m'),
+            'total_encontrados': len(projetos_processados),
+            'mes_previsto': mes_previsto_texto,
+            'arquivo_usado': arquivo_historico,
+            'projetos': projetos_processados,
+            'contagem_squads': contagem_squads,
+            'squads_ordenados': squads_ordenados
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        })

@@ -953,6 +953,117 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- === NOVOS CARDS DO STATUS REPORT === -->
+                <!-- Card: Projetos Principais do Mês (linha inteira) -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card shadow h-100">
+                            <div class="card-header py-2 bg-secondary text-white">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0">
+                                            <i class="bi bi-star me-2"></i>Principais Projetos do Mês
+                                        </h6>
+                                        <small class="text-white-50" style="visibility: hidden;">espaço reservado</small>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-light" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#modalProjetosPrincipais"
+                                            title="Configurar projetos principais">
+                                        <i class="bi bi-gear"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body p-3">
+                                <!-- Debug: mostrar informações dos projetos principais -->
+                                <script>
+                                    console.log('🎯 TEMPLATE: Dados projetos_principais:', {{ projetos_principais | tojson | safe }});
+                                    console.log('🎯 TEMPLATE: Total projetos:', {{ projetos_principais.projetos|length if projetos_principais.projetos else 0 }});
+                                    console.log('🎯 TEMPLATE: URL atual:', window.location.href);
+                                    console.log('🎯 TEMPLATE: Parâmetros URL:', new URLSearchParams(window.location.search).toString());
+                                </script>
+                                
+                                {% if projetos_principais.projetos and projetos_principais.projetos|length > 0 %}
+                                    {% for projeto in projetos_principais.projetos %}
+                                    <div class="card mb-3 border-0 {% if loop.first %}bg-primary bg-opacity-10{% elif loop.index == 2 %}bg-success bg-opacity-10{% else %}bg-warning bg-opacity-10{% endif %}">
+                                        <div class="card-body p-3">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div class="flex-grow-1">
+                                                    <h6 class="card-title mb-1">
+                                                        <span class="badge {% if loop.first %}bg-primary{% elif loop.index == 2 %}bg-success{% else %}bg-warning{% endif %} me-2">
+                                                            #{{ loop.index }}
+                                                        </span>
+                                                        {{ projeto.nome_cliente }}
+                                                    </h6>
+                                                    <p class="card-text small text-muted mb-2">{{ projeto.nome_projeto }}</p>
+                                                </div>
+                                                <div class="text-end">
+                                                    <span class="badge bg-secondary">{{ projeto.squad | default('N/A') }}</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Horas trabalhadas no mês -->
+                                            <div class="text-left">
+                                                <small class="text-muted">
+                                                    <strong>{{ projeto.horas_trabalhadas_mes }}h</strong> trabalhadas no mês
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div id="cardProjetosVazio" class="text-center text-muted py-4">
+                                        <i class="bi bi-info-circle fs-4 d-block mb-2"></i>
+                                        <p class="mb-0">Carregando projetos principais...</p>
+                                        <small>Aguarde...</small>
+                                    </div>
+                                    
+                                    <!-- Container para projetos carregados dinamicamente -->
+                                    <div id="projetosPrincipaisDinamicos" style="display: none;"></div>
+                                {% endif %}
+                                
+
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Card: Projetos Previstos para Encerramento (linha inteira) -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card shadow h-100">
+                            <div class="card-header py-2 bg-info text-white">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-calendar-check me-2"></i>Previstos para {{ projetos_previstos.mes_previsto | default('Próximo Mês') }}
+                                </h6>
+                                <small class="text-white-50">Salto temporal - {{ projetos_previstos.periodo_analise | default('Período de análise') }}</small>
+                            </div>
+                            <div class="card-body p-3">
+                                <!-- Carregamento dinâmico FORÇADO -->
+                                <div id="projetosPrevistosDinamicos">
+                                    <div class="card mb-3 border-0 bg-info bg-opacity-10">
+                                        <div class="card-body p-2">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <small class="text-muted">Total de projetos:</small>
+                                                <span class="fs-5 fw-bold text-info" id="totalPrevistos">Carregando...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div id="listaProjetosPrevistos">
+                                        <div class="text-center text-muted py-4">
+                                            <i class="bi bi-hourglass-split fs-4 d-block mb-2"></i>
+                                            <p class="mb-0">Carregando projetos previstos...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- === FIM NOVOS CARDS === -->
                 
                 {% endif %}
             </div>
@@ -1200,5 +1311,695 @@
             });
         </script>
     </div>
+
+    <!-- Modal: Configurar Projetos Principais -->
+    <div class="modal fade" id="modalProjetosPrincipais" tabindex="-1" aria-labelledby="modalProjetosPrincipaisLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalProjetosPrincipaisLabel">
+                        <i class="bi bi-star me-2"></i>Configurar Principais Projetos do Mês
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p class="text-muted mb-2">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Selecione até 5 principais projetos do mês
+                            </p>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="limparSelecoes()">
+                                <i class="bi bi-x-circle me-1"></i>Limpar Seleções
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="selecionarAutomatico()">
+                                <i class="bi bi-lightning me-1"></i>Auto (Por Horas)
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Filtros -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <input type="text" class="form-control form-control-sm" 
+                                   id="filtroProjetoPrincipal" 
+                                   placeholder="🔍 Filtrar projetos..."
+                                   onkeyup="filtrarProjetosPrincipais()">
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select form-select-sm" id="filtroSquadPrincipal" onchange="filtrarProjetosPrincipais()">
+                                <option value="">Todos os Squads</option>
+                                <option value="AZURE">AZURE</option>
+                                <option value="M365">M365</option>
+                                <option value="DATA E POWER">DATA E POWER</option>
+                                <option value="CDB">CDB</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select form-select-sm" id="filtroClientePrincipal" onchange="filtrarProjetosPrincipais()">
+                                <option value="">Todos os Clientes</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Lista de Projetos -->
+                    <div class="border rounded p-2" style="max-height: 400px; overflow-y: auto;">
+                        <div id="listaProjetosPrincipais">
+                            <div class="text-center py-4" id="loadingState">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                    <span class="visually-hidden">Carregando...</span>
+                                </div>
+                                <p class="text-muted mt-2 mb-1">Carregando projetos...</p>
+                                <small class="text-muted">Otimizando dados para melhor performance</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Contador de Seleções -->
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <span id="contadorSelecoes">0</span> de 5 projetos selecionados
+                            </small>
+                            <small class="text-muted">
+                                <i class="bi bi-clock me-1"></i>Total: <span id="totalHorasSelecao">0</span>h
+                            </small>
+                        </div>
+                        <div class="progress mt-1" style="height: 4px;">
+                            <div class="progress-bar" id="progressoSelecao" role="progressbar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x me-1"></i>Cancelar
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="salvarProjetosPrincipais()">
+                        <i class="bi bi-check-lg me-1"></i>Salvar Configuração
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script: Gerenciamento de Projetos Principais -->
+    <script>
+        let projetosDisponiveis = [];
+        let projetosSelecionados = [];
+        const maxSelecoes = 5;
+        let cacheProjetosMes = {}; // Cache por mês para performance
+
+        // Carrega projetos quando o modal é aberto
+        document.getElementById('modalProjetosPrincipais').addEventListener('show.bs.modal', function() {
+            carregarProjetosDisponiveis();
+        });
+
+        async function carregarProjetosDisponiveis() {
+            try {
+                // Mostrar loading otimizado
+                const loadingElement = document.getElementById('loadingState');
+                if (loadingElement) {
+                    loadingElement.querySelector('p').textContent = 'Carregando projetos...';
+                    loadingElement.querySelector('small').textContent = 'Aplicando filtros otimizados';
+                }
+                
+                // Detectar mês de referência da URL atual
+                const urlParams = new URLSearchParams(window.location.search);
+                const mes = urlParams.get('mes');
+                const ano = urlParams.get('ano');
+                
+                // Identificar chave do cache
+                const chaveCache = mes && ano ? `${ano}-${mes}` : 'atual';
+                
+                // Verificar cache primeiro
+                if (cacheProjetosMes[chaveCache]) {
+                    console.log('📦 Usando dados do cache para melhor performance');
+                    const dataCacheada = cacheProjetosMes[chaveCache];
+                    projetosDisponiveis = dataCacheada.projetos || [];
+                    projetosSelecionados = dataCacheada.selecionados || [];
+                    
+                    renderizarListaProjetos();
+                    popularFiltroClientes();
+                    atualizarContadores();
+                    return;
+                }
+                
+                let apiUrl = '/macro/api/projetos-disponiveis';
+                if (mes && ano) {
+                    // Visão histórica - usar parâmetros da URL
+                    apiUrl += `?mes_ano=${ano}-${mes.padStart(2, '0')}`;
+                    if (loadingElement) {
+                        loadingElement.querySelector('small').textContent = `Carregando dados de ${mes}/${ano}`;
+                    }
+                } else {
+                    if (loadingElement) {
+                        loadingElement.querySelector('small').textContent = 'Carregando dados da visão atual';
+                    }
+                }
+                
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    console.log(`📦 Dados recebidos da API:`, {
+                        projetos: data.projetos?.length || 0,
+                        selecionados: data.selecionados || [],
+                        total: data.total,
+                        mes_referencia: data.mes_referencia
+                    });
+                    
+                    // Armazenar no cache
+                    cacheProjetosMes[chaveCache] = data;
+                    
+                    projetosDisponiveis = data.projetos || [];
+                    projetosSelecionados = data.selecionados || [];
+                    
+                    console.log(`✅ Arrays atualizados:`, {
+                        disponiveis: projetosDisponiveis.length,
+                        selecionados: [...projetosSelecionados]
+                    });
+                    
+                    console.log(`✅ Carregados ${projetosDisponiveis.length} projetos para ${chaveCache}`);
+                    
+                    renderizarListaProjetos();
+                    popularFiltroClientes();
+                    atualizarContadores();
+                } else {
+                    const errorText = await response.text();
+                    console.error(`❌ Erro HTTP ${response.status}:`, errorText);
+                    throw new Error(`Erro ${response.status}: ${errorText}`);
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar projetos:', error);
+                document.getElementById('listaProjetosPrincipais').innerHTML = 
+                    '<div class="text-center py-4 text-danger">' +
+                    '<i class="bi bi-exclamation-triangle fs-4 d-block mb-2"></i>' +
+                    '<p class="mb-1">Erro ao carregar projetos</p>' +
+                    '<small class="text-muted">Verifique sua conexão e tente novamente</small>' +
+                    '</div>';
+            }
+        }
+
+        function renderizarListaProjetos() {
+            const container = document.getElementById('listaProjetosPrincipais');
+            
+            if (projetosDisponiveis.length === 0) {
+                container.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-inbox"></i> Nenhum projeto encontrado</div>';
+                return;
+            }
+
+            // Mostrar indicador de performance
+            console.log(`🎨 Renderizando ${projetosDisponiveis.length} projetos otimizados`);
+            
+            // Renderização otimizada usando DocumentFragment
+            const fragment = document.createDocumentFragment();
+            
+            projetosDisponiveis.forEach(projeto => {
+                // Garantir conversão correta para string para comparação
+                const numeroProjetoStr = String(projeto.numero);
+                const isSelected = projetosSelecionados.some(sel => String(sel) === numeroProjetoStr);
+                const cliente = projeto.cliente || 'N/A';
+                const squad = projeto.squad || 'N/A';
+                const horas = projeto.horas_mes || 0;
+                
+                // Debug log para troubleshooting
+                if (projetosSelecionados.length > 0) {
+                    console.log(`🔍 Projeto ${numeroProjetoStr}: Selecionado = ${isSelected}`, {
+                        numero: numeroProjetoStr,
+                        selecionados: projetosSelecionados,
+                        includes: projetosSelecionados.includes(numeroProjetoStr)
+                    });
+                }
+                
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'projeto-item border-bottom py-2';
+                itemDiv.setAttribute('data-numero', projeto.numero);
+                itemDiv.setAttribute('data-cliente', cliente);
+                itemDiv.setAttribute('data-squad', squad);
+                
+                // Cores das badges dos squads
+                const squadColors = {
+                    'AZURE': 'bg-primary',
+                    'M365': 'bg-success', 
+                    'DATA E POWER': 'bg-warning text-dark',
+                    'CDB': 'bg-info'
+                };
+                const squadColor = squadColors[squad] || 'bg-secondary';
+                
+                itemDiv.innerHTML = `
+                    <div class="form-check">
+                        <input class="form-check-input" 
+                               type="checkbox" 
+                               id="projeto_${projeto.numero}" 
+                               ${isSelected ? 'checked' : ''}
+                               onchange="toggleProjetoSelecao('${projeto.numero}', ${horas})">
+                        <label class="form-check-label w-100" for="projeto_${projeto.numero}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold">${cliente}</div>
+                                    <div class="text-muted small">${projeto.nome}</div>
+                                    <div class="small">
+                                        <span class="badge ${squadColor}">${squad}</span>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold text-primary">${horas}h</div>
+                                    <div class="text-muted small">no mês</div>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                `;
+                
+                fragment.appendChild(itemDiv);
+            });
+            
+            // Renderização única (otimizada)
+            container.innerHTML = '';
+            container.appendChild(fragment);
+        }
+
+        function popularFiltroClientes() {
+            const selectCliente = document.getElementById('filtroClientePrincipal');
+            const clientes = [...new Set(projetosDisponiveis.map(p => p.cliente).filter(c => c && c !== 'N/A'))];
+            
+            selectCliente.innerHTML = '<option value="">Todos os Clientes</option>';
+            clientes.sort().forEach(cliente => {
+                selectCliente.innerHTML += `<option value="${cliente}">${cliente}</option>`;
+            });
+        }
+
+        function toggleProjetoSelecao(numeroProjeto, horas) {
+            const checkbox = document.getElementById(`projeto_${numeroProjeto}`);
+            const numeroProjetoStr = String(numeroProjeto);
+            
+            console.log(`🎯 Toggle projeto ${numeroProjetoStr}:`, {
+                checked: checkbox.checked,
+                selecionadosAntes: [...projetosSelecionados]
+            });
+            
+            if (checkbox.checked) {
+                if (projetosSelecionados.length >= maxSelecoes) {
+                    checkbox.checked = false;
+                    alert(`Você pode selecionar no máximo ${maxSelecoes} projetos.`);
+                    return;
+                }
+                
+                // Verificar se já não está selecionado
+                if (!projetosSelecionados.some(sel => String(sel) === numeroProjetoStr)) {
+                    projetosSelecionados.push(numeroProjetoStr);
+                    console.log(`✅ Projeto ${numeroProjetoStr} adicionado`);
+                }
+            } else {
+                projetosSelecionados = projetosSelecionados.filter(sel => String(sel) !== numeroProjetoStr);
+                console.log(`❌ Projeto ${numeroProjetoStr} removido`);
+            }
+            
+            console.log(`📊 Selecionados agora:`, [...projetosSelecionados]);
+            atualizarContadores();
+        }
+
+        function atualizarContadores() {
+            const total = projetosSelecionados.length;
+            const totalHoras = projetosSelecionados.reduce((sum, numSel) => {
+                const projeto = projetosDisponiveis.find(p => String(p.numero) === String(numSel));
+                const horas = projeto?.horas_mes || 0;
+                console.log(`💰 Projeto ${numSel}: ${horas}h`, projeto ? 'encontrado' : 'NÃO encontrado');
+                return sum + horas;
+            }, 0);
+            
+            console.log(`📊 Atualizando contadores:`, {
+                total: total,
+                totalHoras: totalHoras,
+                selecionados: [...projetosSelecionados]
+            });
+            
+            document.getElementById('contadorSelecoes').textContent = total;
+            document.getElementById('totalHorasSelecao').textContent = totalHoras.toFixed(1);
+            
+            const progresso = (total / maxSelecoes) * 100;
+            const progressBar = document.getElementById('progressoSelecao');
+            progressBar.style.width = `${progresso}%`;
+            progressBar.className = `progress-bar ${progresso === 100 ? 'bg-success' : progresso > 80 ? 'bg-warning' : 'bg-info'}`;
+        }
+
+        function filtrarProjetosPrincipais() {
+            const filtroTexto = document.getElementById('filtroProjetoPrincipal').value.toLowerCase();
+            const filtroSquad = document.getElementById('filtroSquadPrincipal').value;
+            const filtroCliente = document.getElementById('filtroClientePrincipal').value;
+            
+            document.querySelectorAll('.projeto-item').forEach(item => {
+                const numero = item.dataset.numero;
+                const projeto = projetosDisponiveis.find(p => p.numero === numero);
+                
+                if (!projeto) return;
+                
+                const textoMatch = !filtroTexto || 
+                    projeto.nome.toLowerCase().includes(filtroTexto) ||
+                    projeto.cliente.toLowerCase().includes(filtroTexto);
+                    
+                const squadMatch = !filtroSquad || projeto.squad === filtroSquad;
+                const clienteMatch = !filtroCliente || projeto.cliente === filtroCliente;
+                
+                item.style.display = textoMatch && squadMatch && clienteMatch ? 'block' : 'none';
+            });
+        }
+
+        function limparSelecoes() {
+            projetosSelecionados = [];
+            document.querySelectorAll('.form-check-input[type="checkbox"]').forEach(cb => cb.checked = false);
+            atualizarContadores();
+        }
+
+        function selecionarAutomatico() {
+            limparSelecoes();
+            
+            // Seleciona os 5 projetos com mais horas
+            const projetosOrdenados = [...projetosDisponiveis]
+                .sort((a, b) => (b.horas_mes || 0) - (a.horas_mes || 0))
+                .slice(0, maxSelecoes);
+            
+            projetosOrdenados.forEach(projeto => {
+                const checkbox = document.getElementById(`projeto_${projeto.numero}`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                    projetosSelecionados.push(projeto.numero);
+                }
+            });
+            
+            atualizarContadores();
+        }
+
+        async function salvarProjetosPrincipais() {
+            try {
+                // Validar se há projetos selecionados
+                if (projetosSelecionados.length === 0) {
+                    alert('Selecione pelo menos um projeto antes de salvar.');
+                    return;
+                }
+                
+                console.log(`💾 Salvando ${projetosSelecionados.length} projetos:`, [...projetosSelecionados]);
+                
+                // Detectar mês de referência da URL atual
+                const urlParams = new URLSearchParams(window.location.search);
+                const mes = urlParams.get('mes');
+                const ano = urlParams.get('ano');
+                
+                let apiUrl = '/macro/api/salvar-projetos-principais';
+                if (mes && ano) {
+                    // Visão histórica - usar parâmetros da URL
+                    apiUrl += `?mes_ano=${ano}-${mes.padStart(2, '0')}`;
+                    console.log(`📅 Salvando para visão histórica: ${mes}/${ano}`);
+                } else {
+                    console.log(`📅 Salvando para visão atual`);
+                }
+                
+                const payloadData = {
+                    projetos_selecionados: projetosSelecionados
+                };
+                
+                console.log(`🚀 Enviando dados para ${apiUrl}:`, payloadData);
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payloadData)
+                });
+                
+                console.log(`📡 Response status: ${response.status}`);
+                
+                if (response.ok) {
+                    const responseData = await response.json();
+                    console.log(`✅ Resposta do servidor:`, responseData);
+                    
+                    // Mostrar mensagem de sucesso
+                    alert(`✅ ${projetosSelecionados.length} projetos principais configurados com sucesso!`);
+                    
+                    // Limpar cache para forçar recarregamento
+                    cacheProjetosMes = {};
+                    
+                    // Fecha o modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalProjetosPrincipais'));
+                    modal.hide();
+                    
+                    // Atualizar card dinamicamente ao invés de recarregar página
+                    console.log(`🔄 Atualizando card dinamicamente...`);
+                    setTimeout(() => carregarProjetosPrincipaisDinamico(true), 300);
+                } else {
+                    const errorData = await response.text();
+                    console.error(`❌ Erro HTTP ${response.status}:`, errorData);
+                    throw new Error(`Erro ${response.status}: ${errorData}`);
+                }
+            } catch (error) {
+                console.error('❌ FUNÇÃO SALVAR: Erro capturado:', error);
+                console.error('❌ FUNÇÃO SALVAR: Stack trace:', error.stack);
+                console.error('❌ FUNÇÃO SALVAR: Message:', error.message);
+                alert(`Erro ao salvar configuração: ${error.message}\nVerifique o console para mais detalhes.`);
+            }
+        }
+    </script>
+
+    <!-- Script: Carregamento Dinâmico de Projetos Principais -->
+    <script>
+        // Função para carregar projetos principais se o card estiver vazio
+        async function carregarProjetosPrincipaisDinamico(forceUpdate = false) {
+            try {
+                console.log('🔄 DINÂMICO: Verificando se card precisa ser carregado...');
+                
+                const cardVazio = document.getElementById('cardProjetosVazio');
+                const containerDinamico = document.getElementById('projetosPrincipaisDinamicos');
+                
+                if (!cardVazio && !forceUpdate) {
+                    console.log('✅ DINÂMICO: Card já tem projetos, não precisa carregar');
+                    return;
+                }
+                
+                if (forceUpdate && containerDinamico) {
+                    console.log('🔄 DINÂMICO: Forçando atualização do card...');
+                    // Resetar para estado vazio temporariamente
+                    containerDinamico.style.display = 'none';
+                    if (cardVazio) {
+                        cardVazio.style.display = 'block';
+                        cardVazio.querySelector('p').textContent = 'Atualizando projetos principais...';
+                    }
+                }
+                
+                console.log('🚀 DINÂMICO: Card vazio detectado, carregando projetos...');
+                
+                // Detectar mês de referência da URL atual
+                const urlParams = new URLSearchParams(window.location.search);
+                const mes = urlParams.get('mes');
+                const ano = urlParams.get('ano');
+                
+                let apiUrl = '/macro/api/projetos-disponiveis';
+                if (mes && ano) {
+                    apiUrl += `?mes_ano=${ano}-${mes.padStart(2, '0')}`;
+                }
+                
+                console.log(`🔄 DINÂMICO: Carregando de ${apiUrl}`);
+                
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log(`📦 DINÂMICO: Dados recebidos:`, data);
+                
+                if (data.selecionados && data.selecionados.length > 0) {
+                    console.log(`✅ DINÂMICO: ${data.selecionados.length} projetos selecionados encontrados`);
+                    
+                    // Filtrar projetos selecionados dos disponíveis
+                    const projetosSelecionados = data.projetos.filter(p => 
+                        data.selecionados.includes(String(p.numero))
+                    );
+                    
+                    console.log(`🎯 DINÂMICO: ${projetosSelecionados.length} projetos filtrados para exibição`);
+                    
+                    if (projetosSelecionados.length > 0) {
+                        renderizarProjetosPrincipais(projetosSelecionados);
+                    } else {
+                        mostrarMensagem('Projetos selecionados não encontrados nos dados');
+                    }
+                } else {
+                    console.log('📋 DINÂMICO: Nenhum projeto selecionado, usando automático');
+                    mostrarMensagem('Nenhum projeto configurado manualmente');
+                }
+                
+            } catch (error) {
+                console.error('❌ DINÂMICO: Erro ao carregar:', error);
+                mostrarMensagem('Erro ao carregar projetos principais');
+            }
+        }
+        
+        function renderizarProjetosPrincipais(projetos) {
+            console.log(`🎨 DINÂMICO: Renderizando ${projetos.length} projetos`);
+            
+            const container = document.getElementById('projetosPrincipaisDinamicos');
+            const cardVazio = document.getElementById('cardProjetosVazio');
+            
+            let html = '';
+            
+            projetos.forEach((projeto, index) => {
+                const bgClass = index === 0 ? 'bg-primary bg-opacity-10' : 
+                               index === 1 ? 'bg-success bg-opacity-10' : 'bg-warning bg-opacity-10';
+                const badgeClass = index === 0 ? 'bg-primary' : 
+                                  index === 1 ? 'bg-success' : 'bg-warning';
+                
+                html += `
+                    <div class="card mb-3 border-0 ${bgClass}">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div class="flex-grow-1">
+                                    <h6 class="card-title mb-1">
+                                        <span class="badge ${badgeClass} me-2">#${index + 1}</span>
+                                        ${projeto.cliente || 'N/A'}
+                                    </h6>
+                                    <p class="card-text small text-muted mb-2">${projeto.nome}</p>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-secondary">${projeto.squad || 'N/A'}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="text-left">
+                                <small class="text-muted">
+                                    <strong>${projeto.horas_mes || 0}h</strong> trabalhadas no mês
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+                         container.innerHTML = html;
+             container.style.display = 'block';
+             cardVazio.style.display = 'none';
+             
+             console.log('✅ DINÂMICO: Projetos renderizados com sucesso');
+        }
+        
+                 function mostrarMensagem(mensagem) {
+             const cardVazio = document.getElementById('cardProjetosVazio');
+             
+             if (cardVazio) {
+                 cardVazio.querySelector('p').textContent = mensagem;
+                 cardVazio.querySelector('small').textContent = 'Configure projetos principais usando o botão ⚙️';
+             }
+         }
+        
+
+
+        // 🎯 FUNÇÃO PARA CARREGAR PROJETOS PREVISTOS VIA API
+        function carregarProjetosPrevistosDinamico() {
+            console.log('🚀 Carregando projetos previstos via API...');
+            
+            // Obtém parâmetros da URL atual
+            const urlParams = new URLSearchParams(window.location.search);
+            const mes = urlParams.get('mes') || '6';
+            const ano = urlParams.get('ano') || '2025';
+            
+            fetch(`/macro/debug/projetos-previstos?mes=${mes}&ano=${ano}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('✅ Dados recebidos:', data);
+                    
+                    if (data.success && data.total_encontrados > 0) {
+                        // Atualiza total e contagem por squad
+                        const totalElement = document.getElementById('totalPrevistos');
+                        
+                        // Cria texto com contagem por squad na mesma linha
+                        let textoCompleto = data.total_encontrados.toString();
+                        if (data.squads_ordenados && data.squads_ordenados.length > 0) {
+                            const squadTextos = data.squads_ordenados.map(([squad, qtd]) => `${squad}:${qtd}`);
+                            textoCompleto = `${squadTextos.join(' | ')} (Total: ${data.total_encontrados})`;
+                        }
+                        
+                        totalElement.textContent = textoCompleto;
+                        
+                        // Gera lista de projetos em duas colunas
+                        const totalProjetos = data.projetos.length;
+                        const metade = Math.ceil(totalProjetos / 2);
+                        const coluna1 = data.projetos.slice(0, metade);
+                        const coluna2 = data.projetos.slice(metade);
+                        
+                        let html = '<div class="row">';
+                        
+                        // Coluna 1
+                        html += '<div class="col-md-6">';
+                        coluna1.forEach(projeto => {
+                            html += `
+                                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                    <div class="flex-grow-1">
+                                        <div class="fw-medium small">${projeto.cliente} - ${projeto.projeto}</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge bg-primary">${projeto.squad}</span>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        
+                        // Coluna 2
+                        html += '<div class="col-md-6">';
+                        coluna2.forEach(projeto => {
+                            html += `
+                                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                                    <div class="flex-grow-1">
+                                        <div class="fw-medium small">${projeto.cliente} - ${projeto.projeto}</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge bg-primary">${projeto.squad}</span>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        
+                        html += '</div>';
+                        
+                        // Atualiza lista
+                        document.getElementById('listaProjetosPrevistos').innerHTML = html;
+                        console.log('✅ Projetos previstos carregados com sucesso!');
+                    } else {
+                        document.getElementById('totalPrevistos').textContent = '0';
+                        document.getElementById('listaProjetosPrevistos').innerHTML = `
+                            <div class="text-center text-muted py-4">
+                                <i class="bi bi-calendar-x fs-4 d-block mb-2"></i>
+                                <p class="mb-0">Nenhum projeto previsto para ${data.mes_previsto || 'o próximo mês'}</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Erro ao carregar projetos previstos:', error);
+                    document.getElementById('totalPrevistos').textContent = 'Erro';
+                    document.getElementById('listaProjetosPrevistos').innerHTML = `
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-exclamation-triangle fs-4 d-block mb-2"></i>
+                            <p class="mb-0">Erro ao carregar projetos</p>
+                        </div>
+                    `;
+                });
+        }
+
+        // Executar quando a página carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DINÂMICO: DOM carregado, iniciando verificação...');
+            setTimeout(carregarProjetosPrincipaisDinamico, 500); // Pequeno delay para garantir que o template foi renderizado
+            setTimeout(carregarProjetosPrevistosDinamico, 700); // Carrega projetos previstos logo depois
+        });
+    </script>
 </body>
 </html> 
