@@ -3383,14 +3383,35 @@ class MacroService(BaseService):
                 if not validos_para_prazo.empty:
                     inicio_mes_ref = mes_referencia.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
                     no_prazo = (validos_para_prazo['VencimentoEm'] >= inicio_mes_ref).sum()
-                    fora_prazo = (validos_para_prazo['VencimentoEm'] < inicio_mes_ref).sum()
+                    fora_prazo_com_data = (validos_para_prazo['VencimentoEm'] < inicio_mes_ref).sum()
+                    
+                    # 🔧 CORREÇÃO: Projetos sem data de vencimento são considerados FORA DO PRAZO
                     projetos_sem_vencimento = total_mes - len(validos_para_prazo)
+                    fora_prazo = fora_prazo_com_data + projetos_sem_vencimento
+                    
+                    logger.info(f"[Visão Atual] No Prazo = {no_prazo}, Fora Prazo = {fora_prazo} (incluindo {projetos_sem_vencimento} sem data)")
+                    
                     if projetos_sem_vencimento > 0:
-                        logger.warning(f"[Visão Atual] {projetos_sem_vencimento} projetos concluídos não possuem data de vencimento válida e não foram adicionados a 'fora_prazo' nesta lógica.")
+                        # Identifica quais projetos não têm data de vencimento válida
+                        projetos_invalidos = dados_filtrados[dados_filtrados['VencimentoEm'].isna() | 
+                                                            dados_filtrados['VencimentoEm'].isnull()]
+                        
+                        logger.warning(f"[Visão Atual] {projetos_sem_vencimento} projetos sem data de vencimento serão considerados FORA DO PRAZO.")
+                        
+                        for _, projeto in projetos_invalidos.iterrows():
+                            numero = projeto.get('Numero', projeto.get('Número', 'N/A'))
+                            nome_projeto = projeto.get('Projeto', 'N/A')
+                            logger.warning(f"  - Projeto #{numero}: {nome_projeto}")
                 else:
-                     logger.warning("[Visão Atual] Nenhum projeto concluído com data de vencimento válida encontrado para classificar prazo.")
+                    # Se não há projetos com data válida, todos são considerados fora do prazo
+                    no_prazo = 0
+                    fora_prazo = total_mes
+                    logger.warning(f"[Visão Atual] Nenhum projeto com data válida. Todos os {total_mes} projetos serão considerados FORA DO PRAZO.")
             else:
-                 logger.warning("[Visão Atual] Coluna 'VencimentoEm' não encontrada ou dados filtrados vazios. Cálculo de prazo não realizado.")
+                # Se não há coluna VencimentoEm ou dados filtrados vazios, todos são fora do prazo
+                no_prazo = 0
+                fora_prazo = total_mes
+                logger.warning(f"[Visão Atual] Coluna 'VencimentoEm' não encontrada ou dados filtrados vazios. Todos os {total_mes} projetos serão considerados FORA DO PRAZO.")
 
             # Chama a função auxiliar para calcular o histórico dinâmico
             historico = self._calcular_historico_dinamico(mes_referencia)
@@ -3402,7 +3423,7 @@ class MacroService(BaseService):
                 'historico': historico
             }
             
-            logger.info(f"[Visão Atual] Projetos entregues calculados (lógica original): {total_mes} no total, {no_prazo} no prazo, {fora_prazo} fora do prazo")
+            logger.info(f"[Visão Atual] Projetos entregues calculados (CORRIGIDO): {total_mes} no total, {no_prazo} no prazo, {fora_prazo} fora do prazo")
             logger.info(f"[Visão Atual] Histórico dinâmico: {historico}")
             return resultado
             

@@ -1276,4 +1276,54 @@ def get_phase_statistics():
         current_app.logger.error(f"Erro ao obter estatísticas de fases: {str(e)}")
         return jsonify({'error': f'Erro interno: {str(e)}'}), 500
 
-# --- FIM: ROTAS PARA GESTÃO DE FASES DE PROJETOS --- 
+# --- FIM: ROTAS PARA GESTÃO DE FASES DE PROJETOS ---
+
+# === MONITORAMENTO DE BANCO DE DADOS ===
+
+@admin_bp.route('/api/database/status', methods=['GET'])
+def database_status():
+    """Endpoint para verificar status do banco de dados."""
+    try:
+        from .db_monitor import get_database_status
+        status = get_database_status()
+        return jsonify(status), 200
+    except Exception as e:
+        current_app.logger.error(f"Erro ao verificar status do banco: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+@admin_bp.route('/api/database/unlock', methods=['POST'])
+def emergency_database_unlock():
+    """Endpoint para desbloqueio de emergência do banco."""
+    try:
+        from .db_monitor import emergency_unlock
+        result = emergency_unlock()
+        status_code = 200 if result.get('success') else 500
+        return jsonify(result), status_code
+    except Exception as e:
+        current_app.logger.error(f"Erro no desbloqueio de emergência: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+@admin_bp.route('/api/database/health', methods=['GET'])
+def database_health_check():
+    """Endpoint simples para health check do banco."""
+    try:
+        from ..utils.db_helper import check_database_health
+        health = check_database_health()
+        status_code = 200 if health['status'] == 'healthy' else 503
+        return jsonify(health), status_code
+    except Exception as e:
+        current_app.logger.error(f"Erro no health check: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+# --- FIM: MONITORAMENTO DE BANCO DE DADOS --- 

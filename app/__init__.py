@@ -12,11 +12,32 @@ from datetime import datetime
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 
-# Adiciona um listener para forçar a codificação em conexões SQLite
+# Configuração robusta para SQLite em ambientes concorrentes
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
+    """
+    Configura SQLite para máxima robustez em ambientes containerizados/concorrentes
+    """
     cursor = dbapi_connection.cursor()
+    
+    # Configurações básicas
     cursor.execute("PRAGMA encoding='UTF-8'")
+    
+    # 🔧 CONFIGURAÇÕES ANTI-LOCK (CRÍTICAS PARA CONTAINERS)
+    cursor.execute("PRAGMA busy_timeout=30000")        # 30 segundos de timeout
+    cursor.execute("PRAGMA journal_mode=WAL")          # Write-Ahead Logging para concorrência
+    cursor.execute("PRAGMA synchronous=NORMAL")        # Balanço entre performance e segurança
+    cursor.execute("PRAGMA wal_autocheckpoint=1000")   # Checkpoint automático
+    cursor.execute("PRAGMA cache_size=10000")          # Cache maior para performance
+    
+    # 🔧 CONFIGURAÇÕES DE LOCKING
+    cursor.execute("PRAGMA locking_mode=NORMAL")       # Permite múltiplas conexões
+    cursor.execute("PRAGMA temp_store=MEMORY")         # Tabelas temporárias em memória
+    
+    # 🔧 CONFIGURAÇÕES PARA CONTAINERS/DOCKER
+    cursor.execute("PRAGMA foreign_keys=ON")          # Integridade referencial
+    cursor.execute("PRAGMA defer_foreign_keys=OFF")   # Checagem imediata de FK
+    
     cursor.close()
 
 # Importe o JSON Provider customizado
@@ -102,11 +123,23 @@ def create_app():
     # Chave secreta (idealmente viria de variável de ambiente)
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_secret_key') # Adicione uma chave secreta
 
-    # Configuração do Banco de Dados SQLAlchemy
-    # Usa um arquivo SQLite dentro da pasta 'instance'
+    # Configuração robusta do Banco de Dados SQLAlchemy para containers
     db_path = INSTANCE_FOLDER_PATH / 'app.db'
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path.as_posix()}'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # 🔧 CONFIGURAÇÕES ANTI-LOCK PARA AMBIENTES CONTAINERIZADOS
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_timeout': 30,           # Timeout para obter conexão do pool
+        'pool_recycle': 3600,         # Recicla conexões a cada 1 hora  
+        'pool_pre_ping': True,        # Verifica conexões antes do uso
+        'pool_size': 5,               # Pool menor para SQLite
+        'max_overflow': 10,           # Conexões extras permitidas
+        'connect_args': {
+            'timeout': 30,            # Timeout de conexão individual
+            'check_same_thread': False # Permite uso em múltiplas threads
+        }
+    }
 
     # Configuração do JSON Provider
     app.json = NumpyJSONProvider(app)

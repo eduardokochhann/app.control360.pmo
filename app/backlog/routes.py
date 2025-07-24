@@ -5,6 +5,7 @@ from ..models import Backlog, Task, Column, Sprint, TaskStatus, ProjectMilestone
 from ..macro.services import MacroService # Importa o serviço Macro
 from ..utils.decorators import module_required, feature_required # Importa o decorador de proteção
 from ..utils.project_phase_service import ProjectPhaseService # Importa serviço de gestão de fases
+from ..utils.db_helper import safe_commit, with_db_retry  # 🔧 Helper para operações seguras de DB
 import pandas as pd
 from datetime import datetime, timedelta, date
 import pytz # <<< ADICIONADO
@@ -605,7 +606,8 @@ def manage_task_segments(task_id):
             return jsonify({'message': 'Erro interno ao processar segmentos'}), 500
 
     try:
-        db.session.commit()
+        # 🔧 COMMIT SEGURO COM RETRY PARA EVITAR DATABASE LOCKED
+        safe_commit()
         current_app.logger.info(f"Segmentos para tarefa {task_id} atualizados com sucesso. {len(new_segments_list)} segmentos processados.")
         
         # Busca os segmentos recém-criados/atualizados do banco para garantir que temos IDs e dados consistentes
@@ -842,7 +844,8 @@ def update_task_details(task_id):
             current_app.logger.error(f"Valor de status inválido recebido: {data['status']}. Esperado um ID numérico.")
             return jsonify({'error': f"Valor de status inválido: {data['status']}"}), 400
 
-    db.session.commit()
+    # 🔧 COMMIT SEGURO COM RETRY PARA EVITAR DATABASE LOCKED
+    safe_commit()
     current_app.logger.info(f"Tarefa {task_id} atualizada com sucesso.")
     
     # Usar serialize_task em vez de task.to_dict()
@@ -1116,7 +1119,10 @@ def project_backlog(project_id):
         
         new_backlog = Backlog(project_id=project_id, name=backlog_name)
         db.session.add(new_backlog)
-        db.session.commit()
+        
+        # 🔧 COMMIT SEGURO COM RETRY PARA EVITAR DATABASE LOCKED
+        from app.utils.db_helper import safe_commit
+        safe_commit()
         
         return jsonify({'id': new_backlog.id, 'name': new_backlog.name, 'project_id': new_backlog.project_id}), 201
 
