@@ -262,6 +262,12 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.17.0' = {
         }
       }
     }
+    roleAssignments: [
+      {
+        principalId: '357fee7d-3a67-4240-8c48-f4ead81a715f' // kochhann@sou.cloud
+        roleDefinitionIdOrName: '358470bc-b998-42bd-ab17-a7e34c199c0f' // Container Apps Contributor
+      }
+    ]
   }
 }
 
