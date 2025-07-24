@@ -215,7 +215,7 @@ module appControl360Sou 'br/public:avm/res/app/container-app:0.17.0' = {
           {
             volumeName: 'app-instance'
             mountPath: '/app/instance'
-          },
+          }
         ]
       }
     ]
