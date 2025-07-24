@@ -873,9 +873,23 @@ def api_accounts():
 
 @macro_bp.route('/api/filter', methods=['GET'])
 def api_filter():
-    """API para filtro de dados"""
+    """⚡ OTIMIZADO: API para filtro de dados com cache agressivo"""
+    import time
+    start_time = time.time()
+    
     try:
-        logger.info("Iniciando api_filter: carregando dados...")
+        # 🚀 CACHE API: Verificar cache primeiro
+        from .services import _get_cached_api_result, _set_cached_api_result
+        cache_key = 'api_filter'
+        cached_result = _get_cached_api_result(cache_key)
+        
+        if cached_result is not None:
+            cache_time = (time.time() - start_time) * 1000
+            logger.info(f"⚡ API CACHE HIT: filter em {cache_time:.1f}ms")
+            return jsonify(cached_result)
+        
+        # 📊 CARREGAMENTO DE DADOS
+        logger.info("📊 API filter: carregando dados...")
         service = macro_service
         dados = service.carregar_dados()
         
@@ -968,14 +982,19 @@ def api_filter():
         
         agregacoes_sanitized = sanitize_for_json(agregacoes)
         
+        # 💾 CACHE RESULTADO
+        _set_cached_api_result(cache_key, agregacoes_sanitized)
+        
         # Retorna o objeto com dados filtrados
-        logger.info(f"api_filter: Finalizando com sucesso. Status incluídos: {list(por_status_filtrado.keys())}")
+        total_time = (time.time() - start_time) * 1000
+        logger.info(f"✅ API filter: {total_time:.1f}ms (Status: {list(por_status_filtrado.keys())}, Riscos: {len(agregacoes_sanitized.get('projetos_risco', []))})")
         return jsonify(agregacoes_sanitized)
     
     except Exception as e:
-        logger.exception(f"Erro ao processar api_filter: {str(e)}")
+        total_time = (time.time() - start_time) * 1000
+        logger.error(f"❌ ERRO API filter ({total_time:.1f}ms): {str(e)}")
         # Retorna estrutura mínima garantida apenas com os status desejados
-        return jsonify({
+        fallback_result = {
             'por_status': {
                 'NOVO': {'quantidade': 0, 'horas_totais': 0.0, 'conclusao_media': 0.0, 'cor': 'info'},
                 'EM ATENDIMENTO': {'quantidade': 0, 'horas_totais': 0.0, 'conclusao_media': 0.0, 'cor': 'primary'},
@@ -984,7 +1003,98 @@ def api_filter():
                 'FECHADO': {'quantidade': 0, 'horas_totais': 0.0, 'conclusao_media': 0.0, 'cor': 'success'}
             },
             'projetos_risco': []
-        })
+        }
+        return jsonify(fallback_result)
+
+# ⚡ ROTA DE CACHE MANAGEMENT
+@macro_bp.route('/api/cache/clear', methods=['POST'])
+def clear_cache():
+    """🗑️ Limpa todos os caches do MacroService para desenvolvimento"""
+    try:
+        from .services import _MACRO_CACHE
+        
+        # Backup dos TTLs
+        old_data_ttl = _MACRO_CACHE['ttl_seconds']
+        old_project_ttl = _MACRO_CACHE['project_cache_ttl']
+        old_api_ttl = _MACRO_CACHE['api_cache_ttl']
+        
+        # Limpa todos os caches
+        _MACRO_CACHE['dados'] = None
+        _MACRO_CACHE['timestamp'] = None
+        _MACRO_CACHE['project_details_cache'] = {}
+        _MACRO_CACHE['api_cache'] = {}
+        _MACRO_CACHE['processing_lock'] = False
+        
+        cache_info = {
+            'status': 'success',
+            'message': 'Todos os caches foram limpos',
+            'caches_cleared': ['dados', 'project_details', 'api_results'],
+            'ttl_config': {
+                'dados_ttl': old_data_ttl,
+                'projects_ttl': old_project_ttl,
+                'api_ttl': old_api_ttl
+            },
+            'timestamp': time.time()
+        }
+        
+        logger.info("🗑️ Cache do MacroService limpo manualmente via API")
+        return jsonify(cache_info)
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao limpar cache: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@macro_bp.route('/api/cache/status', methods=['GET'])
+def cache_status():
+    """📊 Mostra status atual do cache"""
+    try:
+        from .services import _MACRO_CACHE, _is_cache_valid
+        import time
+        
+        now = time.time()
+        
+        # Status do cache principal
+        data_valid = _is_cache_valid()
+        data_age = (now - _MACRO_CACHE['timestamp']) if _MACRO_CACHE['timestamp'] else None
+        
+        # Status dos caches de projeto
+        project_count = len(_MACRO_CACHE['project_details_cache'])
+        
+        # Status dos caches de API
+        api_count = len(_MACRO_CACHE['api_cache'])
+        
+        status_info = {
+            'main_cache': {
+                'valid': data_valid,
+                'has_data': _MACRO_CACHE['dados'] is not None,
+                'age_seconds': round(data_age, 2) if data_age else None,
+                'ttl_seconds': _MACRO_CACHE['ttl_seconds']
+            },
+            'project_cache': {
+                'count': project_count,
+                'ttl_seconds': _MACRO_CACHE['project_cache_ttl']
+            },
+            'api_cache': {
+                'count': api_count,
+                'keys': list(_MACRO_CACHE['api_cache'].keys()),
+                'ttl_seconds': _MACRO_CACHE['api_cache_ttl']
+            },
+            'processing_lock': _MACRO_CACHE['processing_lock'],
+            'timestamp': now
+        }
+        
+        logger.info(f"📊 Cache status: Data={data_valid}, Projects={project_count}, APIs={api_count}")
+        return jsonify(status_info)
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao verificar status do cache: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 @macro_bp.route('/api/projetos/especialista/<path:nome_especialista>')
 def api_projetos_por_especialista(nome_especialista):
@@ -1078,66 +1188,174 @@ def api_projetos_por_especialista(nome_especialista):
 
 @macro_bp.route('/api/projetos/ativos')
 def get_projetos_ativos():
-    """Retorna lista de projetos ativos para o modal"""
+    """⚡ OTIMIZADO: Retorna lista de projetos ativos com cache agressivo"""
+    import time
+    start_time = time.time()
+    
     try:
+        # 🚀 CACHE API: Verificar cache primeiro
+        from .services import _get_cached_api_result, _set_cached_api_result
+        cache_key = 'projetos_ativos'
+        cached_result = _get_cached_api_result(cache_key)
+        
+        if cached_result is not None:
+            cache_time = (time.time() - start_time) * 1000
+            logger.info(f"⚡ API CACHE HIT: projetos/ativos em {cache_time:.1f}ms")
+            return jsonify(cached_result)
+        
+        # 📊 CARREGAMENTO DE DADOS
         dados = macro_service.carregar_dados()
         
         if dados.empty:
+            logger.warning("❌ Dados vazios para projetos ativos")
             return jsonify([])
 
+        # 🔄 PROCESSAMENTO
+        process_start = time.time()
         projetos_ativos = macro_service.calcular_projetos_ativos(dados)
-        return jsonify(projetos_ativos['dados'].to_dict('records'))
+        result = projetos_ativos['dados'].to_dict('records')
+        process_time = (time.time() - process_start) * 1000
+        
+        # 💾 CACHE RESULTADO
+        _set_cached_api_result(cache_key, result)
+        
+        total_time = (time.time() - start_time) * 1000
+        logger.info(f"✅ API projetos/ativos: {total_time:.1f}ms ({len(result)} projetos, proc: {process_time:.1f}ms)")
+        
+        return jsonify(result)
         
     except Exception as e:
-        logger.exception(f"Erro ao buscar projetos ativos: {str(e)}")
+        total_time = (time.time() - start_time) * 1000
+        logger.error(f"❌ ERRO API projetos/ativos ({total_time:.1f}ms): {str(e)}")
         return jsonify([])
 
 @macro_bp.route('/api/projetos/criticos')
 def get_projetos_criticos():
-    """Retorna lista de projetos críticos para o modal"""
+    """⚡ OTIMIZADO: Retorna lista de projetos críticos com cache agressivo"""
+    import time
+    start_time = time.time()
+    
     try:
+        # 🚀 CACHE API: Verificar cache primeiro
+        from .services import _get_cached_api_result, _set_cached_api_result
+        cache_key = 'projetos_criticos'
+        cached_result = _get_cached_api_result(cache_key)
+        
+        if cached_result is not None:
+            cache_time = (time.time() - start_time) * 1000
+            logger.info(f"⚡ API CACHE HIT: projetos/criticos em {cache_time:.1f}ms")
+            return jsonify(cached_result)
+        
+        # 📊 CARREGAMENTO DE DADOS
         dados = macro_service.carregar_dados()
         
         if dados.empty:
+            logger.warning("❌ Dados vazios para projetos críticos")
             return jsonify([])
 
+        # 🔄 PROCESSAMENTO
+        process_start = time.time()
         projetos_criticos = macro_service.calcular_projetos_criticos(dados)
-        return jsonify(projetos_criticos['dados'].to_dict('records'))
+        result = projetos_criticos['dados'].to_dict('records')
+        process_time = (time.time() - process_start) * 1000
+        
+        # 💾 CACHE RESULTADO
+        _set_cached_api_result(cache_key, result)
+        
+        total_time = (time.time() - start_time) * 1000
+        logger.info(f"✅ API projetos/criticos: {total_time:.1f}ms ({len(result)} projetos, proc: {process_time:.1f}ms)")
+        
+        return jsonify(result)
         
     except Exception as e:
-        logger.exception(f"Erro ao buscar projetos críticos: {str(e)}")
+        total_time = (time.time() - start_time) * 1000
+        logger.error(f"❌ ERRO API projetos/criticos ({total_time:.1f}ms): {str(e)}")
         return jsonify([])
 
 @macro_bp.route('/api/projetos/concluidos')
 def get_projetos_concluidos():
-    """Retorna lista de projetos concluídos para o modal"""
+    """⚡ OTIMIZADO: Retorna lista de projetos concluídos com cache agressivo"""
+    import time
+    start_time = time.time()
+    
     try:
+        # 🚀 CACHE API: Verificar cache primeiro
+        from .services import _get_cached_api_result, _set_cached_api_result
+        cache_key = 'projetos_concluidos'
+        cached_result = _get_cached_api_result(cache_key)
+        
+        if cached_result is not None:
+            cache_time = (time.time() - start_time) * 1000
+            logger.info(f"⚡ API CACHE HIT: projetos/concluidos em {cache_time:.1f}ms")
+            return jsonify(cached_result)
+        
+        # 📊 CARREGAMENTO DE DADOS
         dados = macro_service.carregar_dados()
         
         if dados.empty:
+            logger.warning("❌ Dados vazios para projetos concluídos")
             return jsonify([])
 
+        # 🔄 PROCESSAMENTO
+        process_start = time.time()
         projetos_concluidos = macro_service.calcular_projetos_concluidos(dados)
-        return jsonify(projetos_concluidos['dados'].to_dict('records'))
+        result = projetos_concluidos['dados'].to_dict('records')
+        process_time = (time.time() - process_start) * 1000
+        
+        # 💾 CACHE RESULTADO
+        _set_cached_api_result(cache_key, result)
+        
+        total_time = (time.time() - start_time) * 1000
+        logger.info(f"✅ API projetos/concluidos: {total_time:.1f}ms ({len(result)} projetos, proc: {process_time:.1f}ms)")
+        
+        return jsonify(result)
         
     except Exception as e:
-        logger.exception(f"Erro ao buscar projetos concluídos: {str(e)}")
+        total_time = (time.time() - start_time) * 1000
+        logger.error(f"❌ ERRO API projetos/concluidos ({total_time:.1f}ms): {str(e)}")
         return jsonify([])
 
 @macro_bp.route('/api/projetos/eficiencia')
 def get_projetos_eficiencia():
-    """Retorna lista de projetos com suas eficiências para o modal"""
+    """⚡ OTIMIZADO: Retorna lista de projetos com eficiência e cache agressivo"""
+    import time
+    start_time = time.time()
+    
     try:
+        # 🚀 CACHE API: Verificar cache primeiro
+        from .services import _get_cached_api_result, _set_cached_api_result
+        cache_key = 'projetos_eficiencia'
+        cached_result = _get_cached_api_result(cache_key)
+        
+        if cached_result is not None:
+            cache_time = (time.time() - start_time) * 1000
+            logger.info(f"⚡ API CACHE HIT: projetos/eficiencia em {cache_time:.1f}ms")
+            return jsonify(cached_result)
+        
+        # 📊 CARREGAMENTO DE DADOS
         dados = macro_service.carregar_dados()
         
         if dados.empty:
+            logger.warning("❌ Dados vazios para projetos eficiência")
             return jsonify([])
 
+        # 🔄 PROCESSAMENTO
+        process_start = time.time()
         eficiencia_entrega = macro_service.calcular_eficiencia_entrega(dados)
-        return jsonify(eficiencia_entrega['dados'].to_dict('records'))
+        result = eficiencia_entrega['dados'].to_dict('records')
+        process_time = (time.time() - process_start) * 1000
+        
+        # 💾 CACHE RESULTADO
+        _set_cached_api_result(cache_key, result)
+        
+        total_time = (time.time() - start_time) * 1000
+        logger.info(f"✅ API projetos/eficiencia: {total_time:.1f}ms ({len(result)} projetos, proc: {process_time:.1f}ms)")
+        
+        return jsonify(result)
         
     except Exception as e:
-        logger.exception(f"Erro ao buscar eficiência dos projetos: {str(e)}")
+        total_time = (time.time() - start_time) * 1000
+        logger.error(f"❌ ERRO API projetos/eficiencia ({total_time:.1f}ms): {str(e)}")
         return jsonify([])
 
 @macro_bp.route('/api/projetos/account/<path:nome_account>')

@@ -39,6 +39,9 @@ ENV/
 *.db
 *.sqlite3
 
+# EXCEÇÃO: Incluir o banco de dados principal da aplicação
+!instance/app.db
+
 # Arquivos de configuração local
 .env
 .env.local

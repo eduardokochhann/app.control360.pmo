@@ -34,13 +34,16 @@ STATUS_EM_ANDAMENTO = ['NOVO', 'AGUARDANDO', 'BLOQUEADO', 'EM ATENDIMENTO']
 STATUS_ATRASADO = ['ATRASADO']
 STATUS_ATIVO = ['ATIVO']
 
-# OTIMIZAÇÃO: Cache global para MacroService (SEM LOGS EXCESSIVOS)
+# 🚀 CACHE AGRESSIVO PARA CONTAINERS: TTLs aumentados drasticamente
 _MACRO_CACHE = {
     'dados': None,
     'timestamp': None,
-    'ttl_seconds': 120,  # ✅ OTIMIZAÇÃO: Cache de dados aumentado para 2 minutos
-    'project_details_cache': {},  # Cache específico para detalhes de projetos
-    'project_cache_ttl': 300  # ✅ OTIMIZAÇÃO: Cache de projetos aumentado para 5 minutos (reduz logs drasticamente)
+    'ttl_seconds': 300,  # 🚀 CACHE AGRESSIVO: 5 minutos (era 2min)
+    'project_details_cache': {},
+    'project_cache_ttl': 600,  # 🚀 CACHE AGRESSIVO: 10 minutos (era 5min)
+    'api_cache': {},  # ⚡ NOVO: Cache para resultados de APIs
+    'api_cache_ttl': 180,  # 🚀 Cache de APIs: 3 minutos
+    'processing_lock': False  # 🔒 NOVO: Evita carregamento simultâneo
 }
 
 def _is_cache_valid():
@@ -87,6 +90,38 @@ def _set_cached_project_details(project_id, details):
         'timestamp': time.time()
     }
 
+# ⚡ NOVO: Cache para APIs específicas
+def _get_cached_api_result(api_key):
+    """Retorna resultado da API do cache se válido."""
+    cache_data = _MACRO_CACHE['api_cache'].get(api_key)
+    
+    if cache_data is None:
+        return None
+    
+    elapsed = time.time() - cache_data['timestamp']
+    if elapsed < _MACRO_CACHE['api_cache_ttl']:
+        return cache_data['result']
+    else:
+        # Remove cache expirado
+        del _MACRO_CACHE['api_cache'][api_key]
+        return None
+
+def _set_cached_api_result(api_key, result):
+    """Cacheia resultado de uma API específica."""
+    _MACRO_CACHE['api_cache'][api_key] = {
+        'result': result,
+        'timestamp': time.time()
+    }
+
+# 🔒 NOVO: Sistema de lock para evitar carregamentos simultâneos
+def _is_processing_locked():
+    """Verifica se há carregamento em andamento."""
+    return _MACRO_CACHE['processing_lock']
+
+def _set_processing_lock(locked):
+    """Define/remove lock de processamento."""
+    _MACRO_CACHE['processing_lock'] = locked
+
 def _normalize_key(key):
     """Normaliza uma chave de dicionário para minúsculo, sem acentos e com underscores."""
     if not isinstance(key, str):
@@ -129,67 +164,92 @@ class MacroService(BaseService):
 
     def carregar_dados(self, fonte=None):
         """
-        Carrega dados da fonte especificada (arquivo CSV) ou usa dados em cache.
-        OTIMIZADO: Usa cache de 30 segundos e reduz logs para melhorar performance.
+        ⚡ OTIMIZADO: Carrega dados com cache agressivo e sistema de lock para containers.
         
         Args:
-            fonte (str, optional): Nome específico do arquivo (ex: 'dadosr.csv' ou 'dadosr_apt_jan.csv')
+            fonte (str, optional): Nome específico do arquivo ou None para dadosr.csv
         
         Returns:
-            pd.DataFrame: DataFrame com os dados processados, ou DataFrame vazio em caso de erro
+            pd.DataFrame: DataFrame com os dados processados
         """
-        # OTIMIZAÇÃO: Verificar cache primeiro (SEM LOGS se usar cache)
-        if fonte is None:  # Apenas dados padrão usam cache
+        start_time = time.time()
+        
+        # 🚀 CACHE HIT: Verificar cache primeiro (fonte=None usa cache)
+        if fonte is None:
             cached_dados = _get_cached_dados()
             if cached_dados is not None:
-                # SEM LOGS para evitar spam - dados já estão processados
+                cache_time = (time.time() - start_time) * 1000
+                logger.info(f"⚡ CACHE HIT: Dados carregados em {cache_time:.1f}ms ({len(cached_dados)} registros)")
                 return cached_dados
         
-        # Cache miss ou fonte específica - carregar dados
+        # 🔒 LOCK: Evita carregamentos simultâneos para dados principais
+        if fonte is None and _is_processing_locked():
+            logger.info("🔒 AGUARDANDO: Outro processo carregando dados principais...")
+            # Aguarda até 3 segundos pelo lock
+            for _ in range(30):  # 30 x 100ms = 3s
+                time.sleep(0.1)
+                if not _is_processing_locked():
+                    break
+                cached_dados = _get_cached_dados()
+                if cached_dados is not None:
+                    lock_time = (time.time() - start_time) * 1000
+                    logger.info(f"⚡ CACHE APÓS LOCK: Dados disponíveis em {lock_time:.1f}ms")
+                    return cached_dados
+        
+        # 🔒 DEFINE LOCK para dados principais
+        if fonte is None:
+            _set_processing_lock(True)
+        
         try:
-            # Determina o arquivo a ser carregado
+            # 📁 DETERMINA ARQUIVO
             if fonte:
-                # Obtém o diretório data (mesmo local do dadosr.csv)
                 data_dir = self.csv_path.parent
-                
-                # CORREÇÃO CRÍTICA: Se a fonte não tem extensão, adiciona .csv
                 if not fonte.endswith('.csv'):
                     fonte = fonte + '.csv'
-                    
                 csv_path = data_dir / fonte
-                # OTIMIZAÇÃO: Log reduzido apenas para fontes específicas
-                if fonte != 'dadosr.csv':
-                    logger.info(f"Carregando fonte específica: {csv_path}")
+                logger.info(f"📁 Fonte específica: {fonte}")
             else:
-                # OTIMIZAÇÃO: Log silenciado para carregamento padrão (evita spam)
                 csv_path = self.csv_path
+                logger.info(f"📁 Fonte principal: dadosr.csv")
             
-            # Verifica se o arquivo existe
             if not csv_path.is_file():
-                logger.error(f"Arquivo CSV não encontrado: {csv_path}")
+                logger.error(f"❌ Arquivo não encontrado: {csv_path}")
                 return pd.DataFrame()
             
-            # Lê o CSV com parâmetros corretos
+            # 📊 CARREGAMENTO DO CSV
+            read_start = time.time()
             dados = pd.read_csv(
                 csv_path,
                 dtype=str,
                 sep=';',
                 encoding='latin1',
             )
-            # OTIMIZAÇÃO: Log reduzido para evitar spam
+            read_time = (time.time() - read_start) * 1000
+            logger.info(f"📊 CSV lido em {read_time:.1f}ms ({len(dados)} linhas)")
             
-            # OTIMIZAÇÃO: Processar dados sem logs excessivos
+            # 🔄 PROCESSAMENTO
+            process_start = time.time()
             dados_processados = self._processar_dados_otimizado(dados, csv_path)
+            process_time = (time.time() - process_start) * 1000
             
-            # OTIMIZAÇÃO: Cachear apenas dados padrão
+            # 💾 CACHE apenas dados principais
             if fonte is None:
                 _set_cached_dados(dados_processados)
+                cache_set_time = (time.time() - process_start - process_time/1000) * 1000
+                logger.info(f"💾 Cache atualizado em {cache_set_time:.1f}ms")
+            
+            total_time = (time.time() - start_time) * 1000
+            logger.info(f"✅ DADOS CARREGADOS: {total_time:.1f}ms total (CSV: {read_time:.1f}ms, Proc: {process_time:.1f}ms)")
             
             return dados_processados
             
         except Exception as e:
-            logger.error(f"Erro ao carregar dados: {str(e)}")
+            logger.error(f"❌ ERRO ao carregar: {str(e)}")
             return pd.DataFrame()
+        finally:
+            # 🔓 REMOVE LOCK sempre
+            if fonte is None:
+                _set_processing_lock(False)
 
     def _processar_dados_otimizado(self, dados, csv_path):
         """
