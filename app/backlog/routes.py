@@ -332,12 +332,22 @@ def serialize_task(task):
             'error': str(e)
         }
 
-# Rota principal - AGORA REDIRECIONA PARA A SELEÇÃO
+# Rota principal - TEMPORARIAMENTE TESTE RÁPIDO
 @backlog_bp.route('/')
 @module_required('backlog')
 def index():
-    # Redireciona para a nova página de seleção de projetos
-    return redirect(url_for('.project_selection'))
+    """Teste rápido para verificar se o problema está no carregamento de dados"""
+    try:
+        # Teste rápido do banco
+        result = db.session.execute(db.text("SELECT 1")).fetchone()
+        current_app.logger.info(f"[Backlog] ✅ Teste de banco OK: {result[0] if result else 'N/A'}")
+        
+        # Redireciona para a nova página de seleção de projetos
+        return redirect(url_for('.project_selection'))
+        
+    except Exception as e:
+        current_app.logger.error(f"[Backlog] ❌ ERRO no teste rápido: {e}")
+        return f"❌ Erro de banco: {e}", 500
 
 # NOVA ROTA - Página de Seleção de Projetos
 @backlog_bp.route('/projetos')
@@ -429,6 +439,73 @@ def project_selection():
         current_app.logger.error(f"Erro ao carregar página de seleção de projetos: {e}", exc_info=True)
         # Renderiza a página com erro ou redireciona para uma página de erro
         return render_template('backlog/project_selection.html', projects=[], error="Erro ao carregar projetos.")
+
+# ⚡ ROTA DE DIAGNÓSTICO PARA TROUBLESHOOTING
+@backlog_bp.route('/diagnostico')
+def diagnostico():
+    """Rota de diagnóstico para identificar problemas de performance"""
+    import time
+    diagnostico_data = []
+    
+    try:
+        # 1. Teste básico de banco
+        start = time.time()
+        result = db.session.execute(db.text("SELECT 1")).fetchone()
+        tempo_banco = (time.time() - start) * 1000
+        diagnostico_data.append(f"✅ Banco básico: {tempo_banco:.2f}ms")
+        
+        # 2. Teste contagem simples
+        start = time.time()
+        count_backlogs = Backlog.query.count()
+        tempo_count = (time.time() - start) * 1000
+        diagnostico_data.append(f"✅ Contagem backlogs: {count_backlogs} ({tempo_count:.2f}ms)")
+        
+        # 3. Teste MacroService (sem dados)
+        start = time.time()
+        macro_service = MacroService()
+        tempo_service = (time.time() - start) * 1000
+        diagnostico_data.append(f"✅ MacroService init: {tempo_service:.2f}ms")
+        
+        # 4. Teste carregamento de dados (crítico)
+        start = time.time()
+        try:
+            dados_df = macro_service.carregar_dados()
+            tempo_dados = (time.time() - start) * 1000
+            tamanho_df = len(dados_df) if not dados_df.empty else 0
+            diagnostico_data.append(f"✅ Carregar dados: {tamanho_df} registros ({tempo_dados:.2f}ms)")
+        except Exception as e:
+            tempo_dados = (time.time() - start) * 1000
+            diagnostico_data.append(f"❌ ERRO carregar dados: {e} ({tempo_dados:.2f}ms)")
+        
+        # 5. Teste projetos ativos
+        if 'dados_df' in locals() and not dados_df.empty:
+            start = time.time()
+            try:
+                projects = macro_service.obter_projetos_ativos(dados_df)
+                tempo_projetos = (time.time() - start) * 1000
+                diagnostico_data.append(f"✅ Projetos ativos: {len(projects)} ({tempo_projetos:.2f}ms)")
+            except Exception as e:
+                tempo_projetos = (time.time() - start) * 1000
+                diagnostico_data.append(f"❌ ERRO projetos ativos: {e} ({tempo_projetos:.2f}ms)")
+        
+        return f"""
+        <h1>🔍 Diagnóstico do Backlog</h1>
+        <ul>
+        {''.join(f'<li>{item}</li>' for item in diagnostico_data)}
+        </ul>
+        <p><a href="/backlog/">🔙 Voltar ao Backlog</a></p>
+        <p><a href="/admin/api/database/quick-test">🔧 Teste Rápido do Banco</a></p>
+        """
+        
+    except Exception as e:
+        return f"""
+        <h1>❌ Erro no Diagnóstico</h1>
+        <p>Erro: {e}</p>
+        <ul>
+        {''.join(f'<li>{item}</li>' for item in diagnostico_data)}
+        </ul>
+        <p><a href="/admin/api/database/quick-test">🔧 Teste Rápido do Banco</a></p>
+        """
 
 # NOVA ROTA - Quadro Kanban para um Projeto Específico
 @backlog_bp.route('/board/<string:project_id>')

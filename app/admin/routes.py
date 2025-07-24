@@ -1326,4 +1326,32 @@ def database_health_check():
             'error': str(e)
         }), 500
 
+@admin_bp.route('/api/database/quick-test', methods=['GET'])
+def quick_database_test():
+    """Teste rápido para verificar responsividade do banco."""
+    import time
+    start_time = time.time()
+    
+    try:
+        # Teste super rápido - apenas SELECT 1
+        result = db.session.execute(db.text("SELECT 1")).fetchone()
+        response_time = (time.time() - start_time) * 1000  # em ms
+        
+        return jsonify({
+            'status': 'ok',
+            'response_time_ms': round(response_time, 2),
+            'result': result[0] if result else None,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        response_time = (time.time() - start_time) * 1000
+        current_app.logger.error(f"Erro no teste rápido: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'response_time_ms': round(response_time, 2),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
 # --- FIM: MONITORAMENTO DE BANCO DE DADOS --- 

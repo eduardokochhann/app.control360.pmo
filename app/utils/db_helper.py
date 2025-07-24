@@ -78,10 +78,10 @@ def with_db_retry(max_retries=3, delay=0.1, backoff=2.0):
         return wrapper
     return decorator
 
-@with_db_retry(max_retries=5, delay=0.2, backoff=1.5)
+@with_db_retry(max_retries=3, delay=0.1, backoff=1.5)
 def safe_commit():
     """
-    Commit seguro com retry automático.
+    Commit seguro com retry automático (OTIMIZADO PARA WEB).
     
     Uso:
         from app.utils.db_helper import safe_commit

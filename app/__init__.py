@@ -23,8 +23,8 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
     # Configurações básicas
     cursor.execute("PRAGMA encoding='UTF-8'")
     
-    # 🔧 CONFIGURAÇÕES ANTI-LOCK (CRÍTICAS PARA CONTAINERS)
-    cursor.execute("PRAGMA busy_timeout=30000")        # 30 segundos de timeout
+    # 🔧 CONFIGURAÇÕES ANTI-LOCK (OTIMIZADAS PARA WEB)
+    cursor.execute("PRAGMA busy_timeout=5000")         # 5 segundos - mais responsivo para web
     cursor.execute("PRAGMA journal_mode=WAL")          # Write-Ahead Logging para concorrência
     cursor.execute("PRAGMA synchronous=NORMAL")        # Balanço entre performance e segurança
     cursor.execute("PRAGMA wal_autocheckpoint=1000")   # Checkpoint automático
@@ -128,15 +128,15 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path.as_posix()}'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
-    # 🔧 CONFIGURAÇÕES ANTI-LOCK PARA AMBIENTES CONTAINERIZADOS
+    # 🔧 CONFIGURAÇÕES OTIMIZADAS PARA AMBIENTES WEB
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'pool_timeout': 30,           # Timeout para obter conexão do pool
+        'pool_timeout': 10,           # 10s timeout para obter conexão (mais responsivo)
         'pool_recycle': 3600,         # Recicla conexões a cada 1 hora  
         'pool_pre_ping': True,        # Verifica conexões antes do uso
-        'pool_size': 5,               # Pool menor para SQLite
-        'max_overflow': 10,           # Conexões extras permitidas
+        'pool_size': 3,               # Pool menor para SQLite (reduzido)
+        'max_overflow': 5,            # Menos conexões extras (reduzido)
         'connect_args': {
-            'timeout': 30,            # Timeout de conexão individual
+            'timeout': 10,            # 10s timeout de conexão individual
             'check_same_thread': False # Permite uso em múltiplas threads
         }
     }
