@@ -1,6 +1,9 @@
 # This pipeline was generated using "azd pipeline config"
 trigger:
-  - main
+  batch: true
+  branches:
+    include:
+    - main
 
 pool:
   vmImage: ubuntu-latest
