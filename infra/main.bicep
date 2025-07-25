@@ -121,6 +121,16 @@ module fileShareStorageAccount 'br/public:avm/res/storage/storage-account:0.20.0
       bypass: 'AzureServices'
       defaultAction: 'Allow'
     }
+    roleAssignments: [
+      {
+        principalId: '357fee7d-3a67-4240-8c48-f4ead81a715f' // kochhann@sou.cloud
+        roleDefinitionIdOrName: 'Storage Account Contributor'
+      }
+      {
+        principalId: '073f3350-acec-480b-a99e-a5718e4df45d' // bernardo@sou.cloud
+        roleDefinitionIdOrName: 'Storage Account Contributor'
+      }
+    ]
   }
 }
 
