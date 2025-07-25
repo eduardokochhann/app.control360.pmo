@@ -71,7 +71,7 @@ module acrPurgeTask './modules/acr-purge-task.bicep' = {
     registryName: containerRegistry.outputs.name
     location: location
     tags: tags
-    schedule: '*/5 * * * *' // daily at 3 AM UTC
+    schedule: '0 3 * * *' // daily at 3 AM UTC
     tagsToKeep: 3
   }
 }
