@@ -303,22 +303,19 @@ resource monthlyBudget 'Microsoft.Consumption/budgets@2023-05-01' = {
         enabled: true
         operator: 'GreaterThan'
         threshold: 80
-        contactEmails: []
-        contactRoles: [ 'Owner' ]
+        contactEmails: [ for user in maintainers: user.email ]
       }
       actualGt100: {
         enabled: true
         operator: 'GreaterThan'
         threshold: 100
-        contactEmails: []
-        contactRoles: [ 'Owner' ]
+        contactEmails: [ for user in maintainers: user.email ]
       }
       forecastedGt120: {
         enabled: true
         operator: 'GreaterThan'
         threshold: 120
-        contactEmails: []
-        contactRoles: [ 'Owner' ]
+        contactEmails: [ for user in maintainers: user.email ]
         thresholdType: 'Forecasted'
       }
     }
