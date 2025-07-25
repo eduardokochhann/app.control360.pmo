@@ -1,3 +1,5 @@
+var purgeTaskYaml = loadTextContent('./acr-purge-task.yaml')
+
 @description('The name of the container registry')
 param registryName string
 
@@ -24,7 +26,13 @@ resource acrPurgeTask 'Microsoft.ContainerRegistry/registries/tasks@2025-03-01-p
     }
     step: {
       type: 'EncodedTask'
-      encodedTaskContent: base64('acr purge --filter \'.*:.*\' --untagged --ago 0d --keep 3')
+      encodedTaskContent: base64(purgeTaskYaml)
+      values: [
+        {
+          name: 'TAGS_TO_KEEP'
+          value: string(tagsToKeep)
+        }
+      ]
     }
     agentConfiguration: {
       cpu: 2
