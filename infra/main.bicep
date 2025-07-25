@@ -46,6 +46,16 @@ var maintainers = [
   }
 ]
 
+// Maintainers need Read permissions on the resource group
+resource maintainerReaders 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for user in maintainers: {
+  name: guid(resourceGroup().id, 'Reader', user.objectId)
+  scope: resourceGroup()
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'acdd72a7-3385-48ef-bd42-f606fba81ae7') // Reader role
+    principalId: user.objectId
+    principalType: 'User'
+  }
+}]
 
 // Container registry
 module containerRegistry 'br/public:avm/res/container-registry/registry:0.1.1' = {
