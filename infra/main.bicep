@@ -22,13 +22,15 @@ param identityProxyClientSecret string = ''
 @description('The first day of the current month, required for Azure Budget startDate (e.g. 2025-07-01)')
 param budgetStartDate string = '${utcNow('yyyy-MM')}-01'
 
+var monthlyBudgetReais int = 40
+
 var abbrs = loadJsonContent('./abbreviations.json')
 var resourceToken = uniqueString(resourceGroup().id, location)
 
 var tags = {
   'azd-env-name': environmentName
   Ambiente: 'Produção'
-  Custo: 'R$40'
+  Custo: 'R$${monthlyBudgetReais}'
   Autorizado: 'Rodrigo Castro'
   Chamado: '12479'
 }
@@ -293,7 +295,7 @@ resource monthlyBudget 'Microsoft.Consumption/budgets@2023-05-01' = {
   scope: resourceGroup()
   properties: {
     category: 'Cost'
-    amount: 40
+    amount: monthlyBudgetReais
     timeGrain: 'Monthly'
     timePeriod: {
       startDate: budgetStartDate // Must be the first day of the current month
