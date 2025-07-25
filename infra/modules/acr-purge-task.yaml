@@ -1,4 +1,4 @@
 version: v1.1.0
 steps:
-  - cmd: acr purge --filter '.*:.*' --untagged --ago 0d --keep ${TAGS_TO_KEEP}
+  - cmd: acr purge --filter '.*:.*' --untagged --ago 0d --keep {{.Values.TAGS_TO_KEEP}}
     timeout: 600
