@@ -24,7 +24,7 @@ resource acrPurgeTask 'Microsoft.ContainerRegistry/registries/tasks@2025-03-01-p
     }
     step: {
       type: 'EncodedTask'
-      encodedTaskContent: base64('acr purge --filter "*:*" --untagged --ago 0d --keep ${tagsToKeep}')
+      encodedTaskContent: base64('acr purge --filter "*:*" --untagged --ago 0d --keep 3')
     }
     agentConfiguration: {
       cpu: 2
