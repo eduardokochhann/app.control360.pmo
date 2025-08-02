@@ -5159,8 +5159,24 @@ class MacroService(BaseService):
                     logger.debug(f"Projeto {numero_projeto}: {horas_atuais}h atual - {horas_base_encontrada}h base ({mes_base_encontrado}) = {horas_do_mes}h no mês")
                 else:
                     # Projeto não encontrado em nenhum mês anterior - pode ser novo
-                    # Para ser conservador, considera apenas 10% das horas como do mês atual
-                    horas_conservadoras = horas_atuais * 0.1
+                    # NOVA LÓGICA: Usar data da última ação para determinar se houve atividade no mês
+                    horas_conservadoras = horas_atuais * 0.1  # Fallback conservador original
+                    
+                    # Tenta usar a data da última ação para ser mais permissivo
+                    if 'UltimaInteracao' in dados.columns:
+                        ultima_acao = projeto_atual.get('UltimaInteracao')
+                        if pd.notna(ultima_acao):
+                            try:
+                                data_ultima_acao = pd.to_datetime(ultima_acao, errors='coerce')
+                                if pd.notna(data_ultima_acao):
+                                    # Se a última ação foi no mês de referência, considera mais horas
+                                    if (data_ultima_acao.month == mes_referencia.month and 
+                                        data_ultima_acao.year == mes_referencia.year):
+                                        horas_conservadoras = horas_atuais * 0.5  # 50% das horas se teve atividade no mês
+                                        logger.debug(f"Projeto {numero_projeto}: Atividade detectada no mês via última ação ({data_ultima_acao.strftime('%d/%m/%Y')})")
+                            except Exception:
+                                pass
+                    
                     dados_resultado.at[index, 'horas_trabalhadas_mes'] = horas_conservadoras
                     logger.debug(f"Projeto {numero_projeto}: Não encontrado em meses anteriores, usando {horas_conservadoras}h conservadoras (10% de {horas_atuais}h)")
             
