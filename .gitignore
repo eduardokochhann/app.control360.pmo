@@ -23,6 +23,7 @@ wheels/
 
 # Ambientes virtuais
 venv/
+.venv/
 env/
 ENV/
 
@@ -38,6 +39,8 @@ ENV/
 # Arquivos de banco de dados
 *.db
 *.sqlite3
+*.db-shm
+*.db-wal
 
 # EXCEÇÃO: Incluir o banco de dados principal da aplicação
 !instance/app.db
