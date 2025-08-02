@@ -3226,7 +3226,7 @@ def api_projetos_disponiveis():
         else:
             # Visão atual - usar a mesma lógica da rota principal
             logger.info("API: Detectando mês de referência da visão atual")
-            dados_atuais, mes_referencia_detectado = macro_service.carregar_dados_atuais()
+            dados_atuais, mes_referencia_detectado = macro_service.obter_dados_e_referencia_atual()
             
             if mes_referencia_detectado and not dados_atuais.empty:
                 mes_referencia = mes_referencia_detectado
@@ -3390,7 +3390,7 @@ def api_salvar_projetos_principais():
         else:
             # Visão atual - detectar mês de referência
             logger.info("API Salvar: Detectando mês de referência da visão atual")
-            dados_atuais, mes_referencia_detectado = macro_service.carregar_dados_atuais()
+            dados_atuais, mes_referencia_detectado = macro_service.obter_dados_e_referencia_atual()
             
             if mes_referencia_detectado:
                 mes_referencia = mes_referencia_detectado

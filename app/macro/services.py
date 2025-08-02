@@ -5456,7 +5456,7 @@ class MacroService(BaseService):
             dados_work = dados.copy()
             
             # Converte datas
-            dados_work['VencimentoEm_dt'] = pd.to_datetime(dados_work['Vencimento em'], format='%d/%m/%Y %H:%M', errors='coerce')
+            dados_work['VencimentoEm_dt'] = pd.to_datetime(dados_work['VencimentoEm'], format='%d/%m/%Y %H:%M', errors='coerce')
             
             # Filtra projetos do mês seguinte
             inicio = datetime(mes_seguinte.year, mes_seguinte.month, 1)
@@ -5706,34 +5706,6 @@ class MacroService(BaseService):
                 'erro': str(e),
                 'status': 'erro'
             }
-    
-    def _sugerir_acao_tipo(self, tipo):
-        """Sugere ação baseada no nome do tipo de serviço"""
-        tipo_lower = tipo.lower()
-        
-        if 'migra' in tipo_lower and 'm365' in tipo_lower or 'office 365' in tipo_lower:
-            return 'Adicionar ao CSV como "Microsoft 365 Migration"'
-        elif 'migra' in tipo_lower and ('exchange' in tipo_lower or 'email' in tipo_lower):
-            return 'Adicionar ao CSV como "Exchange Online"'
-        elif 'migra' in tipo_lower and ('sharepoint' in tipo_lower or 'spo' in tipo_lower):
-            return 'Adicionar ao CSV como "SharePoint Online"'
-        elif 'migra' in tipo_lower and ('azure' in tipo_lower or 'cloud' in tipo_lower):
-            return 'Adicionar ao CSV como "Azure Migrate"'
-        elif 'backup' in tipo_lower:
-            return 'Adicionar ao CSV como "Azure Backup"'
-        elif 'security' in tipo_lower or 'seguran' in tipo_lower:
-            return 'Adicionar ao CSV como "Microsoft Defender for Cloud"'
-        elif 'power' in tipo_lower:
-            if 'bi' in tipo_lower:
-                return 'Adicionar ao CSV como "Microsoft Power BI"'
-            elif 'app' in tipo_lower:
-                return 'Adicionar ao CSV como "Microsoft Power Apps"'
-            elif 'automate' in tipo_lower:
-                return 'Adicionar ao CSV como "Microsoft Power Automate"'
-            else:
-                return 'Adicionar ao CSV como categoria "Power Platform"'
-        else:
-            return 'Analisar e adicionar categoria apropriada ao CSV'
 
     def aplicar_filtros_relatorio(self, dados, filtros):
         """
